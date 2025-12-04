@@ -1,45 +1,168 @@
-/* Default theme variables */
+/* ==========================================================================
+   Theme System for Custom Classroom Screen
+   ========================================================================== */
+
+/*
+  HOW TO USE:
+  Apply the theme class to the <body> tag to switch themes.
+  Example: <body class="dark-theme">
+
+  The default theme is 'light-theme'. To ensure consistency,
+  it's best to explicitly set this class rather than relying on the
+  default :root variables alone.
+*/
+
+/* ==========================================================================
+   Base CSS Variables (Fallbacks)
+   ========================================================================== */
 :root {
+    /* Core Colors */
     --primary-color: #3498db;
     --secondary-color: #2ecc71;
     --background-color: #f8f9fa;
     --text-color: #212529;
     --card-background: #ffffff;
+
+    /* Extended Colors & UI Elements */
+    --border-color: #dee2e6;
+    --hover-bg-color: #f1f3f5;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --widget-header-border-color: #eee;
+    --resize-handle-bg: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%);
+    --notification-bg: var(--primary-color);
+    --notification-text: #ffffff;
+    
+    /* Fonts & Sizing */
     --border-radius: 8px;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Dark theme */
+/* ==========================================================================
+   1. Light Theme (Default)
+   ========================================================================== */
+.light-theme {
+    --primary-color: #3498db;      /* A friendly, professional blue */
+    --secondary-color: #2ecc71;    /* A vibrant green for success/positive actions */
+    --background-color: #f8f9fa;    /* Very light gray, easy on the eyes */
+    --text-color: #212529;         /* Dark gray for high contrast */
+    --card-background: #ffffff;    /* Pure white for content cards */
+
+    --border-color: #dee2e6;
+    --hover-bg-color: #f1f3f5;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --widget-header-border-color: #eee;
+}
+
+/* ==========================================================================
+   2. Dark Theme
+   ========================================================================== */
 .dark-theme {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
-    --background-color: #1a1a1a;
-    --text-color: #f1f1f1;
-    --card-background: #2d2d2d;
+    --primary-color: #4dabf7;      /* A slightly brighter, softer blue for dark mode */
+    --secondary-color: #51cf66;    /* A slightly brighter green */
+    --background-color: #1a1a1a;    /* Deep charcoal, not pure black */
+    --text-color: #f1f1f1;         /* Light gray, less harsh than pure white */
+    --card-background: #2d2d2d;    /* Darker gray for cards to create depth */
+
+    --border-color: rgba(255, 255, 255, 0.15);
+    --hover-bg-color: rgba(255, 255, 255, 0.05);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --widget-header-border-color: rgba(255, 255, 255, 0.1);
+    --resize-handle-bg: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.1) 50%);
 }
 
-/* Ocean theme */
+/* ==========================================================================
+   3. Ocean Theme
+   ========================================================================== */
 .ocean-theme {
-    --primary-color: #006994;
-    --secondary-color: #00a8cc;
-    --background-color: #e6f3f7;
-    --text-color: #003d5c;
+    --primary-color: #0077b6;      /* Deep ocean blue */
+    --secondary-color: #00b4d8;    /* Lighter sea blue */
+    --background-color: #e6f3f7;  /* Pale sky blue, reminiscent of sea foam */
+    --text-color: #003459;         /* Very dark navy for text */
     --card-background: #ffffff;
+
+    --border-color: #90e0ef;
+    --hover-bg-color: #caf0f8;
+    --shadow-color: rgba(0, 77, 100, 0.1);
+    --widget-header-border-color: #ade8f4;
 }
 
-/* Forest theme */
+/* ==========================================================================
+   4. Forest Theme
+   ========================================================================== */
 .forest-theme {
-    --primary-color: #2e7d32;
-    --secondary-color: #66bb6a;
-    --background-color: #e8f5e9;
-    --text-color: #1b5e20;
+    --primary-color: #2d6a4f;      /* A deep forest green */
+    --secondary-color: #52b788;    /* A lighter, vibrant moss green */
+    --background-color: #e9f5e9;  /* A very pale, minty green */
+    --text-color: #1b4332;         /* A dark, almost black-green for text */
     --card-background: #ffffff;
+
+    --border-color: #b7e4c7;
+    --hover-bg-color: #d8f3dc;
+    --shadow-color: rgba(45, 106, 79, 0.1);
+    --widget-header-border-color: #95d5b2;
 }
 
-/* Sunset theme */
+/* ==========================================================================
+   5. Sunset Theme
+   ========================================================================== */
 .sunset-theme {
-    --primary-color: #e65100;
-    --secondary-color: #ff9800;
-    --background-color: #fff3e0;
-    --text-color: #e65100;
+    --primary-color: #d62828;      /* A warm, strong red */
+    --secondary-color: #f77f00;    /* A bright, fiery orange */
+    --background-color: #fff3e0;  /* A pale, warm orange, like sand at sunset */
+    --text-color: #5d1a1a;         /* A dark, warm brown for text */
     --card-background: #ffffff;
+
+    --border-color: #ffcb91;
+    --hover-bg-color: #ffe0b2;
+    --shadow-color: rgba(214, 40, 40, 0.1);
+    --widget-header-border-color: #ffab91;
+}
+
+/* ==========================================================================
+   6. Royal Theme (New)
+   ========================================================================== */
+.royal-theme {
+    --primary-color: #6a4c93;      /* A rich, royal purple */
+    --secondary-color: #a06cd5;    /* A lighter lavender purple */
+    --background-color: #f3e5f5;  /* A very pale, soft purple */
+    --text-color: #311b92;         /* A deep, indigo purple for text */
+    --card-background: #ffffff;
+
+    --border-color: #ce93d8;
+    --hover-bg-color: #e1bee7;
+    --shadow-color: rgba(106, 76, 147, 0.1);
+    --widget-header-border-color: #e1bee7;
+}
+
+/* ==========================================================================
+   7. Monochrome Theme (New)
+   ========================================================================== */
+.monochrome-theme {
+    --primary-color: #495057;      /* A medium gray */
+    --secondary-color: #6c757d;    /* A lighter gray */
+    --background-color: #f8f9fa;  /* A light gray background */
+    --text-color: #212529;         /* Near-black text for maximum contrast */
+    --card-background: #ffffff;
+
+    --border-color: #ced4da;
+    --hover-bg-color: #e9ecef;
+    --shadow-color: rgba(0, 0, 0, 0.15);
+    --widget-header-border-color: #dee2e6;
+}
+
+/* ==========================================================================
+   8. High Contrast Theme (New - for Accessibility)
+   ========================================================================== */
+.high-contrast-theme {
+    --primary-color: #0000ff;      /* Pure blue */
+    --secondary-color: #008000;    /* Pure green */
+    --background-color: #ffffff;  /* Pure white */
+    --text-color: #000000;         /* Pure black */
+    --card-background: #ffffff;
+
+    --border-color: #000000;
+    --hover-bg-color: #e0e0e0;      /* A distinct gray for hover */
+    --shadow-color: rgba(0, 0, 0, 0.25);
+    --widget-header-border-color: #000000;
+    --resize-handle-bg: #000000;
 }
