@@ -3,67 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO and Browser Meta Tags -->
+    <meta name="description" content="A customizable classroom management screen with widgets for teachers.">
+    <meta name="author" content="Your Name">
+    <meta name="theme-color" content="#3498db">
+    
     <title>Custom Classroom Screen</title>
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/themes.css">
-    <!-- Include any external libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    
+    <!-- Favicon (placeholder) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
 </head>
-<body>
-    <div id="app-container">
-        <div id="student-view" class="view">
-            <!-- Student view content -->
-            <div id="widgets-container" class="widgets-grid">
-                <!-- Widgets will be added here dynamically -->
-            </div>
-        </div>
-        
-        <div id="teacher-view" class="view hidden">
-            <!-- Teacher controls -->
-            <div class="controls-panel">
-                <h3>Teacher Controls</h3>
-                <div class="control-section">
-                    <h4>Timer</h4>
-                    <input type="number" id="timer-minutes" placeholder="Minutes" min="1" max="60">
-                    <button id="start-timer">Start Timer</button>
-                    <button id="stop-timer">Stop Timer</button>
-                </div>
-                
-                <div class="control-section">
-                    <h4>Background</h4>
-                    <select id="background-type">
-                        <option value="solid">Solid Color</option>
-                        <option value="gradient">Gradient</option>
-                        <option value="image">Image</option>
-                    </select>
-                    <div id="background-options"></div>
-                </div>
-                
-                <div class="control-section">
-                    <h4>Widgets</h4>
-                    <button id="add-timer-widget">Add Timer</button>
-                    <button id="add-noise-meter">Add Noise Meter</button>
-                    <button id="add-name-picker">Add Name Picker</button>
-                    <button id="add-qr-code">Add QR Code</button>
-                    <button id="add-drawing-tool">Add Drawing Tool</button>
-                </div>
-                
-                <div class="control-section">
-                    <h4>View</h4>
-                    <button id="toggle-view">Toggle Teacher View</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Include your JavaScript files -->
-    <script src="js/utils/layout-manager.js"></script>
-    <script src="js/utils/background-manager.js"></script>
-    <script src="js/widgets/timer.js"></script>
-    <script src="js/widgets/noise-meter.js"></script>
-    <script src="js/widgets/name-picker.js"></script>
-    <script src="js/widgets/qr-code.js"></script>
-    <script src="js/widgets/drawing-tool.js"></script>
-    <script src="js/main.js"></script>
+<!-- Set a default theme class on the body -->
+<body class="light-theme">
+
+    <noscript>
+        <div class="noscript-message">
+            For full functionality of this site, it is necessary to enable JavaScript.
+        </div>
+    </noscript>
+
+    <main id="app-container" class="app-container">
+        <!-- =====================================================
+             STUDENT VIEW
+             ===================================================== -->
+        <section id="student-view" class="view student-view" role="region" aria-label="Student View">
+            <div id="widgets-container" class="widgets-grid">
+                <!-- Widgets are dynamically added here by JavaScript -->
+                <div class="widget-placeholder">
+                    <p>Add your first widget from the Teacher Controls!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TEACHER CONTROLS PANEL
+             ===================================================== -->
+        <aside id="teacher-view" class="view teacher-view hidden" role="region" aria-label="Teacher Controls">
+            <div class="controls-panel">
+                <header class="controls-header">
+                    <h3>Teacher Controls</h3>
+                    <button id="close-teacher-view" class="widget-close" aria-label="Close Teacher Controls">&times;</button>
+                </header>
+
+                <!-- Widget Controls -->
+                <fieldset class="control-section">
+                    <legend>Widgets</legend>
+                    <button id="add-timer-widget" class="control-button">Add Timer</button>
+                    <button id="add-noise-meter" class="control-button">Add Noise Meter</button>
+                    <button id="add-name-picker" class="control-button">Add Name Picker</button>
+                    <button id="add-qr-code" class="control-button">Add QR Code</button>
+                    <button id="add-drawing-tool" class="control-button">Add Drawing Tool</button>
+                </fieldset>
+
+                <!-- Timer Controls -->
+                <fieldset class="control-section">
+                    <legend>Timer Control</legend>
+                    <div class="input-group">
+                        <label for="timer-minutes">Minutes:</label>
+                        <input type="number" id="timer-minutes" placeholder="e.g., 5" min="1" max="60" value="5">
+                    </div>
+                    <div class="button-group">
+                        <button id="start-timer" class="control-button">Start Timer</button>
+                        <button id="stop-timer" class="control-button">Stop Timer</button>
+                    </div>
+                </fieldset>
+
+                <!-- Theme Selection -->
+                <fieldset class="control-section">
+                    <legend>Theme</legend>
+                    <div class="theme-selector" id="theme-selector">
+                        <button class="theme-option selected" data-theme="light-theme">Light</button>
+                        <button class="theme-option" data-theme="dark-theme">Dark</button>
+                        <button class="theme-option" data-theme="ocean-theme">Ocean</button>
+                        <button class="theme-option" data-theme="forest-theme">Forest</button>
+                        <button class="theme-option" data-theme="sunset-theme">Sunset</button>
+                        <button class="theme-option" data-theme="royal-theme">Royal</button>
+                        <button class="theme-option" data-theme="monochrome-theme">Mono</button>
+                        <button class="theme-option" data-theme="high-contrast-theme">HC</button>
+                    </div>
+                </fieldset>
+
+                <!-- Background Customization -->
+                <fieldset class="control-section">
+                    <legend>Background</legend>
+                    <div class="input-group">
+                        <label for="background-type">Type:</label>
+                        <select id="background-type">
+                            <option value="solid">Solid Color</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="image">Image</option>
+                        </select>
+                    </div>
+                    <div id="background-options" class="background-options">
+                        <!-- Background options (colors, gradients, images) will be dynamically added here -->
+                    </div>
+                </fieldset>
+                
+                <!-- Layout Management -->
+                <fieldset class="control-section">
+                    <legend>Layout</legend>
+                    <button id="save-layout" class="control-button">Save Layout</button>
+                    <button id="reset-layout" class="control-button">Reset Layout</button>
+                </fieldset>
+            </div>
+        </aside>
+
+        <!-- =====================================================
+             GLOBAL CONTROLS
+             ===================================================== -->
+        <button id="toggle-view" class="toggle-view-button" aria-label="Toggle Teacher Controls" aria-controls="teacher-view" aria-expanded="false">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+            </svg>
+        </button>
+    </main>
+
+    <!-- =====================================================
+         JAVASCRIPT FILES
+         ===================================================== -->
+    <!-- Using 'defer' ensures scripts run after HTML is parsed, in order -->
+    <script src="js/utils/layout-manager.js" defer></script>
+    <script src="js/utils/background-manager.js" defer></script>
+    <script src="js/widgets/timer.js" defer></script>
+    <script src="js/widgets/noise-meter.js" defer></script>
+    <script src="js/widgets/name-picker.js" defer></script>
+    <script src="js/widgets/qr-code.js" defer></script>
+    <script src="js/widgets/drawing-tool.js" defer></script>
+    <script src="js/main.js" defer></script>
+
 </body>
 </html>
