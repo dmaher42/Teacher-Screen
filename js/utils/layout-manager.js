@@ -6,19 +6,22 @@ class LayoutManager {
     this.gridColumns = 12;
     this.gridRows = 8;
     this.draggedWidget = null;
+    this.onLayoutChange = null;
+    this.isRestoring = false;
   }
-  
+
   init() {
     // Set up the grid layout
+    this.applyGridStyles();
+  }
+
+  applyGridStyles() {
     this.container.style.display = 'grid';
     this.container.style.gridTemplateColumns = `repeat(${this.gridColumns}, 1fr)`;
     this.container.style.gridTemplateRows = `repeat(${this.gridRows}, 1fr)`;
     this.container.style.gap = '10px';
     this.container.style.padding = '10px';
     this.container.style.height = '100%';
-    
-    // Load saved layout if available
-    this.loadLayout();
   }
   
   addWidget(widget, x = 0, y = 0, width = 3, height = 2) {
@@ -49,7 +52,7 @@ class LayoutManager {
       width: width,
       height: height
     });
-    
+
     // Save layout
     this.saveLayout();
   }
@@ -144,32 +147,69 @@ class LayoutManager {
   }
   
   saveLayout() {
-    const layout = this.widgets.map(widgetInfo => {
+    if (this.isRestoring) return;
+
+    const layout = this.serialize();
+
+    if (this.onLayoutChange) {
+      this.onLayoutChange(layout);
+    }
+  }
+
+  serialize() {
+    const widgets = this.widgets.map(widgetInfo => {
       const computedStyle = window.getComputedStyle(widgetInfo.element);
       const gridColumn = computedStyle.gridColumn;
       const gridRow = computedStyle.gridRow;
-      
+
+      const [columnStart, columnEnd] = gridColumn.split('/').map(part => part.trim());
+      const [rowStart, rowEnd] = gridRow.split('/').map(part => part.trim());
+
+      const columnSpanMatch = columnEnd && columnEnd.match(/span\s+(\d+)/);
+      const rowSpanMatch = rowEnd && rowEnd.match(/span\s+(\d+)/);
+
+      const x = parseInt(columnStart, 10) - 1;
+      const y = parseInt(rowStart, 10) - 1;
+      const width = columnSpanMatch ? parseInt(columnSpanMatch[1], 10) : Math.max(1, (parseInt(columnEnd, 10) || 1) - parseInt(columnStart, 10));
+      const height = rowSpanMatch ? parseInt(rowSpanMatch[1], 10) : Math.max(1, (parseInt(rowEnd, 10) || 1) - parseInt(rowStart, 10));
+
       return {
         type: widgetInfo.widget.constructor.name,
-        gridColumn,
-        gridRow,
+        x,
+        y,
+        width,
+        height,
         data: widgetInfo.widget.serialize()
       };
     });
-    
-    localStorage.setItem('widgetLayout', JSON.stringify(layout));
+
+    return { widgets };
   }
-  
-  loadLayout() {
-    const savedLayout = localStorage.getItem('widgetLayout');
-    if (savedLayout) {
-      try {
-        const layout = JSON.parse(savedLayout);
-        // Recreate widgets based on saved layout
-        // This would need to be implemented based on your specific widgets
-      } catch (e) {
-        console.error('Failed to load layout:', e);
+
+  deserialize(savedLayout, widgetFactory) {
+    if (!savedLayout || !Array.isArray(savedLayout.widgets)) return;
+
+    this.isRestoring = true;
+    this.applyGridStyles();
+    this.container.innerHTML = '';
+    this.widgets = [];
+
+    savedLayout.widgets.forEach(widgetData => {
+      const widget = widgetFactory(widgetData);
+      if (!widget) return;
+
+      const x = Number.isFinite(widgetData.x) ? widgetData.x : 0;
+      const y = Number.isFinite(widgetData.y) ? widgetData.y : 0;
+      const width = Number.isFinite(widgetData.width) ? widgetData.width : 3;
+      const height = Number.isFinite(widgetData.height) ? widgetData.height : 2;
+
+      this.addWidget(widget, x, y, width, height);
+
+      if (widgetData.data && typeof widget.deserialize === 'function') {
+        widget.deserialize(widgetData.data);
       }
-    }
+    });
+
+    this.isRestoring = false;
   }
 }
