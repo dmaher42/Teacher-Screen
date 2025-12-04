@@ -18,9 +18,10 @@ class ClassroomScreenApp {
         // App State
         this.widgets = [];
         this.isTeacherViewOpen = false;
-        
+
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
+        this.layoutManager.onLayoutChange = () => this.saveState();
         this.backgroundManager = new BackgroundManager(this.studentView);
     }
 
