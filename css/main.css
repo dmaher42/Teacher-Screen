@@ -8,12 +8,17 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
+    background-color: var(--background-color, #f8f9fa);
+    color: var(--text-color, #212529);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #app-container {
     width: 100vw;
     height: 100vh;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .view {
@@ -25,13 +30,14 @@ body {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Student view styles */
 #student-view {
     background-color: var(--background-color, #f8f9fa);
     transition: background-color 0.3s ease;
+    overflow: hidden;
 }
 
 .widgets-grid {
@@ -42,8 +48,10 @@ body {
     padding: 10px;
     height: 100%;
     width: 100%;
+    position: relative;
 }
 
+/* Enhanced widget styles */
 .widget {
     background-color: var(--card-background, #ffffff);
     border-radius: var(--border-radius, 8px);
@@ -53,6 +61,24 @@ body {
     flex-direction: column;
     position: relative;
     overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    z-index: 1;
+}
+
+.widget:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.widget.dragging {
+    opacity: 0.7;
+    z-index: 1000;
+    cursor: move;
+}
+
+.widget.drag-over {
+    background-color: rgba(52, 152, 219, 0.1);
+    border: 2px dashed var(--primary-color, #3498db);
 }
 
 .widget-header {
@@ -62,19 +88,37 @@ body {
     margin-bottom: 10px;
     border-bottom: 1px solid #eee;
     padding-bottom: 5px;
+    cursor: move;
 }
 
 .widget-title {
     font-weight: bold;
     color: var(--text-color, #212529);
+    user-select: none;
 }
 
-.widget-close {
+.widget-controls {
+    display: flex;
+    gap: 5px;
+}
+
+.widget-close, .widget-minimize, .widget-maximize {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 16px;
     color: #999;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.widget-close:hover, .widget-minimize:hover, .widget-maximize:hover {
+    background-color: rgba(0,0,0,0.1);
 }
 
 .widget-content {
@@ -82,13 +126,31 @@ body {
     overflow: auto;
 }
 
+/* Widget resize handle */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%);
+    border-radius: 0 0 var(--border-radius, 8px) 0;
+}
+
 /* Teacher view styles */
 #teacher-view {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: var(--card-background, #ffffff);
     z-index: 1000;
     box-shadow: -5px 0 10px rgba(0,0,0,0.1);
     width: 300px;
     right: 0;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+#teacher-view.open {
+    transform: translateX(0);
 }
 
 .controls-panel {
@@ -105,7 +167,7 @@ body {
 
 .control-section h4 {
     margin-bottom: 10px;
-    color: #333;
+    color: var(--text-color, #333);
 }
 
 .control-section button {
@@ -118,6 +180,7 @@ body {
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .control-section button:hover {
@@ -130,6 +193,73 @@ body {
     margin-bottom: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    background-color: var(--card-background, #ffffff);
+    color: var(--text-color, #212529);
+}
+
+/* Background options */
+.background-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.color-option {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.color-option:hover, .color-option.selected {
+    border-color: var(--primary-color, #3498db);
+}
+
+.gradient-option {
+    width: 100%;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    margin-bottom: 5px;
+}
+
+.gradient-option:hover, .gradient-option.selected {
+    border-color: var(--primary-color, #3498db);
+}
+
+.image-option {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.image-option:hover, .image-option.selected {
+    border-color: var(--primary-color, #3498db);
+}
+
+/* Theme selector */
+.theme-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.theme-option {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.theme-option:hover, .theme-option.selected {
+    border-color: var(--primary-color, #3498db);
 }
 
 /* Toggle button */
@@ -147,6 +277,130 @@ body {
     font-size: 18px;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+#toggle-view:hover {
+    background-color: var(--secondary-color, #2ecc71);
+    transform: scale(1.05);
+}
+
+#toggle-view.active {
+    background-color: var(--secondary-color, #2ecc71);
+}
+
+/* Widget-specific styles */
+.timer-display {
+    font-size: 3rem;
+    text-align: center;
+    font-weight: bold;
+    margin: 20px 0;
+}
+
+.timer-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.noise-meter {
+    height: 30px;
+    background-color: #f0f0f0;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+}
+
+.noise-meter-fill {
+    height: 100%;
+    background-color: #4CAF50;
+    transition: width 0.1s ease, background-color 0.1s ease;
+}
+
+.noise-meter-fill.warning {
+    background-color: #FFC107;
+}
+
+.noise-meter-fill.danger {
+    background-color: #F44336;
+}
+
+.name-picker-display {
+    font-size: 2rem;
+    text-align: center;
+    padding: 20px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-code-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+}
+
+.qr-code-container canvas {
+    margin: 10px 0;
+}
+
+.drawing-tool-canvas {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: crosshair;
+}
+
+.drawing-tool-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.color-picker {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Loading and notification styles */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-color, #3498db);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.notification.show {
+    opacity: 1;
 }
 
 /* Responsive adjustments */
@@ -159,4 +413,56 @@ body {
         grid-template-columns: repeat(6, 1fr);
         grid-template-rows: repeat(8, 1fr);
     }
+    
+    .timer-display {
+        font-size: 2rem;
+    }
+    
+    .name-picker-display {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .widgets-grid {
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(10, 1fr);
+        gap: 5px;
+        padding: 5px;
+    }
+    
+    .widget {
+        padding: 5px;
+    }
+    
+    .timer-display {
+        font-size: 1.5rem;
+    }
+    
+    .name-picker-display {
+        font-size: 1.2rem;
+    }
+}
+
+/* Dark theme specific adjustments */
+.dark-theme .widget {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.dark-theme .widget-header {
+    border-bottom-color: rgba(255,255,255,0.1);
+}
+
+.dark-theme .control-section {
+    border-bottom-color: rgba(255,255,255,0.1);
+}
+
+.dark-theme .control-section input, 
+.dark-theme .control-section select {
+    border-color: rgba(255,255,255,0.2);
+    background-color: var(--card-background, #2d2d2d);
+}
+
+.dark-theme .drawing-tool-canvas {
+    border-color: rgba(255,255,255,0.2);
 }
