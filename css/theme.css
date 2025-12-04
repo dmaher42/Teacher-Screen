@@ -1,0 +1,45 @@
+/* Default theme variables */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --background-color: #f8f9fa;
+    --text-color: #212529;
+    --card-background: #ffffff;
+    --border-radius: 8px;
+}
+
+/* Dark theme */
+.dark-theme {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --background-color: #1a1a1a;
+    --text-color: #f1f1f1;
+    --card-background: #2d2d2d;
+}
+
+/* Ocean theme */
+.ocean-theme {
+    --primary-color: #006994;
+    --secondary-color: #00a8cc;
+    --background-color: #e6f3f7;
+    --text-color: #003d5c;
+    --card-background: #ffffff;
+}
+
+/* Forest theme */
+.forest-theme {
+    --primary-color: #2e7d32;
+    --secondary-color: #66bb6a;
+    --background-color: #e8f5e9;
+    --text-color: #1b5e20;
+    --card-background: #ffffff;
+}
+
+/* Sunset theme */
+.sunset-theme {
+    --primary-color: #e65100;
+    --secondary-color: #ff9800;
+    --background-color: #fff3e0;
+    --text-color: #e65100;
+    --card-background: #ffffff;
+}
