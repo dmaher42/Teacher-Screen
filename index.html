@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Classroom Screen</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <!-- Include any external libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <div id="student-view" class="view">
+            <!-- Student view content -->
+            <div id="widgets-container" class="widgets-grid">
+                <!-- Widgets will be added here dynamically -->
+            </div>
+        </div>
+        
+        <div id="teacher-view" class="view hidden">
+            <!-- Teacher controls -->
+            <div class="controls-panel">
+                <h3>Teacher Controls</h3>
+                <div class="control-section">
+                    <h4>Timer</h4>
+                    <input type="number" id="timer-minutes" placeholder="Minutes" min="1" max="60">
+                    <button id="start-timer">Start Timer</button>
+                    <button id="stop-timer">Stop Timer</button>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Background</h4>
+                    <select id="background-type">
+                        <option value="solid">Solid Color</option>
+                        <option value="gradient">Gradient</option>
+                        <option value="image">Image</option>
+                    </select>
+                    <div id="background-options"></div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Widgets</h4>
+                    <button id="add-timer-widget">Add Timer</button>
+                    <button id="add-noise-meter">Add Noise Meter</button>
+                    <button id="add-name-picker">Add Name Picker</button>
+                    <button id="add-qr-code">Add QR Code</button>
+                    <button id="add-drawing-tool">Add Drawing Tool</button>
+                </div>
+                
+                <div class="control-section">
+                    <h4>View</h4>
+                    <button id="toggle-view">Toggle Teacher View</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include your JavaScript files -->
+    <script src="js/utils/layout-manager.js"></script>
+    <script src="js/utils/background-manager.js"></script>
+    <script src="js/widgets/timer.js"></script>
+    <script src="js/widgets/noise-meter.js"></script>
+    <script src="js/widgets/name-picker.js"></script>
+    <script src="js/widgets/qr-code.js"></script>
+    <script src="js/widgets/drawing-tool.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
