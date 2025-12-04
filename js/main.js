@@ -1,137 +1,175 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the application
-    const app = new ClassroomScreenApp();
-    app.init();
-});
-
+/**
+ * Main application class for the Custom Classroom Screen.
+ * This class initializes the app, manages widgets, and handles user interactions.
+ */
 class ClassroomScreenApp {
     constructor() {
-        this.widgetsContainer = document.getElementById('widgets-container');
-        this.teacherView = document.getElementById('teacher-view');
+        // DOM Elements
+        this.appContainer = document.getElementById('app-container');
         this.studentView = document.getElementById('student-view');
+        this.teacherView = document.getElementById('teacher-view');
+        this.widgetsContainer = document.getElementById('widgets-container');
         this.toggleViewBtn = document.getElementById('toggle-view');
+        this.closeTeacherViewBtn = document.getElementById('close-teacher-view');
+        this.themeSelector = document.getElementById('theme-selector');
+        this.backgroundTypeSelect = document.getElementById('background-type');
+        this.backgroundOptionsContainer = document.getElementById('background-options');
         
+        // App State
         this.widgets = [];
+        this.isTeacherViewOpen = false;
+        
+        // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.backgroundManager = new BackgroundManager(document.body);
-        
-        this.setupEventListeners();
+        this.backgroundManager = new BackgroundManager(this.studentView);
     }
-    
+
+    /**
+     * Initialize the application.
+     */
     init() {
-        // Set up the initial view
+        this.setupEventListeners();
         this.loadSavedState();
-        
-        // Initialize background manager
         this.backgroundManager.init();
-        
-        // Set up the layout manager
         this.layoutManager.init();
+        this.updateBackgroundOptions(this.backgroundTypeSelect.value);
         
-        // Add any default widgets
-        this.addDefaultWidgets();
-    }
-    
-    setupEventListeners() {
-        // Toggle teacher view
-        this.toggleViewBtn.addEventListener('click', () => {
-            this.teacherView.classList.toggle('hidden');
-        });
-        
-        // Widget controls
-        document.getElementById('add-timer-widget').addEventListener('click', () => {
+        // If no widgets are loaded, add a default one
+        if (this.widgets.length === 0) {
             this.addWidget('timer');
-        });
-        
-        document.getElementById('add-noise-meter').addEventListener('click', () => {
-            this.addWidget('noise-meter');
-        });
-        
-        document.getElementById('add-name-picker').addEventListener('click', () => {
-            this.addWidget('name-picker');
-        });
-        
-        document.getElementById('add-qr-code').addEventListener('click', () => {
-            this.addWidget('qr-code');
-        });
-        
-        document.getElementById('add-drawing-tool').addEventListener('click', () => {
-            this.addWidget('drawing-tool');
-        });
-        
-        // Background controls
-        document.getElementById('background-type').addEventListener('change', (e) => {
-            this.updateBackgroundOptions(e.target.value);
-        });
-        
+        }
+    }
+
+    /**
+     * Set up all event listeners for the application.
+     */
+    setupEventListeners() {
+        // View toggle
+        this.toggleViewBtn.addEventListener('click', () => this.toggleTeacherView());
+        this.closeTeacherViewBtn.addEventListener('click', () => this.toggleTeacherView(false));
+
+        // Widget controls
+        document.getElementById('add-timer-widget').addEventListener('click', () => this.addWidget('timer'));
+        document.getElementById('add-noise-meter').addEventListener('click', () => this.addWidget('noise-meter'));
+        document.getElementById('add-name-picker').addEventListener('click', () => this.addWidget('name-picker'));
+        document.getElementById('add-qr-code').addEventListener('click', () => this.addWidget('qr-code'));
+        document.getElementById('add-drawing-tool').addEventListener('click', () => this.addWidget('drawing-tool'));
+
         // Timer controls
-        document.getElementById('start-timer').addEventListener('click', () => {
-            const minutes = parseInt(document.getElementById('timer-minutes').value);
-            if (minutes > 0) {
-                this.startTimer(minutes);
+        document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
+        document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
+
+        // Theme controls
+        this.themeSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('theme-option')) {
+                this.switchTheme(e.target.dataset.theme);
             }
         });
-        
-        document.getElementById('stop-timer').addEventListener('click', () => {
-            this.stopTimer();
+
+        // Background controls
+        this.backgroundTypeSelect.addEventListener('change', (e) => {
+            this.updateBackgroundOptions(e.target.value);
         });
+
+        // Layout controls
+        document.getElementById('save-layout').addEventListener('click', () => this.saveState());
+        document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
     }
-    
+
+    /**
+     * Toggle the teacher control panel.
+     * @param {boolean} [forceState] - Optional boolean to force open (true) or closed (false).
+     */
+    toggleTeacherView(forceState = null) {
+        if (forceState !== null) {
+            this.isTeacherViewOpen = forceState;
+        } else {
+            this.isTeacherViewOpen = !this.isTeacherViewOpen;
+        }
+
+        this.teacherView.classList.toggle('hidden', !this.isTeacherViewOpen);
+        this.toggleViewBtn.classList.toggle('active', this.isTeacherViewOpen);
+        this.toggleViewBtn.setAttribute('aria-expanded', this.isTeacherViewOpen);
+    }
+
+    /**
+     * Add a new widget to the screen.
+     * @param {string} type - The type of widget to add ('timer', 'noise-meter', etc.).
+     */
     addWidget(type) {
         let widget;
-        
-        switch(type) {
-            case 'timer':
-                widget = new TimerWidget();
-                break;
-            case 'noise-meter':
-                widget = new NoiseMeterWidget();
-                break;
-            case 'name-picker':
-                widget = new NamePickerWidget();
-                break;
-            case 'qr-code':
-                widget = new QRCodeWidget();
-                break;
-            case 'drawing-tool':
-                widget = new DrawingToolWidget();
-                break;
-            default:
-                console.error(`Unknown widget type: ${type}`);
-                return;
+        try {
+            switch (type) {
+                case 'timer':
+                    widget = new TimerWidget();
+                    break;
+                case 'noise-meter':
+                    widget = new NoiseMeterWidget();
+                    break;
+                case 'name-picker':
+                    widget = new NamePickerWidget();
+                    break;
+                case 'qr-code':
+                    widget = new QRCodeWidget();
+                    break;
+                case 'drawing-tool':
+                    widget = new DrawingToolWidget();
+                    break;
+                default:
+                    throw new Error(`Unknown widget type: ${type}`);
+            }
+            
+            // Add the widget to the layout manager
+            this.layoutManager.addWidget(widget);
+            this.widgets.push(widget);
+            
+            // Remove placeholder if it exists
+            const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            this.saveState();
+            this.showNotification(`${type.replace('-', ' ')} widget added!`);
+        } catch (error) {
+            console.error('Failed to add widget:', error);
+            this.showNotification('Failed to add widget.', 'error');
         }
-        
-        // Add the widget to the layout
-        this.layoutManager.addWidget(widget, 0, 0, 3, 2);
-        this.widgets.push(widget);
-        
-        // Save the state
-        this.saveState();
     }
-    
-    addDefaultWidgets() {
-        // Add a timer widget by default
-        this.addWidget('timer');
+
+    /**
+     * Switch the application theme.
+     * @param {string} themeName - The name of the theme to switch to.
+     */
+    switchTheme(themeName) {
+        // Remove all theme classes
+        document.body.classList.remove('light-theme', 'dark-theme', 'ocean-theme', 'forest-theme', 'sunset-theme', 'royal-theme', 'monochrome-theme', 'high-contrast-theme');
+        
+        // Add the selected theme class
+        document.body.classList.add(themeName);
+        
+        // Update the selected state in the theme selector
+        document.querySelectorAll('.theme-option').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.theme === themeName);
+        });
+        
+        // Save the theme preference
+        localStorage.setItem('selectedTheme', themeName);
     }
-    
+
+    /**
+     * Update the background options based on the selected type.
+     * @param {string} type - The type of background ('solid', 'gradient', 'image').
+     */
     updateBackgroundOptions(type) {
-        const optionsContainer = document.getElementById('background-options');
-        optionsContainer.innerHTML = '';
+        this.backgroundOptionsContainer.innerHTML = '';
         
-        switch(type) {
+        switch (type) {
             case 'solid':
-                const colors = ['#ffffff', '#f0f0f0', '#e6f3f7', '#ffeedd', '#e8f5e9'];
+                const colors = ['#ffffff', '#f0f0f0', '#e6f3f7', '#ffeedd', '#e8f5e9', '#f3e5f5'];
                 colors.forEach(color => {
-                    const colorOption = document.createElement('button');
-                    colorOption.style.backgroundColor = color;
-                    colorOption.style.width = '30px';
-                    colorOption.style.height = '30px';
-                    colorOption.style.margin = '5px';
-                    colorOption.style.border = '1px solid #ccc';
-                    colorOption.addEventListener('click', () => {
-                        this.backgroundManager.setBackground('solid', color);
-                    });
-                    optionsContainer.appendChild(colorOption);
+                    const button = this.createColorOption(color);
+                    this.backgroundOptionsContainer.appendChild(button);
                 });
                 break;
                 
@@ -141,17 +179,9 @@ class ClassroomScreenApp {
                     'linear-gradient(to top, #a8edea 0%, #fed6e3 100%)',
                     'linear-gradient(to right, #fc5c7d, #6a82fb)'
                 ];
-                gradients.forEach((gradient, index) => {
-                    const gradientOption = document.createElement('button');
-                    gradientOption.style.background = gradient;
-                    gradientOption.style.width = '100%';
-                    gradientOption.style.height = '30px';
-                    gradientOption.style.margin = '5px 0';
-                    gradientOption.style.border = '1px solid #ccc';
-                    gradientOption.addEventListener('click', () => {
-                        this.backgroundManager.setBackground('gradient', gradient);
-                    });
-                    optionsContainer.appendChild(gradientOption);
+                gradients.forEach(gradient => {
+                    const button = this.createGradientOption(gradient);
+                    this.backgroundOptionsContainer.appendChild(button);
                 });
                 break;
                 
@@ -162,60 +192,189 @@ class ClassroomScreenApp {
                     'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600'
                 ];
                 images.forEach(imageUrl => {
-                    const imageOption = document.createElement('img');
-                    imageOption.src = imageUrl;
-                    imageOption.style.width = '100%';
-                    imageOption.style.height = '60px';
-                    imageOption.style.objectFit = 'cover';
-                    imageOption.style.margin = '5px 0';
-                    imageOption.style.border = '1px solid #ccc';
-                    imageOption.style.cursor = 'pointer';
-                    imageOption.addEventListener('click', () => {
-                        this.backgroundManager.setBackground('image', imageUrl);
-                    });
-                    optionsContainer.appendChild(imageOption);
+                    const button = this.createImageOption(imageUrl);
+                    this.backgroundOptionsContainer.appendChild(button);
                 });
                 break;
         }
     }
-    
-    startTimer(minutes) {
-        // Find the first timer widget and start it
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-        if (timerWidget) {
-            timerWidget.start(minutes);
+
+    /**
+     * Create a button for a solid color background option.
+     * @param {string} color - The color value.
+     * @returns {HTMLButtonElement} The created button.
+     */
+    createColorOption(color) {
+        const button = document.createElement('button');
+        button.className = 'color-option';
+        button.style.backgroundColor = color;
+        button.setAttribute('aria-label', `Set background to ${color}`);
+        button.addEventListener('click', () => {
+            this.backgroundManager.setBackground('solid', color);
+            this.saveState();
+        });
+        return button;
+    }
+
+    /**
+     * Create a button for a gradient background option.
+     * @param {string} gradient - The gradient CSS value.
+     * @returns {HTMLButtonElement} The created button.
+     */
+    createGradientOption(gradient) {
+        const button = document.createElement('button');
+        button.className = 'gradient-option';
+        button.style.background = gradient;
+        button.setAttribute('aria-label', 'Set background to gradient');
+        button.addEventListener('click', () => {
+            this.backgroundManager.setBackground('gradient', gradient);
+            this.saveState();
+        });
+        return button;
+    }
+
+    /**
+     * Create an image element for an image background option.
+     * @param {string} imageUrl - The URL of the image.
+     * @returns {HTMLImageElement} The created image element.
+     */
+    createImageOption(imageUrl) {
+        const image = document.createElement('img');
+        image.className = 'image-option';
+        image.src = imageUrl;
+        image.alt = 'Background option';
+        image.addEventListener('click', () => {
+            this.backgroundManager.setBackground('image', imageUrl);
+            this.saveState();
+        });
+        return image;
+    }
+
+    /**
+     * Start the timer widget from the teacher controls.
+     */
+    startTimerFromControls() {
+        const minutes = parseInt(document.getElementById('timer-minutes').value);
+        if (minutes > 0) {
+            // Find the first timer widget and start it
+            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+            if (timerWidget) {
+                timerWidget.start(minutes);
+            } else {
+                this.showNotification('Please add a Timer widget first.', 'warning');
+            }
         }
     }
-    
-    stopTimer() {
-        // Find the first timer widget and stop it
+
+    /**
+     * Stop the timer widget from the teacher controls.
+     */
+    stopTimerFromControls() {
         const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
         if (timerWidget) {
             timerWidget.stop();
         }
     }
-    
+
+    /**
+     * Save the current application state to localStorage.
+     */
     saveState() {
-        // Save the current state to localStorage
         const state = {
-            widgets: this.widgets.map(widget => widget.serialize()),
-            background: this.backgroundManager.serialize()
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: this.layoutManager.serialize()
         };
         localStorage.setItem('classroomScreenState', JSON.stringify(state));
     }
-    
+
+    /**
+     * Load the saved application state from localStorage.
+     */
     loadSavedState() {
-        // Load the saved state from localStorage
         const savedState = localStorage.getItem('classroomScreenState');
         if (savedState) {
             try {
                 const state = JSON.parse(savedState);
-                // Restore widgets
+                
+                // Restore theme
+                if (state.theme) {
+                    this.switchTheme(state.theme);
+                }
+                
                 // Restore background
-                this.backgroundManager.deserialize(state.background);
+                if (state.background) {
+                    this.backgroundManager.deserialize(state.background);
+                }
+                
+                // Restore layout and widgets
+                if (state.layout && state.layout.widgets) {
+                    this.layoutManager.deserialize(state.layout, (widgetData) => {
+                        // This factory function recreates widgets from saved data
+                        let widget;
+                        switch (widgetData.type) {
+                            case 'TimerWidget': widget = new TimerWidget(); break;
+                            case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                            case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                            case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                            case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                        }
+                        if (widget) {
+                            this.widgets.push(widget);
+                        }
+                        return widget;
+                    });
+                }
             } catch (e) {
                 console.error('Failed to load saved state:', e);
             }
         }
     }
+
+    /**
+     * Reset the application layout to its default state.
+     */
+    resetLayout() {
+        if (confirm('Are you sure you want to reset the layout? This will remove all widgets.')) {
+            this.widgets = [];
+            this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+            this.backgroundManager.reset();
+            this.saveState();
+            this.showNotification('Layout has been reset.');
+        }
+    }
+
+    /**
+     * Show a notification message to the user.
+     * @param {string} message - The message to display.
+     * @param {string} [type='success'] - The type of notification ('success', 'error', 'warning').
+     */
+    showNotification(message, type = 'success') {
+        // Remove any existing notifications
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        this.appContainer.appendChild(notification);
+
+        // Trigger a reflow to enable the transition
+        void notification.offsetWidth;
+
+        notification.classList.add('show');
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 }
+
+// Initialize the application when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new ClassroomScreenApp();
+    app.init();
+});
