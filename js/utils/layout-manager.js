@@ -189,16 +189,17 @@ class LayoutManager {
   loadLayout() {
     const savedLayout = localStorage.getItem('widgetLayout');
     if (savedLayout) {
+      this.isRestoring = true;
       try {
         const layout = JSON.parse(savedLayout);
         const layoutData = Array.isArray(layout) ? { widgets: layout } : layout;
         this.deserialize(layoutData, (widgetData) => this.createWidgetFromType(widgetData.type));
       } catch (e) {
         console.error('Failed to load layout:', e);
+      } finally {
+        this.isRestoring = false;
       }
-    });
-
-    this.isRestoring = false;
+    }
   }
 
   serialize() {
@@ -232,12 +233,10 @@ class LayoutManager {
       const widgetElement = document.createElement('div');
       widgetElement.className = 'widget';
 
-      if (widgetData.gridColumn) {
-        widgetElement.style.gridColumn = widgetData.gridColumn;
-      }
-      if (widgetData.gridRow) {
-        widgetElement.style.gridRow = widgetData.gridRow;
-      }
+      const gridColumn = widgetData.gridColumn || `${(widgetData.x ?? 0) + 1} / span ${widgetData.width ?? 1}`;
+      const gridRow = widgetData.gridRow || `${(widgetData.y ?? 0) + 1} / span ${widgetData.height ?? 1}`;
+      widgetElement.style.gridColumn = gridColumn;
+      widgetElement.style.gridRow = gridRow;
 
       widgetElement.appendChild(widget.element);
       this.addResizeHandles(widgetElement);
@@ -248,13 +247,18 @@ class LayoutManager {
         widget.deserialize(widgetData.data);
       }
 
+      const x = widgetData.x ?? (parseInt(gridColumn, 10) - 1) || 0;
+      const y = widgetData.y ?? (parseInt(gridRow, 10) - 1) || 0;
+      const width = widgetData.width ?? 1;
+      const height = widgetData.height ?? 1;
+
       this.widgets.push({
         element: widgetElement,
         widget: widget,
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0
+        x,
+        y,
+        width,
+        height
       });
     });
   }
