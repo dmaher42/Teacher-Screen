@@ -34,6 +34,30 @@ class ClassroomScreenApp {
         this.layoutManager.onLayoutChange = () => this.saveState();
         this.backgroundManager = new BackgroundManager(this.studentView);
 
+        this.widgetSearchKey = 'widgetSearchQuery';
+        this.widgetCategories = [
+            {
+                name: 'Time Management',
+                widgets: [
+                    { type: 'timer', label: 'Add Timer' }
+                ]
+            },
+            {
+                name: 'Engagement',
+                widgets: [
+                    { type: 'noise-meter', label: 'Add Noise Meter' },
+                    { type: 'name-picker', label: 'Add Name Picker' }
+                ]
+            },
+            {
+                name: 'Tools',
+                widgets: [
+                    { type: 'qr-code', label: 'Add QR Code' },
+                    { type: 'drawing-tool', label: 'Add Drawing Tool' }
+                ]
+            }
+        ];
+
         // Default presets
         this.defaultPresets = [
             {
@@ -79,12 +103,18 @@ class ClassroomScreenApp {
      */
     init() {
         this.setupEventListeners();
+        this.renderWidgetAccordion();
         this.loadSavedState();
         this.backgroundManager.init();
         this.layoutManager.init();
         this.setupPresetControls();
         this.updateBackgroundOptions(this.backgroundTypeSelect.value);
-        this.filterWidgetList('');
+
+        const savedSearch = localStorage.getItem(this.widgetSearchKey) || '';
+        if (this.widgetSearchInput) {
+            this.widgetSearchInput.value = savedSearch;
+        }
+        this.filterWidgetList(savedSearch);
 
         // If no widgets are loaded, add a default one
         if (this.widgets.length === 0) {
@@ -275,6 +305,43 @@ class ClassroomScreenApp {
     }
 
     /**
+     * Render the widget accordion based on configured categories.
+     */
+    renderWidgetAccordion() {
+        if (!this.widgetAccordion) return;
+
+        this.widgetAccordion.innerHTML = '';
+
+        this.widgetCategories.forEach((category) => {
+            const details = document.createElement('details');
+            details.className = 'widget-category';
+            details.open = true;
+            details.dataset.categoryName = category.name.toLowerCase();
+
+            const summary = document.createElement('summary');
+            summary.textContent = category.name;
+            details.appendChild(summary);
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'widget-buttons';
+
+            category.widgets.forEach((widgetConfig) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'control-button widget-add-btn';
+                button.dataset.widget = widgetConfig.type;
+                const friendlyName = this.getFriendlyWidgetName(widgetConfig.type);
+                button.textContent = widgetConfig.label || `Add ${friendlyName}`;
+                button.setAttribute('aria-label', `Add ${friendlyName} widget`);
+                buttonContainer.appendChild(button);
+            });
+
+            details.appendChild(buttonContainer);
+            this.widgetAccordion.appendChild(details);
+        });
+    }
+
+    /**
      * Filter the widget list based on a search query.
      * @param {string} query - Search text provided by the user.
      */
@@ -282,15 +349,19 @@ class ClassroomScreenApp {
         if (!this.widgetAccordion) return;
 
         const searchTerm = query.toLowerCase().trim();
+        localStorage.setItem(this.widgetSearchKey, query);
+
         const categories = this.widgetAccordion.querySelectorAll('.widget-category');
 
         categories.forEach(category => {
             let visibleCount = 0;
             const buttons = category.querySelectorAll('.widget-add-btn');
+            const categoryLabel = (category.dataset.categoryName || category.querySelector('summary')?.textContent || '').toLowerCase();
+
             buttons.forEach(button => {
                 const label = button.textContent.toLowerCase();
                 const type = button.dataset.widget.toLowerCase();
-                const isVisible = !searchTerm || label.includes(searchTerm) || type.includes(searchTerm) || category.querySelector('summary').textContent.toLowerCase().includes(searchTerm);
+                const isVisible = !searchTerm || label.includes(searchTerm) || type.includes(searchTerm) || categoryLabel.includes(searchTerm);
                 button.classList.toggle('hidden', !isVisible);
                 if (isVisible) {
                     visibleCount++;
@@ -621,18 +692,21 @@ class ClassroomScreenApp {
             actions.className = 'preset-actions';
 
             const loadButton = document.createElement('button');
+            loadButton.type = 'button';
             loadButton.className = 'control-button';
             loadButton.textContent = 'Load';
             loadButton.dataset.action = 'load';
             loadButton.dataset.name = preset.name;
 
             const overwriteButton = document.createElement('button');
+            overwriteButton.type = 'button';
             overwriteButton.className = 'control-button';
             overwriteButton.textContent = 'Overwrite';
             overwriteButton.dataset.action = 'overwrite';
             overwriteButton.dataset.name = preset.name;
 
             const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
             deleteButton.className = 'control-button';
             deleteButton.textContent = 'Delete';
             deleteButton.dataset.action = 'delete';
@@ -699,6 +773,9 @@ class ClassroomScreenApp {
         if (confirm('Are you sure you want to reset the layout? This will remove all widgets.')) {
             this.widgets = [];
             this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+            if (this.layoutManager) {
+                this.layoutManager.widgets = [];
+            }
             this.backgroundManager.reset();
             this.saveState();
             this.showNotification('Layout has been reset.');
