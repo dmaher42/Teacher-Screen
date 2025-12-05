@@ -20,6 +20,9 @@
     
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js" defer></script>
 </head>
 
 <!-- Set a default theme class on the body -->
@@ -57,9 +60,16 @@
                     </div>
                 </header>
 
-                <!-- Widget Controls -->
-                <fieldset class="control-section">
-                    <legend>Add Widget</legend>
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" data-tab="widgets-tab">Widgets</button>
+                        <button class="tab-button" data-tab="lesson-plan-tab">Lesson Plan</button>
+                    </div>
+
+                    <div id="widgets-tab" class="tab-content active">
+                        <!-- Widget Controls -->
+                        <fieldset class="control-section">
+                            <legend>Add Widget</legend>
                     <div class="input-group">
                         <label for="widget-search">Search Widgets</label>
                         <input type="text" id="widget-search" placeholder="Search by name or category">
@@ -84,6 +94,8 @@
                             <div class="widget-buttons">
                                 <button class="control-button widget-add-btn" data-widget="qr-code">Add QR Code</button>
                                 <button class="control-button widget-add-btn" data-widget="drawing-tool">Add Drawing Tool</button>
+                                <button class="control-button widget-add-btn" data-widget="document-viewer">Add Document Viewer</button>
+                                <button class="control-button widget-add-btn" data-widget="mask">Add Mask</button>
                             </div>
                         </details>
                     </div>
@@ -133,19 +145,25 @@
                     </div>
                 </fieldset>
                 
-                <!-- Layout Management -->
-                <fieldset class="control-section">
-                    <legend>Layouts &amp; Presets</legend>
-                    <div class="input-group">
-                        <label for="preset-name">Preset Name</label>
-                        <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
+                        <!-- Layout Management -->
+                        <fieldset class="control-section">
+                            <legend>Layouts &amp; Presets</legend>
+                            <div class="input-group">
+                                <label for="preset-name">Preset Name</label>
+                                <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
+                            </div>
+                            <div class="button-group">
+                                <button id="save-preset" class="control-button">Save / Overwrite</button>
+                                <button id="reset-layout" class="control-button">Reset Layout</button>
+                            </div>
+                            <div id="preset-list" class="preset-list" aria-live="polite"></div>
+                        </fieldset>
                     </div>
-                    <div class="button-group">
-                        <button id="save-preset" class="control-button">Save / Overwrite</button>
-                        <button id="reset-layout" class="control-button">Reset Layout</button>
+
+                    <div id="lesson-plan-tab" class="tab-content">
+                        <div id="lesson-plan-editor"></div>
                     </div>
-                    <div id="preset-list" class="preset-list" aria-live="polite"></div>
-                </fieldset>
+                </div>
             </div>
         </aside>
 
@@ -211,6 +229,8 @@
     <script src="js/widgets/name-picker.js" defer></script>
     <script src="js/widgets/qr-code-widget.js" defer></script>
     <script src="js/widgets/drawing-tool.js" defer></script>
+    <script src="js/widgets/document-viewer.js" defer></script>
+    <script src="js/widgets/mask-widget.js" defer></script>
     <script src="js/main.js" defer></script>
 
 </body>
