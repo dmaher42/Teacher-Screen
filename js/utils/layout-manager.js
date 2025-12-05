@@ -185,31 +185,95 @@ class LayoutManager {
 
     return { widgets };
   }
-
-  deserialize(savedLayout, widgetFactory) {
-    if (!savedLayout || !Array.isArray(savedLayout.widgets)) return;
-
-    this.isRestoring = true;
-    this.applyGridStyles();
-    this.container.innerHTML = '';
-    this.widgets = [];
-
-    savedLayout.widgets.forEach(widgetData => {
-      const widget = widgetFactory(widgetData);
-      if (!widget) return;
-
-      const x = Number.isFinite(widgetData.x) ? widgetData.x : 0;
-      const y = Number.isFinite(widgetData.y) ? widgetData.y : 0;
-      const width = Number.isFinite(widgetData.width) ? widgetData.width : 3;
-      const height = Number.isFinite(widgetData.height) ? widgetData.height : 2;
-
-      this.addWidget(widget, x, y, width, height);
-
-      if (widgetData.data && typeof widget.deserialize === 'function') {
-        widget.deserialize(widgetData.data);
+  
+  loadLayout() {
+    const savedLayout = localStorage.getItem('widgetLayout');
+    if (savedLayout) {
+      try {
+        const layout = JSON.parse(savedLayout);
+        const layoutData = Array.isArray(layout) ? { widgets: layout } : layout;
+        this.deserialize(layoutData, (widgetData) => this.createWidgetFromType(widgetData.type));
+      } catch (e) {
+        console.error('Failed to load layout:', e);
       }
     });
 
     this.isRestoring = false;
+  }
+
+  serialize() {
+    return {
+      widgets: this.widgets.map(widgetInfo => {
+        const computedStyle = window.getComputedStyle(widgetInfo.element);
+        return {
+          type: widgetInfo.widget.constructor.name,
+          gridColumn: computedStyle.gridColumn,
+          gridRow: computedStyle.gridRow,
+          data: widgetInfo.widget.serialize()
+        };
+      })
+    };
+  }
+
+  deserialize(layoutData, widgetFactory) {
+    if (!layoutData || !Array.isArray(layoutData.widgets)) {
+      return;
+    }
+
+    this.container.innerHTML = '';
+    this.widgets = [];
+
+    layoutData.widgets.forEach((widgetData) => {
+      const widget = widgetFactory ? widgetFactory(widgetData) : this.createWidgetFromType(widgetData.type);
+      if (!widget) {
+        return;
+      }
+
+      const widgetElement = document.createElement('div');
+      widgetElement.className = 'widget';
+
+      if (widgetData.gridColumn) {
+        widgetElement.style.gridColumn = widgetData.gridColumn;
+      }
+      if (widgetData.gridRow) {
+        widgetElement.style.gridRow = widgetData.gridRow;
+      }
+
+      widgetElement.appendChild(widget.element);
+      this.addResizeHandles(widgetElement);
+      this.addDragFunctionality(widgetElement);
+      this.container.appendChild(widgetElement);
+
+      if (widgetData.data && typeof widget.deserialize === 'function') {
+        widget.deserialize(widgetData.data);
+      }
+
+      this.widgets.push({
+        element: widgetElement,
+        widget: widget,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+      });
+    });
+  }
+
+  createWidgetFromType(type) {
+    switch (type) {
+      case 'TimerWidget':
+        return new TimerWidget();
+      case 'NoiseMeterWidget':
+        return new NoiseMeterWidget();
+      case 'NamePickerWidget':
+        return new NamePickerWidget();
+      case 'QRCodeWidget':
+        return new QRCodeWidget();
+      case 'DrawingToolWidget':
+        return new DrawingToolWidget();
+      default:
+        console.warn(`Unknown widget type: ${type}`);
+        return null;
+    }
   }
 }
