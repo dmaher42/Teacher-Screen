@@ -379,6 +379,73 @@ details:focus-visible,
     margin: 20px 0;
 }
 
+.timer-presets, .timer-interval {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+.timer-presets label,
+.timer-interval label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.timer-presets select,
+.interval-options input {
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #dee2e6);
+}
+
+.interval-options {
+    display: flex;
+    gap: 10px;
+    margin-left: 4px;
+    margin-top: 6px;
+}
+
+.interval-options label {
+    font-size: 0.9rem;
+}
+
+.sound-button {
+    align-self: flex-start;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color, #dee2e6);
+    background: var(--card-background, #ffffff);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.sound-menu {
+    position: relative;
+    background: var(--card-background, #ffffff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin-bottom: 8px;
+    max-width: 220px;
+}
+
+.sound-menu-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.sound-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
 .timer-controls {
     display: flex;
     justify-content: center;
