@@ -177,6 +177,8 @@ class LayoutManager {
 
       return {
         type: widgetInfo.widget.constructor.name,
+        gridColumn,
+        gridRow,
         x,
         y,
         width,
@@ -204,20 +206,6 @@ class LayoutManager {
     }
   }
 
-  serialize() {
-    return {
-      widgets: this.widgets.map(widgetInfo => {
-        const computedStyle = window.getComputedStyle(widgetInfo.element);
-        return {
-          type: widgetInfo.widget.constructor.name,
-          gridColumn: computedStyle.gridColumn,
-          gridRow: computedStyle.gridRow,
-          data: widgetInfo.widget.serialize()
-        };
-      })
-    };
-  }
-
   deserialize(layoutData, widgetFactory) {
     if (!layoutData || !Array.isArray(layoutData.widgets)) {
       return;
@@ -225,6 +213,26 @@ class LayoutManager {
 
     this.container.innerHTML = '';
     this.widgets = [];
+
+    const parseGridPosition = (gridValue) => {
+      const [startPart, endPart] = (gridValue || '').split('/').map(part => part.trim());
+      const start = parseInt(startPart, 10) || 1;
+      let span = 1;
+
+      if (endPart) {
+        const spanMatch = endPart.match(/span\s+(\d+)/);
+        if (spanMatch) {
+          span = parseInt(spanMatch[1], 10) || 1;
+        } else {
+          const end = parseInt(endPart, 10);
+          if (!isNaN(end)) {
+            span = Math.max(1, end - start);
+          }
+        }
+      }
+
+      return { start, span };
+    };
 
     layoutData.widgets.forEach((widgetData) => {
       const widget = widgetFactory ? widgetFactory(widgetData) : this.createWidgetFromType(widgetData.type);
@@ -249,10 +257,13 @@ class LayoutManager {
         widget.deserialize(widgetData.data);
       }
 
-      const x = widgetData.x ?? (parseInt(gridColumn, 10) - 1) || 0;
-      const y = widgetData.y ?? (parseInt(gridRow, 10) - 1) || 0;
-      const width = widgetData.width ?? 1;
-      const height = widgetData.height ?? 1;
+      const columnPosition = parseGridPosition(gridColumn);
+      const rowPosition = parseGridPosition(gridRow);
+
+      const x = widgetData.x ?? (columnPosition.start - 1);
+      const y = widgetData.y ?? (rowPosition.start - 1);
+      const width = widgetData.width ?? columnPosition.span;
+      const height = widgetData.height ?? rowPosition.span;
 
       this.widgets.push({
         element: widgetElement,
