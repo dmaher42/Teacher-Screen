@@ -56,12 +56,34 @@
 
                 <!-- Widget Controls -->
                 <fieldset class="control-section">
-                    <legend>Widgets</legend>
-                    <button id="add-timer-widget" class="control-button">Add Timer</button>
-                    <button id="add-noise-meter" class="control-button">Add Noise Meter</button>
-                    <button id="add-name-picker" class="control-button">Add Name Picker</button>
-                    <button id="add-qr-code" class="control-button">Add QR Code</button>
-                    <button id="add-drawing-tool" class="control-button">Add Drawing Tool</button>
+                    <legend>Add Widget</legend>
+                    <div class="input-group">
+                        <label for="widget-search">Search Widgets</label>
+                        <input type="text" id="widget-search" placeholder="Search by name or category">
+                    </div>
+
+                    <div class="widget-accordion" id="widget-accordion">
+                        <details class="widget-category" open>
+                            <summary>Time Management</summary>
+                            <div class="widget-buttons">
+                                <button class="control-button widget-add-btn" data-widget="timer">Add Timer</button>
+                            </div>
+                        </details>
+                        <details class="widget-category" open>
+                            <summary>Engagement</summary>
+                            <div class="widget-buttons">
+                                <button class="control-button widget-add-btn" data-widget="noise-meter">Add Noise Meter</button>
+                                <button class="control-button widget-add-btn" data-widget="name-picker">Add Name Picker</button>
+                            </div>
+                        </details>
+                        <details class="widget-category" open>
+                            <summary>Tools</summary>
+                            <div class="widget-buttons">
+                                <button class="control-button widget-add-btn" data-widget="qr-code">Add QR Code</button>
+                                <button class="control-button widget-add-btn" data-widget="drawing-tool">Add Drawing Tool</button>
+                            </div>
+                        </details>
+                    </div>
                 </fieldset>
 
                 <!-- Timer Controls -->
@@ -110,9 +132,16 @@
                 
                 <!-- Layout Management -->
                 <fieldset class="control-section">
-                    <legend>Layout</legend>
-                    <button id="save-layout" class="control-button">Save Layout</button>
-                    <button id="reset-layout" class="control-button">Reset Layout</button>
+                    <legend>Layouts &amp; Presets</legend>
+                    <div class="input-group">
+                        <label for="preset-name">Preset Name</label>
+                        <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
+                    </div>
+                    <div class="button-group">
+                        <button id="save-preset" class="control-button">Save / Overwrite</button>
+                        <button id="reset-layout" class="control-button">Reset Layout</button>
+                    </div>
+                    <div id="preset-list" class="preset-list" aria-live="polite"></div>
                 </fieldset>
             </div>
         </aside>

@@ -56,9 +56,15 @@ class BackgroundManager {
   serialize() {
     return this.currentBackground;
   }
-  
+
   deserialize(data) {
     this.currentBackground = data;
     this.applyBackground();
+  }
+
+  reset() {
+    this.currentBackground = { type: 'solid', value: '#ffffff' };
+    this.applyBackground();
+    this.saveBackground();
   }
 }
