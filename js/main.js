@@ -14,15 +14,60 @@ class ClassroomScreenApp {
         this.themeSelector = document.getElementById('theme-selector');
         this.backgroundTypeSelect = document.getElementById('background-type');
         this.backgroundOptionsContainer = document.getElementById('background-options');
-        
+        this.widgetAccordion = document.getElementById('widget-accordion');
+        this.widgetSearchInput = document.getElementById('widget-search');
+        this.presetNameInput = document.getElementById('preset-name');
+        this.presetListElement = document.getElementById('preset-list');
+
         // App State
         this.widgets = [];
         this.isTeacherViewOpen = false;
+        this.presetsKey = 'classroomLayoutPresets';
+        this.presets = [];
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
         this.layoutManager.onLayoutChange = () => this.saveState();
         this.backgroundManager = new BackgroundManager(this.studentView);
+
+        // Default presets
+        this.defaultPresets = [
+            {
+                name: 'Simple Timer',
+                theme: 'light-theme',
+                background: { type: 'solid', value: '#f0f0f0' },
+                layout: {
+                    widgets: [
+                        { type: 'TimerWidget', gridColumn: '1 / span 4', gridRow: '1 / span 2', data: { time: 300, running: false } }
+                    ]
+                }
+            },
+            {
+                name: 'Full Dashboard',
+                theme: 'light-theme',
+                background: { type: 'gradient', value: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)' },
+                layout: {
+                    widgets: [
+                        { type: 'TimerWidget', gridColumn: '1 / span 4', gridRow: '1 / span 2', data: { time: 0, running: false } },
+                        { type: 'NoiseMeterWidget', gridColumn: '5 / span 4', gridRow: '1 / span 2', data: {} },
+                        { type: 'NamePickerWidget', gridColumn: '1 / span 6', gridRow: '3 / span 3', data: { originalNames: ['Alice', 'Bob', 'Charlie'], names: ['Alice', 'Bob', 'Charlie'] } },
+                        { type: 'QRCodeWidget', gridColumn: '7 / span 4', gridRow: '3 / span 3', data: { text: 'https://school.example.com' } }
+                    ]
+                }
+            },
+            {
+                name: 'Quiz Mode',
+                theme: 'light-theme',
+                background: { type: 'solid', value: '#e6f3f7' },
+                layout: {
+                    widgets: [
+                        { type: 'TimerWidget', gridColumn: '1 / span 4', gridRow: '1 / span 2', data: { time: 600, running: false } },
+                        { type: 'QRCodeWidget', gridColumn: '5 / span 4', gridRow: '1 / span 3', data: { text: 'Submit answers here' } },
+                        { type: 'NamePickerWidget', gridColumn: '9 / span 4', gridRow: '1 / span 3', data: { originalNames: ['Alice', 'Bob', 'Charlie'], names: ['Alice', 'Bob', 'Charlie'] } }
+                    ]
+                }
+            }
+        ];
     }
 
     /**
@@ -33,8 +78,10 @@ class ClassroomScreenApp {
         this.loadSavedState();
         this.backgroundManager.init();
         this.layoutManager.init();
+        this.setupPresetControls();
         this.updateBackgroundOptions(this.backgroundTypeSelect.value);
-        
+        this.filterWidgetList('');
+
         // If no widgets are loaded, add a default one
         if (this.widgets.length === 0) {
             this.addWidget('timer');
@@ -49,12 +96,18 @@ class ClassroomScreenApp {
         this.toggleViewBtn.addEventListener('click', () => this.toggleTeacherView());
         this.closeTeacherViewBtn.addEventListener('click', () => this.toggleTeacherView(false));
 
-        // Widget controls
-        document.getElementById('add-timer-widget').addEventListener('click', () => this.addWidget('timer'));
-        document.getElementById('add-noise-meter').addEventListener('click', () => this.addWidget('noise-meter'));
-        document.getElementById('add-name-picker').addEventListener('click', () => this.addWidget('name-picker'));
-        document.getElementById('add-qr-code').addEventListener('click', () => this.addWidget('qr-code'));
-        document.getElementById('add-drawing-tool').addEventListener('click', () => this.addWidget('drawing-tool'));
+        if (this.widgetAccordion) {
+            this.widgetAccordion.addEventListener('click', (e) => {
+                const button = e.target.closest('.widget-add-btn');
+                if (button && button.dataset.widget) {
+                    this.addWidget(button.dataset.widget);
+                }
+            });
+        }
+
+        if (this.widgetSearchInput) {
+            this.widgetSearchInput.addEventListener('input', (e) => this.filterWidgetList(e.target.value));
+        }
 
         // Timer controls
         document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
@@ -73,8 +126,38 @@ class ClassroomScreenApp {
         });
 
         // Layout controls
-        document.getElementById('save-layout').addEventListener('click', () => this.saveState());
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
+
+        const savePresetButton = document.getElementById('save-preset');
+        if (savePresetButton) {
+            savePresetButton.addEventListener('click', () => this.savePreset());
+        }
+
+        if (this.presetListElement) {
+            this.presetListElement.addEventListener('click', (e) => {
+                const actionButton = e.target.closest('button[data-action]');
+                if (!actionButton) return;
+
+                const presetName = actionButton.dataset.name;
+                switch (actionButton.dataset.action) {
+                    case 'load':
+                        this.loadPreset(presetName);
+                        break;
+                    case 'delete':
+                        this.deletePreset(presetName);
+                        break;
+                    case 'overwrite':
+                        this.overwritePreset(presetName);
+                        break;
+                }
+            });
+        }
+
+        document.addEventListener('widgetRemoved', (event) => {
+            if (event.detail && event.detail.widget) {
+                this.handleWidgetRemoved(event.detail.widget);
+            }
+        });
     }
 
     /**
@@ -136,6 +219,32 @@ class ClassroomScreenApp {
             console.error('Failed to add widget:', error);
             this.showNotification('Failed to add widget.', 'error');
         }
+    }
+
+    /**
+     * Filter the widget list based on a search query.
+     * @param {string} query - Search text provided by the user.
+     */
+    filterWidgetList(query = '') {
+        if (!this.widgetAccordion) return;
+
+        const searchTerm = query.toLowerCase().trim();
+        const categories = this.widgetAccordion.querySelectorAll('.widget-category');
+
+        categories.forEach(category => {
+            let visibleCount = 0;
+            const buttons = category.querySelectorAll('.widget-add-btn');
+            buttons.forEach(button => {
+                const label = button.textContent.toLowerCase();
+                const type = button.dataset.widget.toLowerCase();
+                const isVisible = !searchTerm || label.includes(searchTerm) || type.includes(searchTerm) || category.querySelector('summary').textContent.toLowerCase().includes(searchTerm);
+                button.classList.toggle('hidden', !isVisible);
+                if (isVisible) {
+                    visibleCount++;
+                }
+            });
+            category.classList.toggle('hidden', visibleCount === 0);
+        });
     }
 
     /**
@@ -290,6 +399,204 @@ class ClassroomScreenApp {
     }
 
     /**
+     * Load presets from localStorage and merge defaults.
+     */
+    setupPresetControls() {
+        const storedPresets = localStorage.getItem(this.presetsKey);
+        try {
+            this.presets = storedPresets ? JSON.parse(storedPresets) : [];
+        } catch (e) {
+            console.error('Failed to parse presets:', e);
+            this.presets = [];
+        }
+
+        if (!Array.isArray(this.presets) || this.presets.length === 0) {
+            this.presets = [...this.defaultPresets];
+        }
+
+        this.savePresets();
+        this.renderPresetList();
+    }
+
+    /**
+     * Save presets to localStorage.
+     */
+    savePresets() {
+        localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
+    }
+
+    /**
+     * Save or overwrite a preset using the current layout.
+     */
+    savePreset() {
+        const presetName = this.presetNameInput ? this.presetNameInput.value.trim() : '';
+        if (!presetName) {
+            this.showNotification('Please enter a preset name.', 'warning');
+            return;
+        }
+
+        const newPreset = {
+            name: presetName,
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: this.layoutManager.serialize()
+        };
+
+        const existingIndex = this.presets.findIndex(preset => preset.name.toLowerCase() === presetName.toLowerCase());
+        if (existingIndex !== -1) {
+            if (!confirm(`Preset "${presetName}" exists. Overwrite it?`)) {
+                return;
+            }
+            this.presets[existingIndex] = newPreset;
+            this.showNotification(`Preset "${presetName}" updated.`);
+        } else {
+            this.presets.push(newPreset);
+            this.showNotification(`Preset "${presetName}" saved.`);
+        }
+
+        this.savePresets();
+        this.renderPresetList();
+    }
+
+    /**
+     * Load a preset by name.
+     * @param {string} name - Preset identifier.
+     */
+    loadPreset(name) {
+        const preset = this.presets.find(item => item.name === name);
+        if (!preset) {
+            this.showNotification('Preset not found.', 'error');
+            return;
+        }
+
+        if (this.presetNameInput) {
+            this.presetNameInput.value = preset.name;
+        }
+
+        if (preset.theme) {
+            this.switchTheme(preset.theme);
+        }
+        if (preset.background) {
+            this.backgroundManager.deserialize(preset.background);
+        }
+
+        this.widgets = [];
+        this.layoutManager.deserialize(preset.layout, (widgetData) => {
+            let widget;
+            switch (widgetData.type) {
+                case 'TimerWidget': widget = new TimerWidget(); break;
+                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+            }
+            if (widget) {
+                this.widgets.push(widget);
+            }
+            return widget;
+        });
+
+        this.saveState();
+        this.showNotification(`Preset "${preset.name}" loaded.`);
+    }
+
+    /**
+     * Overwrite an existing preset with the current layout.
+     * @param {string} name - Preset identifier.
+     */
+    overwritePreset(name) {
+        if (this.presetNameInput) {
+            this.presetNameInput.value = name;
+        }
+        const presetIndex = this.presets.findIndex(preset => preset.name === name);
+        if (presetIndex === -1) {
+            this.showNotification('Preset not found.', 'error');
+            return;
+        }
+        this.presets[presetIndex] = {
+            name,
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: this.layoutManager.serialize()
+        };
+        this.savePresets();
+        this.renderPresetList();
+        this.showNotification(`Preset "${name}" overwritten.`);
+    }
+
+    /**
+     * Delete a preset.
+     * @param {string} name - Preset identifier.
+     */
+    deletePreset(name) {
+        const presetIndex = this.presets.findIndex(preset => preset.name === name);
+        if (presetIndex === -1) {
+            this.showNotification('Preset not found.', 'error');
+            return;
+        }
+        if (!confirm(`Delete preset "${name}"?`)) {
+            return;
+        }
+        this.presets.splice(presetIndex, 1);
+        this.savePresets();
+        this.renderPresetList();
+        this.showNotification(`Preset "${name}" deleted.`);
+    }
+
+    /**
+     * Render the preset list UI.
+     */
+    renderPresetList() {
+        if (!this.presetListElement) return;
+
+        this.presetListElement.innerHTML = '';
+        if (this.presets.length === 0) {
+            const emptyState = document.createElement('p');
+            emptyState.textContent = 'No presets saved yet.';
+            this.presetListElement.appendChild(emptyState);
+            return;
+        }
+
+        this.presets.forEach(preset => {
+            const item = document.createElement('div');
+            item.className = 'preset-item';
+
+            const name = document.createElement('span');
+            name.textContent = preset.name;
+
+            const actions = document.createElement('div');
+            actions.className = 'preset-actions';
+
+            const loadButton = document.createElement('button');
+            loadButton.className = 'control-button';
+            loadButton.textContent = 'Load';
+            loadButton.dataset.action = 'load';
+            loadButton.dataset.name = preset.name;
+
+            const overwriteButton = document.createElement('button');
+            overwriteButton.className = 'control-button';
+            overwriteButton.textContent = 'Overwrite';
+            overwriteButton.dataset.action = 'overwrite';
+            overwriteButton.dataset.name = preset.name;
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'control-button';
+            deleteButton.textContent = 'Delete';
+            deleteButton.dataset.action = 'delete';
+            deleteButton.dataset.name = preset.name;
+
+            actions.appendChild(loadButton);
+            actions.appendChild(overwriteButton);
+            actions.appendChild(deleteButton);
+
+            item.appendChild(name);
+            item.appendChild(actions);
+
+            this.presetListElement.appendChild(item);
+        });
+    }
+
+    /**
      * Load the saved application state from localStorage.
      */
     loadSavedState() {
@@ -343,6 +650,21 @@ class ClassroomScreenApp {
             this.saveState();
             this.showNotification('Layout has been reset.');
         }
+    }
+
+    /**
+     * Remove references to widgets when they are deleted from the DOM.
+     * @param {object} widget - Widget instance that was removed.
+     */
+    handleWidgetRemoved(widget) {
+        this.widgets = this.widgets.filter(existing => existing !== widget);
+        if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
+            this.layoutManager.widgets = this.layoutManager.widgets.filter(info => info.widget !== widget);
+        }
+        if (this.widgets.length === 0 && !this.widgetsContainer.querySelector('.widget-placeholder')) {
+            this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+        }
+        this.saveState();
     }
 
     /**
