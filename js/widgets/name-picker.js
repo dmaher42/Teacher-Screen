@@ -76,6 +76,12 @@ class NamePickerWidget {
         this.importButton.textContent = 'Import';
         this.importButton.addEventListener('click', () => this.fileInput.click());
 
+        this.importSpinner = document.createElement('span');
+        this.importSpinner.className = 'inline-spinner';
+        this.importSpinner.setAttribute('aria-hidden', 'true');
+        this.importSpinner.style.display = 'none';
+        this.importButton.appendChild(this.importSpinner);
+
         this.exportButton = document.createElement('button');
         this.exportButton.textContent = 'Export';
         this.exportButton.addEventListener('click', () => this.exportNames());
@@ -101,12 +107,17 @@ class NamePickerWidget {
         this.pickButton.textContent = 'Pick a Name';
         this.pickButton.addEventListener('click', () => this.pickRandom());
 
+        this.status = document.createElement('div');
+        this.status.className = 'widget-status';
+        this.status.textContent = 'Pick a name to begin.';
+
         // Assemble the widget
         this.content.appendChild(this.helpText);
         this.content.appendChild(this.groupControls);
         this.content.appendChild(this.importExportControls);
         this.content.appendChild(this.display);
         this.content.appendChild(this.pickButton);
+        this.content.appendChild(this.status);
         this.element.appendChild(this.header);
         this.element.appendChild(this.content);
 
@@ -122,6 +133,7 @@ class NamePickerWidget {
         this.refreshGroupOptions();
         this.updateDisplayState();
         this.picking = false;
+        this.lastPicked = null;
     }
 
     /**
@@ -138,6 +150,7 @@ class NamePickerWidget {
         const interval = setInterval(() => {
             const randomIndex = Math.floor(Math.random() * groupData.names.length);
             this.display.textContent = groupData.names[randomIndex];
+            this.flashDisplay();
             iterations++;
 
             if (iterations >= maxIterations) {
@@ -147,6 +160,8 @@ class NamePickerWidget {
                 // Remove the selected name temporarily
                 const selectedName = groupData.names.splice(randomIndex, 1)[0];
                 this.display.textContent = `Selected: ${selectedName}`;
+                this.lastPicked = selectedName;
+                this.setStatus(`Picked ${selectedName}. ${groupData.names.length} remaining.`);
 
                 // If all names have been picked, change button to reset
                 if (groupData.names.length === 0) {
@@ -166,6 +181,8 @@ class NamePickerWidget {
 
         groupData.names = [...groupData.originalNames];
         this.updateDisplayState();
+        this.lastPicked = null;
+        this.setStatus('Name list reset. Ready to pick again.');
     }
 
     /**
@@ -186,7 +203,8 @@ class NamePickerWidget {
         return {
             type: 'NamePickerWidget',
             groups: this.groups,
-            currentGroup: this.currentGroup
+            currentGroup: this.currentGroup,
+            lastPicked: this.lastPicked
         };
     }
 
@@ -203,9 +221,13 @@ class NamePickerWidget {
             }
         };
         this.currentGroup = data.currentGroup && this.groups[data.currentGroup] ? data.currentGroup : Object.keys(this.groups)[0];
+        this.lastPicked = data.lastPicked || null;
 
         this.refreshGroupOptions();
         this.updateDisplayState();
+        if (this.lastPicked) {
+            this.setStatus(`Last picked: ${this.lastPicked}.`);
+        }
     }
 
     /**
@@ -231,10 +253,13 @@ class NamePickerWidget {
             this.display.textContent = 'List is empty';
             this.pickButton.textContent = 'Reset List';
             this.pickButton.onclick = () => this.reset();
+            this.setStatus('All names have been picked. Reset to start over.', 'warning');
         } else {
             this.display.textContent = 'Click to pick a name';
             this.pickButton.textContent = 'Pick a Name';
             this.pickButton.onclick = () => this.pickRandom();
+            const remaining = groupData.names.length;
+            this.setStatus(`${remaining} name${remaining === 1 ? '' : 's'} ready to pick.`);
         }
 
         this.deleteGroupButton.disabled = Object.keys(this.groups).length <= 1 || this.currentGroup === 'Default';
@@ -301,6 +326,8 @@ class NamePickerWidget {
         const file = event.target.files[0];
         if (!file) return;
 
+        this.showImportLoading(true);
+
         const reader = new FileReader();
         reader.onload = () => {
             const importedNames = reader.result
@@ -309,11 +336,20 @@ class NamePickerWidget {
                 .filter((name) => name.length > 0);
 
             const groupData = this.getGroupData();
-            if (!groupData) return;
+            if (!groupData) {
+                this.showImportLoading(false);
+                return;
+            }
 
             groupData.originalNames = importedNames;
             groupData.names = [...importedNames];
             this.updateDisplayState();
+            this.setStatus(`Imported ${importedNames.length} name(s).`);
+            this.showImportLoading(false);
+        };
+        reader.onerror = () => {
+            this.setStatus('Import failed. Please try again.', 'warning');
+            this.showImportLoading(false);
         };
         reader.readAsText(file);
 
@@ -337,5 +373,39 @@ class NamePickerWidget {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Update status text within the widget.
+     * @param {string} message
+     * @param {string} tone
+     */
+    setStatus(message, tone = 'success') {
+        if (!this.status) return;
+        this.status.textContent = message;
+        this.status.classList.toggle('warning', tone === 'warning');
+        this.status.classList.add('action-flash');
+        setTimeout(() => this.status.classList.remove('action-flash'), 800);
+    }
+
+    /**
+     * Add a quick flash to the display for feedback.
+     */
+    flashDisplay() {
+        if (!this.display) return;
+        this.display.classList.add('action-flash');
+        setTimeout(() => this.display.classList.remove('action-flash'), 1000);
+    }
+
+    /**
+     * Toggle a loading indicator during imports.
+     * @param {boolean} isLoading
+     */
+    showImportLoading(isLoading) {
+        if (this.importSpinner) {
+            this.importSpinner.style.display = isLoading ? 'inline-block' : 'none';
+        }
+        this.importButton.disabled = isLoading;
+        this.exportButton.disabled = isLoading;
     }
 }

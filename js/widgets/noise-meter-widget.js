@@ -57,10 +57,15 @@ class NoiseMeterWidget {
         this.startButton.textContent = 'Start Measuring';
         this.startButton.addEventListener('click', () => this.start());
 
+        this.status = document.createElement('div');
+        this.status.className = 'widget-status';
+        this.status.textContent = 'Microphone off. Press start to listen.';
+
         // Assemble widget
         this.content.appendChild(this.helpText);
         this.content.appendChild(this.canvas);
         this.content.appendChild(this.startButton);
+        this.content.appendChild(this.status);
         this.element.appendChild(this.header);
         this.element.appendChild(this.content);
 
@@ -76,6 +81,9 @@ class NoiseMeterWidget {
         if (this.meter && !this.started) {
             this.started = true;
             this.meter.start();
+            this.startButton.textContent = 'Listening...';
+            this.startButton.disabled = true;
+            this.setStatus('Noise meter is now listening.');
         }
     }
 
@@ -94,7 +102,8 @@ class NoiseMeterWidget {
      */
     serialize() {
         return {
-            type: 'NoiseMeterWidget'
+            type: 'NoiseMeterWidget',
+            started: this.started
         };
     }
 
@@ -102,7 +111,21 @@ class NoiseMeterWidget {
      * Deserialize the widget state.
      * @param {object} _data
      */
-    deserialize(_data) {
-        // No state to restore currently.
+    deserialize(data) {
+        this.started = !!(data && data.started);
+        if (this.started) {
+            this.setStatus('Microphone permissions required to resume.');
+        }
+    }
+
+    /**
+     * Update status text inside the widget.
+     * @param {string} message
+     */
+    setStatus(message) {
+        if (!this.status) return;
+        this.status.textContent = message;
+        this.status.classList.add('action-flash');
+        setTimeout(() => this.status.classList.remove('action-flash'), 900);
     }
 }

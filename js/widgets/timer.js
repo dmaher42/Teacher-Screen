@@ -185,6 +185,10 @@ class TimerWidget {
         this.controls.appendChild(this.startButton);
         this.controls.appendChild(this.stopButton);
 
+        this.status = document.createElement('div');
+        this.status.className = 'widget-status';
+        this.status.textContent = 'Ready to start a timer.';
+
         // Assemble the widget
         this.content.appendChild(this.helpText);
         this.content.appendChild(this.display);
@@ -193,6 +197,7 @@ class TimerWidget {
         this.content.appendChild(this.soundButton);
         this.content.appendChild(this.soundMenu);
         this.content.appendChild(this.controls);
+        this.content.appendChild(this.status);
         this.element.appendChild(this.header);
         this.element.appendChild(this.content);
 
@@ -214,12 +219,15 @@ class TimerWidget {
             if (this.isIntervalMode) {
                 this.currentPhase = 'Work';
                 this.time = this.getWorkDuration() * 60;
+                this.setStatus(`Interval started: Work for ${this.getWorkDuration()} minute(s).`);
             } else {
                 const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : minutes;
                 const chosenMinutes = isNaN(presetValue) ? minutes : presetValue;
                 this.time = chosenMinutes * 60;
+                this.setStatus(`Timer started for ${chosenMinutes} minute(s).`);
             }
             this.updateDisplay();
+            this.flashDisplay();
             this.interval = setInterval(() => this.tick(), 1000);
             this.running = true;
         }
@@ -260,6 +268,8 @@ class TimerWidget {
     stop() {
         clearInterval(this.interval);
         this.running = false;
+        this.setStatus('Timer stopped.', 'warning');
+        this.flashDisplay();
     }
 
     /**
@@ -268,6 +278,8 @@ class TimerWidget {
     notifyComplete() {
         // Visual notification
         this.display.style.color = "red";
+        this.setStatus('Time is up!', 'warning');
+        this.flashDisplay();
         // Audio notification
         const audio = new Audio(this.selectedSound);
         audio.play().catch(e => console.error("Audio playback failed:", e));
@@ -283,9 +295,11 @@ class TimerWidget {
         if (this.currentPhase === 'Work') {
             this.currentPhase = 'Break';
             this.time = this.getBreakDuration() * 60;
+            this.setStatus(`Break time for ${this.getBreakDuration()} minute(s).`);
         } else {
             this.currentPhase = 'Work';
             this.time = this.getWorkDuration() * 60;
+            this.setStatus(`Work time for ${this.getWorkDuration()} minute(s).`);
         }
         this.updateDisplay();
     }
@@ -322,6 +336,28 @@ class TimerWidget {
     }
 
     /**
+     * Provide a short status update within the widget.
+     * @param {string} message
+     * @param {string} tone
+     */
+    setStatus(message, tone = 'success') {
+        if (!this.status) return;
+        this.status.textContent = message;
+        this.status.classList.toggle('warning', tone === 'warning');
+        this.status.classList.add('action-flash');
+        setTimeout(() => this.status.classList.remove('action-flash'), 800);
+    }
+
+    /**
+     * Briefly flash the timer display for visual feedback.
+     */
+    flashDisplay() {
+        if (!this.display) return;
+        this.display.classList.add('action-flash');
+        setTimeout(() => this.display.classList.remove('action-flash'), 1200);
+    }
+
+    /**
      * Serialize the widget's state for saving to localStorage.
      * @returns {object} The serialized state.
      */
@@ -329,7 +365,12 @@ class TimerWidget {
         return {
             type: 'TimerWidget',
             time: this.time,
-            running: this.running
+            running: this.running,
+            isIntervalMode: this.isIntervalMode,
+            workDuration: this.getWorkDuration(),
+            breakDuration: this.getBreakDuration(),
+            currentPhase: this.currentPhase,
+            selectedSound: this.selectedSound
         };
     }
 
@@ -340,11 +381,29 @@ class TimerWidget {
     deserialize(data) {
         this.time = data.time || 0;
         this.running = data.running || false;
+        this.isIntervalMode = !!data.isIntervalMode;
+        this.intervalCheckbox.checked = this.isIntervalMode;
+        this.intervalOptions.style.display = this.isIntervalMode ? 'block' : 'none';
+        if (typeof data.workDuration === 'number') {
+            this.workInput.value = data.workDuration;
+        }
+        if (typeof data.breakDuration === 'number') {
+            this.breakInput.value = data.breakDuration;
+        }
+        if (data.selectedSound) {
+            this.selectedSound = data.selectedSound;
+            const matchingOption = Array.from(this.soundMenu.querySelectorAll('input[type="radio"]')).find((radio) => radio.value === data.selectedSound);
+            if (matchingOption) {
+                matchingOption.checked = true;
+            }
+        }
+        this.currentPhase = data.currentPhase || null;
         this.updateDisplay();
         if (this.running) {
             // Note: Restarting the interval after page load is complex,
             // for simplicity, we'll just restore the display time.
             this.running = false;
         }
+        this.setStatus(this.running ? 'Timer running...' : 'Timer ready.');
     }
 }

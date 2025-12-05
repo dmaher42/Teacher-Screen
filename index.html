@@ -47,11 +47,14 @@
         <!-- =====================================================
              TEACHER CONTROLS PANEL
              ===================================================== -->
-        <aside id="teacher-view" class="view teacher-view hidden" role="region" aria-label="Teacher Controls">
+        <aside id="teacher-view" class="view teacher-view hidden" role="region" aria-label="Teacher Controls" tabindex="-1">
             <div class="controls-panel">
                 <header class="controls-header">
                     <h3>Teacher Controls</h3>
-                    <button id="close-teacher-view" class="widget-close" aria-label="Close Teacher Controls">&times;</button>
+                    <div class="controls-header-actions">
+                        <button id="teacher-help" class="widget-help" aria-label="Open Teacher Help">?</button>
+                        <button id="close-teacher-view" class="widget-close" aria-label="Close Teacher Controls">&times;</button>
+                    </div>
                 </header>
 
                 <!-- Widget Controls -->
@@ -156,6 +159,43 @@
                 <path d="M2 12l10 5 10-5"></path>
             </svg>
         </button>
+
+        <dialog id="help-dialog" aria-labelledby="help-dialog-title">
+            <div class="modal-header">
+                <h3 id="help-dialog-title">How to Use Teacher Controls</h3>
+                <button class="modal-close" aria-label="Close Help">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    <li>Use the toggle button to open or close Teacher Controls. Escape also closes the panel.</li>
+                    <li>Add widgets from the categorized list, then drag or resize them on the Student View grid.</li>
+                    <li>Start or stop timers, pick names, and change themes without leaving the Teacher View.</li>
+                    <li>All changes save automatically to your browser. Reload to continue where you left off.</li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="control-button modal-primary" data-close>Got it</button>
+            </div>
+        </dialog>
+
+        <dialog id="tour-dialog" aria-labelledby="tour-dialog-title">
+            <div class="modal-header">
+                <h3 id="tour-dialog-title">Welcome to Teacher Screen</h3>
+                <button class="modal-close" aria-label="Close Tour">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Take a quick tour of the main areas:</p>
+                <ol>
+                    <li><strong>Student View</strong>: the large grid where widgets appear for your class.</li>
+                    <li><strong>Teacher Controls</strong>: open the side panel to add widgets, themes, and presets.</li>
+                    <li><strong>Toggle Button</strong>: use the floating control to show or hide the Teacher View anytime.</li>
+                </ol>
+                <p>Use Tab to move between controls, Enter or Space to activate them, and Escape to close panels.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="control-button modal-primary" data-close>Start Teaching</button>
+            </div>
+        </dialog>
     </main>
 
     <!-- =====================================================

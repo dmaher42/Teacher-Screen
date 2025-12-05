@@ -31,7 +31,11 @@
     --resize-handle-bg: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%);
     --notification-bg: var(--primary-color);
     --notification-text: #ffffff;
-    
+    --focus-outline-color: #ffbf47;
+    --focus-outline-offset: 2px;
+    --modal-backdrop: rgba(0, 0, 0, 0.35);
+    --spinner-color: #ffffff;
+
     /* Fonts & Sizing */
     --border-radius: 8px;
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

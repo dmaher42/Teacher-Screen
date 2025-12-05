@@ -55,6 +55,8 @@ class LayoutManager {
 
     // Save layout
     this.saveLayout();
+
+    return widgetElement;
   }
   
   addResizeHandles(element) {
