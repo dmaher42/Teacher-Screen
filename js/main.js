@@ -230,6 +230,7 @@ class ClassroomScreenApp {
         }
 
         this.teacherView.classList.toggle('hidden', !this.isTeacherViewOpen);
+        this.teacherView.classList.toggle('open', this.isTeacherViewOpen);
         this.toggleViewBtn.classList.toggle('active', this.isTeacherViewOpen);
         this.toggleViewBtn.setAttribute('aria-expanded', this.isTeacherViewOpen);
 
