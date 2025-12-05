@@ -28,6 +28,7 @@ class ClassroomScreenApp {
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
+        this.lessonPlanEditor = null;
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
@@ -53,7 +54,9 @@ class ClassroomScreenApp {
                 name: 'Tools',
                 widgets: [
                     { type: 'qr-code', label: 'Add QR Code' },
-                    { type: 'drawing-tool', label: 'Add Drawing Tool' }
+                    { type: 'drawing-tool', label: 'Add Drawing Tool' },
+                    { type: 'document-viewer', label: 'Add Document Viewer' },
+                    { type: 'mask', label: 'Add Mask' }
                 ]
             }
         ];
@@ -104,6 +107,7 @@ class ClassroomScreenApp {
     init() {
         this.setupEventListeners();
         this.renderWidgetAccordion();
+        this.initLessonPlanner();
         this.loadSavedState();
         this.backgroundManager.init();
         this.layoutManager.init();
@@ -237,6 +241,25 @@ class ClassroomScreenApp {
         }
 
         this.setupDialogControls();
+
+        // Tab controls
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                tabContents.forEach(content => {
+                    if (content.id === button.dataset.tab) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
     }
 
     /**
@@ -283,6 +306,12 @@ class ClassroomScreenApp {
                 case 'drawing-tool':
                     widget = new DrawingToolWidget();
                     break;
+                case 'document-viewer':
+                    widget = new DocumentViewerWidget();
+                    break;
+                case 'mask':
+                    widget = new MaskWidget();
+                    break;
                 default:
                     throw new Error(`Unknown widget type: ${type}`);
             }
@@ -321,7 +350,9 @@ class ClassroomScreenApp {
             'noise-meter': 'Noise Meter',
             'name-picker': 'Name Picker',
             'qr-code': 'QR Code',
-            'drawing-tool': 'Drawing Tool'
+            'drawing-tool': 'Drawing Tool',
+            'document-viewer': 'Document Viewer',
+            'mask': 'Mask'
         };
         return names[type] || 'Widget';
     }
@@ -539,7 +570,8 @@ class ClassroomScreenApp {
         const state = {
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize()
+            layout: this.layoutManager.serialize(),
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
         localStorage.setItem('classroomScreenState', JSON.stringify(state));
     }
@@ -585,7 +617,8 @@ class ClassroomScreenApp {
             name: presetName,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize()
+            layout: this.layoutManager.serialize(),
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
 
         const existingIndex = this.presets.findIndex(preset => preset.name.toLowerCase() === presetName.toLowerCase());
@@ -626,6 +659,10 @@ class ClassroomScreenApp {
             this.backgroundManager.deserialize(preset.background);
         }
 
+        if (preset.lessonPlan && this.lessonPlanEditor) {
+            this.lessonPlanEditor.setContents(preset.lessonPlan);
+        }
+
         this.widgets = [];
         this.layoutManager.deserialize(preset.layout, (widgetData) => {
             let widget;
@@ -635,6 +672,8 @@ class ClassroomScreenApp {
                 case 'NamePickerWidget': widget = new NamePickerWidget(); break;
                 case 'QRCodeWidget': widget = new QRCodeWidget(); break;
                 case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                case 'MaskWidget': widget = new MaskWidget(); break;
             }
             if (widget) {
                 this.widgets.push(widget);
@@ -663,7 +702,8 @@ class ClassroomScreenApp {
             name,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize()
+            layout: this.layoutManager.serialize(),
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
         this.savePresets();
         this.renderPresetList();
@@ -775,12 +815,19 @@ class ClassroomScreenApp {
                             case 'NamePickerWidget': widget = new NamePickerWidget(); break;
                             case 'QRCodeWidget': widget = new QRCodeWidget(); break;
                             case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                            case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                            case 'MaskWidget': widget = new MaskWidget(); break;
                         }
                         if (widget) {
                             this.widgets.push(widget);
                         }
                         return widget;
                     });
+                }
+
+                // Restore lesson plan
+                if (state.lessonPlan && this.lessonPlanEditor) {
+                    this.lessonPlanEditor.setContents(state.lessonPlan);
                 }
             } catch (e) {
                 console.error('Failed to load saved state:', e);
@@ -799,6 +846,9 @@ class ClassroomScreenApp {
                 this.layoutManager.widgets = [];
             }
             this.backgroundManager.reset();
+            if (this.lessonPlanEditor) {
+                this.lessonPlanEditor.setContents([]);
+            }
             this.saveState();
             this.showNotification('Layout has been reset.');
         }
@@ -900,7 +950,30 @@ class ClassroomScreenApp {
     }
 }
 
-// Initialize the application when the DOM is fully loaded
+    /**
+     * Initialize the Quill rich text editor for the lesson plan.
+     */
+    initLessonPlanner() {
+        if (document.getElementById('lesson-plan-editor')) {
+            this.lessonPlanEditor = new Quill('#lesson-plan-editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link', 'image']
+                    ]
+                }
+            });
+
+            this.lessonPlanEditor.on('text-change', () => {
+                this.saveState();
+            });
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const app = new ClassroomScreenApp();
     app.init();
