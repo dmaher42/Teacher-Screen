@@ -49,6 +49,47 @@ class NamePickerWidget {
             this.helpText.style.display = isVisible ? 'none' : 'block';
         });
 
+        // Group selection controls
+        this.groupControls = document.createElement('div');
+        this.groupControls.className = 'name-picker-group-controls';
+
+        this.groupSelect = document.createElement('select');
+        this.groupSelect.addEventListener('change', (event) => this.switchGroup(event.target.value));
+
+        this.addGroupButton = document.createElement('button');
+        this.addGroupButton.textContent = 'Add Group';
+        this.addGroupButton.addEventListener('click', () => this.addGroup());
+
+        this.deleteGroupButton = document.createElement('button');
+        this.deleteGroupButton.textContent = 'Delete Group';
+        this.deleteGroupButton.addEventListener('click', () => this.deleteGroup());
+
+        this.groupControls.appendChild(this.groupSelect);
+        this.groupControls.appendChild(this.addGroupButton);
+        this.groupControls.appendChild(this.deleteGroupButton);
+
+        // Import/Export controls
+        this.importExportControls = document.createElement('div');
+        this.importExportControls.className = 'name-picker-import-export';
+
+        this.importButton = document.createElement('button');
+        this.importButton.textContent = 'Import';
+        this.importButton.addEventListener('click', () => this.fileInput.click());
+
+        this.exportButton = document.createElement('button');
+        this.exportButton.textContent = 'Export';
+        this.exportButton.addEventListener('click', () => this.exportNames());
+
+        this.fileInput = document.createElement('input');
+        this.fileInput.type = 'file';
+        this.fileInput.accept = '.txt,.csv';
+        this.fileInput.style.display = 'none';
+        this.fileInput.addEventListener('change', (event) => this.importNames(event));
+
+        this.importExportControls.appendChild(this.importButton);
+        this.importExportControls.appendChild(this.exportButton);
+        this.importExportControls.appendChild(this.fileInput);
+
         // Create the name display
         this.display = document.createElement('div');
         this.display.className = 'name-picker-display';
@@ -62,14 +103,24 @@ class NamePickerWidget {
 
         // Assemble the widget
         this.content.appendChild(this.helpText);
+        this.content.appendChild(this.groupControls);
+        this.content.appendChild(this.importExportControls);
         this.content.appendChild(this.display);
         this.content.appendChild(this.pickButton);
         this.element.appendChild(this.header);
         this.element.appendChild(this.content);
 
         // Name Picker state
-        this.originalNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah']; // Default list
-        this.names = [...this.originalNames];
+        const defaultNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah'];
+        this.groups = {
+            Default: {
+                originalNames: defaultNames,
+                names: [...defaultNames]
+            }
+        };
+        this.currentGroup = 'Default';
+        this.refreshGroupOptions();
+        this.updateDisplayState();
         this.picking = false;
     }
 
@@ -77,15 +128,16 @@ class NamePickerWidget {
      * Start the random name picking animation.
      */
     pickRandom() {
-        if (this.picking || this.names.length === 0) return;
+        const groupData = this.getGroupData();
+        if (!groupData || this.picking || groupData.names.length === 0) return;
 
         this.picking = true;
         let iterations = 0;
         const maxIterations = 20;
 
         const interval = setInterval(() => {
-            const randomIndex = Math.floor(Math.random() * this.names.length);
-            this.display.textContent = this.names[randomIndex];
+            const randomIndex = Math.floor(Math.random() * groupData.names.length);
+            this.display.textContent = groupData.names[randomIndex];
             iterations++;
 
             if (iterations >= maxIterations) {
@@ -93,11 +145,11 @@ class NamePickerWidget {
                 this.picking = false;
 
                 // Remove the selected name temporarily
-                const selectedName = this.names.splice(randomIndex, 1)[0];
+                const selectedName = groupData.names.splice(randomIndex, 1)[0];
                 this.display.textContent = `Selected: ${selectedName}`;
 
                 // If all names have been picked, change button to reset
-                if (this.names.length === 0) {
+                if (groupData.names.length === 0) {
                     this.pickButton.textContent = 'Reset List';
                     this.pickButton.onclick = () => this.reset();
                 }
@@ -109,10 +161,11 @@ class NamePickerWidget {
      * Reset the list of names back to the original.
      */
     reset() {
-        this.names = [...this.originalNames];
-        this.display.textContent = 'Click to pick a name';
-        this.pickButton.textContent = 'Pick a Name';
-        this.pickButton.onclick = () => this.pickRandom();
+        const groupData = this.getGroupData();
+        if (!groupData) return;
+
+        groupData.names = [...groupData.originalNames];
+        this.updateDisplayState();
     }
 
     /**
@@ -132,8 +185,8 @@ class NamePickerWidget {
     serialize() {
         return {
             type: 'NamePickerWidget',
-            originalNames: this.originalNames,
-            names: this.names
+            groups: this.groups,
+            currentGroup: this.currentGroup
         };
     }
 
@@ -142,10 +195,39 @@ class NamePickerWidget {
      * @param {object} data - The serialized state.
      */
     deserialize(data) {
-        this.originalNames = data.originalNames || ['Alice', 'Bob', 'Charlie'];
-        this.names = data.names || [...this.originalNames];
-        
-        if (this.names.length === 0) {
+        const defaultNames = ['Alice', 'Bob', 'Charlie'];
+        this.groups = data.groups || {
+            Default: {
+                originalNames: defaultNames,
+                names: [...defaultNames]
+            }
+        };
+        this.currentGroup = data.currentGroup && this.groups[data.currentGroup] ? data.currentGroup : Object.keys(this.groups)[0];
+
+        this.refreshGroupOptions();
+        this.updateDisplayState();
+    }
+
+    /**
+     * Get the data for the current group.
+     */
+    getGroupData() {
+        return this.groups[this.currentGroup];
+    }
+
+    /**
+     * Update the UI based on the current group's state.
+     */
+    updateDisplayState() {
+        const groupData = this.getGroupData();
+        if (!groupData) return;
+
+        this.originalNames = groupData.originalNames;
+        this.names = groupData.names;
+
+        this.groupSelect.value = this.currentGroup;
+
+        if (groupData.names.length === 0) {
             this.display.textContent = 'List is empty';
             this.pickButton.textContent = 'Reset List';
             this.pickButton.onclick = () => this.reset();
@@ -154,5 +236,106 @@ class NamePickerWidget {
             this.pickButton.textContent = 'Pick a Name';
             this.pickButton.onclick = () => this.pickRandom();
         }
+
+        this.deleteGroupButton.disabled = Object.keys(this.groups).length <= 1 || this.currentGroup === 'Default';
+    }
+
+    /**
+     * Refresh the dropdown options for groups.
+     */
+    refreshGroupOptions() {
+        this.groupSelect.innerHTML = '';
+        Object.keys(this.groups).forEach((groupName) => {
+            const option = document.createElement('option');
+            option.value = groupName;
+            option.textContent = groupName;
+            this.groupSelect.appendChild(option);
+        });
+        this.groupSelect.value = this.currentGroup;
+    }
+
+    /**
+     * Switch the active group.
+     * @param {string} groupName
+     */
+    switchGroup(groupName) {
+        if (!this.groups[groupName]) return;
+        this.currentGroup = groupName;
+        this.updateDisplayState();
+    }
+
+    /**
+     * Add a new group with an empty name list.
+     */
+    addGroup() {
+        const groupName = prompt('Enter a name for the new group:');
+        const trimmedName = groupName ? groupName.trim() : '';
+        if (!trimmedName || this.groups[trimmedName]) return;
+
+        this.groups[trimmedName] = {
+            originalNames: [],
+            names: []
+        };
+        this.currentGroup = trimmedName;
+        this.refreshGroupOptions();
+        this.updateDisplayState();
+    }
+
+    /**
+     * Delete the currently selected group if allowed.
+     */
+    deleteGroup() {
+        if (this.currentGroup === 'Default' || Object.keys(this.groups).length <= 1) return;
+
+        delete this.groups[this.currentGroup];
+        this.currentGroup = 'Default' in this.groups ? 'Default' : Object.keys(this.groups)[0];
+        this.refreshGroupOptions();
+        this.updateDisplayState();
+    }
+
+    /**
+     * Import names from a text or CSV file into the current group.
+     * @param {Event} event
+     */
+    importNames(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const importedNames = reader.result
+                .split(/\r?\n/)
+                .map((name) => name.trim())
+                .filter((name) => name.length > 0);
+
+            const groupData = this.getGroupData();
+            if (!groupData) return;
+
+            groupData.originalNames = importedNames;
+            groupData.names = [...importedNames];
+            this.updateDisplayState();
+        };
+        reader.readAsText(file);
+
+        // Reset the input so the same file can be selected again if needed
+        event.target.value = '';
+    }
+
+    /**
+     * Export the current group's names as a text file.
+     */
+    exportNames() {
+        const groupData = this.getGroupData();
+        if (!groupData) return;
+
+        const blob = new Blob([groupData.originalNames.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.currentGroup || 'names'}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 }
