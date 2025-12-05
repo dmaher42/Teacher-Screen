@@ -128,9 +128,16 @@ class ClassroomScreenApp {
      * Set up all event listeners for the application.
      */
     setupEventListeners() {
+        if (!this.toggleViewBtn) {
+            console.warn('Toggle view button not found. Event listeners not initialized.');
+            return;
+        }
+
         // View toggle
         this.toggleViewBtn.addEventListener('click', () => this.toggleTeacherView());
-        this.closeTeacherViewBtn.addEventListener('click', () => this.toggleTeacherView(false));
+        if (this.closeTeacherViewBtn) {
+            this.closeTeacherViewBtn.addEventListener('click', () => this.toggleTeacherView(false));
+        }
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -162,23 +169,37 @@ class ClassroomScreenApp {
         }
 
         // Timer controls
-        document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
-        document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
+        const startTimerButton = document.getElementById('start-timer');
+        if (startTimerButton) {
+            startTimerButton.addEventListener('click', () => this.startTimerFromControls());
+        }
+
+        const stopTimerButton = document.getElementById('stop-timer');
+        if (stopTimerButton) {
+            stopTimerButton.addEventListener('click', () => this.stopTimerFromControls());
+        }
 
         // Theme controls
-        this.themeSelector.addEventListener('click', (e) => {
-            if (e.target.classList.contains('theme-option')) {
-                this.switchTheme(e.target.dataset.theme);
-            }
-        });
+        if (this.themeSelector) {
+            this.themeSelector.addEventListener('click', (e) => {
+                if (e.target.classList.contains('theme-option')) {
+                    this.switchTheme(e.target.dataset.theme);
+                }
+            });
+        }
 
         // Background controls
-        this.backgroundTypeSelect.addEventListener('change', (e) => {
-            this.updateBackgroundOptions(e.target.value);
-        });
+        if (this.backgroundTypeSelect) {
+            this.backgroundTypeSelect.addEventListener('change', (e) => {
+                this.updateBackgroundOptions(e.target.value);
+            });
+        }
 
         // Layout controls
-        document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
+        const resetLayoutButton = document.getElementById('reset-layout');
+        if (resetLayoutButton) {
+            resetLayoutButton.addEventListener('click', () => this.resetLayout());
+        }
 
         const savePresetButton = document.getElementById('save-preset');
         if (savePresetButton) {
