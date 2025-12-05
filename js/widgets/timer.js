@@ -43,7 +43,7 @@ class TimerWidget {
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
-        this.helpText.textContent = 'Press Start for a 5-minute countdown and Stop to pause early. When time ends, the display highlights and a beep plays.';
+        this.helpText.textContent = 'Choose a preset or set an interval with work/break durations. Start to begin, Stop to pause, and customize the alert sound.';
         this.helpButton.addEventListener('click', () => {
             const isVisible = this.helpText.style.display === 'block';
             this.helpText.style.display = isVisible ? 'none' : 'block';
@@ -60,8 +60,10 @@ class TimerWidget {
 
         const presetLabel = document.createElement('label');
         presetLabel.textContent = 'Presets: ';
+        presetLabel.htmlFor = 'timer-preset-select';
 
         this.presetSelect = document.createElement('select');
+        this.presetSelect.id = 'timer-preset-select';
         [1, 5, 10, 15].forEach(minutes => {
             const option = document.createElement('option');
             option.value = minutes;
@@ -72,8 +74,8 @@ class TimerWidget {
             this.presetSelect.appendChild(option);
         });
 
-        presetLabel.appendChild(this.presetSelect);
         this.presetContainer.appendChild(presetLabel);
+        this.presetContainer.appendChild(this.presetSelect);
 
         // Interval mode controls
         this.intervalContainer = document.createElement('div');
@@ -84,6 +86,7 @@ class TimerWidget {
 
         this.intervalCheckbox = document.createElement('input');
         this.intervalCheckbox.type = 'checkbox';
+        this.intervalCheckbox.id = 'timer-interval-toggle';
         this.intervalCheckbox.addEventListener('change', () => {
             this.isIntervalMode = this.intervalCheckbox.checked;
             this.intervalOptions.style.display = this.isIntervalMode ? 'block' : 'none';
@@ -94,6 +97,7 @@ class TimerWidget {
         });
 
         intervalLabel.prepend(this.intervalCheckbox);
+        intervalLabel.htmlFor = 'timer-interval-toggle';
         this.intervalContainer.appendChild(intervalLabel);
 
         this.intervalOptions = document.createElement('div');
@@ -104,18 +108,22 @@ class TimerWidget {
         this.workInput.type = 'number';
         this.workInput.min = '1';
         this.workInput.value = '5';
+        this.workInput.id = 'timer-work-duration';
 
         this.breakInput = document.createElement('input');
         this.breakInput.type = 'number';
         this.breakInput.min = '1';
         this.breakInput.value = '2';
+        this.breakInput.id = 'timer-break-duration';
 
         const workLabel = document.createElement('label');
         workLabel.textContent = 'Work Duration (min): ';
+        workLabel.htmlFor = 'timer-work-duration';
         workLabel.appendChild(this.workInput);
 
         const breakLabel = document.createElement('label');
         breakLabel.textContent = ' Break Duration (min): ';
+        breakLabel.htmlFor = 'timer-break-duration';
         breakLabel.appendChild(this.breakInput);
 
         this.intervalOptions.appendChild(workLabel);
@@ -127,25 +135,29 @@ class TimerWidget {
         this.soundButton = document.createElement('button');
         this.soundButton.className = 'sound-button';
         this.soundButton.textContent = '🔊';
+        this.soundButton.setAttribute('aria-label', 'Choose timer sound');
 
         this.soundMenu = document.createElement('div');
         this.soundMenu.className = 'sound-menu';
         this.soundMenu.style.display = 'none';
 
         const soundTitle = document.createElement('div');
+        soundTitle.className = 'sound-menu-title';
         soundTitle.textContent = 'Notification Sound';
         this.soundMenu.appendChild(soundTitle);
 
-        this.soundOptions = [
-            { label: 'Digital Beep', url: 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3' },
-            { label: 'Bell Chime', url: 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3' },
-            { label: 'Soft Tone', url: 'https://assets.mixkit.co/sfx/preview/mixkit-soft-bells-1101.mp3' }
-        ];
+        // Prefer sound options defined in assets/sounds/sound-data.js
+        this.soundOptions = (window.TIMER_SOUND_OPTIONS && Array.isArray(window.TIMER_SOUND_OPTIONS)) ? window.TIMER_SOUND_OPTIONS : [];
+        if (this.soundOptions.length === 0) {
+            // Fallback silent option if sound data failed to load
+            this.soundOptions = [{ label: 'Default Beep', url: '' }];
+        }
 
         this.selectedSound = this.soundOptions[0].url;
 
         this.soundOptions.forEach((option, index) => {
             const wrapper = document.createElement('label');
+            wrapper.className = 'sound-option';
             const radio = document.createElement('input');
             radio.type = 'radio';
             radio.name = 'timer-sound';
@@ -162,11 +174,13 @@ class TimerWidget {
         this.soundButton.addEventListener('click', (event) => {
             event.stopPropagation();
             this.soundMenu.style.display = this.soundMenu.style.display === 'block' ? 'none' : 'block';
+            this.soundButton.setAttribute('aria-expanded', this.soundMenu.style.display === 'block');
         });
 
         document.addEventListener('click', (event) => {
             if (!this.soundMenu.contains(event.target) && event.target !== this.soundButton) {
                 this.soundMenu.style.display = 'none';
+                this.soundButton.setAttribute('aria-expanded', 'false');
             }
         });
 
@@ -213,16 +227,18 @@ class TimerWidget {
      * Start the timer with a default of 5 minutes.
      * @param {number} minutes - The number of minutes to count down from.
      */
-    start(minutes = 5) {
+    start(minutes = null) {
         if (!this.running) {
             this.display.style.color = ''; // Reset color in case it was red
             if (this.isIntervalMode) {
                 this.currentPhase = 'Work';
-                this.time = this.getWorkDuration() * 60;
-                this.setStatus(`Interval started: Work for ${this.getWorkDuration()} minute(s).`);
+                const workMinutes = this.getWorkDuration();
+                this.time = workMinutes * 60;
+                this.setStatus(`Interval started: Work for ${workMinutes} minute(s).`);
             } else {
-                const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : minutes;
-                const chosenMinutes = isNaN(presetValue) ? minutes : presetValue;
+                const customMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : null;
+                const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : null;
+                const chosenMinutes = customMinutes || (!isNaN(presetValue) ? presetValue : 5);
                 this.time = chosenMinutes * 60;
                 this.setStatus(`Timer started for ${chosenMinutes} minute(s).`);
             }
@@ -267,6 +283,7 @@ class TimerWidget {
      */
     stop() {
         clearInterval(this.interval);
+        this.interval = null;
         this.running = false;
         this.setStatus('Timer stopped.', 'warning');
         this.flashDisplay();
@@ -281,8 +298,10 @@ class TimerWidget {
         this.setStatus('Time is up!', 'warning');
         this.flashDisplay();
         // Audio notification
-        const audio = new Audio(this.selectedSound);
-        audio.play().catch(e => console.error("Audio playback failed:", e));
+        if (this.selectedSound) {
+            const audio = new Audio(this.selectedSound);
+            audio.play().catch(e => console.error("Audio playback failed:", e));
+        }
     }
 
     /**
@@ -301,6 +320,7 @@ class TimerWidget {
             this.time = this.getWorkDuration() * 60;
             this.setStatus(`Work time for ${this.getWorkDuration()} minute(s).`);
         }
+        this.display.style.color = '';
         this.updateDisplay();
     }
 
@@ -370,7 +390,8 @@ class TimerWidget {
             workDuration: this.getWorkDuration(),
             breakDuration: this.getBreakDuration(),
             currentPhase: this.currentPhase,
-            selectedSound: this.selectedSound
+            selectedSound: this.selectedSound,
+            presetMinutes: this.presetSelect ? parseInt(this.presetSelect.value, 10) : 5
         };
     }
 
@@ -390,6 +411,9 @@ class TimerWidget {
         if (typeof data.breakDuration === 'number') {
             this.breakInput.value = data.breakDuration;
         }
+        if (typeof data.presetMinutes === 'number' && this.presetSelect) {
+            this.presetSelect.value = data.presetMinutes;
+        }
         if (data.selectedSound) {
             this.selectedSound = data.selectedSound;
             const matchingOption = Array.from(this.soundMenu.querySelectorAll('input[type="radio"]')).find((radio) => radio.value === data.selectedSound);
@@ -404,6 +428,6 @@ class TimerWidget {
             // for simplicity, we'll just restore the display time.
             this.running = false;
         }
-        this.setStatus(this.running ? 'Timer running...' : 'Timer ready.');
+        this.setStatus(this.running ? 'Timer running...' : 'Ready to start a timer.');
     }
 }
