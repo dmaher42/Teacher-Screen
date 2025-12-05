@@ -20,17 +20,34 @@ class NamePickerWidget {
         this.title.className = 'widget-title';
         this.title.textContent = 'Name Picker';
 
+        this.helpButton = document.createElement('button');
+        this.helpButton.className = 'widget-help';
+        this.helpButton.textContent = '?';
+
         this.closeButton = document.createElement('button');
         this.closeButton.className = 'widget-close';
         this.closeButton.innerHTML = '&times;';
         this.closeButton.addEventListener('click', () => this.remove());
 
+        this.controls = document.createElement('div');
+        this.controls.className = 'widget-controls';
+        this.controls.appendChild(this.helpButton);
+        this.controls.appendChild(this.closeButton);
+
         this.header.appendChild(this.title);
-        this.header.appendChild(this.closeButton);
+        this.header.appendChild(this.controls);
 
         // Create the widget content area
         this.content = document.createElement('div');
         this.content.className = 'widget-content';
+
+        this.helpText = document.createElement('div');
+        this.helpText.className = 'widget-help-text';
+        this.helpText.textContent = 'Click Pick a Name to spin through the list. When all names are chosen, reset the list to start over.';
+        this.helpButton.addEventListener('click', () => {
+            const isVisible = this.helpText.style.display === 'block';
+            this.helpText.style.display = isVisible ? 'none' : 'block';
+        });
 
         // Create the name display
         this.display = document.createElement('div');
@@ -44,6 +61,7 @@ class NamePickerWidget {
         this.pickButton.addEventListener('click', () => this.pickRandom());
 
         // Assemble the widget
+        this.content.appendChild(this.helpText);
         this.content.appendChild(this.display);
         this.content.appendChild(this.pickButton);
         this.element.appendChild(this.header);
