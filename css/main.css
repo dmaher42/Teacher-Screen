@@ -102,7 +102,7 @@ body {
     gap: 5px;
 }
 
-.widget-close, .widget-minimize, .widget-maximize {
+.widget-close, .widget-minimize, .widget-maximize, .widget-help {
     background: none;
     border: none;
     cursor: pointer;
@@ -117,8 +117,19 @@ body {
     transition: background-color 0.2s;
 }
 
-.widget-close:hover, .widget-minimize:hover, .widget-maximize:hover {
+.widget-close:hover, .widget-minimize:hover, .widget-maximize:hover, .widget-help:hover {
     background-color: rgba(0,0,0,0.1);
+}
+
+.widget-help-text {
+    display: none;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 10px;
+    color: var(--text-color, #212529);
+    font-size: 0.9em;
 }
 
 .widget-content {

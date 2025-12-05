@@ -17,17 +17,34 @@ class NoiseMeterWidget {
         this.title.className = 'widget-title';
         this.title.textContent = 'Noise Meter';
 
+        this.helpButton = document.createElement('button');
+        this.helpButton.className = 'widget-help';
+        this.helpButton.textContent = '?';
+
         this.closeButton = document.createElement('button');
         this.closeButton.className = 'widget-close';
         this.closeButton.innerHTML = '&times;';
         this.closeButton.addEventListener('click', () => this.remove());
 
+        this.controls = document.createElement('div');
+        this.controls.className = 'widget-controls';
+        this.controls.appendChild(this.helpButton);
+        this.controls.appendChild(this.closeButton);
+
         this.header.appendChild(this.title);
-        this.header.appendChild(this.closeButton);
+        this.header.appendChild(this.controls);
 
         // Create the widget content area
         this.content = document.createElement('div');
         this.content.className = 'widget-content';
+
+        this.helpText = document.createElement('div');
+        this.helpText.className = 'widget-help-text';
+        this.helpText.textContent = 'Use Start Measuring to begin listening. Close the widget to stop the meter when you are done.';
+        this.helpButton.addEventListener('click', () => {
+            const isVisible = this.helpText.style.display === 'block';
+            this.helpText.style.display = isVisible ? 'none' : 'block';
+        });
 
         // Create canvas for the noise meter visualization
         this.canvas = document.createElement('canvas');
@@ -41,6 +58,7 @@ class NoiseMeterWidget {
         this.startButton.addEventListener('click', () => this.start());
 
         // Assemble widget
+        this.content.appendChild(this.helpText);
         this.content.appendChild(this.canvas);
         this.content.appendChild(this.startButton);
         this.element.appendChild(this.header);
