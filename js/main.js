@@ -18,12 +18,16 @@ class ClassroomScreenApp {
         this.widgetSearchInput = document.getElementById('widget-search');
         this.presetNameInput = document.getElementById('preset-name');
         this.presetListElement = document.getElementById('preset-list');
+        this.teacherHelpButton = document.getElementById('teacher-help');
+        this.helpDialog = document.getElementById('help-dialog');
+        this.tourDialog = document.getElementById('tour-dialog');
 
         // App State
         this.widgets = [];
         this.isTeacherViewOpen = false;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
+        this.hasSavedState = !!localStorage.getItem('classroomScreenState');
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
@@ -86,6 +90,8 @@ class ClassroomScreenApp {
         if (this.widgets.length === 0) {
             this.addWidget('timer');
         }
+
+        this.showWelcomeTourIfNeeded();
     }
 
     /**
@@ -95,6 +101,22 @@ class ClassroomScreenApp {
         // View toggle
         this.toggleViewBtn.addEventListener('click', () => this.toggleTeacherView());
         this.closeTeacherViewBtn.addEventListener('click', () => this.toggleTeacherView(false));
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                const dialogOpen = (this.helpDialog && this.helpDialog.open) || (this.tourDialog && this.tourDialog.open);
+                if (dialogOpen) {
+                    this.closeAllDialogs();
+                } else if (this.isTeacherViewOpen) {
+                    this.toggleTeacherView(false);
+                }
+            }
+
+            if ((event.key === 'Enter' || event.key === ' ') && document.activeElement === this.toggleViewBtn) {
+                event.preventDefault();
+                this.toggleViewBtn.click();
+            }
+        });
 
         if (this.widgetAccordion) {
             this.widgetAccordion.addEventListener('click', (e) => {
@@ -158,6 +180,12 @@ class ClassroomScreenApp {
                 this.handleWidgetRemoved(event.detail.widget);
             }
         });
+
+        if (this.teacherHelpButton) {
+            this.teacherHelpButton.addEventListener('click', () => this.openDialog(this.helpDialog));
+        }
+
+        this.setupDialogControls();
     }
 
     /**
@@ -174,6 +202,10 @@ class ClassroomScreenApp {
         this.teacherView.classList.toggle('hidden', !this.isTeacherViewOpen);
         this.toggleViewBtn.classList.toggle('active', this.isTeacherViewOpen);
         this.toggleViewBtn.setAttribute('aria-expanded', this.isTeacherViewOpen);
+
+        if (this.isTeacherViewOpen) {
+            this.teacherView.focus();
+        }
     }
 
     /**
@@ -202,9 +234,9 @@ class ClassroomScreenApp {
                 default:
                     throw new Error(`Unknown widget type: ${type}`);
             }
-            
+
             // Add the widget to the layout manager
-            this.layoutManager.addWidget(widget);
+            const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
             
             // Remove placeholder if it exists
@@ -214,11 +246,32 @@ class ClassroomScreenApp {
             }
             
             this.saveState();
-            this.showNotification(`${type.replace('-', ' ')} widget added!`);
+            if (widgetElement) {
+                widgetElement.classList.add('action-flash');
+                setTimeout(() => widgetElement.classList.remove('action-flash'), 1200);
+            }
+
+            this.showNotification(`${this.getFriendlyWidgetName(type)} Added!`);
         } catch (error) {
             console.error('Failed to add widget:', error);
             this.showNotification('Failed to add widget.', 'error');
         }
+    }
+
+    /**
+     * Provide a human-friendly widget label.
+     * @param {string} type
+     * @returns {string}
+     */
+    getFriendlyWidgetName(type) {
+        const names = {
+            'timer': 'Timer',
+            'noise-meter': 'Noise Meter',
+            'name-picker': 'Name Picker',
+            'qr-code': 'QR Code',
+            'drawing-tool': 'Drawing Tool'
+        };
+        return names[type] || 'Widget';
     }
 
     /**
@@ -693,6 +746,58 @@ class ClassroomScreenApp {
             notification.classList.remove('show');
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    /**
+     * Wire dialog open/close buttons for help and tour.
+     */
+    setupDialogControls() {
+        const dialogs = [this.helpDialog, this.tourDialog].filter(Boolean);
+        dialogs.forEach((dialog) => {
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) {
+                    this.closeAllDialogs();
+                }
+            });
+
+            dialog.querySelectorAll('[data-close], .modal-close').forEach((btn) => {
+                btn.addEventListener('click', () => this.closeAllDialogs());
+            });
+        });
+    }
+
+    /**
+     * Open a dialog with modal behavior.
+     * @param {HTMLDialogElement} dialog
+     */
+    openDialog(dialog) {
+        if (!dialog) return;
+        if (!dialog.open) {
+            dialog.showModal();
+        }
+    }
+
+    /**
+     * Close all open dialogs.
+     */
+    closeAllDialogs() {
+        [this.helpDialog, this.tourDialog].forEach((dialog) => {
+            if (dialog && dialog.open) {
+                dialog.close();
+            }
+        });
+    }
+
+    /**
+     * Display the welcome tour on first load without saved state.
+     */
+    showWelcomeTourIfNeeded() {
+        const tourSeen = localStorage.getItem('welcomeTourSeen');
+        if (this.hasSavedState || tourSeen) {
+            return;
+        }
+        this.openDialog(this.tourDialog);
+        localStorage.setItem('welcomeTourSeen', 'true');
     }
 }
 
