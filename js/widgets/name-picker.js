@@ -54,14 +54,17 @@ class NamePickerWidget {
         this.groupControls.className = 'name-picker-group-controls';
 
         this.groupSelect = document.createElement('select');
+        this.groupSelect.setAttribute('aria-label', 'Select name group');
         this.groupSelect.addEventListener('change', (event) => this.switchGroup(event.target.value));
 
         this.addGroupButton = document.createElement('button');
         this.addGroupButton.textContent = 'Add Group';
+        this.addGroupButton.setAttribute('aria-label', 'Add group');
         this.addGroupButton.addEventListener('click', () => this.addGroup());
 
         this.deleteGroupButton = document.createElement('button');
         this.deleteGroupButton.textContent = 'Delete Group';
+        this.deleteGroupButton.setAttribute('aria-label', 'Delete current group');
         this.deleteGroupButton.addEventListener('click', () => this.deleteGroup());
 
         this.groupControls.appendChild(this.groupSelect);
@@ -74,6 +77,7 @@ class NamePickerWidget {
 
         this.importButton = document.createElement('button');
         this.importButton.textContent = 'Import';
+        this.importButton.setAttribute('aria-label', 'Import names');
         this.importButton.addEventListener('click', () => this.fileInput.click());
 
         this.importSpinner = document.createElement('span');
@@ -84,6 +88,7 @@ class NamePickerWidget {
 
         this.exportButton = document.createElement('button');
         this.exportButton.textContent = 'Export';
+        this.exportButton.setAttribute('aria-label', 'Export names');
         this.exportButton.addEventListener('click', () => this.exportNames());
 
         this.fileInput = document.createElement('input');
@@ -105,7 +110,7 @@ class NamePickerWidget {
         this.pickButton = document.createElement('button');
         this.pickButton.className = 'pick-button';
         this.pickButton.textContent = 'Pick a Name';
-        this.pickButton.addEventListener('click', () => this.pickRandom());
+        this.pickButton.setAttribute('aria-label', 'Pick a name');
 
         this.status = document.createElement('div');
         this.status.className = 'widget-status';
@@ -253,7 +258,10 @@ class NamePickerWidget {
             this.display.textContent = 'List is empty';
             this.pickButton.textContent = 'Reset List';
             this.pickButton.onclick = () => this.reset();
-            this.setStatus('All names have been picked. Reset to start over.', 'warning');
+            const statusMessage = groupData.originalNames.length === 0
+                ? 'List is empty. Import or add names to begin.'
+                : 'All names have been picked. Reset to start over.';
+            this.setStatus(statusMessage, 'warning');
         } else {
             this.display.textContent = 'Click to pick a name';
             this.pickButton.textContent = 'Pick a Name';
@@ -341,10 +349,16 @@ class NamePickerWidget {
                 return;
             }
 
-            groupData.originalNames = importedNames;
-            groupData.names = [...importedNames];
-            this.updateDisplayState();
-            this.setStatus(`Imported ${importedNames.length} name(s).`);
+            if (importedNames.length > 0) {
+                // Replace the current group's names with the imported list
+                groupData.originalNames = importedNames;
+                groupData.names = [...importedNames];
+                this.lastPicked = null;
+                this.updateDisplayState();
+                this.setStatus(`Imported ${importedNames.length} name(s).`);
+            } else {
+                this.setStatus('No names found in file. Please try again.', 'warning');
+            }
             this.showImportLoading(false);
         };
         reader.onerror = () => {
