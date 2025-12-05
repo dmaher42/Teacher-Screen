@@ -484,6 +484,46 @@ details:focus-visible,
     justify-content: center;
 }
 
+.name-picker-group-controls,
+.name-picker-import-export {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.name-picker-group-controls select {
+    min-width: 120px;
+    padding: 6px;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 6px;
+    background-color: var(--card-background, #ffffff);
+}
+
+.name-picker-import-export button,
+.name-picker-group-controls button,
+.pick-button {
+    cursor: pointer;
+    border: 1px solid var(--border-color, #dee2e6);
+    background-color: var(--primary-tint, #f1f5f9);
+    border-radius: 6px;
+    padding: 8px 12px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.name-picker-import-export button:disabled,
+.name-picker-group-controls button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.name-picker-import-export button:hover:not(:disabled),
+.name-picker-group-controls button:hover:not(:disabled),
+.pick-button:hover:not(:disabled) {
+    background-color: var(--primary-hover, #e2e8f0);
+}
+
 .qr-code-container {
     display: flex;
     flex-direction: column;
