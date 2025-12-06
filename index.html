@@ -26,13 +26,24 @@
 </head>
 
 <!-- Set a default theme class on the body -->
-<body class="light-theme">
+<body class="memory-cue-theme">
 
     <noscript>
         <div class="noscript-message">
             For full functionality of this site, it is necessary to enable JavaScript.
         </div>
     </noscript>
+
+    <nav id="top-nav">
+        <div class="nav-tabs">
+            <button class="nav-tab" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab active" data-tab="classroom">Classroom</button>
+            <button class="nav-tab" data-tab="reminders">Reminders</button>
+            <button class="nav-tab" data-tab="planner">Planner</button>
+            <button class="nav-tab" data-tab="timetable">Timetable</button>
+            <button class="nav-tab" data-tab="notes">Notes</button>
+        </div>
+    </nav>
 
     <main id="app-container" class="app-container">
         <!-- =====================================================
@@ -48,106 +59,80 @@
         </section>
 
         <!-- =====================================================
-             TEACHER CONTROLS PANEL
+             TEACHER CONTROLS PANEL (REDESIGNED)
              ===================================================== -->
-        <aside id="teacher-view" class="view teacher-view hidden" role="region" aria-label="Teacher Controls" tabindex="-1">
-            <div class="controls-panel">
-                <header class="controls-header">
-                    <h3>Teacher Controls</h3>
-                    <div class="controls-header-actions">
-                        <button id="teacher-help" class="widget-help" aria-label="Open Teacher Help">?</button>
-                        <button id="close-teacher-view" class="widget-close" aria-label="Close Teacher Controls">&times;</button>
-                    </div>
-                </header>
-
-                <div class="tab-container">
-                    <div class="tab-buttons">
-                        <button class="tab-button active" data-tab="widgets-tab">Widgets</button>
-                        <button class="tab-button" data-tab="lesson-plan-tab">Lesson Plan</button>
-                    </div>
-
-                    <div id="widgets-tab" class="tab-content active">
-                        <!-- Widget Controls -->
-                        <fieldset class="control-section">
-                            <legend>Add Widget</legend>
-                    <div class="input-group">
-                        <label for="widget-search">Search Widgets</label>
-                        <input type="text" id="widget-search" placeholder="Search by name or category">
-                    </div>
-
-                    <div class="widget-accordion" id="widget-accordion">
-                        <details class="widget-category" open>
-                            <summary>Time Management</summary>
-                            <div class="widget-buttons">
-                                <button class="control-button widget-add-btn" data-widget="timer">Add Timer</button>
+        <div class="teacher-panel" id="teacher-panel">
+            <header class="panel-header">
+                <h3>Teacher Controls</h3>
+                <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>
+            </header>
+            <div class="panel-content">
+                <!-- Control Cards -->
+                <section class="control-card">
+                    <details open>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/widget.svg" alt="" class="card-icon">
+                            <h4>Add Widget</h4>
+                        </summary>
+                        <div class="card-body">
+                            <p>Use the floating action button (+) to add widgets.</p>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/timer.svg" alt="" class="card-icon">
+                            <h4>Timer Control</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div class="control-group timer-inputs">
+                                <input type="number" id="timer-hours" min="0" placeholder="HH" value="0">
+                                <span>:</span>
+                                <input type="number" id="timer-minutes" min="0" max="59" placeholder="MM" value="5">
+                                <span>:</span>
+                                <input type="number" id="timer-seconds" min="0" max="59" placeholder="SS" value="0">
                             </div>
-                        </details>
-                        <details class="widget-category" open>
-                            <summary>Engagement</summary>
-                            <div class="widget-buttons">
-                                <button class="control-button widget-add-btn" data-widget="noise-meter">Add Noise Meter</button>
-                                <button class="control-button widget-add-btn" data-widget="name-picker">Add Name Picker</button>
+                            <div class="button-group">
+                                <button id="start-timer" class="control-button">Start Timer</button>
+                                <button id="stop-timer" class="control-button">Stop Timer</button>
                             </div>
-                        </details>
-                        <details class="widget-category" open>
-                            <summary>Tools</summary>
-                            <div class="widget-buttons">
-                                <button class="control-button widget-add-btn" data-widget="qr-code">Add QR Code</button>
-                                <button class="control-button widget-add-btn" data-widget="drawing-tool">Add Drawing Tool</button>
-                                <button class="control-button widget-add-btn" data-widget="document-viewer">Add Document Viewer</button>
-                                <button class="control-button widget-add-btn" data-widget="mask">Add Mask</button>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/theme.svg" alt="" class="card-icon">
+                            <h4>Theme</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div class="theme-selector" id="theme-selector">
+                                <!-- Radio buttons will be populated by JS -->
                             </div>
-                        </details>
-                    </div>
-                </fieldset>
-
-                <!-- Timer Controls -->
-                <fieldset class="control-section">
-                    <legend>Timer Control</legend>
-                    <div class="input-group">
-                        <label for="timer-minutes">Minutes:</label>
-                        <input type="number" id="timer-minutes" placeholder="e.g., 5" min="1" max="60" value="5">
-                    </div>
-                    <div class="button-group">
-                        <button id="start-timer" class="control-button">Start Timer</button>
-                        <button id="stop-timer" class="control-button">Stop Timer</button>
-                    </div>
-                </fieldset>
-
-                <!-- Theme Selection -->
-                <fieldset class="control-section">
-                    <legend>Theme</legend>
-                    <div class="theme-selector" id="theme-selector">
-                        <button class="theme-option selected" data-theme="light-theme">Light</button>
-                        <button class="theme-option" data-theme="dark-theme">Dark</button>
-                        <button class="theme-option" data-theme="ocean-theme">Ocean</button>
-                        <button class="theme-option" data-theme="forest-theme">Forest</button>
-                        <button class="theme-option" data-theme="sunset-theme">Sunset</button>
-                        <button class="theme-option" data-theme="royal-theme">Royal</button>
-                        <button class="theme-option" data-theme="monochrome-theme">Mono</button>
-                        <button class="theme-option" data-theme="high-contrast-theme">HC</button>
-                    </div>
-                </fieldset>
-
-                <!-- Background Customization -->
-                <fieldset class="control-section">
-                    <legend>Background</legend>
-                    <div class="input-group">
-                        <label for="background-type">Type:</label>
-                        <select id="background-type">
-                            <option value="solid">Solid Color</option>
-                            <option value="gradient">Gradient</option>
-                            <option value="image">Image</option>
-                        </select>
-                    </div>
-                    <div id="background-options" class="background-options">
-                        <!-- Background options (colors, gradients, images) will be dynamically added here -->
-                    </div>
-                </fieldset>
-                
-                        <!-- Layout Management -->
-                        <fieldset class="control-section">
-                            <legend>Layouts &amp; Presets</legend>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/background.svg" alt="" class="card-icon">
+                            <h4>Background</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div id="background-selector" class="background-selector">
+                                <!-- Background swatches will be populated by JS -->
+                            </div>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/preset.svg" alt="" class="card-icon">
+                            <h4>Layouts &amp; Presets</h4>
+                        </summary>
+                        <div class="card-body">
                             <div class="input-group">
                                 <label for="preset-name">Preset Name</label>
                                 <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
@@ -157,26 +142,40 @@
                                 <button id="reset-layout" class="control-button">Reset Layout</button>
                             </div>
                             <div id="preset-list" class="preset-list" aria-live="polite"></div>
-                        </fieldset>
-                    </div>
-
-                    <div id="lesson-plan-tab" class="tab-content">
-                        <div id="lesson-plan-editor"></div>
-                    </div>
-                </div>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
+                            <h4>Lesson Plan</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div id="lesson-plan-editor"></div>
+                        </div>
+                    </details>
+                </section>
             </div>
-        </aside>
+        </div>
+        <div class="panel-backdrop"></div>
 
         <!-- =====================================================
-             GLOBAL CONTROLS
+             GLOBAL CONTROLS (REDESIGNED)
              ===================================================== -->
-        <button id="toggle-view" class="toggle-view-button" aria-label="Toggle Teacher Controls" aria-controls="teacher-view" aria-expanded="false">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                <path d="M2 17l10 5 10-5"></path>
-                <path d="M2 12l10 5 10-5"></path>
-            </svg>
-        </button>
+        <button id="fab" class="fab" aria-label="Add widget">+</button>
+
+        <dialog id="widget-modal" aria-labelledby="widget-modal-title">
+            <div class="modal-header">
+                <h3 id="widget-modal-title">Add a Widget</h3>
+                <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="widget-categories">
+                    <!-- Categories and widgets will be populated by JS -->
+                </div>
+            </div>
+        </dialog>
 
         <dialog id="help-dialog" aria-labelledby="help-dialog-title">
             <div class="modal-header">
@@ -185,10 +184,9 @@
             </div>
             <div class="modal-body">
                 <ul>
-                    <li>Use the toggle button to open or close Teacher Controls. Escape also closes the panel.</li>
-                    <li>Add widgets from the categorized list, then drag or resize them on the Student View grid.</li>
-                    <li>Start or stop timers, pick names, and change themes without leaving the Teacher View.</li>
-                    <li>All changes save automatically to your browser. Reload to continue where you left off.</li>
+                    <li>Use the navigation bar to switch between views.</li>
+                    <li>Use the floating action button (+) to add widgets.</li>
+                    <li>All changes save automatically to your browser.</li>
                 </ul>
             </div>
             <div class="modal-actions">
@@ -198,17 +196,16 @@
 
         <dialog id="tour-dialog" aria-labelledby="tour-dialog-title">
             <div class="modal-header">
-                <h3 id="tour-dialog-title">Welcome to Teacher Screen</h3>
+                <h3 id="tour-dialog-title">Welcome to Your New Classroom Screen</h3>
                 <button class="modal-close" aria-label="Close Tour">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Take a quick tour of the main areas:</p>
+                <p>Take a quick tour of the new layout:</p>
                 <ol>
-                    <li><strong>Student View</strong>: the large grid where widgets appear for your class.</li>
-                    <li><strong>Teacher Controls</strong>: open the side panel to add widgets, themes, and presets.</li>
-                    <li><strong>Toggle Button</strong>: use the floating control to show or hide the Teacher View anytime.</li>
+                    <li><strong>Top Navigation</strong>: Switch between the Classroom, Dashboard, and other tools.</li>
+                    <li><strong>Teacher Panel</strong>: Access all controls from the slide-out panel on the right.</li>
+                    <li><strong>Floating Action Button</strong>: Use the "+" button to add new widgets to the screen.</li>
                 </ol>
-                <p>Use Tab to move between controls, Enter or Space to activate them, and Escape to close panels.</p>
             </div>
             <div class="modal-actions">
                 <button class="control-button modal-primary" data-close>Start Teaching</button>
