@@ -75,4 +75,12 @@ class DocumentViewerWidget {
             this.contentArea.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
         }
     }
+
+    serialize() {
+        const iframe = this.contentArea.querySelector('iframe');
+        return {
+            type: 'DocumentViewerWidget',
+            url: iframe ? iframe.src : null,
+        };
+    }
 }

@@ -14,4 +14,10 @@ class MaskWidget {
             </div>
         `;
     }
+
+    serialize() {
+        return {
+            type: 'MaskWidget',
+        };
+    }
 }
