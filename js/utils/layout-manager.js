@@ -36,18 +36,24 @@ class LayoutManager {
 
     // Create widget container
     const widgetElement = document.createElement('div');
-    widgetElement.className = 'widget';
+    const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
+    widgetElement.className = `widget ${widgetType}-widget`;
     widgetElement.style.gridColumn = `${finalX + 1} / span ${width}`;
     widgetElement.style.gridRow = `${finalY + 1} / span ${height}`;
-    
-    // Add widget content
-    widgetElement.appendChild(widget.element);
-    
+
+    const header = this.createWidgetHeader(widget);
+    const content = document.createElement('div');
+    content.className = 'widget-content';
+    content.appendChild(widget.element);
+
+    widgetElement.appendChild(header);
+    widgetElement.appendChild(content);
+
     // Add resize handles
     this.addResizeHandles(widgetElement);
-    
-    // Add drag functionality
-    this.addDragFunctionality(widgetElement);
+
+    // Add drag functionality to the header
+    this.addDragFunctionality(header);
     
     // Add to container
     this.container.appendChild(widgetElement);
@@ -66,6 +72,63 @@ class LayoutManager {
     this.saveLayout();
 
     return widgetElement;
+  }
+
+  createWidgetHeader(widget) {
+    const header = document.createElement('div');
+    header.className = 'widget-header';
+
+    // Drag Handle
+    const dragHandle = document.createElement('img');
+    dragHandle.src = 'assets/icons/drag-handle.svg';
+    dragHandle.className = 'widget-drag-handle';
+    dragHandle.alt = 'Drag';
+
+    // Title
+    const title = document.createElement('div');
+    title.className = 'widget-title';
+    // Derive title from the widget's class name (e.g., "TimerWidget" -> "Timer")
+    title.textContent = widget.constructor.name.replace('Widget', '');
+
+    // Controls
+    const controls = document.createElement('div');
+    controls.className = 'widget-controls';
+
+    const helpButton = document.createElement('button');
+    helpButton.className = 'widget-help';
+    helpButton.textContent = '?';
+    helpButton.addEventListener('click', () => {
+      if (typeof widget.toggleHelp === 'function') {
+        widget.toggleHelp();
+      }
+    });
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'widget-close';
+    closeButton.innerHTML = '&times;';
+    closeButton.addEventListener('click', () => this.removeWidget(widget));
+
+    controls.appendChild(helpButton);
+    controls.appendChild(closeButton);
+
+    header.appendChild(dragHandle);
+    header.appendChild(title);
+    header.appendChild(controls);
+
+    return header;
+  }
+
+  removeWidget(widget) {
+    const widgetInfo = this.widgets.find(info => info.widget === widget);
+    if (widgetInfo) {
+      widgetInfo.element.remove();
+      this.widgets = this.widgets.filter(info => info.widget !== widget);
+      this.saveLayout();
+
+      // Dispatch a custom event so the main app can update its state
+      const event = new CustomEvent('widgetRemoved', { detail: { widget } });
+      document.dispatchEvent(event);
+    }
   }
   
   addResizeHandles(element) {
