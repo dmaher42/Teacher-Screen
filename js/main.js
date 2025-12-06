@@ -948,7 +948,6 @@ class ClassroomScreenApp {
         this.openDialog(this.tourDialog);
         localStorage.setItem('welcomeTourSeen', 'true');
     }
-}
 
     /**
      * Initialize the Quill rich text editor for the lesson plan.
