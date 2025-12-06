@@ -9,45 +9,12 @@ class DrawingToolWidget {
     constructor() {
         // Create the main widget element
         this.element = document.createElement('div');
-        this.element.className = 'widget';
-        this.element.dataset.widgetType = 'drawing-tool';
-
-        // Create the widget header
-        this.header = document.createElement('div');
-        this.header.className = 'widget-header';
-
-        this.title = document.createElement('div');
-        this.title.className = 'widget-title';
-        this.title.textContent = 'Drawing Tool';
-
-        this.helpButton = document.createElement('button');
-        this.helpButton.className = 'widget-help';
-        this.helpButton.textContent = '?';
-
-        this.closeButton = document.createElement('button');
-        this.closeButton.className = 'widget-close';
-        this.closeButton.innerHTML = '&times;';
-        this.closeButton.addEventListener('click', () => this.remove());
-
-        this.headerControls = document.createElement('div');
-        this.headerControls.className = 'widget-controls';
-        this.headerControls.appendChild(this.helpButton);
-        this.headerControls.appendChild(this.closeButton);
-
-        this.header.appendChild(this.title);
-        this.header.appendChild(this.headerControls);
-
-        // Create the widget content area
-        this.content = document.createElement('div');
-        this.content.className = 'widget-content';
+        this.element.className = 'drawing-tool-widget-content';
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
+        this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Pick a color and line width, draw on the canvas, and use Clear to reset. Right-click or use browser tools to save your drawing.';
-        this.helpButton.addEventListener('click', () => {
-            const isVisible = this.helpText.style.display === 'block';
-            this.helpText.style.display = isVisible ? 'none' : 'block';
-        });
 
         // Create the canvas
         this.canvas = document.createElement('canvas');
@@ -84,11 +51,9 @@ class DrawingToolWidget {
         this.controls.appendChild(this.clearButton);
 
         // Assemble the widget
-        this.content.appendChild(this.helpText);
-        this.content.appendChild(this.canvas);
-        this.content.appendChild(this.controls);
-        this.element.appendChild(this.header);
-        this.element.appendChild(this.content);
+        this.element.appendChild(this.helpText);
+        this.element.appendChild(this.canvas);
+        this.element.appendChild(this.controls);
 
         // Drawing state
         this.isDrawing = false;
@@ -216,6 +181,11 @@ class DrawingToolWidget {
         // Notify the app to update its widget list
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
         document.dispatchEvent(event);
+    }
+
+    toggleHelp() {
+        const isVisible = this.helpText.style.display === 'block';
+        this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 
     /**

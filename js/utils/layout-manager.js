@@ -24,12 +24,21 @@ class LayoutManager {
     this.container.style.height = '100%';
   }
   
-  addWidget(widget, x = 0, y = 0, width = 3, height = 2) {
+  addWidget(widget, x = null, y = null, width = 3, height = 2) {
+    let finalX = x;
+    let finalY = y;
+
+    if (finalX === null || finalY === null) {
+        const widgetCount = this.widgets.length;
+        finalX = (widgetCount * width) % this.gridColumns;
+        finalY = Math.floor((widgetCount * width) / this.gridColumns) * height;
+    }
+
     // Create widget container
     const widgetElement = document.createElement('div');
     widgetElement.className = 'widget';
-    widgetElement.style.gridColumn = `${x+1} / span ${width}`;
-    widgetElement.style.gridRow = `${y+1} / span ${height}`;
+    widgetElement.style.gridColumn = `${finalX + 1} / span ${width}`;
+    widgetElement.style.gridRow = `${finalY + 1} / span ${height}`;
     
     // Add widget content
     widgetElement.appendChild(widget.element);

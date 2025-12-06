@@ -6,45 +6,12 @@ class QRCodeWidget {
     constructor() {
         // Create the main widget element
         this.element = document.createElement('div');
-        this.element.className = 'widget';
-        this.element.dataset.widgetType = 'qr-code';
-
-        // Create the widget header
-        this.header = document.createElement('div');
-        this.header.className = 'widget-header';
-
-        this.title = document.createElement('div');
-        this.title.className = 'widget-title';
-        this.title.textContent = 'QR Code';
-
-        this.helpButton = document.createElement('button');
-        this.helpButton.className = 'widget-help';
-        this.helpButton.textContent = '?';
-
-        this.closeButton = document.createElement('button');
-        this.closeButton.className = 'widget-close';
-        this.closeButton.innerHTML = '&times;';
-        this.closeButton.addEventListener('click', () => this.remove());
-
-        this.controls = document.createElement('div');
-        this.controls.className = 'widget-controls';
-        this.controls.appendChild(this.helpButton);
-        this.controls.appendChild(this.closeButton);
-
-        this.header.appendChild(this.title);
-        this.header.appendChild(this.controls);
-
-        // Create the widget content area
-        this.content = document.createElement('div');
-        this.content.className = 'widget-content';
+        this.element.className = 'qr-code-widget-content';
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
+        this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Edit the text or URL, then click Generate to refresh the QR code. Share or download the code using your browser tools.';
-        this.helpButton.addEventListener('click', () => {
-            const isVisible = this.helpText.style.display === 'block';
-            this.helpText.style.display = isVisible ? 'none' : 'block';
-        });
 
         // Input for QR content
         this.input = document.createElement('input');
@@ -62,12 +29,10 @@ class QRCodeWidget {
         this.canvas.className = 'qr-code-canvas';
 
         // Assemble widget
-        this.content.appendChild(this.helpText);
-        this.content.appendChild(this.input);
-        this.content.appendChild(this.generateButton);
-        this.content.appendChild(this.canvas);
-        this.element.appendChild(this.header);
-        this.element.appendChild(this.content);
+        this.element.appendChild(this.helpText);
+        this.element.appendChild(this.input);
+        this.element.appendChild(this.generateButton);
+        this.element.appendChild(this.canvas);
 
         // Initialize with a default QR code
         this.input.value = 'https://example.com';
@@ -115,5 +80,10 @@ class QRCodeWidget {
     deserialize(data) {
         this.input.value = data.text || '';
         this.generate();
+    }
+
+    toggleHelp() {
+        const isVisible = this.helpText.style.display === 'block';
+        this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 }
