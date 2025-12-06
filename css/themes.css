@@ -170,3 +170,20 @@
     --widget-header-border-color: #000000;
     --resize-handle-bg: #000000;
 }
+
+/* ==========================================================================
+   9. Memory Cue Theme
+   ========================================================================== */
+.memory-cue-theme {
+    --primary-color: #8e82ff;
+    --secondary-color: #ff8c42;
+    --background-color: #f0f2f5;
+    --background-gradient: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+    --text-color: #333333;
+    --card-background: #ffffff;
+    --border-color: #e0e0e0;
+    --hover-bg-color: #f5f5f5;
+    --shadow-color: rgba(0, 0, 0, 0.08);
+    --widget-header-border-color: #eeeeee;
+    --border-radius: 12px;
+}

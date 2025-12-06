@@ -60,6 +60,11 @@ class BackgroundManager {
   deserialize(data) {
     this.currentBackground = data;
     this.applyBackground();
+    this.saveBackground();
+  }
+
+  getAvailableBackgrounds() {
+    return this.backgrounds;
   }
 
   reset() {
