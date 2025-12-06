@@ -28,6 +28,7 @@ class ClassroomScreenApp {
         this.presets = [];
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
         this.lessonPlanEditor = null;
+        this.appVersion = '2.0.0'; // Version for state management
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
@@ -202,6 +203,7 @@ class ClassroomScreenApp {
 
     saveState() {
         const state = {
+            version: this.appVersion,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -399,7 +401,15 @@ class ClassroomScreenApp {
         const savedState = localStorage.getItem('classroomScreenState');
         if (savedState) {
             try {
-                const state = JSON.parse(savedState);
+                let state = JSON.parse(savedState);
+
+                // Migration for legacy state
+                if (!state.version || state.version < this.appVersion) {
+                    console.log('Old state version detected. Migrating...');
+                    // This simple migration discards the old layout.
+                    // A more complex app might transform the old data.
+                    state.layout = { widgets: [] };
+                }
                 
                 // Restore theme
                 if (state.theme) {
@@ -438,6 +448,8 @@ class ClassroomScreenApp {
                 }
             } catch (e) {
                 console.error('Failed to load saved state:', e);
+                // If parsing fails, it's likely corrupt. Clear it.
+                localStorage.removeItem('classroomScreenState');
             }
         }
     }

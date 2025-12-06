@@ -1,23 +1,15 @@
 class DocumentViewerWidget {
     constructor() {
         this.element = document.createElement('div');
-        this.element.className = 'widget';
+        this.element.className = 'document-viewer-widget-content';
         this.element.innerHTML = `
-            <div class="widget-header">
-                <span class="widget-title">Document Viewer</span>
-                <div class="widget-controls">
-                    <button class="widget-close">&times;</button>
-                </div>
+            <div class="document-viewer-controls">
+                <input type="file" class="document-viewer-file-input" style="display: none;">
+                <button class="control-button upload-button">Upload File</button>
+                <input type="text" class="document-viewer-url-input" placeholder="Enter URL to embed">
+                <button class="control-button embed-button">Embed</button>
             </div>
-            <div class="widget-content">
-                <div class="document-viewer-controls">
-                    <input type="file" class="document-viewer-file-input" style="display: none;">
-                    <button class="control-button upload-button">Upload File</button>
-                    <input type="text" class="document-viewer-url-input" placeholder="Enter URL to embed">
-                    <button class="control-button embed-button">Embed</button>
-                </div>
-                <div class="document-viewer-content"></div>
-            </div>
+            <div class="document-viewer-content"></div>
         `;
 
         this.contentArea = this.element.querySelector('.document-viewer-content');
@@ -35,6 +27,10 @@ class DocumentViewerWidget {
             const url = this.element.querySelector('.document-viewer-url-input').value;
             this.embedUrl(url);
         });
+    }
+
+    toggleHelp() {
+        // No help text defined for this widget yet.
     }
 
     handleFileUpload(event) {
@@ -74,5 +70,13 @@ class DocumentViewerWidget {
         if (url) {
             this.contentArea.innerHTML = `<iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>`;
         }
+    }
+
+    serialize() {
+        const iframe = this.contentArea.querySelector('iframe');
+        return {
+            type: 'DocumentViewerWidget',
+            url: iframe ? iframe.src : null,
+        };
     }
 }

@@ -9,45 +9,12 @@ class TimerWidget {
     constructor() {
         // Create the main widget element
         this.element = document.createElement('div');
-        this.element.className = 'widget';
-        this.element.dataset.widgetType = 'timer';
-
-        // Create the widget header
-        this.header = document.createElement('div');
-        this.header.className = 'widget-header';
-
-        this.title = document.createElement('div');
-        this.title.className = 'widget-title';
-        this.title.textContent = 'Timer';
-
-        this.helpButton = document.createElement('button');
-        this.helpButton.className = 'widget-help';
-        this.helpButton.textContent = '?';
-
-        this.closeButton = document.createElement('button');
-        this.closeButton.className = 'widget-close';
-        this.closeButton.innerHTML = '&times;';
-        this.closeButton.addEventListener('click', () => this.remove());
-
-        this.headerControls = document.createElement('div');
-        this.headerControls.className = 'widget-controls';
-        this.headerControls.appendChild(this.helpButton);
-        this.headerControls.appendChild(this.closeButton);
-
-        this.header.appendChild(this.title);
-        this.header.appendChild(this.headerControls);
-
-        // Create the widget content area
-        this.content = document.createElement('div');
-        this.content.className = 'widget-content';
+        this.element.className = 'timer-widget-content';
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
+        this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Choose a preset or set an interval with work/break durations. Start to begin, Stop to pause, and customize the alert sound.';
-        this.helpButton.addEventListener('click', () => {
-            const isVisible = this.helpText.style.display === 'block';
-            this.helpText.style.display = isVisible ? 'none' : 'block';
-        });
 
         // Create the timer display
         this.display = document.createElement('div');
@@ -204,16 +171,14 @@ class TimerWidget {
         this.status.textContent = 'Ready to start a timer.';
 
         // Assemble the widget
-        this.content.appendChild(this.helpText);
-        this.content.appendChild(this.display);
-        this.content.appendChild(this.presetContainer);
-        this.content.appendChild(this.intervalContainer);
-        this.content.appendChild(this.soundButton);
-        this.content.appendChild(this.soundMenu);
-        this.content.appendChild(this.controls);
-        this.content.appendChild(this.status);
-        this.element.appendChild(this.header);
-        this.element.appendChild(this.content);
+        this.element.appendChild(this.helpText);
+        this.element.appendChild(this.display);
+        this.element.appendChild(this.presetContainer);
+        this.element.appendChild(this.intervalContainer);
+        this.element.appendChild(this.soundButton);
+        this.element.appendChild(this.soundMenu);
+        this.element.appendChild(this.controls);
+        this.element.appendChild(this.status);
 
         // Timer state
         this.time = 0;
@@ -375,6 +340,11 @@ class TimerWidget {
         if (!this.display) return;
         this.display.classList.add('action-flash');
         setTimeout(() => this.display.classList.remove('action-flash'), 1200);
+    }
+
+    toggleHelp() {
+        const isVisible = this.helpText.style.display === 'block';
+        this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 
     /**

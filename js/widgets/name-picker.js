@@ -9,45 +9,12 @@ class NamePickerWidget {
     constructor() {
         // Create the main widget element
         this.element = document.createElement('div');
-        this.element.className = 'widget';
-        this.element.dataset.widgetType = 'name-picker';
-
-        // Create the widget header
-        this.header = document.createElement('div');
-        this.header.className = 'widget-header';
-
-        this.title = document.createElement('div');
-        this.title.className = 'widget-title';
-        this.title.textContent = 'Name Picker';
-
-        this.helpButton = document.createElement('button');
-        this.helpButton.className = 'widget-help';
-        this.helpButton.textContent = '?';
-
-        this.closeButton = document.createElement('button');
-        this.closeButton.className = 'widget-close';
-        this.closeButton.innerHTML = '&times;';
-        this.closeButton.addEventListener('click', () => this.remove());
-
-        this.controls = document.createElement('div');
-        this.controls.className = 'widget-controls';
-        this.controls.appendChild(this.helpButton);
-        this.controls.appendChild(this.closeButton);
-
-        this.header.appendChild(this.title);
-        this.header.appendChild(this.controls);
-
-        // Create the widget content area
-        this.content = document.createElement('div');
-        this.content.className = 'widget-content';
+        this.element.className = 'name-picker-widget-content';
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
+        this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Click Pick a Name to spin through the list. When all names are chosen, reset the list to start over.';
-        this.helpButton.addEventListener('click', () => {
-            const isVisible = this.helpText.style.display === 'block';
-            this.helpText.style.display = isVisible ? 'none' : 'block';
-        });
 
         // Group selection controls
         this.groupControls = document.createElement('div');
@@ -117,14 +84,12 @@ class NamePickerWidget {
         this.status.textContent = 'Pick a name to begin.';
 
         // Assemble the widget
-        this.content.appendChild(this.helpText);
-        this.content.appendChild(this.groupControls);
-        this.content.appendChild(this.importExportControls);
-        this.content.appendChild(this.display);
-        this.content.appendChild(this.pickButton);
-        this.content.appendChild(this.status);
-        this.element.appendChild(this.header);
-        this.element.appendChild(this.content);
+        this.element.appendChild(this.helpText);
+        this.element.appendChild(this.groupControls);
+        this.element.appendChild(this.importExportControls);
+        this.element.appendChild(this.display);
+        this.element.appendChild(this.pickButton);
+        this.element.appendChild(this.status);
 
         // Name Picker state
         const defaultNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah'];
@@ -421,5 +386,10 @@ class NamePickerWidget {
         }
         this.importButton.disabled = isLoading;
         this.exportButton.disabled = isLoading;
+    }
+
+    toggleHelp() {
+        const isVisible = this.helpText.style.display === 'block';
+        this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 }
