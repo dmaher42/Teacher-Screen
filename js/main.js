@@ -42,11 +42,15 @@ class ClassroomScreenApp {
         ];
 
         this.themes = [
-            { name: 'Memory Cue', id: 'memory-cue-theme' },
-            { name: 'Light', id: 'light-theme' },
-            { name: 'Dark', id: 'dark-theme' },
-            { name: 'Ocean', id: 'ocean-theme' },
-            { name: 'Forest', id: 'forest-theme' },
+            { name: 'Memory Cue', id: 'memory-cue-theme', gradient: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)', primary: '#8e82ff' },
+            { name: 'Light', id: 'light-theme', gradient: 'linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%)', primary: '#007bff' },
+            { name: 'Dark', id: 'dark-theme', gradient: 'linear-gradient(120deg, #2d3436 0%, #000000 100%)', primary: '#5892d4' },
+            { name: 'Ocean', id: 'ocean-theme', gradient: 'linear-gradient(120deg, #ade8f4 0%, #0077b6 100%)', primary: '#0077b6' },
+            { name: 'Forest', id: 'forest-theme', gradient: 'linear-gradient(120deg, #b7e4c7 0%, #2d6a4f 100%)', primary: '#2d6a4f' },
+            { name: 'Sunset', id: 'sunset-theme', gradient: 'linear-gradient(120deg, #f7b267 0%, #f79d65 100%)', primary: '#d62828' },
+            { name: 'Royal', id: 'royal-theme', gradient: 'linear-gradient(120deg, #e1bee7 0%, #b39ddb 100%)', primary: '#6a4c93' },
+            { name: 'Monochrome', id: 'monochrome-theme', gradient: 'linear-gradient(120deg, #e9ecef 0%, #ced4da 100%)', primary: '#495057' },
+            { name: 'High Contrast', id: 'high-contrast-theme', gradient: '#ffffff', primary: '#0000ff' }
         ];
 
         this.defaultPresets = [
@@ -170,6 +174,7 @@ class ClassroomScreenApp {
             category.widgets.forEach(widget => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
+                button.dataset.widgetType = widget.type; // Make it easier to select in tests
                 button.innerHTML = `
                     <img src="assets/icons/${widget.type}.svg" alt="" class="category-icon">
                     <span>${widget.label}</span>
@@ -182,12 +187,15 @@ class ClassroomScreenApp {
 
     renderThemeSelector() {
         this.themeSelector.innerHTML = '';
+        const currentTheme = document.body.className;
         this.themes.forEach(theme => {
             const label = document.createElement('label');
             label.className = 'theme-option';
             label.innerHTML = `
-                <input type="radio" name="theme" value="${theme.id}">
-                <span class="theme-swatch" style="background-color: var(--primary-color)"></span>
+                <input type="radio" name="theme" value="${theme.id}" ${currentTheme === theme.id ? 'checked' : ''}>
+                <span class="theme-swatch" style="background: ${theme.gradient};">
+                    <span class="swatch-accent" style="background-color: ${theme.primary};"></span>
+                </span>
                 <span>${theme.name}</span>
             `;
             const input = label.querySelector('input');
@@ -594,7 +602,9 @@ class ClassroomScreenApp {
 
     showWelcomeTourIfNeeded() {
         const tourSeen = localStorage.getItem('welcomeTourSeen');
-        if (this.hasSavedState || tourSeen) {
+        const isRunningVerification = localStorage.getItem('isRunningVerification') === 'true';
+
+        if (this.hasSavedState || tourSeen || isRunningVerification) {
             return;
         }
         this.openDialog(this.tourDialog);

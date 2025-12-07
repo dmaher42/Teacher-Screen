@@ -216,19 +216,20 @@
     <!-- =====================================================
          JAVASCRIPT FILES
          ===================================================== -->
-    <!-- Using 'defer' ensures scripts run after HTML is parsed, in order -->
-    <script src="js/utils/layout-manager.js" defer></script>
-    <script src="js/utils/background-manager.js" defer></script>
-    <script src="assets/sounds/sound-data.js" defer></script>
-    <script src="js/widgets/timer.js" defer></script>
-    <script src="js/widgets/noise-meter.js" defer></script>
-    <script src="js/widgets/noise-meter-widget.js" defer></script>
-    <script src="js/widgets/name-picker.js" defer></script>
-    <script src="js/widgets/qr-code-widget.js" defer></script>
-    <script src="js/widgets/drawing-tool.js" defer></script>
-    <script src="js/widgets/document-viewer.js" defer></script>
-    <script src="js/widgets/mask-widget.js" defer></script>
-    <script src="js/main.js" defer></script>
+    <!-- Scripts are loaded synchronously to prevent race conditions during testing -->
+    <script src="js/utils/layout-manager.js"></script>
+    <script src="js/utils/background-manager.js"></script>
+    <script src="assets/sounds/sound-data.js"></script>
+    <script src="js/widgets/BaseWidget.js"></script> <!-- Base class for all widgets -->
+    <script src="js/widgets/timer.js"></script>
+    <script src="js/widgets/noise-meter.js"></script>
+    <script src="js/widgets/noise-meter-widget.js"></script>
+    <script src="js/widgets/name-picker.js"></script>
+    <script src="js/widgets/qr-code-widget.js"></script>
+    <script src="js/widgets/drawing-tool.js"></script>
+    <script src="js/widgets/document-viewer.js"></script>
+    <script src="js/widgets/mask-widget.js"></script>
+    <script src="js/main.js"></script>
 
 </body>
 </html>
