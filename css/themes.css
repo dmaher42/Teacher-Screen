@@ -48,6 +48,7 @@
     --primary-color: #3498db;      /* A friendly, professional blue */
     --secondary-color: #2ecc71;    /* A vibrant green for success/positive actions */
     --background-color: #f8f9fa;    /* Very light gray, easy on the eyes */
+    --background-gradient: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
     --text-color: #212529;         /* Dark gray for high contrast */
     --card-background: #ffffff;    /* Pure white for content cards */
 
@@ -64,6 +65,7 @@
     --primary-color: #4dabf7;      /* A slightly brighter, softer blue for dark mode */
     --secondary-color: #51cf66;    /* A slightly brighter green */
     --background-color: #1a1a1a;    /* Deep charcoal, not pure black */
+    --background-gradient: linear-gradient(120deg, #2d3436 0%, #1a1a1a 100%);
     --text-color: #f1f1f1;         /* Light gray, less harsh than pure white */
     --card-background: #2d2d2d;    /* Darker gray for cards to create depth */
 
@@ -81,6 +83,7 @@
     --primary-color: #0077b6;      /* Deep ocean blue */
     --secondary-color: #00b4d8;    /* Lighter sea blue */
     --background-color: #e6f3f7;  /* Pale sky blue, reminiscent of sea foam */
+    --background-gradient: linear-gradient(120deg, #e0f7fa 0%, #80deea 100%);
     --text-color: #003459;         /* Very dark navy for text */
     --card-background: #ffffff;
 
@@ -97,6 +100,7 @@
     --primary-color: #2d6a4f;      /* A deep forest green */
     --secondary-color: #52b788;    /* A lighter, vibrant moss green */
     --background-color: #e9f5e9;  /* A very pale, minty green */
+    --background-gradient: linear-gradient(120deg, #d8f3dc 0%, #b7e4c7 100%);
     --text-color: #1b4332;         /* A dark, almost black-green for text */
     --card-background: #ffffff;
 
@@ -113,6 +117,7 @@
     --primary-color: #d62828;      /* A warm, strong red */
     --secondary-color: #f77f00;    /* A bright, fiery orange */
     --background-color: #fff3e0;  /* A pale, warm orange, like sand at sunset */
+    --background-gradient: linear-gradient(120deg, #ffecd1 0%, #fec89a 100%);
     --text-color: #5d1a1a;         /* A dark, warm brown for text */
     --card-background: #ffffff;
 
@@ -129,6 +134,7 @@
     --primary-color: #6a4c93;      /* A rich, royal purple */
     --secondary-color: #a06cd5;    /* A lighter lavender purple */
     --background-color: #f3e5f5;  /* A very pale, soft purple */
+    --background-gradient: linear-gradient(120deg, #e1bee7 0%, #ce93d8 100%);
     --text-color: #311b92;         /* A deep, indigo purple for text */
     --card-background: #ffffff;
 
@@ -145,6 +151,7 @@
     --primary-color: #495057;      /* A medium gray */
     --secondary-color: #6c757d;    /* A lighter gray */
     --background-color: #f8f9fa;  /* A light gray background */
+    --background-gradient: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
     --text-color: #212529;         /* Near-black text for maximum contrast */
     --card-background: #ffffff;
 
@@ -161,6 +168,7 @@
     --primary-color: #0000ff;      /* Pure blue */
     --secondary-color: #008000;    /* Pure green */
     --background-color: #ffffff;  /* Pure white */
+    --background-gradient: none;
     --text-color: #000000;         /* Pure black */
     --card-background: #ffffff;
 
