@@ -313,7 +313,8 @@ class LayoutManager {
       }
 
       const widgetElement = document.createElement('div');
-      widgetElement.className = 'widget';
+      const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
+      widgetElement.className = `widget ${widgetType}-widget`;
 
       const gridColumn = widgetData.gridColumn || `${(widgetData.x ?? 0) + 1} / span ${widgetData.width ?? 1}`;
       const gridRow = widgetData.gridRow || `${(widgetData.y ?? 0) + 1} / span ${widgetData.height ?? 1}`;

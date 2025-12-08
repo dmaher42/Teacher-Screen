@@ -1,0 +1,96 @@
+/**
+ * Projector View Application Script
+ * Loads and displays the classroom screen state in a read-only mode.
+ */
+
+class ProjectorApp {
+    constructor() {
+        this.appContainer = document.getElementById('app-container');
+        this.studentView = document.getElementById('student-view');
+        this.widgetsContainer = document.getElementById('widgets-container');
+        this.widgets = [];
+
+        // Managers
+        this.layoutManager = new LayoutManager(this.widgetsContainer);
+        // Disable editing in LayoutManager if possible, but we already hid controls with CSS.
+        // We can also override methods if needed.
+
+        this.backgroundManager = new BackgroundManager(this.studentView);
+    }
+
+    init() {
+        this.backgroundManager.init();
+        this.layoutManager.init();
+
+        // Listen for storage events to update in real-time
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'classroomScreenState') {
+                this.loadSavedState();
+            }
+            if (event.key === 'selectedTheme') {
+                this.loadTheme();
+            }
+        });
+
+        this.loadTheme();
+        this.loadSavedState();
+    }
+
+    loadTheme() {
+        const theme = localStorage.getItem('selectedTheme');
+        if (theme) {
+            document.body.className = `projector-view ${theme}`;
+        }
+    }
+
+    loadSavedState() {
+        const savedState = localStorage.getItem('classroomScreenState');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+
+                // Restore theme (if stored in state, though main.js seems to store it in body class and state)
+                if (state.theme) {
+                    document.body.className = `projector-view ${state.theme}`;
+                }
+
+                // Restore background
+                if (state.background) {
+                    this.backgroundManager.deserialize(state.background);
+                }
+
+                // Restore layout and widgets
+                if (state.layout && state.layout.widgets) {
+                    // Clear existing widgets before reloading to avoid duplicates/stale state
+                    this.widgets = [];
+                    // We need to clear the container or let LayoutManager handle it.
+                    // LayoutManager.deserialize clears the container.
+
+                    this.layoutManager.deserialize(state.layout, (widgetData) => {
+                        let widget;
+                        switch (widgetData.type) {
+                            case 'TimerWidget': widget = new TimerWidget(); break;
+                            case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                            case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                            case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                            case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                            case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                            case 'MaskWidget': widget = new MaskWidget(); break;
+                        }
+                        if (widget) {
+                            this.widgets.push(widget);
+                        }
+                        return widget;
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load saved state:', e);
+            }
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new ProjectorApp();
+    app.init();
+});
