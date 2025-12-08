@@ -169,9 +169,15 @@ class ClassroomScreenApp {
     addWidget(type) {
         let widget;
         try {
+            let width = 3;
+            let height = 2;
+
             switch (type) {
                 case 'timer': widget = new TimerWidget(); break;
-                case 'noise-meter': widget = new NoiseMeterWidget(); break;
+                case 'noise-meter':
+                    widget = new NoiseMeterWidget();
+                    height = 3; // Increase height for noise meter to accommodate new controls
+                    break;
                 case 'name-picker': widget = new NamePickerWidget(); break;
                 case 'qr-code': widget = new QRCodeWidget(); break;
                 case 'drawing-tool': widget = new DrawingToolWidget(); break;
@@ -180,7 +186,7 @@ class ClassroomScreenApp {
                 default: throw new Error(`Unknown widget type: ${type}`);
             }
 
-            const widgetElement = this.layoutManager.addWidget(widget);
+            const widgetElement = this.layoutManager.addWidget(widget, null, null, width, height);
             this.widgets.push(widget);
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
