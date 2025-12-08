@@ -39,6 +39,23 @@
     /* Fonts & Sizing */
     --border-radius: 8px;
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+
+    /* Border Radii */
+    --border-radius-small: 6px;
+    --border-radius-medium: 8px;   /* --border-radius is alias */
+    --border-radius-large: 12px;
+
+    /* Elevation */
+    --shadow-soft: 0 2px 4px var(--shadow-color);
+    --shadow-medium: 0 4px 10px var(--shadow-color);
+    --shadow-strong: 0 6px 16px var(--shadow-color);
 }
 
 /* ==========================================================================
