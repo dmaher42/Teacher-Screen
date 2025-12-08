@@ -45,7 +45,7 @@ details:focus-visible,
     width: 100%;
     height: 50px;
     background: var(--card-background, #ffffff);
-    box-shadow: 0 2px 5px var(--shadow-color, rgba(0,0,0,0.1));
+    box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -54,13 +54,13 @@ details:focus-visible,
 
 .nav-tabs {
     display: flex;
-    gap: 10px;
+    gap: var(--spacing-md, 10px);
 }
 
 .nav-tab {
     background: none;
     border: none;
-    padding: 10px 15px;
+    padding: var(--spacing-md, 10px) var(--spacing-lg, 15px);
     font-size: 1rem;
     color: var(--text-color, #333);
     cursor: pointer;
@@ -89,8 +89,8 @@ details:focus-visible,
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     grid-template-rows: repeat(8, 1fr);
-    gap: 15px;
-    padding: 15px;
+    gap: var(--spacing-lg, 15px);
+    padding: var(--spacing-lg, 15px);
     height: 100%;
     width: 100%;
     transition: width 0.3s ease;
@@ -166,15 +166,15 @@ details:focus-visible,
 .control-card {
     background: var(--card-background, #ffffff);
     border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: var(--border-radius, 12px);
-    box-shadow: 0 2px 4px var(--shadow-color, rgba(0,0,0,0.05));
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
 }
 
 .control-card summary {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 15px;
+    gap: var(--spacing-md, 10px);
+    padding: var(--spacing-lg, 15px);
     cursor: pointer;
     font-size: 1.1rem;
     font-weight: 600;
@@ -186,7 +186,7 @@ details:focus-visible,
 }
 
 .card-body {
-    padding: 0 15px 15px;
+    padding: 0 var(--spacing-lg, 15px) var(--spacing-lg, 15px);
     border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
@@ -202,7 +202,7 @@ details:focus-visible,
     border: none;
     border-radius: 50%;
     font-size: 2rem;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
     cursor: pointer;
     z-index: 1000;
     transition: background-color 0.2s, transform 0.2s;
@@ -221,7 +221,7 @@ details:focus-visible,
 .widget-categories {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px;
+    gap: var(--spacing-md, 10px);
     padding: 20px;
 }
 
@@ -229,9 +229,9 @@ details:focus-visible,
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 15px;
-    border-radius: var(--border-radius, 12px);
+    gap: var(--spacing-md, 10px);
+    padding: var(--spacing-lg, 15px);
+    border-radius: var(--border-radius-large, 12px);
     border: 1px solid var(--border-color, #e0e0e0);
     cursor: pointer;
     transition: background-color 0.2s, box-shadow 0.2s;
@@ -239,7 +239,7 @@ details:focus-visible,
 
 .widget-category-btn:hover {
     background-color: var(--hover-bg-color, #f5f5f5);
-    box-shadow: 0 2px 5px var(--shadow-color, rgba(0,0,0,0.1));
+    box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
 }
 
 .widget-category-btn .category-icon {
@@ -251,13 +251,13 @@ details:focus-visible,
 .theme-selector {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: var(--spacing-md, 10px);
 }
 
 .theme-option {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-md, 10px);
 }
 
 .theme-swatch {
@@ -289,8 +289,8 @@ details:focus-visible,
 .widget {
     position: relative;
     background: var(--card-background, #ffffff);
-    border-radius: var(--border-radius, 12px);
-    box-shadow: 0 4px 12px var(--shadow-color, rgba(0,0,0,0.1));
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-medium, 0 4px 12px rgba(0,0,0,0.1));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -298,7 +298,7 @@ details:focus-visible,
 }
 
 .widget:hover {
-    box-shadow: 0 6px 16px var(--shadow-color, rgba(0,0,0,0.15));
+    box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
 }
 
 .widget-header {
@@ -355,7 +355,7 @@ details:focus-visible,
 }
 
 .widget-content {
-    padding: 15px;
+    padding: var(--spacing-lg, 15px);
     flex-grow: 1;
     overflow-y: auto;
 }
