@@ -287,6 +287,7 @@ details:focus-visible,
 
 /* Widget Styles */
 .widget {
+    position: relative;
     background: var(--card-background, #ffffff);
     border-radius: var(--border-radius, 12px);
     box-shadow: 0 4px 12px var(--shadow-color, rgba(0,0,0,0.1));
@@ -364,4 +365,26 @@ details:focus-visible,
     background-color: var(--hover-bg-color, #f5f5f5);
     border-radius: var(--border-radius-small, 6px);
     margin-bottom: 10px;
+}
+
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    background: var(--resize-handle-bg, linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%));
+    cursor: nwse-resize;
+    z-index: 10;
+}
+
+.size-limit-hit {
+    border: 2px solid #ff4444 !important;
+    animation: pulse-red 0.3s ease-in-out;
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
 }
