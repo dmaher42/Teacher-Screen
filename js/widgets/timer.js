@@ -26,7 +26,7 @@ class TimerWidget {
         this.presetContainer.className = 'timer-presets';
 
         const presetLabel = document.createElement('label');
-        presetLabel.textContent = 'Presets: ';
+        presetLabel.textContent = 'Quick Select: ';
         presetLabel.htmlFor = 'timer-preset-select';
 
         this.presetSelect = document.createElement('select');
@@ -43,6 +43,69 @@ class TimerWidget {
 
         this.presetContainer.appendChild(presetLabel);
         this.presetContainer.appendChild(this.presetSelect);
+
+        // --- NAMED PRESETS SECTION ---
+        this.namedPresets = []; // Array of { name: "Name", minutes: 5 }
+        this.selectedPresetName = null;
+
+        this.namedPresetSection = document.createElement('div');
+        this.namedPresetSection.className = 'named-preset-section';
+        this.namedPresetSection.style.marginBottom = '10px';
+        this.namedPresetSection.style.borderTop = '1px solid #eee';
+        this.namedPresetSection.style.paddingTop = '5px';
+
+        // Add Preset Form
+        const addPresetForm = document.createElement('div');
+        addPresetForm.className = 'add-preset-form';
+        addPresetForm.style.display = 'flex';
+        addPresetForm.style.gap = '5px';
+        addPresetForm.style.marginBottom = '5px';
+
+        this.newPresetName = document.createElement('input');
+        this.newPresetName.type = 'text';
+        this.newPresetName.placeholder = 'Name';
+        this.newPresetName.style.width = '80px';
+
+        this.newPresetTime = document.createElement('input');
+        this.newPresetTime.type = 'number';
+        this.newPresetTime.placeholder = 'Min';
+        this.newPresetTime.min = '1';
+        this.newPresetTime.style.width = '50px';
+
+        const addPresetBtn = document.createElement('button');
+        addPresetBtn.textContent = 'Add';
+        addPresetBtn.addEventListener('click', () => this.addNamedPreset());
+
+        addPresetForm.appendChild(this.newPresetName);
+        addPresetForm.appendChild(this.newPresetTime);
+        addPresetForm.appendChild(addPresetBtn);
+
+        // List of presets
+        this.namedPresetList = document.createElement('ul');
+        this.namedPresetList.className = 'named-preset-list';
+        this.namedPresetList.style.listStyle = 'none';
+        this.namedPresetList.style.padding = '0';
+        this.namedPresetList.style.margin = '0';
+        this.namedPresetList.style.maxHeight = '100px';
+        this.namedPresetList.style.overflowY = 'auto';
+
+        this.namedPresetSection.appendChild(document.createTextNode('Custom Presets:'));
+        this.namedPresetSection.appendChild(addPresetForm);
+        this.namedPresetSection.appendChild(this.namedPresetList);
+
+
+        // --- AUTO RESTART SECTION ---
+        this.autoRestartContainer = document.createElement('div');
+        this.autoRestartContainer.className = 'auto-restart-container';
+
+        const autoRestartLabel = document.createElement('label');
+        this.autoRestartCheckbox = document.createElement('input');
+        this.autoRestartCheckbox.type = 'checkbox';
+
+        autoRestartLabel.appendChild(this.autoRestartCheckbox);
+        autoRestartLabel.appendChild(document.createTextNode(' Auto-restart when finished'));
+        this.autoRestartContainer.appendChild(autoRestartLabel);
+
 
         // Interval mode controls
         this.intervalContainer = document.createElement('div');
@@ -174,6 +237,8 @@ class TimerWidget {
         this.element.appendChild(this.helpText);
         this.element.appendChild(this.display);
         this.element.appendChild(this.presetContainer);
+        this.element.appendChild(this.namedPresetSection); // Added Named Presets
+        this.element.appendChild(this.autoRestartContainer); // Added Auto Restart
         this.element.appendChild(this.intervalContainer);
         this.element.appendChild(this.soundButton);
         this.element.appendChild(this.soundMenu);
@@ -182,10 +247,94 @@ class TimerWidget {
 
         // Timer state
         this.time = 0;
+        this.totalTime = 0; // Store total time for auto-restart
         this.interval = null;
         this.running = false;
         this.isIntervalMode = false;
         this.currentPhase = null;
+    }
+
+    addNamedPreset(name, minutes) {
+        const presetName = name || this.newPresetName.value.trim();
+        const presetTime = minutes || parseInt(this.newPresetTime.value, 10);
+
+        if (!presetName || isNaN(presetTime) || presetTime <= 0) {
+            this.setStatus('Invalid preset data.', 'warning');
+            return;
+        }
+
+        // Avoid duplicates by name
+        const existingIndex = this.namedPresets.findIndex(p => p.name === presetName);
+        if (existingIndex !== -1) {
+             this.namedPresets[existingIndex].minutes = presetTime;
+        } else {
+            this.namedPresets.push({ name: presetName, minutes: presetTime });
+        }
+
+        this.newPresetName.value = '';
+        this.newPresetTime.value = '';
+        this.renderNamedPresets();
+    }
+
+    renderNamedPresets() {
+        this.namedPresetList.innerHTML = '';
+        this.namedPresets.forEach(preset => {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.padding = '2px 0';
+
+            const span = document.createElement('span');
+            span.textContent = `${preset.name} (${preset.minutes}m)`;
+            span.style.cursor = 'pointer';
+            span.style.textDecoration = 'underline';
+            if (this.selectedPresetName === preset.name) {
+                span.style.fontWeight = 'bold';
+            }
+
+            span.addEventListener('click', () => {
+                this.selectPreset(preset.name);
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'x';
+            delBtn.style.marginLeft = '10px';
+            delBtn.style.fontSize = '0.8em';
+            delBtn.style.padding = '0 4px';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeNamedPreset(preset.name);
+            });
+
+            li.appendChild(span);
+            li.appendChild(delBtn);
+            this.namedPresetList.appendChild(li);
+        });
+    }
+
+    removeNamedPreset(name) {
+        this.namedPresets = this.namedPresets.filter(p => p.name !== name);
+        if (this.selectedPresetName === name) {
+            this.selectedPresetName = null;
+        }
+        this.renderNamedPresets();
+    }
+
+    selectPreset(name) {
+        const preset = this.namedPresets.find(p => p.name === name);
+        if (preset) {
+            this.selectedPresetName = name;
+            // Stop current timer if running? Requirement: "Clicking a preset selects that timer duration but does NOT auto-start."
+            if (this.running) {
+                this.stop();
+            }
+            this.time = preset.minutes * 60;
+            this.totalTime = this.time;
+            this.updateDisplay();
+            this.renderNamedPresets(); // Re-render to update bold selection
+            this.setStatus(`Selected "${name}" (${preset.minutes}m).`);
+        }
     }
 
     /**
@@ -199,13 +348,25 @@ class TimerWidget {
                 this.currentPhase = 'Work';
                 const workMinutes = this.getWorkDuration();
                 this.time = workMinutes * 60;
+                this.totalTime = this.time;
                 this.setStatus(`Interval started: Work for ${workMinutes} minute(s).`);
             } else {
-                const customMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : null;
-                const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : null;
-                const chosenMinutes = customMinutes || (!isNaN(presetValue) ? presetValue : 5);
-                this.time = chosenMinutes * 60;
-                this.setStatus(`Timer started for ${chosenMinutes} minute(s).`);
+                // Priority: Argument -> Current Time (if set by preset) -> Dropdown -> Default
+                let chosenMinutes;
+                if (Number.isFinite(minutes) && minutes > 0) {
+                     chosenMinutes = minutes;
+                     this.time = chosenMinutes * 60;
+                } else if (this.time > 0 && this.selectedPresetName) {
+                     // Using currently selected preset or manually set time via preset click
+                     chosenMinutes = this.time / 60;
+                } else {
+                    const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : null;
+                    chosenMinutes = !isNaN(presetValue) ? presetValue : 5;
+                    this.time = chosenMinutes * 60;
+                }
+
+                this.totalTime = this.time;
+                this.setStatus(`Timer started for ${Math.round(chosenMinutes * 10) / 10} minute(s).`);
             }
             this.updateDisplay();
             this.flashDisplay();
@@ -227,8 +388,16 @@ class TimerWidget {
                 this.notifyComplete();
                 this.switchPhase();
             } else {
-                this.stop();
-                this.notifyComplete();
+                // Auto-restart logic
+                if (this.autoRestartCheckbox.checked) {
+                    this.notifyComplete();
+                    this.time = this.totalTime;
+                    this.updateDisplay();
+                    this.setStatus('Auto-restarting...', 'success');
+                } else {
+                    this.stop();
+                    this.notifyComplete();
+                }
             }
         }
     }
@@ -361,7 +530,10 @@ class TimerWidget {
             breakDuration: this.getBreakDuration(),
             currentPhase: this.currentPhase,
             selectedSound: this.selectedSound,
-            presetMinutes: this.presetSelect ? parseInt(this.presetSelect.value, 10) : 5
+            presetMinutes: this.presetSelect ? parseInt(this.presetSelect.value, 10) : 5,
+            namedPresets: this.namedPresets,
+            selectedPreset: this.selectedPresetName,
+            autoRestart: this.autoRestartCheckbox.checked
         };
     }
 
@@ -375,6 +547,24 @@ class TimerWidget {
         this.isIntervalMode = !!data.isIntervalMode;
         this.intervalCheckbox.checked = this.isIntervalMode;
         this.intervalOptions.style.display = this.isIntervalMode ? 'block' : 'none';
+
+        // Restore Named Presets
+        if (Array.isArray(data.namedPresets)) {
+            this.namedPresets = data.namedPresets;
+            this.renderNamedPresets();
+        }
+
+        // Restore Selected Preset
+        if (data.selectedPreset) {
+            this.selectedPresetName = data.selectedPreset;
+            this.renderNamedPresets(); // To highlight
+        }
+
+        // Restore Auto Restart
+        if (data.autoRestart) {
+            this.autoRestartCheckbox.checked = data.autoRestart;
+        }
+
         if (typeof data.workDuration === 'number') {
             this.workInput.value = data.workDuration;
         }
@@ -398,6 +588,21 @@ class TimerWidget {
             // for simplicity, we'll just restore the display time.
             this.running = false;
         }
+
+        // Recover totalTime if we can infer it, otherwise default to current time
+        // If we have a selected preset, use that.
+        if (this.selectedPresetName) {
+            const preset = this.namedPresets.find(p => p.name === this.selectedPresetName);
+            if (preset) {
+                this.totalTime = preset.minutes * 60;
+            } else {
+                 this.totalTime = this.time;
+            }
+        } else {
+             this.totalTime = this.time;
+        }
+
+
         this.setStatus(this.running ? 'Timer running...' : 'Ready to start a timer.');
     }
 }
