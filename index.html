@@ -137,9 +137,29 @@
                                 <label for="preset-name">Preset Name</label>
                                 <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
                             </div>
+                            <div class="input-group">
+                                <label for="preset-class-name">Class Name (optional)</label>
+                                <input type="text" id="preset-class-name" placeholder="e.g., 8A Maths">
+                            </div>
+                            <div class="input-group">
+                                <label for="preset-period">Period / Time Slot (optional)</label>
+                                <input type="text" id="preset-period" placeholder="e.g., Morning, Afternoon">
+                            </div>
                             <div class="button-group">
                                 <button id="save-preset" class="control-button">Save / Overwrite</button>
                                 <button id="reset-layout" class="control-button">Reset Layout</button>
+                            </div>
+                            <div class="button-group">
+                                <button id="export-layout" class="control-button">Export</button>
+                                <button id="import-layout" class="control-button">Import</button>
+                            </div>
+                            <div class="preset-filters">
+                                <input type="text" id="preset-class-filter" placeholder="Filter by class name">
+                                <select id="preset-period-filter">
+                                    <option value="">All periods</option>
+                                    <option value="Morning">Morning</option>
+                                    <option value="Afternoon">Afternoon</option>
+                                </select>
                             </div>
                             <div id="preset-list" class="preset-list" aria-live="polite"></div>
                         </div>
@@ -209,6 +229,22 @@
             </div>
             <div class="modal-actions">
                 <button class="control-button modal-primary" data-close>Start Teaching</button>
+            </div>
+        </dialog>
+
+        <dialog id="import-dialog" aria-labelledby="import-dialog-title">
+            <div class="modal-header">
+                <h3 id="import-dialog-title">Import Layout & Presets</h3>
+                <button class="modal-close" aria-label="Close Import">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Paste a layout + presets JSON below:</p>
+                <textarea id="import-json-input" rows="8"></textarea>
+                <div id="import-summary" class="import-summary"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="control-button modal-primary" id="confirm-import">Import</button>
+                <button class="control-button" data-close>Cancel</button>
             </div>
         </dialog>
     </main>

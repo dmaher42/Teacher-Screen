@@ -2,6 +2,25 @@
  * Main application class for the Custom Classroom Screen.
  * This class initializes the app, manages widgets, and handles user interactions.
  */
+
+const STATE_MIGRATIONS = [
+    {
+        from: 0,
+        to: 1,
+        migrate(state) {
+            // Ensure state.layout exists and is well-formed.
+            if (!state.layout || typeof state.layout !== 'object' || !Array.isArray(state.layout.widgets)) {
+                state.layout = { widgets: [] };
+            }
+            // Future-proofing: Normalize widget types if they ever change format.
+            // For now, this is a placeholder for more complex migrations.
+
+            state.schemaVersion = 1;
+            console.log('Migrated state from schema v0 to v1');
+            return state;
+        }
+    }
+];
 class ClassroomScreenApp {
     constructor() {
         // DOM Elements
@@ -20,6 +39,14 @@ class ClassroomScreenApp {
         this.widgetModal = document.getElementById('widget-modal');
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
+        this.importDialog = document.getElementById('import-dialog');
+        this.importJsonInput = document.getElementById('import-json-input');
+        this.importSummary = document.getElementById('import-summary');
+        this.confirmImportButton = document.getElementById('confirm-import');
+        this.presetClassInput = document.getElementById('preset-class-name');
+        this.presetPeriodInput = document.getElementById('preset-period');
+        this.presetClassFilterInput = document.getElementById('preset-class-filter');
+        this.presetPeriodFilterSelect = document.getElementById('preset-period-filter');
 
         // App State
         this.widgets = [];
@@ -28,7 +55,8 @@ class ClassroomScreenApp {
         this.presets = [];
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
         this.lessonPlanEditor = null;
-        this.appVersion = '2.0.0'; // Version for state management
+        this.appVersion = '2.3.0'; // Version for state management
+        this.schemaVersion = 1; // Numeric schema version for data migrations
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
@@ -50,8 +78,8 @@ class ClassroomScreenApp {
         ];
 
         this.defaultPresets = [
-            { name: 'Default', theme: 'memory-cue-theme', background: { type: 'gradient', settings: { start: '#a1c4fd', end: '#c2e9fb' } }, layout: { widgets: [] }, lessonPlan: null },
-            { name: 'Focus Mode', theme: 'dark-theme', background: { type: 'solid', settings: { color: '#1a1a1a' } }, layout: { widgets: [{ type: 'TimerWidget', id: 'widget-1', position: { x: 10, y: 10 }, size: { width: 300, height: 200 } }] }, lessonPlan: null }
+            { name: 'Default', className: '', period: '', theme: 'memory-cue-theme', background: { type: 'gradient', settings: { start: '#a1c4fd', end: '#c2e9fb' } }, layout: { widgets: [] }, lessonPlan: null },
+            { name: 'Focus Mode', className: 'All Classes', period: 'Afternoon', theme: 'dark-theme', background: { type: 'solid', settings: { color: '#1a1a1a' } }, layout: { widgets: [{ type: 'TimerWidget', id: 'widget-1', position: { x: 10, y: 10 }, size: { width: 300, height: 200 } }] }, lessonPlan: null }
         ];
     }
 
@@ -104,6 +132,15 @@ class ClassroomScreenApp {
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
+
+        // Export/Import
+        document.getElementById('export-layout').addEventListener('click', () => this.handleExportLayout());
+        document.getElementById('import-layout').addEventListener('click', () => this.openDialog(this.importDialog));
+        this.confirmImportButton.addEventListener('click', () => this.handleConfirmImport());
+
+        // Preset Filters
+        this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
+        this.presetPeriodFilterSelect.addEventListener('change', () => this.renderPresetList());
     }
 
     handleNavClick(tab) {
@@ -204,6 +241,7 @@ class ClassroomScreenApp {
     saveState() {
         const state = {
             version: this.appVersion,
+            schemaVersion: this.schemaVersion,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -225,6 +263,12 @@ class ClassroomScreenApp {
             this.presets = [...this.defaultPresets];
         }
 
+        // Ensure old presets have new fields
+        this.presets.forEach(p => {
+            p.className = p.className || '';
+            p.period = p.period || '';
+        });
+
         this.savePresets();
         this.renderPresetList();
     }
@@ -240,8 +284,13 @@ class ClassroomScreenApp {
             return;
         }
 
+        const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
+        const period = this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '';
+
         const newPreset = {
             name: presetName,
+            className,
+            period,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -271,20 +320,13 @@ class ClassroomScreenApp {
             return;
         }
 
-        if (this.presetNameInput) {
-            this.presetNameInput.value = preset.name;
-        }
+        if (this.presetNameInput) this.presetNameInput.value = preset.name;
+        if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
+        if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
 
-        if (preset.theme) {
-            this.switchTheme(preset.theme);
-        }
-        if (preset.background) {
-            this.backgroundManager.deserialize(preset.background);
-        }
-
-        if (preset.lessonPlan && this.lessonPlanEditor) {
-            this.lessonPlanEditor.setContents(preset.lessonPlan);
-        }
+        if (preset.theme) this.switchTheme(preset.theme);
+        if (preset.background) this.backgroundManager.deserialize(preset.background);
+        if (preset.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(preset.lessonPlan);
 
         this.widgets = [];
         this.layoutManager.deserialize(preset.layout, (widgetData) => {
@@ -309,9 +351,11 @@ class ClassroomScreenApp {
     }
 
     overwritePreset(name) {
-        if (this.presetNameInput) {
-            this.presetNameInput.value = name;
-        }
+        if (this.presetNameInput) this.presetNameInput.value = name;
+
+        const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
+        const period = this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '';
+
         const presetIndex = this.presets.findIndex(preset => preset.name === name);
         if (presetIndex === -1) {
             this.showNotification('Preset not found.', 'error');
@@ -319,6 +363,8 @@ class ClassroomScreenApp {
         }
         this.presets[presetIndex] = {
             name,
+            className,
+            period,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -344,23 +390,147 @@ class ClassroomScreenApp {
         this.showNotification(`Preset "${name}" deleted.`);
     }
 
+    getSerializableState() {
+        return {
+            version: this.appVersion,
+            schemaVersion: this.schemaVersion,
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: this.layoutManager.serialize(),
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
+        };
+    }
+
+    handleExportLayout() {
+        const exportPayload = {
+            schemaVersion: this.schemaVersion,
+            appVersion: this.appVersion,
+            state: this.getSerializableState(),
+            presets: this.presets || []
+        };
+
+        const jsonString = JSON.stringify(exportPayload, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'classroom-layout-presets.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showNotification('Layout and presets exported.');
+    }
+
+    handleConfirmImport() {
+        const jsonString = this.importJsonInput.value;
+        if (!jsonString) {
+            this.importSummary.textContent = 'Error: Input is empty.';
+            this.importSummary.style.color = 'red';
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonString);
+
+            if (typeof parsed.schemaVersion !== 'number' || !parsed.state || !Array.isArray(parsed.presets)) {
+                throw new Error('Invalid JSON structure.');
+            }
+
+            let state = this.runMigrations(parsed.state);
+
+            const summary = `
+                Ready to import:
+                - ${parsed.presets.length} presets
+                - ${state.layout?.widgets?.length || 0} widgets
+                - Theme: ${state.theme || 'default'}
+            `;
+            this.importSummary.textContent = summary;
+            this.importSummary.style.color = 'green';
+
+            // Normalize imported presets
+            parsed.presets.forEach(p => {
+                p.className = p.className || '';
+                p.period = p.period || '';
+            });
+
+            this.presets = parsed.presets;
+            this.savePresets();
+            this.renderPresetList();
+
+            if (state.theme) this.switchTheme(state.theme);
+            if (state.background) this.backgroundManager.deserialize(state.background);
+            if (state.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(state.lessonPlan);
+
+            this.widgets = [];
+            this.layoutManager.deserialize(state.layout, (widgetData) => {
+                let widget;
+                switch (widgetData.type) {
+                    case 'TimerWidget': widget = new TimerWidget(); break;
+                    case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                    case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                    case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                    case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                    case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                    case 'MaskWidget': widget = new MaskWidget(); break;
+                }
+                if (widget) {
+                    this.widgets.push(widget);
+                }
+                return widget;
+            });
+
+            this.saveState();
+            this.closeDialog(this.importDialog);
+            this.showNotification('Layout and presets imported successfully.');
+
+        } catch (error) {
+            this.importSummary.textContent = `Error: ${error.message}`;
+            this.importSummary.style.color = 'red';
+            console.error('Import failed:', error);
+        }
+    }
+
     renderPresetList() {
         if (!this.presetListElement) return;
 
+        const classFilter = this.presetClassFilterInput.value.toLowerCase();
+        const periodFilter = this.presetPeriodFilterSelect.value.toLowerCase();
+
+        const filteredPresets = this.presets.filter(preset => {
+            const classNameMatch = !classFilter || (preset.className && preset.className.toLowerCase().includes(classFilter));
+            const periodMatch = !periodFilter || (preset.period && preset.period.toLowerCase() === periodFilter);
+            return classNameMatch && periodMatch;
+        });
+
         this.presetListElement.innerHTML = '';
-        if (this.presets.length === 0) {
+        if (filteredPresets.length === 0) {
             const emptyState = document.createElement('p');
-            emptyState.textContent = 'No presets saved yet.';
+            emptyState.textContent = 'No presets match your filters.';
             this.presetListElement.appendChild(emptyState);
             return;
         }
 
-        this.presets.forEach(preset => {
+        filteredPresets.forEach(preset => {
             const item = document.createElement('div');
             item.className = 'preset-item';
 
             const name = document.createElement('span');
+            name.className = 'preset-name';
             name.textContent = preset.name;
+
+            const subtext = document.createElement('span');
+            subtext.className = 'preset-subtext';
+            const classInfo = preset.className || 'No Class';
+            const periodInfo = preset.period || 'Any Period';
+            subtext.textContent = `${classInfo} — ${periodInfo}`;
+
+            const mainInfo = document.createElement('div');
+            mainInfo.className = 'preset-main-info';
+            mainInfo.appendChild(name);
+            mainInfo.appendChild(subtext);
 
             const actions = document.createElement('div');
             actions.className = 'preset-actions';
@@ -386,11 +556,24 @@ class ClassroomScreenApp {
             deleteButton.dataset.action = 'delete';
             deleteButton.dataset.name = preset.name;
 
+            // Event delegation for preset actions
+            item.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                const action = button.dataset.action;
+                const presetName = button.dataset.name;
+
+                if (action === 'load') this.loadPreset(presetName);
+                if (action === 'overwrite') this.overwritePreset(presetName);
+                if (action === 'delete') this.deletePreset(presetName);
+            });
+
             actions.appendChild(loadButton);
             actions.appendChild(overwriteButton);
             actions.appendChild(deleteButton);
 
-            item.appendChild(name);
+            item.appendChild(mainInfo);
             item.appendChild(actions);
 
             this.presetListElement.appendChild(item);
@@ -403,13 +586,8 @@ class ClassroomScreenApp {
             try {
                 let state = JSON.parse(savedState);
 
-                // Migration for legacy state
-                if (!state.version || state.version < this.appVersion) {
-                    console.log('Old state version detected. Migrating...');
-                    // This simple migration discards the old layout.
-                    // A more complex app might transform the old data.
-                    state.layout = { widgets: [] };
-                }
+                // Run migration pipeline
+                state = this.runMigrations(state);
                 
                 // Restore theme
                 if (state.theme) {
@@ -452,6 +630,23 @@ class ClassroomScreenApp {
                 localStorage.removeItem('classroomScreenState');
             }
         }
+    }
+
+    runMigrations(state) {
+        // Default to schema 0 if it's a legacy state object.
+        state.schemaVersion = state.schemaVersion || 0;
+
+        while (state.schemaVersion < this.schemaVersion) {
+            const migration = STATE_MIGRATIONS.find(m => m.from === state.schemaVersion);
+            if (!migration) {
+                console.warn(`No migration found for schema version ${state.schemaVersion}. Halting migration.`);
+                // Potentially discard incompatible layout, or handle error gracefully.
+                state.layout = { widgets: [] };
+                break;
+            }
+            state = migration.migrate(state);
+        }
+        return state;
     }
 
     resetLayout() {
@@ -557,7 +752,7 @@ class ClassroomScreenApp {
     }
 
     setupDialogControls() {
-        const dialogs = [this.helpDialog, this.tourDialog, this.widgetModal].filter(Boolean);
+        const dialogs = [this.helpDialog, this.tourDialog, this.widgetModal, this.importDialog].filter(Boolean);
         dialogs.forEach((dialog) => {
             dialog.addEventListener('click', (event) => {
                 if (event.target === dialog) {
