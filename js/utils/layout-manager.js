@@ -1,4 +1,12 @@
 // js/utils/layout-manager.js
+
+const WIDGET_SIZE_RULES = {
+  TimerWidget: { minW: 2, minH: 1, maxW: 12, maxH: 4 },
+  NoiseMeterWidget: { minW: 2, minH: 2 },
+  DocumentViewerWidget: { minW: 3, minH: 3 },
+  NamePickerWidget: { minW: 2, minH: 2 }
+};
+
 class LayoutManager {
   constructor(container) {
     this.container = container;
@@ -24,6 +32,20 @@ class LayoutManager {
     this.container.style.height = '100%';
   }
   
+  getConstrainedSize(widget, width, height) {
+    const type = widget.constructor.name;
+    const rules = WIDGET_SIZE_RULES[type];
+    if (!rules) return { width, height };
+
+    let w = width;
+    let h = height;
+    if (rules.minW) w = Math.max(w, rules.minW);
+    if (rules.minH) h = Math.max(h, rules.minH);
+    if (rules.maxW) w = Math.min(w, rules.maxW);
+    if (rules.maxH) h = Math.min(h, rules.maxH);
+    return { width: w, height: h };
+  }
+
   addWidget(widget, x = null, y = null, width = 3, height = 2) {
     let finalX = x;
     let finalY = y;
@@ -33,6 +55,10 @@ class LayoutManager {
         finalX = (widgetCount * width) % this.gridColumns;
         finalY = Math.floor((widgetCount * width) / this.gridColumns) * height;
     }
+
+    const constrained = this.getConstrainedSize(widget, width, height);
+    width = constrained.width;
+    height = constrained.height;
 
     // Create widget container
     const widgetElement = document.createElement('div');
@@ -164,8 +190,56 @@ class LayoutManager {
     
     document.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
-      element.style.width = (startWidth + e.clientX - startX) + 'px';
-      element.style.height = (startHeight + e.clientY - startY) + 'px';
+
+      const currentWidth = startWidth + e.clientX - startX;
+      const currentHeight = startHeight + e.clientY - startY;
+
+      const info = this.widgets.find(w => w.element === element);
+      if (info) {
+          // Approximate grid unit size
+          const containerWidth = this.container.clientWidth - 20;
+          const colWidth = (containerWidth - (11 * 10)) / 12;
+          // height: 100% of container, split into 8 rows
+          const containerHeight = this.container.clientHeight - 20;
+          const cellHeight = (containerHeight - (7 * 10)) / 8;
+
+          let newGridW = Math.round(currentWidth / (colWidth + 10));
+          let newGridH = Math.round(currentHeight / (cellHeight + 10));
+
+          // Clamp grid units
+          const constrained = this.getConstrainedSize(info.widget, Math.max(1, newGridW), Math.max(1, newGridH));
+
+          if (constrained.width !== newGridW || constrained.height !== newGridH) {
+             element.classList.add('size-limit-hit');
+             setTimeout(() => element.classList.remove('size-limit-hit'), 300);
+          }
+
+          const rules = WIDGET_SIZE_RULES[info.widget.constructor.name] || {};
+          const minW = rules.minW || 1;
+          const minH = rules.minH || 1;
+          const maxW = rules.maxW || 12;
+          const maxH = rules.maxH || 8;
+
+          const minPixelW = minW * colWidth + (minW - 1) * 10;
+          const minPixelH = minH * cellHeight + (minH - 1) * 10;
+          const maxPixelW = maxW * colWidth + (maxW - 1) * 10;
+          const maxPixelH = maxH * cellHeight + (maxH - 1) * 10;
+
+          let finalPixelW = Math.max(minPixelW, Math.min(maxPixelW, currentWidth));
+          let finalPixelH = Math.max(minPixelH, Math.min(maxPixelH, currentHeight));
+
+          if (finalPixelW !== currentWidth || finalPixelH !== currentHeight) {
+             element.classList.add('size-limit-hit');
+          } else {
+             element.classList.remove('size-limit-hit');
+          }
+
+          element.style.width = finalPixelW + 'px';
+          element.style.height = finalPixelH + 'px';
+      } else {
+          element.style.width = currentWidth + 'px';
+          element.style.height = currentHeight + 'px';
+      }
     });
     
     document.addEventListener('mouseup', () => {
@@ -180,6 +254,11 @@ class LayoutManager {
     let isDragging = false;
     let startX, startY, initialX, initialY;
     
+    // Fix: Find the actual widget element if 'element' is just a handle (header)
+    const widgetElement = element.classList.contains('widget') ? element : element.closest('.widget');
+    // If we can't find widget element (shouldn't happen), fallback to element
+    const targetElement = widgetElement || element;
+
     element.addEventListener('mousedown', (e) => {
       // Only start dragging if not clicking on a resize handle or input element
       if (e.target.classList.contains('resize-handle') || 
@@ -193,8 +272,8 @@ class LayoutManager {
       startX = e.clientX;
       startY = e.clientY;
       
-      // Get current grid position
-      const computedStyle = window.getComputedStyle(element);
+      // Get current grid position of the target widget
+      const computedStyle = window.getComputedStyle(targetElement);
       const gridColumn = computedStyle.gridColumn;
       const gridRow = computedStyle.gridRow;
       
@@ -222,8 +301,8 @@ class LayoutManager {
       const newX = Math.max(0, Math.min(this.gridColumns - 3, initialX + gridDeltaX));
       const newY = Math.max(0, Math.min(this.gridRows - 2, initialY + gridDeltaY));
       
-      element.style.gridColumn = `${newX+1} / span 3`;
-      element.style.gridRow = `${newY+1} / span 2`;
+      targetElement.style.gridColumn = `${newX+1} / span 3`;
+      targetElement.style.gridRow = `${newY+1} / span 2`;
     });
     
     document.addEventListener('mouseup', () => {
@@ -346,6 +425,7 @@ class LayoutManager {
       widgetElement.appendChild(content);
 
       this.addResizeHandles(widgetElement);
+      // Here we pass 'header' to keep consistent with addWidget, but we rely on fixed addDragFunctionality to find the widget
       this.addDragFunctionality(header);
       this.container.appendChild(widgetElement);
 
