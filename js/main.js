@@ -87,8 +87,30 @@ class ClassroomScreenApp {
         ];
 
         this.defaultPresets = [
-            { name: 'Default', className: '', period: '', theme: 'memory-cue-theme', background: { type: 'gradient', settings: { start: '#a1c4fd', end: '#c2e9fb' } }, layout: { widgets: [] }, lessonPlan: null },
-            { name: 'Focus Mode', className: 'All Classes', period: 'Afternoon', theme: 'dark-theme', background: { type: 'solid', settings: { color: '#1a1a1a' } }, layout: { widgets: [{ type: 'TimerWidget', id: 'widget-1', position: { x: 10, y: 10 }, size: { width: 300, height: 200 } }] }, lessonPlan: null }
+            {
+                name: 'Default',
+                className: '',
+                period: '',
+                theme: 'memory-cue-theme',
+                background: {
+                    type: 'gradient',
+                    value: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
+                },
+                layout: { widgets: [] },
+                lessonPlan: null
+            },
+            {
+                name: 'Focus Mode',
+                className: 'All Classes',
+                period: 'Afternoon',
+                theme: 'dark-theme',
+                background: {
+                    type: 'solid',
+                    value: '#1a1a1a'
+                },
+                layout: { widgets: [{ type: 'TimerWidget', id: 'widget-1', position: { x: 10, y: 10 }, size: { width: 300, height: 200 } }] },
+                lessonPlan: null
+            }
         ];
     }
 
@@ -837,19 +859,43 @@ class ClassroomScreenApp {
         const backgrounds = this.backgroundManager.getAvailableBackgrounds();
 
         for (const type in backgrounds) {
-            backgrounds[type].forEach(value => {
+            backgrounds[type].forEach((value, index) => {
                 const swatch = document.createElement('div');
                 swatch.className = 'background-swatch';
+                swatch.tabIndex = 0;
+                swatch.setAttribute('role', 'button');
+                swatch.setAttribute(
+                    'aria-label',
+                    type === 'solid'
+                        ? `Solid background ${value}`
+                        : type === 'gradient'
+                            ? `Gradient background ${index + 1}`
+                            : `Image background ${index + 1}`
+                );
+
                 if (type === 'solid') {
                     swatch.style.backgroundColor = value;
-                } else {
+                } else if (type === 'gradient') {
                     swatch.style.backgroundImage = value;
+                } else if (type === 'image') {
+                    swatch.style.backgroundImage = `url(${value})`;
+                    swatch.style.backgroundSize = 'cover';
+                    swatch.style.backgroundPosition = 'center';
                 }
 
-                swatch.addEventListener('click', () => {
+                const applyBackground = () => {
                     this.backgroundManager.setBackground(type, value);
                     this.saveState();
+                };
+
+                swatch.addEventListener('click', applyBackground);
+                swatch.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applyBackground();
+                    }
                 });
+
                 this.backgroundSelector.appendChild(swatch);
             });
         }

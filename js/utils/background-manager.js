@@ -58,7 +58,25 @@ class BackgroundManager {
   }
 
   deserialize(data) {
-    this.currentBackground = data;
+    if (!data) return;
+
+    // Support older shape: { type, settings: { ... } }
+    if (data.settings) {
+      if (data.type === 'solid') {
+        this.currentBackground = { type: 'solid', value: data.settings.color || '#ffffff' };
+      } else if (data.type === 'gradient') {
+        const { start, end } = data.settings;
+        this.currentBackground = {
+          type: 'gradient',
+          value: `linear-gradient(120deg, ${start} 0%, ${end} 100%)`
+        };
+      } else {
+        this.currentBackground = { type: data.type, value: data.settings.url || '' };
+      }
+    } else {
+      this.currentBackground = data;
+    }
+
     this.applyBackground();
     this.saveBackground();
   }
