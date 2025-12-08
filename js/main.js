@@ -58,6 +58,8 @@ class ClassroomScreenApp {
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
 
+        this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
         this.layoutManager.onLayoutChange = () => this.saveState();
@@ -262,6 +264,11 @@ class ClassroomScreenApp {
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
         localStorage.setItem('classroomScreenState', JSON.stringify(state));
+
+        this.projectorChannel.postMessage({
+            type: 'layout-update',
+            state: state
+        });
     }
 
     setupPresetControls() {
