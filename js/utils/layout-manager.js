@@ -65,7 +65,8 @@ class LayoutManager {
       x: x,
       y: y,
       width: width,
-      height: height
+      height: height,
+      visibleOnProjector: true
     });
 
     // Save layout
@@ -94,6 +95,18 @@ class LayoutManager {
     const controls = document.createElement('div');
     controls.className = 'widget-controls';
 
+    const projectorToggle = document.createElement('button');
+    projectorToggle.className = 'widget-projector-toggle';
+    projectorToggle.title = 'Toggle visibility on projector';
+    projectorToggle.textContent = '🎥';
+    projectorToggle.addEventListener('click', () => {
+      const info = this.widgets.find(w => w.element === header.parentElement);
+      if (!info) return;
+      info.visibleOnProjector = !info.visibleOnProjector;
+      projectorToggle.classList.toggle('off', !info.visibleOnProjector);
+      this.saveLayout();
+    });
+
     const helpButton = document.createElement('button');
     helpButton.className = 'widget-help';
     helpButton.textContent = '?';
@@ -108,6 +121,7 @@ class LayoutManager {
     closeButton.innerHTML = '&times;';
     closeButton.addEventListener('click', () => this.removeWidget(widget));
 
+    controls.appendChild(projectorToggle);
     controls.appendChild(helpButton);
     controls.appendChild(closeButton);
 
@@ -255,6 +269,7 @@ class LayoutManager {
         y,
         width,
         height,
+        visibleOnProjector: widgetInfo.visibleOnProjector !== false,
         data: widgetInfo.widget.serialize()
       };
     });
@@ -308,7 +323,8 @@ class LayoutManager {
 
     layoutData.widgets.forEach((widgetData) => {
       const widget = widgetFactory ? widgetFactory(widgetData) : this.createWidgetFromType(widgetData.type);
-      if (!widget) {
+      // Added robustness check: ensure widget and widget.element exist.
+      if (!widget || !widget.element) {
         return;
       }
 
@@ -321,9 +337,16 @@ class LayoutManager {
       widgetElement.style.gridColumn = gridColumn;
       widgetElement.style.gridRow = gridRow;
 
-      widgetElement.appendChild(widget.element);
+      const header = this.createWidgetHeader(widget);
+      const content = document.createElement('div');
+      content.className = 'widget-content';
+      content.appendChild(widget.element);
+
+      widgetElement.appendChild(header);
+      widgetElement.appendChild(content);
+
       this.addResizeHandles(widgetElement);
-      this.addDragFunctionality(widgetElement);
+      this.addDragFunctionality(header);
       this.container.appendChild(widgetElement);
 
       if (widgetData.data && typeof widget.deserialize === 'function') {
@@ -337,6 +360,13 @@ class LayoutManager {
       const y = widgetData.y ?? (rowPosition.start - 1);
       const width = widgetData.width ?? columnPosition.span;
       const height = widgetData.height ?? rowPosition.span;
+      const visibleOnProjector = widgetData.visibleOnProjector !== false;
+
+      // Update projector toggle state
+      const projectorToggle = header.querySelector('.widget-projector-toggle');
+      if (projectorToggle) {
+        projectorToggle.classList.toggle('off', !visibleOnProjector);
+      }
 
       this.widgets.push({
         element: widgetElement,
@@ -344,7 +374,8 @@ class LayoutManager {
         x,
         y,
         width,
-        height
+        height,
+        visibleOnProjector
       });
     });
   }

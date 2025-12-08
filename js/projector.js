@@ -82,6 +82,11 @@ class ProjectorApp {
             // LayoutManager.deserialize clears the container.
 
             this.layoutManager.deserialize(state.layout, (widgetData) => {
+                // Filter out widgets not meant for the projector
+                if (widgetData.visibleOnProjector === false) {
+                    return null;
+                }
+
                 let widget;
                 switch (widgetData.type) {
                     case 'TimerWidget': widget = new TimerWidget(); break;
