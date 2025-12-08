@@ -74,11 +74,16 @@ class ClassroomScreenApp {
         ];
 
         this.themes = [
-            { name: 'Memory Cue', id: 'memory-cue-theme' },
-            { name: 'Light', id: 'light-theme' },
-            { name: 'Dark', id: 'dark-theme' },
-            { name: 'Ocean', id: 'ocean-theme' },
-            { name: 'Forest', id: 'forest-theme' },
+            { name: 'Memory Cue', id: 'memory-cue-theme', swatch: '#8e82ff' },
+            { name: 'Light', id: 'light-theme', swatch: '#3498db' },
+            { name: 'Dark', id: 'dark-theme', swatch: '#4dabf7' },
+            { name: 'Ocean', id: 'ocean-theme', swatch: '#0077b6' },
+            { name: 'Forest', id: 'forest-theme', swatch: '#2d6a4f' },
+            { name: 'Sunset', id: 'sunset-theme', swatch: '#d62828' },
+            { name: 'Royal', id: 'royal-theme', swatch: '#6a4c93' },
+            { name: 'Monochrome', id: 'monochrome-theme', swatch: '#495057' },
+            { name: 'High Contrast', id: 'high-contrast-theme', swatch: '#000000' },
+            { name: 'Calm Classroom', id: 'calm-theme', swatch: '#4f8fbf' }
         ];
 
         this.defaultPresets = [
@@ -95,6 +100,12 @@ class ClassroomScreenApp {
         this.layoutManager.init();
         this.setupPresetControls();
         this.renderBackgroundSelector();
+
+        const savedTheme = localStorage.getItem('selectedTheme');
+        if (savedTheme) {
+            document.body.className = savedTheme;
+        }
+
         this.renderThemeSelector();
         this.renderWidgetModal();
 
@@ -246,11 +257,15 @@ class ClassroomScreenApp {
             label.className = 'theme-option';
             label.innerHTML = `
                 <input type="radio" name="theme" value="${theme.id}">
-                <span class="theme-swatch" style="background-color: var(--primary-color)"></span>
+                <span class="theme-swatch" style="background-color: ${theme.swatch};"></span>
                 <span>${theme.name}</span>
             `;
             const input = label.querySelector('input');
-            input.addEventListener('change', () => this.switchTheme(theme.id));
+            input.checked = (document.body.className === theme.id);
+            input.addEventListener('change', () => {
+                this.switchTheme(theme.id);
+                this.saveState();
+            });
             this.themeSelector.appendChild(label);
         });
     }
