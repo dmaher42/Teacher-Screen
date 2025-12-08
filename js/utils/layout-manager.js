@@ -1,4 +1,12 @@
 // js/utils/layout-manager.js
+
+const WIDGET_SIZE_RULES = {
+  TimerWidget: { minW: 2, minH: 1, maxW: 12, maxH: 4 },
+  NoiseMeterWidget: { minW: 2, minH: 2 },
+  DocumentViewerWidget: { minW: 3, minH: 3 },
+  NamePickerWidget: { minW: 2, minH: 2 }
+};
+
 class LayoutManager {
   constructor(container) {
     this.container = container;
@@ -15,6 +23,20 @@ class LayoutManager {
     this.applyGridStyles();
   }
 
+  getConstrainedSize(widget, width, height) {
+    const type = widget.constructor.name;
+    const rules = WIDGET_SIZE_RULES[type];
+    if (!rules) return { width, height };
+
+    let w = width;
+    let h = height;
+    if (rules.minW) w = Math.max(w, rules.minW);
+    if (rules.minH) h = Math.max(h, rules.minH);
+    if (rules.maxW) w = Math.min(w, rules.maxW);
+    if (rules.maxH) h = Math.min(h, rules.maxH);
+    return { width: w, height: h };
+  }
+
   applyGridStyles() {
     this.container.style.display = 'grid';
     this.container.style.gridTemplateColumns = `repeat(${this.gridColumns}, 1fr)`;
@@ -25,6 +47,11 @@ class LayoutManager {
   }
   
   addWidget(widget, x = null, y = null, width = 3, height = 2) {
+    // Apply size constraints
+    const constrained = this.getConstrainedSize(widget, width, height);
+    width = constrained.width;
+    height = constrained.height;
+
     let finalX = x;
     let finalY = y;
 
@@ -149,25 +176,87 @@ class LayoutManager {
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
     element.appendChild(resizeHandle);
-    
+
     let isResizing = false;
-    let startX, startY, startWidth, startHeight;
-    
+    let startX, startY;
+    let startWidth, startHeight; // in grid units
+    let startPixelWidth, startPixelHeight;
+
     resizeHandle.addEventListener('mousedown', (e) => {
       isResizing = true;
       startX = e.clientX;
       startY = e.clientY;
-      startWidth = parseInt(document.defaultView.getComputedStyle(element).width, 10);
-      startHeight = parseInt(document.defaultView.getComputedStyle(element).height, 10);
+
+      const computedStyle = window.getComputedStyle(element);
+      startPixelWidth = parseInt(computedStyle.width, 10);
+      startPixelHeight = parseInt(computedStyle.height, 10);
+
+      const info = this.widgets.find(w => w.element === element);
+      if (info) {
+          startWidth = info.width;
+          startHeight = info.height;
+      } else {
+          // Fallback if not found (shouldn't happen)
+          startWidth = 1;
+          startHeight = 1;
+      }
+
       e.preventDefault();
     });
-    
+
     document.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
-      element.style.width = (startWidth + e.clientX - startX) + 'px';
-      element.style.height = (startHeight + e.clientY - startY) + 'px';
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
+      // Calculate approximate cell size
+      const cellWidth = startPixelWidth / startWidth;
+      const cellHeight = startPixelHeight / startHeight;
+
+      const gridDeltaX = Math.round(deltaX / cellWidth);
+      const gridDeltaY = Math.round(deltaY / cellHeight);
+
+      let newWidth = Math.max(1, startWidth + gridDeltaX);
+      let newHeight = Math.max(1, startHeight + gridDeltaY);
+
+      const info = this.widgets.find(w => w.element === element);
+      if (info) {
+          const constrained = this.getConstrainedSize(info.widget, newWidth, newHeight);
+
+          if (constrained.width !== newWidth || constrained.height !== newHeight) {
+             // Visual feedback
+             element.classList.add('size-limit-hit');
+             setTimeout(() => element.classList.remove('size-limit-hit'), 300);
+          }
+
+          newWidth = constrained.width;
+          newHeight = constrained.height;
+
+          // Apply new grid span
+          const gridColumn = window.getComputedStyle(element).gridColumn;
+          const gridRow = window.getComputedStyle(element).gridRow;
+
+          const startCol = parseInt(gridColumn.split('/')[0].trim()) || 1;
+          const startRow = parseInt(gridRow.split('/')[0].trim()) || 1;
+
+          // Prevent going out of bounds
+          if (startCol + newWidth - 1 > this.gridColumns) {
+              newWidth = this.gridColumns - startCol + 1;
+          }
+          if (startRow + newHeight - 1 > this.gridRows) {
+              newHeight = this.gridRows - startRow + 1;
+          }
+
+          element.style.gridColumn = `${startCol} / span ${newWidth}`;
+          element.style.gridRow = `${startRow} / span ${newHeight}`;
+
+          // Update info
+          info.width = newWidth;
+          info.height = newHeight;
+      }
     });
-    
+
     document.addEventListener('mouseup', () => {
       if (isResizing) {
         isResizing = false;
