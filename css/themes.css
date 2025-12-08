@@ -212,3 +212,20 @@
     --widget-header-border-color: #eeeeee;
     --border-radius: 12px;
 }
+
+/* ==========================================================================
+   10. Calm Classroom Theme
+   ========================================================================== */
+.calm-theme {
+    --primary-color: #4f8fbf;       /* soft blue */
+    --secondary-color: #8ac6d1;     /* gentle teal */
+    --background-color: #f4f7fb;    /* light, low-contrast background */
+    --background-gradient: linear-gradient(135deg, #f4f7fb 0%, #e2ecf5 100%);
+    --text-color: #2f3e46;
+    --card-background: #ffffff;
+
+    --border-color: #d0dbe7;
+    --hover-bg-color: #e7f0f8;
+    --shadow-color: rgba(47, 62, 70, 0.08);
+    --widget-header-border-color: #d0dbe7;
+}
