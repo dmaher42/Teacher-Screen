@@ -149,6 +149,12 @@ class ClassroomScreenApp {
         // Preset Filters
         this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
         this.presetPeriodFilterSelect.addEventListener('change', () => this.renderPresetList());
+
+        // Projector View Button
+        const openProjectorBtn = document.getElementById('open-projector-view');
+        if (openProjectorBtn) {
+            openProjectorBtn.addEventListener('click', () => window.open('projector.html', '_blank'));
+        }
     }
 
     handleNavClick(tab) {

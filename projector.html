@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Screen – Projector View</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/themes.css">
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js" defer></script>
+</head>
+<body class="projector-view">
+    <div id="app-container" class="app-container" style="margin-top: 0; height: 100vh;">
+        <section id="student-view" class="view student-view" role="region" aria-label="Projector View">
+            <div id="widgets-container" class="widgets-grid">
+                <!-- Widgets are dynamically added here by JavaScript -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils/layout-manager.js" defer></script>
+    <script src="js/utils/background-manager.js" defer></script>
+    <script src="assets/sounds/sound-data.js" defer></script>
+    <script src="js/widgets/timer.js" defer></script>
+    <script src="js/widgets/noise-meter.js" defer></script>
+    <script src="js/widgets/noise-meter-widget.js" defer></script>
+    <script src="js/widgets/name-picker.js" defer></script>
+    <script src="js/widgets/qr-code-widget.js" defer></script>
+    <script src="js/widgets/drawing-tool.js" defer></script>
+    <script src="js/widgets/document-viewer.js" defer></script>
+    <script src="js/widgets/mask-widget.js" defer></script>
+    <script src="js/projector.js" defer></script>
+
+    <style>
+        /* Projector View Overrides */
+        .projector-view .widget-header {
+            display: none !important;
+        }
+        .projector-view .resize-handle {
+            display: none !important;
+        }
+        .projector-view .widget {
+            box-shadow: none; /* Optional: cleaner look */
+            /* Maybe keep box-shadow if it helps visibility */
+        }
+        /* Hide nav and other elements just in case, though they are not in the HTML */
+        /* Since we re-used app-container and student-view structure to reuse CSS, we should be fine */
+
+        /* Ensure widgets take full space if header is hidden? */
+        /* Widget content usually has flex-grow: 1, so it should expand */
+    </style>
+</body>
+</html>
