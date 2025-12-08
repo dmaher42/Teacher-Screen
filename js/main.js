@@ -47,6 +47,8 @@ class ClassroomScreenApp {
         this.presetPeriodInput = document.getElementById('preset-period');
         this.presetClassFilterInput = document.getElementById('preset-class-filter');
         this.presetPeriodFilterSelect = document.getElementById('preset-period-filter');
+        this.layoutPresetSelect = document.getElementById('layout-preset');
+        this.applyLayoutPresetButton = document.getElementById('apply-layout-preset');
 
         // App State
         this.widgets = [];
@@ -151,6 +153,10 @@ class ClassroomScreenApp {
         // Preset Filters
         this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
         this.presetPeriodFilterSelect.addEventListener('change', () => this.renderPresetList());
+
+        if (this.applyLayoutPresetButton) {
+            this.applyLayoutPresetButton.addEventListener('click', () => this.applyLayoutPreset());
+        }
 
         // Projector View Button
         const openProjectorBtn = document.getElementById('open-projector-view');
@@ -296,6 +302,59 @@ class ClassroomScreenApp {
 
     savePresets() {
         localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
+    }
+
+    applyLayoutPreset() {
+        const preset = this.layoutPresetSelect ? this.layoutPresetSelect.value : '';
+        if (!preset) return;
+        if (!this.layoutManager || !Array.isArray(this.layoutManager.widgets)) return;
+
+        switch (preset) {
+            case '2x2':
+                this.apply2x2Preset();
+                break;
+            case 'full-timer':
+                this.applyFullTimerPreset();
+                break;
+        }
+
+        this.layoutManager.saveLayout();
+        this.saveState();
+        this.showNotification('Layout preset applied.');
+    }
+
+    apply2x2Preset() {
+        const cols = this.layoutManager.gridColumns; // 12
+        const rows = this.layoutManager.gridRows;    // 8
+        const slots = [
+            { x: 0, y: 0 },
+            { x: 6, y: 0 },
+            { x: 0, y: 4 },
+            { x: 6, y: 4 }
+        ];
+        const width = 6;
+        const height = 4;
+        this.layoutManager.widgets.forEach((info, index) => {
+            const slot = slots[index % slots.length];
+            info.x = slot.x;
+            info.y = slot.y;
+            info.width = width;
+            info.height = height;
+            info.element.style.gridColumn = `${slot.x + 1} / span ${width}`;
+            info.element.style.gridRow = `${slot.y + 1} / span ${height}`;
+        });
+    }
+
+    applyFullTimerPreset() {
+        if (!this.layoutManager.widgets.length) return;
+        const timerInfo = this.layoutManager.widgets.find(info => info.widget instanceof TimerWidget) || this.layoutManager.widgets[0];
+        const cols = this.layoutManager.gridColumns; // 12
+        timerInfo.x = 0;
+        timerInfo.y = 0;
+        timerInfo.width = cols;
+        timerInfo.height = 2;
+        timerInfo.element.style.gridColumn = `1 / span ${cols}`;
+        timerInfo.element.style.gridRow = `1 / span 2`;
     }
 
     savePreset() {
