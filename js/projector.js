@@ -16,6 +16,8 @@ class ProjectorApp {
         // We can also override methods if needed.
 
         this.backgroundManager = new BackgroundManager(this.studentView);
+
+        this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
     }
 
     init() {
@@ -31,6 +33,12 @@ class ProjectorApp {
                 this.loadTheme();
             }
         });
+
+        this.projectorChannel.onmessage = (event) => {
+            if (event.data.type === 'layout-update') {
+                this.rebuildLayout(event.data.state);
+            }
+        };
 
         this.loadTheme();
         this.loadSavedState();
@@ -48,44 +56,47 @@ class ProjectorApp {
         if (savedState) {
             try {
                 const state = JSON.parse(savedState);
-
-                // Restore theme (if stored in state, though main.js seems to store it in body class and state)
-                if (state.theme) {
-                    document.body.className = `projector-view ${state.theme}`;
-                }
-
-                // Restore background
-                if (state.background) {
-                    this.backgroundManager.deserialize(state.background);
-                }
-
-                // Restore layout and widgets
-                if (state.layout && state.layout.widgets) {
-                    // Clear existing widgets before reloading to avoid duplicates/stale state
-                    this.widgets = [];
-                    // We need to clear the container or let LayoutManager handle it.
-                    // LayoutManager.deserialize clears the container.
-
-                    this.layoutManager.deserialize(state.layout, (widgetData) => {
-                        let widget;
-                        switch (widgetData.type) {
-                            case 'TimerWidget': widget = new TimerWidget(); break;
-                            case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                            case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                            case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                            case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                            case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                            case 'MaskWidget': widget = new MaskWidget(); break;
-                        }
-                        if (widget) {
-                            this.widgets.push(widget);
-                        }
-                        return widget;
-                    });
-                }
+                this.rebuildLayout(state);
             } catch (e) {
                 console.error('Failed to load saved state:', e);
             }
+        }
+    }
+
+    rebuildLayout(state) {
+        // Restore theme (if stored in state, though main.js seems to store it in body class and state)
+        if (state.theme) {
+            document.body.className = `projector-view ${state.theme}`;
+        }
+
+        // Restore background
+        if (state.background) {
+            this.backgroundManager.deserialize(state.background);
+        }
+
+        // Restore layout and widgets
+        if (state.layout && state.layout.widgets) {
+            // Clear existing widgets before reloading to avoid duplicates/stale state
+            this.widgets = [];
+            // We need to clear the container or let LayoutManager handle it.
+            // LayoutManager.deserialize clears the container.
+
+            this.layoutManager.deserialize(state.layout, (widgetData) => {
+                let widget;
+                switch (widgetData.type) {
+                    case 'TimerWidget': widget = new TimerWidget(); break;
+                    case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                    case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                    case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                    case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                    case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                    case 'MaskWidget': widget = new MaskWidget(); break;
+                }
+                if (widget) {
+                    this.widgets.push(widget);
+                }
+                return widget;
+            });
         }
     }
 }
