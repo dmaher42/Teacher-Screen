@@ -38,7 +38,7 @@
     --spinner-color: #ffffff;
 
     /* Fonts & Sizing */
-    --border-radius: 8px;
+    --border-radius: 12px;
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
     /* Spacing */
@@ -49,14 +49,15 @@
     --spacing-xl: 32px;
 
     /* Border Radii */
-    --border-radius-small: 6px;
-    --border-radius-medium: 8px;   /* --border-radius is alias */
+    --border-radius-small: 12px;
+    --border-radius-medium: 12px;   /* --border-radius is alias */
     --border-radius-large: 12px;
 
     /* Elevation */
     --shadow-soft: 0 2px 4px var(--shadow-color);
     --shadow-medium: 0 4px 10px var(--shadow-color);
     --shadow-strong: 0 6px 16px var(--shadow-color);
+    --shadow-elevated: 0 8px 24px var(--shadow-color);
 
     /* Accessibility Overrides */
     --a11y-min-contrast-text: #000; /* fallback if theme text too light */
