@@ -76,6 +76,8 @@ button:active {
     border: 1px solid var(--border-color, #dfe4e2);
     border-radius: var(--border-radius-large, 12px);
     box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    padding: var(--spacing-xl, 32px);
+    gap: var(--spacing-lg, 24px);
 }
 
 button:focus-visible,
@@ -125,7 +127,7 @@ details:focus-visible,
     box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 var(--spacing-xl, 32px);
     z-index: 1100;
 }
 
@@ -143,6 +145,37 @@ details:focus-visible,
     cursor: pointer;
     border-radius: var(--border-radius, 8px);
     transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm, 10px);
+}
+
+.control-button,
+.timer-preset-btn,
+#open-projector-view,
+.button-group button {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 90%, #ffffff 10%), var(--primary-color, #8e82ff));
+    color: #ffffff;
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 70%, #000 5%);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+}
+
+.control-button:hover,
+.timer-preset-btn:hover,
+#open-projector-view:hover,
+.button-group button:hover {
+    filter: brightness(1.04);
+    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.1));
+}
+
+.control-button:active,
+.timer-preset-btn:active,
+#open-projector-view:active,
+.button-group button:active {
+    filter: brightness(0.98);
 }
 
 .nav-tab.active {
@@ -214,7 +247,7 @@ details:focus-visible,
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
+    padding: var(--spacing-lg, 24px) var(--spacing-xl, 32px);
     border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
@@ -232,12 +265,12 @@ details:focus-visible,
 }
 
 .panel-content {
-    padding: 20px;
+    padding: var(--spacing-xl, 32px);
     height: calc(100% - 60px);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--spacing-xl, 32px);
 }
 
 /* Control Cards */
@@ -246,13 +279,14 @@ details:focus-visible,
     border: 1px solid var(--border-color, #e0e0e0);
     border-radius: var(--border-radius-large, 12px);
     box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    padding: var(--spacing-md, 16px);
 }
 
 .control-card summary {
     display: flex;
     align-items: center;
     gap: var(--spacing-md, 10px);
-    padding: var(--spacing-lg, 15px);
+    padding: var(--spacing-lg, 24px);
     cursor: pointer;
     font-size: 1.1rem;
     font-weight: 600;
@@ -265,7 +299,7 @@ details:focus-visible,
 }
 
 .card-body {
-    padding: 0 var(--spacing-lg, 15px) var(--spacing-lg, 15px);
+    padding: 0 var(--spacing-xl, 32px) var(--spacing-xl, 32px);
     border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
@@ -581,8 +615,7 @@ dialog::backdrop {
 
 /* Timer Preset Buttons */
 .timer-preset-btn {
-    padding: 5px 10px;
-    font-size: 0.9rem;
-    margin-left: 5px;
-    cursor: pointer;
+    padding: var(--spacing-sm, 10px) var(--spacing-md, 16px);
+    font-size: 0.95rem;
+    margin-left: var(--spacing-sm, 10px);
 }
