@@ -42,11 +42,11 @@
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
     /* Spacing */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 12px;
-    --spacing-lg: 16px;
-    --spacing-xl: 24px;
+    --spacing-xs: 6px;
+    --spacing-sm: 10px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
 
     /* Border Radii */
     --border-radius-small: 6px;
