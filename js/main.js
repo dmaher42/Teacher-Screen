@@ -949,15 +949,26 @@ class ClassroomScreenApp {
     }
 
     showNotification(message, type = 'success') {
-        const existingNotification = document.querySelector('.notification');
+        const existingNotification = document.querySelector('.notification-toast');
         if (existingNotification) {
             existingNotification.remove();
         }
 
         const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
+        notification.className = `notification-toast ${type}`;
+        notification.setAttribute('role', 'status');
+        notification.setAttribute('aria-live', 'polite');
         notification.textContent = message;
         this.appContainer.appendChild(notification);
+
+        // Announce to screen reader via live region
+        const liveRegion = document.getElementById('live-region');
+        if (liveRegion) {
+            liveRegion.textContent = '';
+            window.requestAnimationFrame(() => {
+                liveRegion.textContent = message;
+            });
+        }
 
         void notification.offsetWidth;
 
