@@ -122,9 +122,88 @@ const setupDrawingBoard = () => {
     });
 };
 
+const displayStudents = () => {
+    const listDisplay = document.getElementById('student-list-display');
+    if (!listDisplay) return;
+
+    listDisplay.innerHTML = '';
+    const studentList = JSON.parse(localStorage.getItem('studentList') || '[]');
+
+    if (studentList.length === 0) {
+        listDisplay.innerHTML = '<li>No students loaded</li>';
+        return;
+    }
+
+    studentList.forEach(name => {
+        const li = document.createElement('li');
+        li.textContent = name;
+        listDisplay.appendChild(li);
+    });
+};
+
+const setupStudentListControls = () => {
+    const exportBtn = document.getElementById('export-students-btn');
+    const importBtn = document.getElementById('import-students-btn');
+    const fileInput = document.getElementById('file-input');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const studentList = JSON.parse(localStorage.getItem('studentList') || '[]');
+            if (studentList.length === 0) {
+                alert('No students to export!');
+                return;
+            }
+
+            const blob = new Blob([studentList.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'students.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    if (importBtn && fileInput) {
+        importBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const names = text.split('\n')
+                    .map(name => name.trim())
+                    .filter(name => name.length > 0);
+
+                if (names.length > 0) {
+                    localStorage.setItem('studentList', JSON.stringify(names));
+                    displayStudents();
+                    alert(`Successfully imported ${names.length} students.`);
+                } else {
+                    alert('No valid names found in the file.');
+                }
+            };
+            reader.readAsText(file);
+            // Reset input so same file can be selected again
+            event.target.value = '';
+        });
+    }
+
+    // Initial display
+    displayStudents();
+};
+
 const init = () => {
     setupWidgetToolbar();
     setupDrawingBoard();
+    setupStudentListControls();
 };
 
 if (document.readyState === 'loading') {
