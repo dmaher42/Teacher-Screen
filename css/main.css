@@ -6,12 +6,58 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
     background: var(--background-gradient, var(--background-color, #f4f7f6));
     color: var(--text-color, #333333);
     transition: background calc(300ms * (1 - var(--reduce-motion, 0))) ease,
                 color calc(300ms * (1 - var(--reduce-motion, 0))) ease;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+p,
+label,
+input,
+button,
+select,
+textarea,
+summary,
+details {
+    font-family: inherit;
+}
+
+h1 {
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: color-mix(in srgb, var(--text-color, #333) 90%, var(--a11y-min-contrast-text, #000));
+}
+
+h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
+}
+
+p {
+    font-size: 1rem;
+    color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
+}
+
+button {
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 /* Base container surfaces */
