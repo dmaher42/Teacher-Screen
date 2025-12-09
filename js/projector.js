@@ -52,56 +52,65 @@ class ProjectorApp {
     }
 
     loadSavedState() {
-        const savedState = localStorage.getItem('classroomScreenState');
-        if (savedState) {
-            try {
-                const state = JSON.parse(savedState);
-                this.rebuildLayout(state);
-            } catch (e) {
-                console.error('Failed to load saved state:', e);
-            }
+        const savedString = localStorage.getItem('classroomScreenState');
+        if (!savedString) return;
+
+        let state = null;
+        try {
+            state = JSON.parse(savedString);
+        } catch (e) {
+            console.warn('Corrupt state detected in Projector; ignoring.', e);
+            return;
+        }
+
+        if (state && typeof state === 'object') {
+            this.rebuildLayout(state);
         }
     }
 
     rebuildLayout(state) {
-        // Restore theme (if stored in state, though main.js seems to store it in body class and state)
-        if (state.theme) {
-            document.body.className = `projector-view ${state.theme}`;
-        }
+        try {
+            // Restore theme (if stored in state, though main.js seems to store it in body class and state)
+            if (state.theme) {
+                document.body.className = `projector-view ${state.theme}`;
+            }
 
-        // Restore background
-        if (state.background) {
-            this.backgroundManager.deserialize(state.background);
-        }
+            // Restore background
+            if (state.background) {
+                this.backgroundManager.deserialize(state.background);
+            }
 
-        // Restore layout and widgets
-        if (state.layout && state.layout.widgets) {
-            // Clear existing widgets before reloading to avoid duplicates/stale state
-            this.widgets = [];
-            // We need to clear the container or let LayoutManager handle it.
-            // LayoutManager.deserialize clears the container.
+            // Restore layout and widgets
+            if (state.layout && state.layout.widgets) {
+                // Clear existing widgets before reloading to avoid duplicates/stale state
+                this.widgets = [];
+                // We need to clear the container or let LayoutManager handle it.
+                // LayoutManager.deserialize clears the container.
 
-            this.layoutManager.deserialize(state.layout, (widgetData) => {
-                // Filter out widgets not meant for the projector
-                if (widgetData.visibleOnProjector === false) {
-                    return null;
-                }
+                this.layoutManager.deserialize(state.layout, (widgetData) => {
+                    // Filter out widgets not meant for the projector
+                    if (widgetData.visibleOnProjector === false) {
+                        return null;
+                    }
 
-                let widget;
-                switch (widgetData.type) {
-                    case 'TimerWidget': widget = new TimerWidget(); break;
-                    case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                    case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                    case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                    case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                    case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                    case 'MaskWidget': widget = new MaskWidget(); break;
-                }
-                if (widget) {
-                    this.widgets.push(widget);
-                }
-                return widget;
-            });
+                    let widget;
+                    switch (widgetData.type) {
+                        case 'TimerWidget': widget = new TimerWidget(); break;
+                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                        case 'MaskWidget': widget = new MaskWidget(); break;
+                    }
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
+                });
+            }
+        } catch (err) {
+            console.error('Projector layout rebuild failed:', err);
         }
     }
 }
