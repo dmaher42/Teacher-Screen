@@ -442,3 +442,11 @@ details:focus-visible,
     opacity: 1;
     transform: translateY(0);
 }
+
+/* Timer Preset Buttons */
+.timer-preset-btn {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    margin-left: 5px;
+    cursor: pointer;
+}
