@@ -58,7 +58,7 @@ p {
 button {
     font-weight: 600;
     letter-spacing: 0.01em;
-    border-radius: var(--border-radius-medium, 8px);
+    border-radius: var(--border-radius-medium, 12px);
     padding: var(--spacing-sm, 10px) var(--spacing-md, 16px);
     border: 1px solid var(--border-color, #dfe4e2);
     background-color: var(--card-background, #ffffff);
@@ -87,7 +87,7 @@ button:active {
     color: var(--text-color, #333333);
     border: 1px solid var(--border-color, #dfe4e2);
     border-radius: var(--border-radius-large, 12px);
-    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0,0,0,0.08));
     padding: var(--spacing-xl, 32px);
     gap: var(--spacing-lg, 24px);
 }
@@ -155,7 +155,7 @@ details:focus-visible,
     font-size: 1rem;
     color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
     cursor: pointer;
-    border-radius: var(--border-radius, 8px);
+    border-radius: var(--border-radius, 12px);
     transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
@@ -493,7 +493,7 @@ details:focus-visible,
 .widget-help-text {
     padding: 10px;
     background-color: var(--hover-bg-color, #f5f5f5);
-    border-radius: var(--border-radius-small, 6px);
+    border-radius: var(--border-radius-small, 12px);
     margin-bottom: 10px;
 }
 
@@ -507,7 +507,7 @@ details:focus-visible,
 .background-swatch {
   width: 40px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--border-radius-medium, 12px);
   border: 2px solid transparent;
   cursor: pointer;
 }
@@ -539,7 +539,7 @@ details:focus-visible,
     left: 1rem;
     background: var(--card-background, #fff);
     color: var(--text-color, #222);
-    border-radius: var(--border-radius-medium, 8px);
+    border-radius: var(--border-radius-medium, 12px);
     padding: 0.6rem 1rem;
     box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
     z-index: 1000;
