@@ -61,35 +61,41 @@ class NotesWidget {
 
     /**
      * Called when the widget settings modal is opened.
-     * Initializes Quill if not already initialized.
      * @returns {HTMLElement} The controls overlay.
      */
     getControls() {
-        // We need to initialize Quill after the controls are added to the DOM
-        // because Quill requires the container to be in the document.
-        // We can use a setTimeout or MutationObserver, but main.js appends it immediately.
-
-        setTimeout(() => {
-            if (!this.quillEditor && document.getElementById(this.editorContainer.id)) {
-                this.quillEditor = new Quill('#' + this.editorContainer.id, {
-                    theme: 'snow',
-                    modules: {
-                        toolbar: [
-                            [{ 'header': [1, 2, false] }],
-                            ['bold', 'italic', 'underline'],
-                            ['image', 'code-block']
-                        ]
-                    }
-                });
-
-                // Load content
-                if (this.savedContent) {
-                    this.quillEditor.root.innerHTML = this.savedContent;
-                }
-            }
-        }, 100);
-
         return this.controlsOverlay;
+    }
+
+    /**
+     * Initializes the Quill editor after the modal becomes visible.
+     */
+    onSettingsOpen() {
+        this.initializeEditor();
+    }
+
+    initializeEditor() {
+        const container = document.getElementById(this.editorContainer.id);
+
+        if (!container || this.quillEditor) {
+            return;
+        }
+
+        this.quillEditor = new Quill('#' + this.editorContainer.id, {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, false] }],
+                    ['bold', 'italic', 'underline'],
+                    ['image', 'code-block']
+                ]
+            }
+        });
+
+        // Load content
+        if (this.savedContent) {
+            this.quillEditor.root.innerHTML = this.savedContent;
+        }
     }
 
     /**

@@ -1290,6 +1290,13 @@ class ClassroomScreenApp {
 
         this.activeSettingsWidget = widget;
         this.widgetSettingsModal.classList.add('visible');
+
+        // Delay widget-specific initialization until after the modal is visible.
+        setTimeout(() => {
+            if (this.activeSettingsWidget && typeof this.activeSettingsWidget.onSettingsOpen === 'function') {
+                this.activeSettingsWidget.onSettingsOpen();
+            }
+        }, 150);
     }
 
     closeWidgetSettings() {
