@@ -316,13 +316,15 @@ class ClassroomScreenApp {
     initializeWidgetSelector() {
         if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
 
-        this.widgetSelectorButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const widgetType = button.dataset.widget;
-                if (!widgetType) return;
-                this.setActiveWidgetButton(widgetType);
-                this.addWidget(widgetType);
-            });
+        document.addEventListener('click', (event) => {
+            const widgetButton = event.target.closest('.widget-selector-btn');
+            if (!widgetButton || !this.widgetSelectorButtons.includes(widgetButton)) return;
+
+            const widgetType = widgetButton.dataset.widget;
+            if (!widgetType) return;
+
+            this.setActiveWidgetButton(widgetType);
+            this.addWidget(widgetType);
         });
     }
 
