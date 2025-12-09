@@ -19,6 +19,10 @@ class NamePickerWidget {
         this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Click Pick a Name to spin through the list. When all names are chosen, reset the list to start over.';
 
+        // Create controls container
+        this.controlsOverlay = document.createElement('div');
+        this.controlsOverlay.className = 'widget-content-controls';
+
         // Group selection controls
         this.groupControls = document.createElement('div');
         this.groupControls.className = 'name-picker-group-controls';
@@ -86,13 +90,30 @@ class NamePickerWidget {
         this.status.className = 'widget-status';
         this.status.textContent = 'Pick a name to begin.';
 
+        // Assemble controls overlay
+        this.controlsOverlay.appendChild(this.helpText);
+        this.controlsOverlay.appendChild(this.groupControls);
+        this.controlsOverlay.appendChild(this.importExportControls);
+        this.controlsOverlay.appendChild(this.pickButton); // Pick button also moved to settings? Or kept in display?
+        // User asked for "Widgets are simple displays by default. Hovering over a widget reveals a small settings icon. Clicking this icon opens a modal overlay... with that widget's controls."
+        // For NamePicker, the "Pick" button is the main interaction. It should probably remain on the widget display or be available in both?
+        // "Widgets are simple displays by default."
+        // A simple display for a name picker is the name.
+        // If I move the pick button to settings, I have to open settings to pick a name. That might be annoying.
+        // BUT, the request says "Clicking this icon opens a modal overlay ... with that widget's controls."
+        // Maybe "Pick" is considered a primary action, not a setting.
+        // However, looking at the request: "e.g., Timer ... add a settings icon button ... controls to load."
+        // Timer controls: Start, Stop, Reset.
+        // If Timer start/stop are in modal, then NamePicker Pick should probably be in modal too, OR the user considers "Pick" the main function.
+        // Let's stick to the prompt: "Widgets are simple displays by default."
+        // I'll move the Pick button to the modal for now to strictly follow "simple display".
+        // Actually, for a Name Picker, picking IS the display update.
+        // Let's put Pick button in controlsOverlay.
+        this.controlsOverlay.appendChild(this.status);
+
         // Assemble the widget
-        this.element.appendChild(this.helpText);
-        this.element.appendChild(this.groupControls);
-        this.element.appendChild(this.importExportControls);
         this.element.appendChild(this.display);
-        this.element.appendChild(this.pickButton);
-        this.element.appendChild(this.status);
+        // this.element.appendChild(this.controlsOverlay); // Controls moved to modal
 
         // Name Picker state
         const defaultNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah'];

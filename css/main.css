@@ -861,41 +861,81 @@ dialog::backdrop {
 }
 
 .widget-content-controls {
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    /* Controls are now shown in the modal, but might still be used for layout/styling within the modal */
+    display: block;
     padding: 10px;
-    background: var(--card-background, #ffffff);
-    pointer-events: none;
-    border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
-.widget.expanded .widget-content-controls {
+/* Modal Overlay Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.visible {
+    display: flex;
     opacity: 1;
-    pointer-events: auto;
 }
 
-.widget.expanded {
-    z-index: 100;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    transform: scale(1.5);
+.modal-overlay .modal-content {
+    background: var(--card-background, #ffffff);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-.widget-expand-toggle {
-    margin-right: 8px;
+.modal-overlay .modal-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
     cursor: pointer;
-    font-size: 0.9em;
-    width: 20px;
-    height: 20px;
+    color: var(--text-color, #333);
+    padding: 5px;
+    line-height: 1;
+}
+
+.modal-overlay .modal-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    padding-bottom: 10px;
+}
+
+.widget-settings-btn {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-    background: none;
-    border: none;
-    color: inherit;
 }
 
-.widget-expand-toggle:hover {
-    background-color: rgba(0,0,0,0.1);
+.widget:hover .widget-settings-btn,
+.widget-header:focus-within .widget-settings-btn {
+    opacity: 1;
+}
+
+.widget-settings-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
 }

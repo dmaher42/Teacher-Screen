@@ -45,6 +45,7 @@ class ClassroomScreenApp {
         this.tourDialog = document.getElementById('tour-dialog');
         this.fab = document.getElementById('fab');
         this.widgetModal = document.getElementById('widget-modal');
+        this.widgetSettingsModal = document.getElementById('widget-settings-modal');
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.widgetSelectorButtons = Array.from(document.querySelectorAll('.widget-selector-btn'));
@@ -195,6 +196,20 @@ class ClassroomScreenApp {
         // Other controls...
         document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
         document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
+
+        // Widget Settings Modal Logic
+        document.addEventListener('openWidgetSettings', (e) => this.openWidgetSettings(e.detail.widget));
+
+        const settingsModalCloseBtn = this.widgetSettingsModal.querySelector('.modal-close-btn');
+        if (settingsModalCloseBtn) {
+            settingsModalCloseBtn.addEventListener('click', () => this.closeWidgetSettings());
+        }
+
+        this.widgetSettingsModal.addEventListener('click', (e) => {
+            if (e.target === this.widgetSettingsModal) {
+                this.closeWidgetSettings();
+            }
+        });
 
         // New Timer Presets (5, 10, 15 min)
         const preset5 = document.getElementById('timer-preset-5');
@@ -1165,6 +1180,70 @@ class ClassroomScreenApp {
                 this.saveState();
             });
         }
+    }
+
+    openWidgetSettings(widget) {
+        if (!this.widgetSettingsModal) return;
+
+        const modalBody = this.widgetSettingsModal.querySelector('.modal-body');
+        const modalTitle = this.widgetSettingsModal.querySelector('.modal-title');
+
+        if (!modalBody || !modalTitle) return;
+
+        // Clear previous content
+        modalBody.innerHTML = '';
+
+        // Set Title
+        modalTitle.textContent = `${widget.constructor.name.replace('Widget', '')} Settings`;
+
+        // Get controls from the widget
+        // We assume widgets have a 'controlsOverlay' property or a 'getControls' method
+        // Based on TimerWidget analysis, it has 'controlsOverlay'.
+
+        let controlsNode = null;
+        if (typeof widget.getControls === 'function') {
+            controlsNode = widget.getControls();
+        } else if (widget.controlsOverlay) {
+            controlsNode = widget.controlsOverlay;
+        } else {
+            // Fallback for widgets that haven't been refactored yet
+            const p = document.createElement('p');
+            p.textContent = 'Settings not available for this widget yet.';
+            controlsNode = p;
+        }
+
+        // If controls are detached from widget, append them.
+        // NOTE: Appending moves the node from its current location (if any) to the modal.
+        // This is exactly what we want if it was hidden in the widget.
+        if (controlsNode) {
+            modalBody.appendChild(controlsNode);
+            // Ensure it's visible (TimerWidget hides it by default?)
+            // TimerWidget controlsOverlay has .widget-content-controls class.
+            // We removed opacity: 0 from css, so it should be visible.
+            // However, TimerWidget might have internal logic relying on display: none?
+            // Checked TimerWidget code: it doesn't seem to toggle display of controlsOverlay, just appends it.
+            // But let's make sure.
+        }
+
+        this.activeSettingsWidget = widget;
+        this.widgetSettingsModal.classList.add('visible');
+    }
+
+    closeWidgetSettings() {
+        if (!this.widgetSettingsModal) return;
+        this.widgetSettingsModal.classList.remove('visible');
+
+        // Optional: Move controls back to the widget?
+        // Or just leave them detached until next open?
+        // If we leave them detached, the widget instance still holds the reference 'controlsOverlay',
+        // so it's fine. It just won't be in the DOM.
+
+        // If the widget has a specific method to handle closing settings (e.g., to pause previews), call it.
+        if (this.activeSettingsWidget && typeof this.activeSettingsWidget.onSettingsClose === 'function') {
+            this.activeSettingsWidget.onSettingsClose();
+        }
+
+        this.activeSettingsWidget = null;
     }
 }
 
