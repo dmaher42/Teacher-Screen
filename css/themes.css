@@ -56,6 +56,12 @@
     --shadow-soft: 0 2px 4px var(--shadow-color);
     --shadow-medium: 0 4px 10px var(--shadow-color);
     --shadow-strong: 0 6px 16px var(--shadow-color);
+
+    /* Accessibility Overrides */
+    --a11y-min-contrast-text: #000; /* fallback if theme text too light */
+    --a11y-min-contrast-bg: #fff;   /* fallback if background too dark */
+    --a11y-focus-outline: #ffae00;  /* strong accessible outline color */
+    --reduce-motion: 0;             /* 0 = normal, 1 = reduce animations */
 }
 
 /* ==========================================================================
@@ -91,6 +97,9 @@
     --shadow-color: rgba(0, 0, 0, 0.3);
     --widget-header-border-color: rgba(255, 255, 255, 0.1);
     --resize-handle-bg: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.1) 50%);
+
+    --a11y-min-contrast-text: #fff;
+    --a11y-min-contrast-bg: #000;
 }
 
 /* ==========================================================================

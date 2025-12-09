@@ -49,6 +49,7 @@ class ClassroomScreenApp {
         this.presetPeriodFilterSelect = document.getElementById('preset-period-filter');
         this.layoutPresetSelect = document.getElementById('layout-preset');
         this.applyLayoutPresetButton = document.getElementById('apply-layout-preset');
+        this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
 
         // App State
         this.widgets = [];
@@ -136,9 +137,23 @@ class ClassroomScreenApp {
         }
 
         this.showWelcomeTourIfNeeded();
+
+        const savedRM = localStorage.getItem('reduceMotion');
+        if (savedRM === '1') {
+            document.documentElement.style.setProperty('--reduce-motion', 1);
+            if (this.reduceMotionToggle) this.reduceMotionToggle.checked = true;
+        }
     }
 
     setupEventListeners() {
+        if (this.reduceMotionToggle) {
+            this.reduceMotionToggle.addEventListener('change', () => {
+                const value = this.reduceMotionToggle.checked ? 1 : 0;
+                document.documentElement.style.setProperty('--reduce-motion', value);
+                localStorage.setItem('reduceMotion', value);
+            });
+        }
+
         // Navigation and Panel
         this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));

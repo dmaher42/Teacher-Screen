@@ -1,3 +1,391 @@
+/* Basic styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    background: var(--background-gradient, var(--background-color, #f8f9fa));
+    color: var(--text-color, #212529);
+    transition: background calc(300ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(300ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+details:focus-visible,
+.theme-option:focus-visible,
+.widget-help:focus-visible,
+.widget-close:focus-visible,
+.control-button:focus-visible {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00) !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.action-flash {
+    animation-duration: calc(300ms * (1 - var(--reduce-motion, 0)));
+}
+
+.control-button {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.widget-status {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+#app-container {
+    width: 100vw;
+    height: calc(100vh - 50px);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-top: 50px;
+}
+
+/* Top Navigation Bar */
+#top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    background: var(--card-background, #ffffff);
+    box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 1100;
+}
+
+.nav-tabs {
+    display: flex;
+    gap: var(--spacing-md, 10px);
+}
+
+.nav-tab {
+    background: none;
+    border: none;
+    padding: var(--spacing-md, 10px) var(--spacing-lg, 15px);
+    font-size: 1rem;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+    cursor: pointer;
+    border-radius: var(--border-radius, 8px);
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.nav-tab.active {
+    background-color: var(--primary-color, #8e82ff);
+    color: white;
+    font-weight: 600;
+}
+
+.nav-tab:hover:not(.active) {
+    background-color: var(--hover-bg-color, #f5f5f5);
+}
+
+/* Student view styles */
+#student-view {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.widgets-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: var(--spacing-lg, 15px);
+    padding: var(--spacing-lg, 15px);
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease;
+}
+
+/* Teacher Panel */
+.teacher-panel {
+    position: fixed;
+    top: 50px;
+    right: 0;
+    width: 35%;
+    max-width: 450px;
+    height: calc(100vh - 50px);
+    background: var(--card-background, #ffffff);
+    box-shadow: -5px 0 15px var(--shadow-color, rgba(0,0,0,0.1));
+    z-index: 1050;
+    transform: translateX(100%);
+    transition: transform calc(300ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.teacher-panel.open {
+    transform: translateX(0);
+}
+
+.panel-backdrop {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 50px);
+    background: rgba(0,0,0,0.5);
+    z-index: 1040;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity calc(300ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.panel-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.panel-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.panel-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.panel-content {
+    padding: 20px;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Control Cards */
+.control-card {
+    background: var(--card-background, #ffffff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+}
+
+.control-card summary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md, 10px);
+    padding: var(--spacing-lg, 15px);
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.control-card summary .card-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.card-body {
+    padding: 0 var(--spacing-lg, 15px) var(--spacing-lg, 15px);
+    border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+/* Floating Action Button (FAB) */
+.fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--primary-color, #8e82ff);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 2rem;
+    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
+    cursor: pointer;
+    z-index: 1000;
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))),
+                transform calc(200ms * (1 - var(--reduce-motion, 0)));
+}
+
+.fab:hover {
+    background-color: var(--secondary-color, #ff8c42);
+    transform: scale(1.05);
+}
+
+/* Widget Modal */
+#widget-modal .modal-body {
+    padding: 0;
+}
+
+.widget-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-md, 10px);
+    padding: 20px;
+}
+
+.widget-category-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md, 10px);
+    padding: var(--spacing-lg, 15px);
+    border-radius: var(--border-radius-large, 12px);
+    border: 1px solid var(--border-color, #e0e0e0);
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.widget-category-btn:hover {
+    background-color: var(--hover-bg-color, #f5f5f5);
+    box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
+}
+
+.widget-category-btn .category-icon {
+    width: 48px;
+    height: 48px;
+}
+
+/* Theme Selector Radio Buttons */
+.theme-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md, 10px);
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md, 10px);
+}
+
+.theme-option span {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.theme-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color, #e0e0e0);
+}
+
+/* Responsive Grid Adjustment */
+@media (max-width: 768px) {
+    .teacher-panel {
+        width: 100%;
+        max-width: none;
+    }
+
+    .widgets-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+@media (min-width: 769px) {
+    #student-view.panel-open .widgets-grid {
+        width: calc(100% - 35%);
+    }
+}
+
+/* Widget Styles */
+.widget {
+    position: relative;
+    background: var(--card-background, #ffffff);
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-medium, 0 4px 12px rgba(0,0,0,0.1));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.widget:hover {
+    box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
+}
+
+.widget-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--hover-bg-color, #f5f5f5);
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    cursor: grab;
+}
+
+.widget-header:active {
+    cursor: grabbing;
+}
+
+.widget-drag-handle {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    opacity: 0.6;
+}
+
+.widget-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+    flex-grow: 1;
+}
+
+.widget-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.widget-help,
+.widget-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.widget-help:hover,
+.widget-close:hover {
+    background-color: rgba(0,0,0,0.1);
+}
+
+.widget-content {
+    padding: var(--spacing-lg, 15px);
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.widget-help-text {
+    padding: 10px;
+    background-color: var(--hover-bg-color, #f5f5f5);
+    border-radius: var(--border-radius-small, 6px);
+    margin-bottom: 10px;
+}
 
 /* Background Selector Accessibility */
 .background-selector {
