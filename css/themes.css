@@ -19,13 +19,14 @@
     /* Core Colors */
     --primary-color: #3498db;
     --secondary-color: #2ecc71;
-    --background-color: #f8f9fa;
-    --text-color: #212529;
+    --background-color: #f4f7f6;
+    --background-gradient: linear-gradient(120deg, #f4f7f6 0%, #e6ebea 100%);
+    --text-color: #333333;
     --card-background: #ffffff;
 
     /* Extended Colors & UI Elements */
-    --border-color: #dee2e6;
-    --hover-bg-color: #f1f3f5;
+    --border-color: #dfe4e2;
+    --hover-bg-color: #eef2f1;
     --shadow-color: rgba(0, 0, 0, 0.1);
     --widget-header-border-color: #eee;
     --resize-handle-bg: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%);
@@ -70,13 +71,13 @@
 .light-theme {
     --primary-color: #3498db;      /* A friendly, professional blue */
     --secondary-color: #2ecc71;    /* A vibrant green for success/positive actions */
-    --background-color: #f8f9fa;    /* Very light gray, easy on the eyes */
-    --background-gradient: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
-    --text-color: #212529;         /* Dark gray for high contrast */
-    --card-background: #ffffff;    /* Pure white for content cards */
+    --background-color: #f4f7f6;    /* Soft light gray, easy on the eyes */
+    --background-gradient: linear-gradient(120deg, #f4f7f6 0%, #e6ebea 100%);
+    --text-color: #333333;         /* Dark charcoal for high contrast */
+    --card-background: #ffffff;    /* Crisp white for content cards */
 
-    --border-color: #dee2e6;
-    --hover-bg-color: #f1f3f5;
+    --border-color: #dfe4e2;
+    --hover-bg-color: #eef2f1;
     --shadow-color: rgba(0, 0, 0, 0.1);
     --widget-header-border-color: #eee;
 }
