@@ -842,3 +842,34 @@ dialog::backdrop {
 .student-list-display li:last-child {
     border-bottom: none;
 }
+
+/* Refactored Widget Styles (Timer Proof of Concept) */
+.widget-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    padding: 10px;
+}
+
+.timer-display {
+    font-size: 3.5rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--primary-color, #8e82ff);
+}
+
+.widget-content-controls {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    padding: 10px;
+    background: var(--card-background, #ffffff);
+    pointer-events: none;
+    border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.widget:hover .widget-content-controls,
+.widget:focus-within .widget-content-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
