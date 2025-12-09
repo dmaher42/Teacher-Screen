@@ -28,11 +28,17 @@ class NoiseMeterWidget {
         this.status.className = 'widget-status';
         this.status.textContent = 'Microphone off. Press start to listen.';
 
+        // Create controls container
+        this.controlsOverlay = document.createElement('div');
+        this.controlsOverlay.className = 'widget-content-controls';
+
+        this.controlsOverlay.appendChild(this.helpText);
+        this.controlsOverlay.appendChild(this.startButton);
+        this.controlsOverlay.appendChild(this.status);
+
         // Assemble widget
-        this.element.appendChild(this.helpText);
         this.element.appendChild(this.canvas);
-        this.element.appendChild(this.startButton);
-        this.element.appendChild(this.status);
+        // this.element.appendChild(this.controlsOverlay); // Controls moved to modal
 
         // Initialize NoiseMeter instance
         this.meter = new NoiseMeter(this.canvas);

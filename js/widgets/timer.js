@@ -255,7 +255,7 @@ class TimerWidget {
         this.controlsOverlay.appendChild(this.status);
 
         this.element.appendChild(this.mainDisplay);
-        this.element.appendChild(this.controlsOverlay);
+        // this.element.appendChild(this.controlsOverlay); // Controls are now handled by the modal
 
         // Timer state
         this.time = 0;

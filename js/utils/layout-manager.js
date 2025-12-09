@@ -165,14 +165,6 @@ class LayoutManager {
       }
     });
 
-    // Expand Toggle Icon
-    const expandToggle = document.createElement('button');
-    expandToggle.className = 'widget-expand-toggle';
-    expandToggle.innerHTML = '<i class="fas fa-expand"></i>';
-    expandToggle.setAttribute('aria-label', 'Toggle expand');
-    expandToggle.title = 'Click header to expand/collapse';
-    // The click handling is on the header, but we also want this button to indicate state
-
     // Drag Handle
     const dragHandle = document.createElement('img');
     dragHandle.src = 'assets/icons/drag-handle.svg';
@@ -185,30 +177,17 @@ class LayoutManager {
     // Derive title from the widget's class name (e.g., "TimerWidget" -> "Timer")
     title.textContent = widget.constructor.name.replace('Widget', '');
 
-    // Add click listener to header for expansion
-    header.addEventListener('click', (e) => {
-        // Prevent expansion if clicking on controls or resize handle (though resize handle is outside header)
-        if (e.target.closest('.widget-controls') || e.target.closest('.resize-handle')) {
-            return;
-        }
+    // Settings Button (New Interaction)
+    const settingsButton = document.createElement('button');
+    settingsButton.className = 'widget-settings-btn';
+    settingsButton.innerHTML = '<i class="fas fa-cog"></i>';
+    settingsButton.setAttribute('aria-label', 'Open Settings');
+    settingsButton.title = 'Widget Settings';
 
-        const widgetElement = header.closest('.widget');
-        if (!widgetElement) return;
-
-        // Check if a drag occurred (we'll implement a simple check via class or attribute if needed,
-        // but let's rely on standard click behavior: click fires after mouseup.
-        // If the user dragged, we might want to prevent expansion.
-        // Simple heuristic: if we just finished dragging, don't expand.
-        if (header.dataset.justDragged === 'true') {
-            header.dataset.justDragged = 'false';
-            return;
-        }
-
-        widgetElement.classList.toggle('expanded');
-
-        // Update icon
-        const isExpanded = widgetElement.classList.contains('expanded');
-        expandToggle.innerHTML = isExpanded ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+    settingsButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent drag or other header interactions
+        const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
+        document.dispatchEvent(event);
     });
 
     // Controls
@@ -245,9 +224,9 @@ class LayoutManager {
     controls.appendChild(helpButton);
     controls.appendChild(closeButton);
 
-    header.appendChild(expandToggle);
     header.appendChild(dragHandle);
     header.appendChild(title);
+    header.appendChild(settingsButton);
     header.appendChild(controls);
 
     return header;
