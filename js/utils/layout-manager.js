@@ -23,6 +23,24 @@ class LayoutManager {
     this.applyGridStyles();
   }
 
+  moveWidgetByDelta(widgetElement, dx, dy) {
+    const info = this.widgets.find(w => w.element === widgetElement);
+    if (!info) return;
+
+    const newX = Math.max(0, Math.min(this.gridColumns - info.width, info.x + dx));
+    const newY = Math.max(0, Math.min(this.gridRows - info.height, info.y + dy));
+
+    if (newX !== info.x || newY !== info.y) {
+      info.x = newX;
+      info.y = newY;
+
+      info.element.style.gridColumn = `${newX + 1} / span ${info.width}`;
+      info.element.style.gridRow = `${newY + 1} / span ${info.height}`;
+
+      this.saveLayout();
+    }
+  }
+
   getConstrainedSize(widget, width, height) {
     const type = widget.constructor.name;
     const rules = WIDGET_SIZE_RULES[type];
@@ -105,6 +123,26 @@ class LayoutManager {
   createWidgetHeader(widget) {
     const header = document.createElement('div');
     header.className = 'widget-header';
+    header.tabIndex = 0;
+    header.setAttribute('role', 'group');
+    header.setAttribute('aria-label', `Widget controls for ${widget.constructor.name.replace('Widget', '')}. Use arrow keys to move.`);
+
+    header.addEventListener('keydown', (e) => {
+      let dx = 0, dy = 0;
+      switch (e.key) {
+        case 'ArrowUp':    dy = -1; break;
+        case 'ArrowDown':  dy = 1;  break;
+        case 'ArrowLeft':  dx = -1; break;
+        case 'ArrowRight': dx = 1;  break;
+        default: return;
+      }
+      e.preventDefault();
+
+      const widgetElement = header.closest('.widget');
+      if (widgetElement) {
+        this.moveWidgetByDelta(widgetElement, dx, dy);
+      }
+    });
 
     // Drag Handle
     const dragHandle = document.createElement('img');
