@@ -84,7 +84,7 @@ class ClassroomScreenApp {
         this.widgetCategories = [
             { name: 'Time Management', icon: 'timer.svg', widgets: [{ type: 'timer', label: 'Timer' }] },
             { name: 'Engagement', icon: 'engagement.svg', widgets: [{ type: 'noise-meter', label: 'Noise Meter' }, { type: 'name-picker', label: 'Name Picker' }] },
-            { name: 'Tools', icon: 'tools.svg', widgets: [{ type: 'qr-code', label: 'QR Code' }, { type: 'drawing-tool', label: 'Drawing Tool' }, { type: 'document-viewer', label: 'Document Viewer' }, { type: 'mask', label: 'Mask' }] }
+            { name: 'Tools', icon: 'tools.svg', widgets: [{ type: 'qr-code', label: 'QR Code' }, { type: 'drawing-tool', label: 'Drawing Tool' }, { type: 'document-viewer', label: 'Document Viewer' }, { type: 'mask', label: 'Mask' }, { type: 'notes', label: 'Notes' }] }
         ];
 
         this.themes = [
@@ -345,6 +345,7 @@ class ClassroomScreenApp {
                 case 'drawing-tool': widget = new DrawingToolWidget(); break;
                 case 'document-viewer': widget = new DocumentViewerWidget(); break;
                 case 'mask': widget = new MaskWidget(); break;
+                case 'notes': widget = new NotesWidget(); break;
                 default: throw new Error(`Unknown widget type: ${type}`);
             }
 
@@ -372,7 +373,8 @@ class ClassroomScreenApp {
             'qr-code': 'QR Code',
             'drawing-tool': 'Drawing Tool',
             'document-viewer': 'Document Viewer',
-            'mask': 'Mask'
+            'mask': 'Mask',
+            'notes': 'Notes'
         };
         return names[type] || 'Widget';
     }
@@ -595,6 +597,7 @@ class ClassroomScreenApp {
                 case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
                 case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                 case 'MaskWidget': widget = new MaskWidget(); break;
+                case 'NotesWidget': widget = new NotesWidget(); break;
             }
             if (widget) {
                 this.widgets.push(widget);
@@ -731,6 +734,7 @@ class ClassroomScreenApp {
                     case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
                     case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                     case 'MaskWidget': widget = new MaskWidget(); break;
+                    case 'NotesWidget': widget = new NotesWidget(); break;
                 }
                 if (widget) {
                     this.widgets.push(widget);
@@ -908,6 +912,7 @@ class ClassroomScreenApp {
                         case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
+                    case 'NotesWidget': widget = new NotesWidget(); break;
                     }
                     if (widget) {
                         this.widgets.push(widget);
@@ -1301,6 +1306,7 @@ class ClassroomScreenApp {
             this.activeSettingsWidget.onSettingsClose();
         }
 
+        this.saveState();
         this.activeSettingsWidget = null;
     }
 }
