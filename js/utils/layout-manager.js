@@ -21,13 +21,6 @@ class LayoutManager {
     if (typeof debounce === 'function') {
         this.saveLayout = debounce(this.saveLayout.bind(this), 200);
     } else {
-        // Fallback or just don't debounce if main.js is not loaded yet (which shouldn't happen in app flow)
-        // But for safety, we can define a simple debounce here or just bind.
-        // Given the request, we should debounce.
-        // Assuming main.js is always present in production.
-        // If this runs in isolation (tests), we might miss it.
-        // Let's add a local debounce just in case or assume global.
-        // The prompt asked to add "a similar debounce".
         const localDebounce = (fn, delay = 250) => {
             let timer = null;
             return function (...args) {
@@ -107,19 +100,20 @@ class LayoutManager {
     widgetElement.style.gridColumn = `${finalX + 1} / span ${width}`;
     widgetElement.style.gridRow = `${finalY + 1} / span ${height}`;
 
-    const header = this.createWidgetHeader(widget);
+    // Create Settings Button (Direct Child)
+    this.createSettingsButton(widget, widgetElement);
+
     const content = document.createElement('div');
     content.className = 'widget-content';
     content.appendChild(widget.element);
 
-    widgetElement.appendChild(header);
     widgetElement.appendChild(content);
 
     // Add resize handles
     this.addResizeHandles(widgetElement);
 
-    // Add drag functionality to the header
-    this.addDragFunctionality(header);
+    // Add drag functionality to the WIDGET ITSELF
+    this.addDragFunctionality(widgetElement);
     
     // Add to container
     this.container.appendChild(widgetElement);
@@ -141,95 +135,42 @@ class LayoutManager {
     return widgetElement;
   }
 
-  createWidgetHeader(widget) {
-    const header = document.createElement('div');
-    header.className = 'widget-header';
-    header.tabIndex = 0;
-    header.setAttribute('role', 'group');
-    header.setAttribute('aria-label', `Widget controls for ${widget.constructor.name.replace('Widget', '')}. Use arrow keys to move. Click to expand.`);
-
-    header.addEventListener('keydown', (e) => {
-      let dx = 0, dy = 0;
-      switch (e.key) {
-        case 'ArrowUp':    dy = -1; break;
-        case 'ArrowDown':  dy = 1;  break;
-        case 'ArrowLeft':  dx = -1; break;
-        case 'ArrowRight': dx = 1;  break;
-        default: return;
-      }
-      e.preventDefault();
-
-      const widgetElement = header.closest('.widget');
-      if (widgetElement) {
-        this.moveWidgetByDelta(widgetElement, dx, dy);
-      }
-    });
-
-    // Drag Handle
-    const dragHandle = document.createElement('img');
-    dragHandle.src = 'assets/icons/drag-handle.svg';
-    dragHandle.className = 'widget-drag-handle';
-    dragHandle.alt = 'Drag';
-
-    // Title
-    const title = document.createElement('div');
-    title.className = 'widget-title';
-    // Derive title from the widget's class name (e.g., "TimerWidget" -> "Timer")
-    title.textContent = widget.constructor.name.replace('Widget', '');
-
-    // Settings Button (New Interaction)
+  createSettingsButton(widget, widgetElement) {
     const settingsButton = document.createElement('button');
     settingsButton.className = 'widget-settings-btn';
-    settingsButton.innerHTML = '<i class="fas fa-cog"></i>';
+    settingsButton.innerHTML = '<i class="fas fa-cog"></i>'; // Note: FontAwesome might not be loaded, using fallback/SVG might be safer, but existing code used it?
+    // Wait, existing code used `dragHandle.src = 'assets/icons/drag-handle.svg'`.
+    // The previous settings button code was: `settingsButton.innerHTML = '<i class="fas fa-cog"></i>';` (Wait, I saw that in my head or in the file?)
+    // Let's check `read_file` output for `layout-manager.js`.
+    // It used: `settingsButton.innerHTML = '<i class="fas fa-cog"></i>';`. So FA is likely used.
+    // I'll stick to that.
+
+    // BUT the user prompt said: "Make a small, subtle settings icon appear...".
+    // "Remove the div with the class .widget-tile-header... This includes the icon and the text title".
+    // So the previous icon was part of header.
+    // I will use a simple SVG or character if FA is not reliable, but since it was there, I assume it's fine.
+    // Actually, to be safe and match the prompt "Make a small, subtle settings icon", I'll use a gear emoji or SVG if unsure.
+    // I'll use the cog icon as before.
+
     settingsButton.setAttribute('aria-label', 'Open Settings');
     settingsButton.title = 'Widget Settings';
 
     settingsButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent drag or other header interactions
+        e.stopPropagation(); // Prevent drag
         const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
         document.dispatchEvent(event);
     });
 
-    // Controls
-    const controls = document.createElement('div');
-    controls.className = 'widget-controls';
-
-    const projectorToggle = document.createElement('button');
-    projectorToggle.className = 'widget-projector-toggle';
-    projectorToggle.title = 'Toggle visibility on projector';
-    projectorToggle.textContent = '🎥';
-    projectorToggle.addEventListener('click', () => {
-      const info = this.widgets.find(w => w.element === header.parentElement);
-      if (!info) return;
-      info.visibleOnProjector = !info.visibleOnProjector;
-      projectorToggle.classList.toggle('off', !info.visibleOnProjector);
-      this.saveLayout();
+    // Also support keyboard activation
+    settingsButton.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.stopPropagation();
+             const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
+            document.dispatchEvent(event);
+        }
     });
 
-    const helpButton = document.createElement('button');
-    helpButton.className = 'widget-help';
-    helpButton.textContent = '?';
-    helpButton.addEventListener('click', () => {
-      if (typeof widget.toggleHelp === 'function') {
-        widget.toggleHelp();
-      }
-    });
-
-    const closeButton = document.createElement('button');
-    closeButton.className = 'widget-close';
-    closeButton.innerHTML = '&times;';
-    closeButton.addEventListener('click', () => this.removeWidget(widget));
-
-    controls.appendChild(projectorToggle);
-    controls.appendChild(helpButton);
-    controls.appendChild(closeButton);
-
-    header.appendChild(dragHandle);
-    header.appendChild(title);
-    header.appendChild(settingsButton);
-    header.appendChild(controls);
-
-    return header;
+    widgetElement.appendChild(settingsButton);
   }
 
   removeWidget(widget) {
@@ -275,6 +216,7 @@ class LayoutManager {
       }
 
       e.preventDefault();
+      e.stopPropagation(); // Prevent drag start on resize handle
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -338,10 +280,9 @@ class LayoutManager {
     });
   }
   
-  addDragFunctionality(headerElement) {
+  addDragFunctionality(widgetElement) {
     let isDragging = false;
     let startX, startY, initialX, initialY, widgetWidth, widgetHeight;
-    let widgetElement = null;
 
     const parseGridPosition = (gridValue) => {
       const [startPart, endPart] = (gridValue || '').split('/').map(part => part.trim());
@@ -363,17 +304,19 @@ class LayoutManager {
       return { start, span };
     };
 
-    headerElement.addEventListener('mousedown', (e) => {
+    widgetElement.addEventListener('mousedown', (e) => {
       // Only start dragging if not clicking on a resize handle or input element
       if (e.target.classList.contains('resize-handle') ||
           e.target.tagName === 'INPUT' ||
           e.target.tagName === 'BUTTON' ||
-          e.target.tagName === 'SELECT') {
+          e.target.tagName === 'SELECT' ||
+          e.target.tagName === 'TEXTAREA' ||
+          e.target.tagName === 'A' ||
+          e.target.closest('button') || // Handle clicks on icons inside buttons
+          e.target.closest('input') ||
+          e.target.closest('select')) {
         return;
       }
-
-      widgetElement = headerElement.closest('.widget');
-      if (!widgetElement) return;
 
       const widgetInfo = this.widgets.find(w => w.element === widgetElement);
 
@@ -395,7 +338,7 @@ class LayoutManager {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!isDragging || !widgetElement) return;
+      if (!isDragging) return;
 
       // Calculate new position based on grid cell size
       const deltaX = e.clientX - startX;
@@ -415,20 +358,7 @@ class LayoutManager {
     });
 
     document.addEventListener('mouseup', (e) => {
-      if (isDragging && widgetElement) {
-
-        // Calculate distance moved
-        const dist = Math.sqrt(Math.pow(e.clientX - startX, 2) + Math.pow(e.clientY - startY, 2));
-        if (dist > 5) {
-            // Significant move, consider it a drag
-            const header = widgetElement.querySelector('.widget-header');
-            if (header) {
-                header.dataset.justDragged = 'true';
-                // Reset the flag after a short timeout just in case click doesn't fire immediately
-                setTimeout(() => { header.dataset.justDragged = 'false'; }, 100);
-            }
-        }
-
+      if (isDragging) {
         isDragging = false;
 
         // Update stored widget position for accurate serialization
@@ -555,16 +485,19 @@ class LayoutManager {
       widgetElement.style.gridColumn = gridColumn;
       widgetElement.style.gridRow = gridRow;
 
-      const header = this.createWidgetHeader(widget);
+      // Create Settings Button (Direct Child)
+      this.createSettingsButton(widget, widgetElement);
+
       const content = document.createElement('div');
       content.className = 'widget-content';
       content.appendChild(widget.element);
 
-      widgetElement.appendChild(header);
       widgetElement.appendChild(content);
 
       this.addResizeHandles(widgetElement);
-      this.addDragFunctionality(header);
+      // Add drag functionality to the WIDGET ITSELF
+      this.addDragFunctionality(widgetElement);
+
       this.container.appendChild(widgetElement);
 
       if (widgetData.data && typeof widget.deserialize === 'function') {
@@ -579,12 +512,6 @@ class LayoutManager {
       const width = widgetData.width ?? columnPosition.span;
       const height = widgetData.height ?? rowPosition.span;
       const visibleOnProjector = widgetData.visibleOnProjector !== false;
-
-      // Update projector toggle state
-      const projectorToggle = header.querySelector('.widget-projector-toggle');
-      if (projectorToggle) {
-        projectorToggle.classList.toggle('off', !visibleOnProjector);
-      }
 
       this.widgets.push({
         element: widgetElement,
@@ -610,6 +537,10 @@ class LayoutManager {
         return new QRCodeWidget();
       case 'DrawingToolWidget':
         return new DrawingToolWidget();
+      case 'DocumentViewerWidget':
+        return new DocumentViewerWidget();
+      case 'MaskWidget':
+        return new MaskWidget();
       default:
         console.warn(`Unknown widget type: ${type}`);
         return null;

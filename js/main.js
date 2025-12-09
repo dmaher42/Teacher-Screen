@@ -1217,13 +1217,71 @@ class ClassroomScreenApp {
         // This is exactly what we want if it was hidden in the widget.
         if (controlsNode) {
             modalBody.appendChild(controlsNode);
-            // Ensure it's visible (TimerWidget hides it by default?)
-            // TimerWidget controlsOverlay has .widget-content-controls class.
-            // We removed opacity: 0 from css, so it should be visible.
-            // However, TimerWidget might have internal logic relying on display: none?
-            // Checked TimerWidget code: it doesn't seem to toggle display of controlsOverlay, just appends it.
-            // But let's make sure.
         }
+
+        // --- NEW: Add Common Controls (Close, Projector, Help) ---
+        // Since we removed the header bar, we need to add these controls to the settings modal.
+
+        const commonControls = document.createElement('div');
+        commonControls.className = 'modal-common-controls';
+        commonControls.style.marginTop = '20px';
+        commonControls.style.paddingTop = '15px';
+        commonControls.style.borderTop = '1px solid #ddd';
+        commonControls.style.display = 'flex';
+        commonControls.style.justifyContent = 'space-between';
+        commonControls.style.alignItems = 'center';
+
+        // Remove Widget Button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'control-button';
+        removeBtn.textContent = 'Remove Widget';
+        removeBtn.style.backgroundColor = '#e74c3c'; // Red-ish
+        removeBtn.style.color = 'white';
+        removeBtn.addEventListener('click', () => {
+             if (confirm('Remove this widget?')) {
+                 this.layoutManager.removeWidget(widget);
+                 this.closeWidgetSettings();
+             }
+        });
+
+        // Toggle Projector Button
+        const projectorToggleBtn = document.createElement('button');
+        projectorToggleBtn.className = 'control-button';
+        const widgetInfo = this.layoutManager.widgets.find(w => w.widget === widget);
+        const isVisible = widgetInfo ? widgetInfo.visibleOnProjector : true;
+
+        projectorToggleBtn.textContent = isVisible ? 'Hide on Projector' : 'Show on Projector';
+        projectorToggleBtn.addEventListener('click', () => {
+             if (widgetInfo) {
+                 widgetInfo.visibleOnProjector = !widgetInfo.visibleOnProjector;
+                 projectorToggleBtn.textContent = widgetInfo.visibleOnProjector ? 'Hide on Projector' : 'Show on Projector';
+                 this.layoutManager.saveLayout();
+             }
+        });
+
+        // Help Button
+        const helpBtn = document.createElement('button');
+        helpBtn.className = 'control-button';
+        helpBtn.textContent = 'Help / Info';
+        helpBtn.addEventListener('click', () => {
+             if (typeof widget.toggleHelp === 'function') {
+                 widget.toggleHelp();
+             } else {
+                 alert('No help available for this widget.');
+             }
+        });
+
+        const rightGroup = document.createElement('div');
+        rightGroup.style.display = 'flex';
+        rightGroup.style.gap = '10px';
+        rightGroup.appendChild(helpBtn);
+        rightGroup.appendChild(projectorToggleBtn);
+
+        commonControls.appendChild(removeBtn);
+        commonControls.appendChild(rightGroup);
+
+        modalBody.appendChild(commonControls);
+        // ---------------------------------------------------------
 
         this.activeSettingsWidget = widget;
         this.widgetSettingsModal.classList.add('visible');

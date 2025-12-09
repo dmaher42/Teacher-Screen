@@ -661,61 +661,11 @@ dialog::backdrop {
     box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
 }
 
-.widget-header {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    background-color: var(--hover-bg-color, #f5f5f5);
-    border-bottom: 1px solid var(--border-color, #e0e0e0);
-    cursor: pointer;
-}
-
-.widget-header:active {
-    cursor: grabbing;
-}
-
-.widget-drag-handle {
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
-    opacity: 0.6;
-}
-
-.widget-title {
-    font-weight: 600;
-    font-size: 1rem;
-    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
-    flex-grow: 1;
-}
-
-.widget-controls {
-    display: flex;
-    gap: 4px;
-}
-
-.widget-help,
-.widget-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    font-size: 1.1rem;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease;
-}
-
-.widget-help:hover,
-.widget-close:hover {
-    background-color: rgba(0,0,0,0.1);
-}
+/* .widget-header removed */
 
 .widget-content {
     padding: var(--spacing-lg, 15px);
+    padding-top: 30px; /* Space for the floating settings button */
     flex-grow: 1;
     overflow-y: auto;
 }
@@ -919,23 +869,29 @@ dialog::backdrop {
 }
 
 .widget-settings-btn {
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    background: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    color: white;
     border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
+    border-radius: 50%; /* Make it a circle */
+    width: 30px;
+    height: 30px;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease-in-out;
+    z-index: 5;
 }
 
 .widget:hover .widget-settings-btn,
-.widget-header:focus-within .widget-settings-btn {
-    opacity: 1;
+.widget-settings-btn:focus-visible {
+    opacity: 1; /* Fade in on hover or focus */
 }
 
 .widget-settings-btn:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.7);
 }
