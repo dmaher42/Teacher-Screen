@@ -11,15 +11,25 @@ class TimerWidget {
         this.element = document.createElement('div');
         this.element.className = 'timer-widget-content';
 
-        this.helpText = document.createElement('div');
-        this.helpText.className = 'widget-help-text';
-        this.helpText.style.display = 'none'; // Initially hidden
-        this.helpText.textContent = 'Choose a preset or set an interval with work/break durations. Start to begin, Stop to pause, and customize the alert sound.';
+        // --- Create Display Section ---
+        this.mainDisplay = document.createElement('div');
+        this.mainDisplay.className = 'widget-display';
 
         // Create the timer display
         this.display = document.createElement('div');
         this.display.className = 'timer-display';
         this.display.textContent = '00:00';
+
+        this.mainDisplay.appendChild(this.display);
+
+        // --- Create Controls Section ---
+        this.controlsOverlay = document.createElement('div');
+        this.controlsOverlay.className = 'widget-content-controls';
+
+        this.helpText = document.createElement('div');
+        this.helpText.className = 'widget-help-text';
+        this.helpText.style.display = 'none'; // Initially hidden
+        this.helpText.textContent = 'Choose a preset or set an interval with work/break durations. Start to begin, Stop to pause, and customize the alert sound.';
 
         // Timer presets
         this.presetContainer = document.createElement('div');
@@ -234,16 +244,18 @@ class TimerWidget {
         this.status.textContent = 'Ready to start a timer.';
 
         // Assemble the widget
-        this.element.appendChild(this.helpText);
-        this.element.appendChild(this.display);
-        this.element.appendChild(this.presetContainer);
-        this.element.appendChild(this.namedPresetSection); // Added Named Presets
-        this.element.appendChild(this.autoRestartContainer); // Added Auto Restart
-        this.element.appendChild(this.intervalContainer);
-        this.element.appendChild(this.soundButton);
-        this.element.appendChild(this.soundMenu);
-        this.element.appendChild(this.controls);
-        this.element.appendChild(this.status);
+        this.controlsOverlay.appendChild(this.helpText);
+        this.controlsOverlay.appendChild(this.presetContainer);
+        this.controlsOverlay.appendChild(this.namedPresetSection);
+        this.controlsOverlay.appendChild(this.autoRestartContainer);
+        this.controlsOverlay.appendChild(this.intervalContainer);
+        this.controlsOverlay.appendChild(this.soundButton);
+        this.controlsOverlay.appendChild(this.soundMenu);
+        this.controlsOverlay.appendChild(this.controls);
+        this.controlsOverlay.appendChild(this.status);
+
+        this.element.appendChild(this.mainDisplay);
+        this.element.appendChild(this.controlsOverlay);
 
         // Timer state
         this.time = 0;
