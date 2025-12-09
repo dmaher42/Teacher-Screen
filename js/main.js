@@ -345,15 +345,27 @@ class ClassroomScreenApp {
     }
 
     saveState() {
-        const state = {
-            version: this.appVersion,
-            schemaVersion: this.schemaVersion,
-            theme: document.body.className,
-            background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize(),
-            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
-        };
-        localStorage.setItem('classroomScreenState', JSON.stringify(state));
+        const state = this.getSerializableState();
+        const jsonState = JSON.stringify(state);
+
+        localStorage.setItem('classroomScreenState', jsonState);
+
+        try {
+            // Automatic rotating backups
+            const backup2 = localStorage.getItem('classroomScreenState.backup2');
+            if (backup2) {
+                localStorage.setItem('classroomScreenState.backup3', backup2);
+            }
+
+            const backup1 = localStorage.getItem('classroomScreenState.backup1');
+            if (backup1) {
+                localStorage.setItem('classroomScreenState.backup2', backup1);
+            }
+
+            localStorage.setItem('classroomScreenState.backup1', jsonState);
+        } catch (e) {
+            console.warn('Failed to rotate backups:', e);
+        }
 
         this.projectorChannel.postMessage({
             type: 'layout-update',
@@ -744,54 +756,78 @@ class ClassroomScreenApp {
         });
     }
 
+    restoreState(savedState) {
+        let state = JSON.parse(savedState);
+
+        // Run migration pipeline
+        state = this.runMigrations(state);
+
+        // Restore theme
+        if (state.theme) {
+            this.switchTheme(state.theme);
+        }
+
+        // Restore background
+        if (state.background) {
+            this.backgroundManager.deserialize(state.background);
+        }
+
+        // Restore layout and widgets
+        if (state.layout && state.layout.widgets) {
+            this.layoutManager.deserialize(state.layout, (widgetData) => {
+                // This factory function recreates widgets from saved data
+                let widget;
+                switch (widgetData.type) {
+                    case 'TimerWidget': widget = new TimerWidget(); break;
+                    case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                    case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                    case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                    case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                    case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                    case 'MaskWidget': widget = new MaskWidget(); break;
+                }
+                if (widget) {
+                    this.widgets.push(widget);
+                }
+                return widget;
+            });
+        }
+
+        // Restore lesson plan
+        if (state.lessonPlan && this.lessonPlanEditor) {
+            this.lessonPlanEditor.setContents(state.lessonPlan);
+        }
+    }
+
     loadSavedState() {
-        const savedState = localStorage.getItem('classroomScreenState');
-        if (savedState) {
+        const keys = [
+            'classroomScreenState',
+            'classroomScreenState.backup1',
+            'classroomScreenState.backup2',
+            'classroomScreenState.backup3'
+        ];
+
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const savedState = localStorage.getItem(key);
+
+            if (!savedState) continue;
+
             try {
-                let state = JSON.parse(savedState);
+                // Reset local widgets array for this attempt
+                this.widgets = [];
+                // layoutManager.deserialize typically resets or overwrites widgets.
+                // If it appends, we rely on the implementation logic (based on existing usage).
+                
+                this.restoreState(savedState);
 
-                // Run migration pipeline
-                state = this.runMigrations(state);
-                
-                // Restore theme
-                if (state.theme) {
-                    this.switchTheme(state.theme);
+                if (i > 0) {
+                    this.showNotification('Your layout was restored from a backup.');
                 }
-                
-                // Restore background
-                if (state.background) {
-                    this.backgroundManager.deserialize(state.background);
-                }
-                
-                // Restore layout and widgets
-                if (state.layout && state.layout.widgets) {
-                    this.layoutManager.deserialize(state.layout, (widgetData) => {
-                        // This factory function recreates widgets from saved data
-                        let widget;
-                        switch (widgetData.type) {
-                            case 'TimerWidget': widget = new TimerWidget(); break;
-                            case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                            case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                            case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                            case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                            case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                            case 'MaskWidget': widget = new MaskWidget(); break;
-                        }
-                        if (widget) {
-                            this.widgets.push(widget);
-                        }
-                        return widget;
-                    });
-                }
-
-                // Restore lesson plan
-                if (state.lessonPlan && this.lessonPlanEditor) {
-                    this.lessonPlanEditor.setContents(state.lessonPlan);
-                }
+                return;
             } catch (e) {
-                console.error('Failed to load saved state:', e);
-                // If parsing fails, it's likely corrupt. Clear it.
-                localStorage.removeItem('classroomScreenState');
+                console.error(`Failed to load saved state from ${key}:`, e);
+                // Try the next backup
             }
         }
     }
