@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Cue - Mobile</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f6fa;
+    }
+
+    /* ===== Notebook / Saved notes overlay ===== */
+
+    /* Full-screen overlay, always fixed over the app */
+    #savedNotesSheet {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.26);
+      transition: opacity 0.25s ease;
+    }
+
+    /* When JS opens the notebook */
+    #savedNotesSheet[data-open="true"],
+    #savedNotesSheet:not(.hidden)[data-open="true"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Sidebar panel that sits on top of notes */
+    #savedNotesSheet .saved-notes-panel {
+      position: relative;
+      height: 100dvh;
+      width: min(420px, 100vw); /* sidebar on desktop, full width on very small screens */
+      max-width: 100vw;
+      margin: 0;
+      box-sizing: border-box;
+      border-radius: 0; /* default; adjusted below in mobile media query */
+      background: #ffffff;
+      box-shadow: -10px 0 28px rgba(15, 23, 42, 0.18);
+      padding: 0.9rem 1rem env(safe-area-inset-bottom, 0.9rem);
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+
+      transform: translateX(100%);
+      transition:
+        transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+        box-shadow 0.18s ease-out;
+    }
+
+    /* Slide the sidebar in when open */
+    #savedNotesSheet[data-open="true"] .saved-notes-panel {
+      transform: translateX(0);
+    }
+
+    /* Ensure header + list use the same white background */
+    #savedNotesSheet,
+    #savedNotesSheet .saved-notes-list-shell {
+      background-color: #ffffff;
+    }
+
+    /* Scrollable area inside the sidebar */
+    .saved-notes-list-shell {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      margin-top: 0.25rem;
+    }
+
+    /* Base: single column for very narrow screens */
+    #savedNotesSheet #notesListMobile {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+
+    /* Wider screens: grid of cards */
+    @media (min-width: 640px) {
+      #savedNotesSheet #notesListMobile {
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      }
+    }
+
+    /* Remove old row dividers & stripes; use cards instead */
+    #savedNotesSheet .note-item-mobile {
+      border-bottom: none;
+    }
+
+    #savedNotesSheet .note-list-item {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      padding: 0.65rem 0.75rem 0.6rem;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    /* Selected note card: subtle accent, no heavy band */
+    #savedNotesSheet .note-list-item.is-active,
+    #savedNotesSheet .note-item-mobile.is-active .note-list-item {
+      background: color-mix(in srgb, #ffffff 88%, var(--accent-color, #6b46c1) 12%);
+      border-color: color-mix(in srgb, var(--accent-color, #6b46c1) 55%, #e5e7eb 45%);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color, #6b46c1) 45%, transparent);
+    }
+
+    /* On smaller screens, sidebar behaves like a full-width sheet but still overlays */
+    @media (max-width: 640px) {
+      #savedNotesSheet {
+        align-items: flex-end;
+        justify-content: center;
+      }
+
+      #savedNotesSheet .saved-notes-panel {
+        width: 100vw;
+        border-radius: 18px 18px 0 0;
+        box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.2);
+      }
+    }
+
+    /* Minor layout polish for demo */
+    .content {
+      padding: 1.5rem;
+    }
+
+    .saved-notes-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .note-list-item h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1rem;
+    }
+
+    .note-list-item p {
+      margin: 0;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="content">
+    <h1>Memory Cue Mobile</h1>
+    <p>This page demonstrates the saved notes overlay sidebar.</p>
+  </main>
+
+  <div id="savedNotesSheet" data-open="true">
+    <div class="saved-notes-panel">
+      <header class="saved-notes-header">
+        <h2>Saved Notes</h2>
+      </header>
+      <div class="saved-notes-list-shell">
+        <ul id="notesListMobile">
+          <li class="note-item-mobile">
+            <div class="note-list-item is-active">
+              <h3>Lesson Ideas</h3>
+              <p>Brainstorm warm-up prompts for next week.</p>
+            </div>
+          </li>
+          <li class="note-item-mobile">
+            <div class="note-list-item">
+              <h3>Parent Contact</h3>
+              <p>Call guardians about project timelines.</p>
+            </div>
+          </li>
+          <li class="note-item-mobile">
+            <div class="note-list-item">
+              <h3>Field Trip</h3>
+              <p>Confirm bus schedule and chaperones.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
