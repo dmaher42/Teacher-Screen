@@ -68,6 +68,33 @@
                         <p>Add your first widget from the Teacher Controls!</p>
                     </div>
                 </div>
+
+                <section class="drawing-board">
+                    <h2>Drawing Board</h2>
+                    <div class="drawing-controls" aria-label="Drawing controls">
+                        <div class="control-row">
+                            <span class="control-label">Color:</span>
+                            <div class="control-buttons" role="group" aria-label="Drawing colors">
+                                <button id="color-black" class="color-btn selected" type="button">Black</button>
+                                <button id="color-red" class="color-btn" type="button">Red</button>
+                                <button id="color-green" class="color-btn" type="button">Green</button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <span class="control-label">Size:</span>
+                            <div class="control-buttons" role="group" aria-label="Brush sizes">
+                                <button id="size-small" class="size-btn" type="button">S</button>
+                                <button id="size-medium" class="size-btn selected" type="button">M</button>
+                                <button id="size-large" class="size-btn" type="button">L</button>
+                            </div>
+                        </div>
+                        <div class="control-row control-actions">
+                            <button id="clear-drawing-btn" type="button">Clear Drawing</button>
+                            <button id="save-drawing-btn" type="button">Save Image</button>
+                        </div>
+                    </div>
+                    <canvas id="drawing-canvas" aria-label="Canvas for drawing"></canvas>
+                </section>
             </main>
         </section>
 
@@ -330,6 +357,7 @@
     <script src="js/widgets/drawing-tool.js" defer></script>
     <script src="js/widgets/document-viewer.js" defer></script>
     <script src="js/widgets/mask-widget.js" defer></script>
+    <script src="js/script.js" defer></script>
     <script src="js/main.js" defer></script>
 
 </body>
