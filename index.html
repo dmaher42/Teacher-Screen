@@ -34,35 +34,60 @@
         </div>
     </noscript>
 
-    <nav id="top-nav">
-        <div class="nav-tabs">
-            <button class="nav-tab" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab active" data-tab="classroom">Classroom</button>
-            <button class="nav-tab" data-tab="reminders">Reminders</button>
-            <button class="nav-tab" data-tab="planner">Planner</button>
-            <button class="nav-tab" data-tab="timetable">Timetable</button>
-            <button class="nav-tab" data-tab="notes">Notes</button>
+    <nav id="top-nav" aria-label="Main sections">
+        <div class="nav-tabs" role="tablist">
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
+            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
         </div>
     <button id="open-projector-view" class="nav-tab" style="margin-left: auto;">Open Projector View</button>
     </nav>
 
-    <main id="app-container" class="app-container">
+    <div id="app-container" class="app-container">
         <!-- =====================================================
-             STUDENT VIEW
+             DASHBOARD VIEW (Placeholder)
              ===================================================== -->
-        <section id="student-view" class="view student-view" role="region" aria-label="Student View">
-            <div id="widgets-container" class="widgets-grid">
-                <!-- Widgets are dynamically added here by JavaScript -->
-                <div class="widget-placeholder">
-                    <p>Add your first widget from the Teacher Controls!</p>
+        <section id="dashboard-view" class="view" role="tabpanel" aria-labelledby="dashboard-tab" hidden>
+            <div class="placeholder-content">Dashboard content coming soon</div>
+        </section>
+
+        <!-- =====================================================
+             STUDENT VIEW (Classroom)
+             ===================================================== -->
+        <section id="classroom-view" class="view" role="tabpanel" aria-labelledby="classroom-tab">
+            <main id="student-main" class="student-view" role="main" aria-label="Student view">
+                <div id="widgets-container" class="widgets-grid">
+                    <!-- Widgets are dynamically added here by JavaScript -->
+                    <div class="widget-placeholder">
+                        <p>Add your first widget from the Teacher Controls!</p>
+                    </div>
                 </div>
-            </div>
+            </main>
+        </section>
+
+        <!-- =====================================================
+             OTHER VIEWS (Placeholders)
+             ===================================================== -->
+        <section id="reminders-view" class="view" role="tabpanel" aria-labelledby="reminders-tab" hidden>
+            <div class="placeholder-content">Reminders content coming soon</div>
+        </section>
+        <section id="planner-view" class="view" role="tabpanel" aria-labelledby="planner-tab" hidden>
+            <div class="placeholder-content">Planner content coming soon</div>
+        </section>
+        <section id="timetable-view" class="view" role="tabpanel" aria-labelledby="timetable-tab" hidden>
+            <div class="placeholder-content">Timetable content coming soon</div>
+        </section>
+        <section id="notes-view" class="view" role="tabpanel" aria-labelledby="notes-tab" hidden>
+            <div class="placeholder-content">Notes content coming soon</div>
         </section>
 
         <!-- =====================================================
              TEACHER CONTROLS PANEL (REDESIGNED)
              ===================================================== -->
-        <div class="teacher-panel" id="teacher-panel">
+        <aside class="teacher-panel" id="teacher-panel" role="complementary" aria-label="Teacher controls">
             <header class="panel-header">
                 <h3>Teacher Controls</h3>
                 <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>

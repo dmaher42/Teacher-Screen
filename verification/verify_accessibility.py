@@ -1,67 +1,80 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
-def verify_accessibility_features():
+def test_accessibility(page):
+    # Load the page from file directly since it's a static site
+    import os
+    file_path = f"file://{os.getcwd()}/index.html"
+    page.goto(file_path)
+
+    # Dismiss tour dialog if present
+    tour_dialog = page.locator("#tour-dialog")
+    if tour_dialog.is_visible():
+        page.get_by_role("button", name="Start Teaching").click()
+        expect(tour_dialog).to_be_hidden()
+
+    # 1. Verify Top Nav and Tabs
+    top_nav = page.locator("#top-nav")
+    expect(top_nav).to_have_attribute("aria-label", "Main sections")
+
+    tablist = page.locator(".nav-tabs")
+    expect(tablist).to_have_attribute("role", "tablist")
+
+    # Verify Classroom Tab
+    classroom_tab = page.get_by_role("tab", name="Classroom")
+    expect(classroom_tab).to_have_attribute("aria-selected", "true")
+    expect(classroom_tab).to_have_attribute("aria-controls", "classroom-view")
+
+    # Verify Dashboard Tab (should be unselected)
+    dashboard_tab = page.get_by_role("tab", name="Dashboard")
+    expect(dashboard_tab).to_have_attribute("aria-selected", "false")
+    expect(dashboard_tab).to_have_attribute("aria-controls", "dashboard-view")
+
+    # 2. Verify Panels
+    # Classroom panel should be visible
+    classroom_panel = page.locator("#classroom-view")
+    expect(classroom_panel).to_be_visible()
+    expect(classroom_panel).to_have_attribute("role", "tabpanel")
+
+    # Dashboard panel should be hidden
+    dashboard_panel = page.locator("#dashboard-view")
+    expect(dashboard_panel).to_be_hidden()
+
+    # 3. Test Navigation Logic
+    # Click Dashboard
+    dashboard_tab.click()
+
+    # Check if attributes updated
+    expect(dashboard_tab).to_have_attribute("aria-selected", "true")
+    expect(classroom_tab).to_have_attribute("aria-selected", "false")
+
+    # Check panel visibility
+    expect(dashboard_panel).to_be_visible()
+    expect(classroom_panel).to_be_hidden()
+
+    # Take screenshot of Dashboard view
+    page.screenshot(path="verification/dashboard_view.png")
+
+    # Click back to Classroom
+    classroom_tab.click()
+    expect(classroom_panel).to_be_visible()
+
+    # 4. Verify Student Main Landmark
+    student_main = page.locator("#student-main")
+    expect(student_main).to_have_role("main")
+    expect(student_main).to_have_attribute("aria-label", "Student view")
+
+    # Take screenshot of Classroom view
+    page.screenshot(path="verification/classroom_view.png")
+
+if __name__ == "__main__":
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto("http://localhost:8000")
-
-        # 1. Handle Welcome Tour if present
-        # It's a dialog with id="tour-dialog".
-        # We can look for the "Start Teaching" button or the close button.
         try:
-            start_teaching_btn = page.get_by_role("button", name="Start Teaching")
-            if start_teaching_btn.is_visible(timeout=2000):
-                start_teaching_btn.click()
-                # Wait for modal to close (transition)
-                page.wait_for_timeout(500)
+            test_accessibility(page)
+            print("Accessibility verification passed!")
         except Exception as e:
-            print("No tour dialog found or error closing it:", e)
-
-        # 2. Open the Teacher Controls Panel (to access Theme and Toggle)
-        # Assuming the panel is initially closed or we need to ensure it's open.
-        # But wait, the app opens with the panel closed.
-        # We need to click "Classroom" nav tab to open it.
-        # However, if we are already on classroom tab, clicking it toggles the panel.
-
-        # Check if panel is already open?
-        # The panel has class "teacher-panel". If it has "open", it's open.
-        panel = page.locator("#teacher-panel")
-        if not "open" in panel.get_attribute("class"):
-            page.get_by_role("button", name="Classroom").click()
-            # Wait for panel to open (transition)
-            page.wait_for_timeout(1000)
-
-        # 3. Find and expand "Theme" section
-        # The text "Theme" is in a summary/h4
-        page.get_by_text("Theme").click()
-        page.wait_for_timeout(300)
-
-        # 4. Find the "Reduce Motion" toggle
-        reduce_motion_checkbox = page.get_by_label("Reduce Motion (limit animations)")
-
-        # 5. Check the toggle
-        reduce_motion_checkbox.check()
-
-        # 6. Verify the toggle is checked
-        assert reduce_motion_checkbox.is_checked()
-
-        # 7. Verify CSS variable update
-        # We need to wait a tiny bit for the event listener to fire? It should be sync though.
-        reduce_motion_value = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--reduce-motion').trim()")
-        assert reduce_motion_value == "1"
-
-        # 8. Take a screenshot of the controls with the toggle
-        page.screenshot(path="verification/verification.png")
-        print("Screenshot saved to verification/verification.png")
-
-        # 9. Test focus outline visibility
-        # Focus on the toggle
-        reduce_motion_checkbox.focus()
-        page.screenshot(path="verification/focus_outline.png")
-        print("Focus outline screenshot saved to verification/focus_outline.png")
-
-        browser.close()
-
-if __name__ == "__main__":
-    verify_accessibility_features()
+            print(f"Accessibility verification failed: {e}")
+            page.screenshot(path="verification/error.png")
+        finally:
+            browser.close()

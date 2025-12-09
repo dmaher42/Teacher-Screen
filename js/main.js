@@ -25,7 +25,7 @@ class ClassroomScreenApp {
     constructor() {
         // DOM Elements
         this.appContainer = document.getElementById('app-container');
-        this.studentView = document.getElementById('student-view');
+        this.studentView = document.getElementById('student-main'); // Using the new landmark ID
         this.teacherPanel = document.getElementById('teacher-panel');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.closeTeacherPanelBtn = document.getElementById('close-teacher-panel');
@@ -214,10 +214,42 @@ class ClassroomScreenApp {
     }
 
     handleNavClick(tab) {
+        // Update tab states
+        this.navTabs.forEach(t => {
+            const isSelected = t.dataset.tab === tab;
+            t.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            if (isSelected) t.classList.add('active');
+            else t.classList.remove('active');
+        });
+
+        // Show corresponding panel, hide others
+        // We use the ID convention: {tab}-view
+        const viewId = `${tab}-view`;
+        document.querySelectorAll('.view').forEach(view => {
+            if (view.id === viewId) {
+                view.hidden = false;
+            } else {
+                view.hidden = true;
+            }
+        });
+
+        // Teacher Panel Logic
         if (tab === 'classroom') {
+            // Ensure student view is ready
             this.toggleTeacherPanel(true);
         } else {
-            this.showNotification(`${tab.charAt(0).toUpperCase() + tab.slice(1)} is coming soon!`);
+            // For other views, close the teacher panel or keep it?
+            // Usually dashboard etc might not need the floating teacher panel.
+            // But let's close it to focus on the content, unless designed otherwise.
+            this.toggleTeacherPanel(false);
+
+            // If it's a placeholder view, we might still show the notification
+            // but now we have actual DOM elements showing "Coming soon".
+            // So the notification is optional or redundant.
+            // I'll keep the notification for feedback if it's empty.
+            if (tab !== 'classroom') {
+                 // this.showNotification(`${tab.charAt(0).toUpperCase() + tab.slice(1)} view active`);
+            }
         }
     }
 
