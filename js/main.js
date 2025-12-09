@@ -182,12 +182,36 @@ class ClassroomScreenApp {
         document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
         document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
 
-        document.querySelectorAll('.timer-quick-preset').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const minutes = parseInt(btn.dataset.minutes, 10);
-                this.startTimerPresetFromControls(minutes);
+        // New Timer Presets (5, 10, 15 min)
+        const preset5 = document.getElementById('timer-preset-5');
+        if (preset5) {
+            preset5.addEventListener('click', () => {
+                document.getElementById('timer-hours').value = 0;
+                document.getElementById('timer-minutes').value = 5;
+                document.getElementById('timer-seconds').value = 0;
+                this.startTimerFromControls();
             });
-        });
+        }
+
+        const preset10 = document.getElementById('timer-preset-10');
+        if (preset10) {
+            preset10.addEventListener('click', () => {
+                document.getElementById('timer-hours').value = 0;
+                document.getElementById('timer-minutes').value = 10;
+                document.getElementById('timer-seconds').value = 0;
+                this.startTimerFromControls();
+            });
+        }
+
+        const preset15 = document.getElementById('timer-preset-15');
+        if (preset15) {
+            preset15.addEventListener('click', () => {
+                document.getElementById('timer-hours').value = 0;
+                document.getElementById('timer-minutes').value = 15;
+                document.getElementById('timer-seconds').value = 0;
+                this.startTimerFromControls();
+            });
+        }
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
