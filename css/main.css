@@ -483,7 +483,9 @@ dialog::backdrop {
     box-shadow: var(--shadow-medium, 0 4px 12px rgba(0,0,0,0.1));
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* Allow widgets to be resized by the user */
+    resize: both;
+    overflow: auto;
     transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
@@ -548,6 +550,25 @@ dialog::backdrop {
     padding: var(--spacing-lg, 15px);
     flex-grow: 1;
     overflow-y: auto;
+}
+
+/* Resize handle styling */
+.resize-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    right: 6px;
+    bottom: 6px;
+    background: var(--resize-handle-bg, linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.12) 50%));
+    cursor: se-resize;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.widget:hover .resize-handle,
+.resize-handle:focus-visible {
+    opacity: 1;
 }
 
 .name-picker-display {
