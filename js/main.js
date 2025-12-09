@@ -755,54 +755,67 @@ class ClassroomScreenApp {
     }
 
     loadSavedState() {
-        const savedState = localStorage.getItem('classroomScreenState');
-        if (savedState) {
-            try {
-                let state = JSON.parse(savedState);
+        const savedString = localStorage.getItem('classroomScreenState');
+        if (!savedString) return;
 
-                // Run migration pipeline
-                state = this.runMigrations(state);
-                
-                // Restore theme
-                if (state.theme) {
-                    this.switchTheme(state.theme);
-                }
-                
-                // Restore background
-                if (state.background) {
-                    this.backgroundManager.deserialize(state.background);
-                }
-                
-                // Restore layout and widgets
-                if (state.layout && state.layout.widgets) {
-                    this.layoutManager.deserialize(state.layout, (widgetData) => {
-                        // This factory function recreates widgets from saved data
-                        let widget;
-                        switch (widgetData.type) {
-                            case 'TimerWidget': widget = new TimerWidget(); break;
-                            case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                            case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                            case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                            case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                            case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                            case 'MaskWidget': widget = new MaskWidget(); break;
-                        }
-                        if (widget) {
-                            this.widgets.push(widget);
-                        }
-                        return widget;
-                    });
-                }
+        let saved = null;
+        try {
+            saved = JSON.parse(savedString);
+        } catch (e) {
+            console.warn('Corrupt state detected; clearing.', e);
+            localStorage.removeItem('classroomScreenState');
+            return;
+        }
 
-                // Restore lesson plan
-                if (state.lessonPlan && this.lessonPlanEditor) {
-                    this.lessonPlanEditor.setContents(state.lessonPlan);
-                }
-            } catch (e) {
-                console.error('Failed to load saved state:', e);
-                // If parsing fails, it's likely corrupt. Clear it.
-                localStorage.removeItem('classroomScreenState');
+        if (!saved || typeof saved !== 'object') return;
+
+        this.applyState(saved);
+    }
+
+    applyState(state) {
+        try {
+            // Run migration pipeline
+            state = this.runMigrations(state);
+
+            // Restore theme
+            if (state.theme) {
+                this.switchTheme(state.theme);
             }
+
+            // Restore background
+            if (state.background) {
+                this.backgroundManager.deserialize(state.background);
+            }
+
+            // Restore layout and widgets
+            if (state.layout && state.layout.widgets) {
+                this.layoutManager.deserialize(state.layout, (widgetData) => {
+                    // This factory function recreates widgets from saved data
+                    let widget;
+                    switch (widgetData.type) {
+                        case 'TimerWidget': widget = new TimerWidget(); break;
+                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                        case 'MaskWidget': widget = new MaskWidget(); break;
+                    }
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
+                });
+            }
+
+            // Restore lesson plan
+            if (state.lessonPlan && this.lessonPlanEditor) {
+                this.lessonPlanEditor.setContents(state.lessonPlan);
+            }
+        } catch (err) {
+            console.error('State load failed; resetting.', err);
+            localStorage.removeItem('classroomScreenState');
+            this.showNotification("Your previous layout was corrupted; reset to defaults.", "warning");
         }
     }
 
