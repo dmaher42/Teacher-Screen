@@ -218,6 +218,93 @@ details:focus-visible,
     transition: width 0.3s ease;
 }
 
+.drawing-board {
+    background: var(--card-background, #ffffff);
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.08));
+    padding: var(--spacing-lg, 20px);
+    margin: var(--spacing-lg, 20px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 12px);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 90%, #f5f7fb 10%), var(--card-background, #ffffff));
+}
+
+.drawing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md, 12px);
+    align-items: center;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+}
+
+.control-label {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.control-buttons {
+    display: inline-flex;
+    gap: var(--spacing-xs, 6px);
+}
+
+.color-btn,
+.size-btn,
+#clear-drawing-btn,
+#save-drawing-btn {
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    border-radius: var(--border-radius, 10px);
+    border: 1px solid var(--border-color, #dfe4e2);
+    background: #f9fafb;
+    color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
+    box-shadow: var(--shadow-soft, 0 1px 2px rgba(0,0,0,0.05));
+}
+
+#clear-drawing-btn,
+#save-drawing-btn {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 85%, #ffffff 15%), var(--primary-color, #8e82ff));
+    color: #ffffff;
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 75%, #000 5%);
+}
+
+.color-btn.selected,
+.size-btn.selected {
+    border-color: var(--primary-color, #8e82ff);
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #8e82ff) 25%, #ffffff 75%);
+}
+
+#color-black { border-color: #111; }
+#color-red { border-color: #e74c3c; color: #b93226; }
+#color-green { border-color: #27ae60; color: #1e8449; }
+
+.size-btn { min-width: 40px; }
+.size-btn.selected { font-weight: 700; }
+
+.control-actions {
+    margin-left: auto;
+    display: flex;
+    gap: var(--spacing-sm, 10px);
+}
+
+#drawing-canvas {
+    width: 100%;
+    min-height: 320px;
+    max-height: 480px;
+    background-color: #ffffff;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius, 10px);
+    display: block;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+
 /* Teacher Panel */
 .teacher-panel {
     position: fixed;
