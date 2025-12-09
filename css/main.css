@@ -8,10 +8,20 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
-    background: var(--background-gradient, var(--background-color, #f8f9fa));
-    color: var(--text-color, #212529);
+    background: var(--background-gradient, var(--background-color, #f4f7f6));
+    color: var(--text-color, #333333);
     transition: background calc(300ms * (1 - var(--reduce-motion, 0))) ease,
                 color calc(300ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+/* Base container surfaces */
+.container,
+.group-container {
+    background-color: var(--card-background, #ffffff);
+    color: var(--text-color, #333333);
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-large, 12px);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
 }
 
 button:focus-visible,
