@@ -16,6 +16,27 @@ class LayoutManager {
     this.draggedWidget = null;
     this.onLayoutChange = null;
     this.isRestoring = false;
+
+    // Use global debounce if available (defined in main.js)
+    if (typeof debounce === 'function') {
+        this.saveLayout = debounce(this.saveLayout.bind(this), 200);
+    } else {
+        // Fallback or just don't debounce if main.js is not loaded yet (which shouldn't happen in app flow)
+        // But for safety, we can define a simple debounce here or just bind.
+        // Given the request, we should debounce.
+        // Assuming main.js is always present in production.
+        // If this runs in isolation (tests), we might miss it.
+        // Let's add a local debounce just in case or assume global.
+        // The prompt asked to add "a similar debounce".
+        const localDebounce = (fn, delay = 250) => {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        };
+        this.saveLayout = localDebounce(this.saveLayout.bind(this), 200);
+    }
   }
 
   init() {

@@ -3,6 +3,14 @@
  * This class initializes the app, manages widgets, and handles user interactions.
  */
 
+function debounce(fn, delay = 250) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 const STATE_MIGRATIONS = [
     {
         from: 0,
@@ -64,6 +72,8 @@ class ClassroomScreenApp {
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
 
         // Managers
+        this.saveState = debounce(this.saveState.bind(this), 300);
+
         this.layoutManager = new LayoutManager(this.widgetsContainer);
         this.layoutManager.onLayoutChange = () => this.saveState();
         this.backgroundManager = new BackgroundManager(this.studentView);
