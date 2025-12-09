@@ -3,6 +3,9 @@
  * Creates a widget to randomly pick names from a list.
  */
 class NamePickerWidget {
+    static modalInitialized = false;
+    static modalElements = null;
+
     /**
      * Constructor for NamePickerWidget.
      */
@@ -104,6 +107,44 @@ class NamePickerWidget {
         this.updateDisplayState();
         this.picking = false;
         this.lastPicked = null;
+    }
+
+    /**
+     * Fetch and configure the shared modal used for adding items.
+     */
+    static getModalElements() {
+        if (NamePickerWidget.modalInitialized) {
+            return NamePickerWidget.modalElements;
+        }
+
+        const dialog = document.getElementById('name-entry-dialog');
+        const input = document.getElementById('name-entry-input');
+        const title = document.getElementById('name-entry-title');
+        const confirmButton = document.getElementById('name-entry-confirm');
+
+        if (!dialog || !input || !title || !confirmButton) {
+            NamePickerWidget.modalInitialized = true;
+            NamePickerWidget.modalElements = null;
+            return null;
+        }
+
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+
+        dialog.addEventListener('close', () => {
+            input.value = '';
+        });
+
+        dialog.querySelectorAll('[data-close], .modal-close').forEach((btn) => {
+            btn.addEventListener('click', () => dialog.close());
+        });
+
+        NamePickerWidget.modalInitialized = true;
+        NamePickerWidget.modalElements = { dialog, input, title, confirmButton };
+        return NamePickerWidget.modalElements;
     }
 
     /**
@@ -263,12 +304,69 @@ class NamePickerWidget {
     }
 
     /**
+     * Open the shared modal and handle confirmation for creating a group.
+     */
+    showAddGroupModal() {
+        const modal = NamePickerWidget.getModalElements();
+        if (!modal) return false;
+
+        const { dialog, input, title, confirmButton } = modal;
+        title.textContent = 'Add New Group';
+        input.placeholder = 'e.g., Period 3 - Science';
+        input.value = '';
+
+        const submitGroup = () => {
+            if (!this.addGroupByName(input.value)) {
+                return;
+            }
+            dialog.close();
+        };
+
+        confirmButton.onclick = (event) => {
+            event.preventDefault();
+            submitGroup();
+        };
+
+        input.onkeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                submitGroup();
+            } else if (event.key === 'Escape') {
+                dialog.close();
+            }
+        };
+
+        dialog.showModal();
+        input.focus();
+        return true;
+    }
+
+    /**
      * Add a new group with an empty name list.
      */
     addGroup() {
+        const modalOpened = this.showAddGroupModal();
+        if (modalOpened) return;
+
         const groupName = prompt('Enter a name for the new group:');
+        this.addGroupByName(groupName);
+    }
+
+    /**
+     * Create a group using the provided name if valid.
+     * @param {string} groupName
+     */
+    addGroupByName(groupName) {
         const trimmedName = groupName ? groupName.trim() : '';
-        if (!trimmedName || this.groups[trimmedName]) return;
+        if (!trimmedName) {
+            this.setStatus('Please enter a group name to add.', 'warning');
+            return false;
+        }
+
+        if (this.groups[trimmedName]) {
+            this.setStatus('That group already exists.', 'warning');
+            return false;
+        }
 
         this.groups[trimmedName] = {
             originalNames: [],
@@ -277,6 +375,8 @@ class NamePickerWidget {
         this.currentGroup = trimmedName;
         this.refreshGroupOptions();
         this.updateDisplayState();
+        this.setStatus(`Added group "${trimmedName}".`);
+        return true;
     }
 
     /**
