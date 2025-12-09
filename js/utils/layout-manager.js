@@ -146,7 +146,7 @@ class LayoutManager {
     header.className = 'widget-header';
     header.tabIndex = 0;
     header.setAttribute('role', 'group');
-    header.setAttribute('aria-label', `Widget controls for ${widget.constructor.name.replace('Widget', '')}. Use arrow keys to move.`);
+    header.setAttribute('aria-label', `Widget controls for ${widget.constructor.name.replace('Widget', '')}. Use arrow keys to move. Click to expand.`);
 
     header.addEventListener('keydown', (e) => {
       let dx = 0, dy = 0;
@@ -165,6 +165,14 @@ class LayoutManager {
       }
     });
 
+    // Expand Toggle Icon
+    const expandToggle = document.createElement('button');
+    expandToggle.className = 'widget-expand-toggle';
+    expandToggle.innerHTML = '<i class="fas fa-expand"></i>';
+    expandToggle.setAttribute('aria-label', 'Toggle expand');
+    expandToggle.title = 'Click header to expand/collapse';
+    // The click handling is on the header, but we also want this button to indicate state
+
     // Drag Handle
     const dragHandle = document.createElement('img');
     dragHandle.src = 'assets/icons/drag-handle.svg';
@@ -176,6 +184,32 @@ class LayoutManager {
     title.className = 'widget-title';
     // Derive title from the widget's class name (e.g., "TimerWidget" -> "Timer")
     title.textContent = widget.constructor.name.replace('Widget', '');
+
+    // Add click listener to header for expansion
+    header.addEventListener('click', (e) => {
+        // Prevent expansion if clicking on controls or resize handle (though resize handle is outside header)
+        if (e.target.closest('.widget-controls') || e.target.closest('.resize-handle')) {
+            return;
+        }
+
+        const widgetElement = header.closest('.widget');
+        if (!widgetElement) return;
+
+        // Check if a drag occurred (we'll implement a simple check via class or attribute if needed,
+        // but let's rely on standard click behavior: click fires after mouseup.
+        // If the user dragged, we might want to prevent expansion.
+        // Simple heuristic: if we just finished dragging, don't expand.
+        if (header.dataset.justDragged === 'true') {
+            header.dataset.justDragged = 'false';
+            return;
+        }
+
+        widgetElement.classList.toggle('expanded');
+
+        // Update icon
+        const isExpanded = widgetElement.classList.contains('expanded');
+        expandToggle.innerHTML = isExpanded ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+    });
 
     // Controls
     const controls = document.createElement('div');
@@ -211,6 +245,7 @@ class LayoutManager {
     controls.appendChild(helpButton);
     controls.appendChild(closeButton);
 
+    header.appendChild(expandToggle);
     header.appendChild(dragHandle);
     header.appendChild(title);
     header.appendChild(controls);
@@ -400,8 +435,21 @@ class LayoutManager {
       widgetElement.style.gridRow = `${newY + 1} / span ${widgetHeight}`;
     });
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', (e) => {
       if (isDragging && widgetElement) {
+
+        // Calculate distance moved
+        const dist = Math.sqrt(Math.pow(e.clientX - startX, 2) + Math.pow(e.clientY - startY, 2));
+        if (dist > 5) {
+            // Significant move, consider it a drag
+            const header = widgetElement.querySelector('.widget-header');
+            if (header) {
+                header.dataset.justDragged = 'true';
+                // Reset the flag after a short timeout just in case click doesn't fire immediately
+                setTimeout(() => { header.dataset.justDragged = 'false'; }, 100);
+            }
+        }
+
         isDragging = false;
 
         // Update stored widget position for accurate serialization

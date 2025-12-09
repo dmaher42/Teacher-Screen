@@ -653,7 +653,8 @@ dialog::backdrop {
     /* Allow widgets to be resized by the user */
     resize: both;
     overflow: auto;
-    transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+    transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                transform calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .widget:hover {
@@ -666,7 +667,7 @@ dialog::backdrop {
     padding: 8px 12px;
     background-color: var(--hover-bg-color, #f5f5f5);
     border-bottom: 1px solid var(--border-color, #e0e0e0);
-    cursor: grab;
+    cursor: pointer;
 }
 
 .widget-header:active {
@@ -868,8 +869,33 @@ dialog::backdrop {
     border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
-.widget:hover .widget-content-controls,
-.widget:focus-within .widget-content-controls {
+.widget.expanded .widget-content-controls {
     opacity: 1;
     pointer-events: auto;
+}
+
+.widget.expanded {
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transform: scale(1.5);
+}
+
+.widget-expand-toggle {
+    margin-right: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    background: none;
+    border: none;
+    color: inherit;
+}
+
+.widget-expand-toggle:hover {
+    background-color: rgba(0,0,0,0.1);
 }
