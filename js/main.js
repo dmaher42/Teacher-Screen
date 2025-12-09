@@ -387,7 +387,24 @@ class ClassroomScreenApp {
             layout: this.layoutManager.serialize(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
-        localStorage.setItem('classroomScreenState', JSON.stringify(state));
+        const stateJSON = JSON.stringify(state);
+        localStorage.setItem('classroomScreenState', stateJSON);
+
+        // Rotate backups
+        try {
+            const backup1 = localStorage.getItem('classroomScreenState.backup1');
+            const backup2 = localStorage.getItem('classroomScreenState.backup2');
+
+            if (backup2) {
+                localStorage.setItem('classroomScreenState.backup3', backup2);
+            }
+            if (backup1) {
+                localStorage.setItem('classroomScreenState.backup2', backup1);
+            }
+            localStorage.setItem('classroomScreenState.backup1', stateJSON);
+        } catch (e) {
+            console.error('Backup rotation failed:', e);
+        }
 
         this.projectorChannel.postMessage({
             type: 'layout-update',
@@ -779,21 +796,47 @@ class ClassroomScreenApp {
     }
 
     loadSavedState() {
-        const savedString = localStorage.getItem('classroomScreenState');
-        if (!savedString) return;
+        const attemptLoad = (key) => {
+            const savedString = localStorage.getItem(key);
+            if (!savedString) return null;
+            try {
+                const parsed = JSON.parse(savedString);
+                if (parsed && typeof parsed === 'object') return parsed;
+            } catch (e) {
+                console.warn(`Failed to parse state from ${key}`, e);
+            }
+            return null;
+        };
 
-        let saved = null;
-        try {
-            saved = JSON.parse(savedString);
-        } catch (e) {
-            console.warn('Corrupt state detected; clearing.', e);
-            localStorage.removeItem('classroomScreenState');
+        // Try loading primary state
+        let state = attemptLoad('classroomScreenState');
+        if (state) {
+            this.applyState(state);
             return;
         }
 
-        if (!saved || typeof saved !== 'object') return;
+        // If primary failed, try backups
+        const backupKeys = [
+            'classroomScreenState.backup1',
+            'classroomScreenState.backup2',
+            'classroomScreenState.backup3'
+        ];
 
-        this.applyState(saved);
+        for (const key of backupKeys) {
+            state = attemptLoad(key);
+            if (state) {
+                console.log(`Restoring state from ${key}`);
+                this.applyState(state);
+                this.showNotification('Your layout was restored from a backup.');
+                return;
+            }
+        }
+
+        // If all fail, ensure corrupt state is cleared so defaults can load
+        if (localStorage.getItem('classroomScreenState')) {
+            console.warn('Corrupt state detected and no backups available; clearing.');
+            localStorage.removeItem('classroomScreenState');
+        }
     }
 
     applyState(state) {
