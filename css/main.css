@@ -10,7 +10,8 @@ body {
     overflow: hidden;
     background: var(--background-gradient, var(--background-color, #f8f9fa));
     color: var(--text-color, #212529);
-    transition: background 0.3s ease, color 0.3s ease;
+    transition: background calc(300ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(300ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 button:focus-visible,
@@ -23,9 +24,21 @@ details:focus-visible,
 .widget-help:focus-visible,
 .widget-close:focus-visible,
 .control-button:focus-visible {
-    outline: 3px solid var(--focus-outline-color, #ffbf47);
-    outline-offset: var(--focus-outline-offset, 2px);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+    outline: 3px solid var(--a11y-focus-outline, #ffae00) !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.action-flash {
+    animation-duration: calc(300ms * (1 - var(--reduce-motion, 0)));
+}
+
+.control-button {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.widget-status {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
 }
 
 #app-container {
@@ -62,10 +75,10 @@ details:focus-visible,
     border: none;
     padding: var(--spacing-md, 10px) var(--spacing-lg, 15px);
     font-size: 1rem;
-    color: var(--text-color, #333);
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
     cursor: pointer;
     border-radius: var(--border-radius, 8px);
-    transition: background-color 0.2s ease;
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .nav-tab.active {
@@ -108,7 +121,7 @@ details:focus-visible,
     box-shadow: -5px 0 15px var(--shadow-color, rgba(0,0,0,0.1));
     z-index: 1050;
     transform: translateX(100%);
-    transition: transform 0.3s ease;
+    transition: transform calc(300ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .teacher-panel.open {
@@ -125,7 +138,7 @@ details:focus-visible,
     z-index: 1040;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity calc(300ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .panel-backdrop.visible {
@@ -144,6 +157,7 @@ details:focus-visible,
 .panel-header h3 {
     font-size: 1.25rem;
     font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
 }
 
 .panel-close {
@@ -178,6 +192,7 @@ details:focus-visible,
     cursor: pointer;
     font-size: 1.1rem;
     font-weight: 600;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
 }
 
 .control-card summary .card-icon {
@@ -205,7 +220,8 @@ details:focus-visible,
     box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
     cursor: pointer;
     z-index: 1000;
-    transition: background-color 0.2s, transform 0.2s;
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))),
+                transform calc(200ms * (1 - var(--reduce-motion, 0)));
 }
 
 .fab:hover {
@@ -260,6 +276,10 @@ details:focus-visible,
     gap: var(--spacing-md, 10px);
 }
 
+.theme-option span {
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
 .theme-swatch {
     width: 24px;
     height: 24px;
@@ -294,7 +314,7 @@ details:focus-visible,
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: box-shadow 0.2s ease;
+    transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .widget:hover {
@@ -324,7 +344,7 @@ details:focus-visible,
 .widget-title {
     font-weight: 600;
     font-size: 1rem;
-    color: var(--text-color, #333);
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
     flex-grow: 1;
 }
 
