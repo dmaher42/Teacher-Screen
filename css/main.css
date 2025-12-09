@@ -387,24 +387,22 @@ details:focus-visible,
     margin-bottom: 10px;
 }
 
-.resize-handle {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 20px;
-    height: 20px;
-    background: var(--resize-handle-bg, linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%));
-    cursor: nwse-resize;
-    z-index: 10;
+/* Background Selector Accessibility */
+.background-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.size-limit-hit {
-    border: 2px solid #ff4444 !important;
-    animation: pulse-red 0.3s ease-in-out;
+.background-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
 }
 
-@keyframes pulse-red {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
+.background-swatch:focus-visible {
+  outline: 2px solid currentColor;
+  border-color: currentColor;
 }
