@@ -14,43 +14,85 @@ class NamePickerWidget {
         this.element = document.createElement('div');
         this.element.className = 'name-picker-widget-content';
 
+        // --- Create Display Section ---
+        this.mainDisplay = document.createElement('div');
+        this.mainDisplay.className = 'widget-display';
+        this.mainDisplay.title = 'Click to pick a name';
+        this.mainDisplay.style.cursor = 'pointer';
+        this.mainDisplay.style.flexDirection = 'column'; // Allow stacking if needed
+
+        this.display = document.createElement('div');
+        this.display.className = 'name-picker-display';
+        this.display.textContent = 'Click to pick';
+        // Remove default border/padding from display class if it conflicts with widget-display
+        this.display.style.border = 'none';
+        this.display.style.background = 'transparent';
+        this.display.style.fontSize = '1.5rem';
+
+        this.mainDisplay.appendChild(this.display);
+
+        // Add click handler to the main display for the primary action
+        this.mainDisplay.addEventListener('click', () => {
+            if (this.names && this.names.length === 0 && this.originalNames && this.originalNames.length > 0) {
+                 this.reset();
+            } else {
+                 this.pickRandom();
+            }
+        });
+
+        // --- Create Controls Section ---
+        this.controlsOverlay = document.createElement('div');
+        this.controlsOverlay.className = 'widget-content-controls';
+
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
         this.helpText.style.display = 'none'; // Initially hidden
-        this.helpText.textContent = 'Click Pick a Name to spin through the list. When all names are chosen, reset the list to start over.';
-
-        // Create controls container
-        this.controlsOverlay = document.createElement('div');
-        this.controlsOverlay.className = 'widget-content-controls';
+        this.helpText.textContent = 'Click the tile to pick a name. Use settings to manage groups and names.';
 
         // Group selection controls
         this.groupControls = document.createElement('div');
         this.groupControls.className = 'name-picker-group-controls';
+        this.groupControls.style.marginBottom = '10px';
+
+        const groupLabel = document.createElement('label');
+        groupLabel.textContent = 'Current Group: ';
 
         this.groupSelect = document.createElement('select');
         this.groupSelect.setAttribute('aria-label', 'Select name group');
+        this.groupSelect.style.marginBottom = '5px';
         this.groupSelect.addEventListener('change', (event) => this.switchGroup(event.target.value));
+
+        groupLabel.appendChild(this.groupSelect);
+
+        this.groupActionButtons = document.createElement('div');
+        this.groupActionButtons.className = 'button-group';
 
         this.addGroupButton = document.createElement('button');
         this.addGroupButton.textContent = 'Add Group';
+        this.addGroupButton.className = 'control-button';
         this.addGroupButton.setAttribute('aria-label', 'Add group');
         this.addGroupButton.addEventListener('click', () => this.addGroup());
 
         this.deleteGroupButton = document.createElement('button');
         this.deleteGroupButton.textContent = 'Delete Group';
+        this.deleteGroupButton.className = 'control-button';
         this.deleteGroupButton.setAttribute('aria-label', 'Delete current group');
         this.deleteGroupButton.addEventListener('click', () => this.deleteGroup());
 
-        this.groupControls.appendChild(this.groupSelect);
-        this.groupControls.appendChild(this.addGroupButton);
-        this.groupControls.appendChild(this.deleteGroupButton);
+        this.groupActionButtons.appendChild(this.addGroupButton);
+        this.groupActionButtons.appendChild(this.deleteGroupButton);
+
+        this.groupControls.appendChild(groupLabel);
+        this.groupControls.appendChild(this.groupActionButtons);
 
         // Import/Export controls
         this.importExportControls = document.createElement('div');
         this.importExportControls.className = 'name-picker-import-export';
+        this.importExportControls.style.marginBottom = '10px';
 
         this.importButton = document.createElement('button');
-        this.importButton.textContent = 'Import';
+        this.importButton.textContent = 'Import Names';
+        this.importButton.className = 'control-button';
         this.importButton.setAttribute('aria-label', 'Import names');
         this.importButton.addEventListener('click', () => this.fileInput.click());
 
@@ -61,7 +103,8 @@ class NamePickerWidget {
         this.importButton.appendChild(this.importSpinner);
 
         this.exportButton = document.createElement('button');
-        this.exportButton.textContent = 'Export';
+        this.exportButton.textContent = 'Export Names';
+        this.exportButton.className = 'control-button';
         this.exportButton.setAttribute('aria-label', 'Export names');
         this.exportButton.addEventListener('click', () => this.exportNames());
 
@@ -71,49 +114,45 @@ class NamePickerWidget {
         this.fileInput.style.display = 'none';
         this.fileInput.addEventListener('change', (event) => this.importNames(event));
 
-        this.importExportControls.appendChild(this.importButton);
-        this.importExportControls.appendChild(this.exportButton);
+        const ieButtonGroup = document.createElement('div');
+        ieButtonGroup.className = 'button-group';
+        ieButtonGroup.appendChild(this.importButton);
+        ieButtonGroup.appendChild(this.exportButton);
+
+        this.importExportControls.appendChild(ieButtonGroup);
         this.importExportControls.appendChild(this.fileInput);
 
-        // Create the name display
-        this.display = document.createElement('div');
-        this.display.className = 'name-picker-display';
-        this.display.textContent = 'Click to pick a name';
-
-        // Create the control button
+        // Pick Button (Optional in settings, but useful fallback)
         this.pickButton = document.createElement('button');
-        this.pickButton.className = 'pick-button';
+        this.pickButton.className = 'control-button pick-button';
         this.pickButton.textContent = 'Pick a Name';
+        this.pickButton.style.width = '100%';
+        this.pickButton.style.marginTop = '10px';
         this.pickButton.setAttribute('aria-label', 'Pick a name');
+        this.pickButton.addEventListener('click', () => {
+             if (this.names && this.names.length === 0 && this.originalNames && this.originalNames.length > 0) {
+                 this.reset();
+            } else {
+                 this.pickRandom();
+            }
+        });
 
         this.status = document.createElement('div');
         this.status.className = 'widget-status';
+        this.status.style.marginTop = '10px';
         this.status.textContent = 'Pick a name to begin.';
 
         // Assemble controls overlay
         this.controlsOverlay.appendChild(this.helpText);
         this.controlsOverlay.appendChild(this.groupControls);
+        this.controlsOverlay.appendChild(document.createElement('hr')); // Visual separator
         this.controlsOverlay.appendChild(this.importExportControls);
-        this.controlsOverlay.appendChild(this.pickButton); // Pick button also moved to settings? Or kept in display?
-        // User asked for "Widgets are simple displays by default. Hovering over a widget reveals a small settings icon. Clicking this icon opens a modal overlay... with that widget's controls."
-        // For NamePicker, the "Pick" button is the main interaction. It should probably remain on the widget display or be available in both?
-        // "Widgets are simple displays by default."
-        // A simple display for a name picker is the name.
-        // If I move the pick button to settings, I have to open settings to pick a name. That might be annoying.
-        // BUT, the request says "Clicking this icon opens a modal overlay ... with that widget's controls."
-        // Maybe "Pick" is considered a primary action, not a setting.
-        // However, looking at the request: "e.g., Timer ... add a settings icon button ... controls to load."
-        // Timer controls: Start, Stop, Reset.
-        // If Timer start/stop are in modal, then NamePicker Pick should probably be in modal too, OR the user considers "Pick" the main function.
-        // Let's stick to the prompt: "Widgets are simple displays by default."
-        // I'll move the Pick button to the modal for now to strictly follow "simple display".
-        // Actually, for a Name Picker, picking IS the display update.
-        // Let's put Pick button in controlsOverlay.
+        this.controlsOverlay.appendChild(this.pickButton);
         this.controlsOverlay.appendChild(this.status);
 
         // Assemble the widget
-        this.element.appendChild(this.display);
-        // this.element.appendChild(this.controlsOverlay); // Controls moved to modal
+        this.element.appendChild(this.mainDisplay);
+        // this.element.appendChild(this.controlsOverlay); // Controls handled by modal
 
         // Name Picker state
         const defaultNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah'];
@@ -191,17 +230,17 @@ class NamePickerWidget {
 
                 // Remove the selected name temporarily
                 const selectedName = groupData.names.splice(randomIndex, 1)[0];
-                this.display.textContent = `Selected: ${selectedName}`;
+                this.display.textContent = selectedName;
                 this.lastPicked = selectedName;
                 this.setStatus(`Picked ${selectedName}. ${groupData.names.length} remaining.`);
 
                 // If all names have been picked, change button to reset
                 if (groupData.names.length === 0) {
                     this.pickButton.textContent = 'Reset List';
-                    this.pickButton.onclick = () => this.reset();
+                    this.mainDisplay.title = 'Click to Reset';
                 }
             }
-        }, 100);
+        }, 80);
     }
 
     /**
@@ -258,7 +297,14 @@ class NamePickerWidget {
         this.refreshGroupOptions();
         this.updateDisplayState();
         if (this.lastPicked) {
-            this.setStatus(`Last picked: ${this.lastPicked}.`);
+            // Restore last picked name to display if list isn't reset
+            // But if list was reset, updateDisplayState sets "Click to pick"
+            // If we have a last picked name and it's NOT in the current list, we might show it?
+            // Simpler: Just show click to pick or the result if user left it there.
+            // But logic in pickRandom removed it from names.
+            // If data.names matches logic...
+            // Let's just trust updateDisplayState.
+             if (this.lastPicked) this.display.textContent = this.lastPicked;
         }
     }
 
@@ -282,17 +328,28 @@ class NamePickerWidget {
         this.groupSelect.value = this.currentGroup;
 
         if (groupData.names.length === 0) {
-            this.display.textContent = 'List is empty';
-            this.pickButton.textContent = 'Reset List';
-            this.pickButton.onclick = () => this.reset();
+            if (groupData.originalNames.length === 0) {
+                 this.display.textContent = 'Empty List';
+                 this.mainDisplay.title = 'Add names in settings';
+                 this.pickButton.textContent = 'List Empty';
+                 this.pickButton.disabled = true;
+            } else {
+                 this.display.textContent = 'All Picked';
+                 this.mainDisplay.title = 'Click to Reset';
+                 this.pickButton.textContent = 'Reset List';
+                 this.pickButton.disabled = false;
+            }
+
             const statusMessage = groupData.originalNames.length === 0
                 ? 'List is empty. Import or add names to begin.'
                 : 'All names have been picked. Reset to start over.';
             this.setStatus(statusMessage, 'warning');
         } else {
-            this.display.textContent = 'Click to pick a name';
+            this.display.textContent = 'Click to pick';
+            this.mainDisplay.title = 'Click to pick a name';
             this.pickButton.textContent = 'Pick a Name';
-            this.pickButton.onclick = () => this.pickRandom();
+            this.pickButton.disabled = false;
+
             const remaining = groupData.names.length;
             this.setStatus(`${remaining} name${remaining === 1 ? '' : 's'} ready to pick.`);
         }
