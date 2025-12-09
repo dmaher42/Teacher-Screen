@@ -324,59 +324,95 @@ class LayoutManager {
     });
   }
   
-  addDragFunctionality(element) {
+  addDragFunctionality(headerElement) {
     let isDragging = false;
-    let startX, startY, initialX, initialY;
-    
-    element.addEventListener('mousedown', (e) => {
+    let startX, startY, initialX, initialY, widgetWidth, widgetHeight;
+    let widgetElement = null;
+
+    const parseGridPosition = (gridValue) => {
+      const [startPart, endPart] = (gridValue || '').split('/').map(part => part.trim());
+      const start = parseInt(startPart, 10) || 1;
+      let span = 1;
+
+      if (endPart) {
+        const spanMatch = endPart.match(/span\s+(\d+)/);
+        if (spanMatch) {
+          span = parseInt(spanMatch[1], 10) || 1;
+        } else {
+          const end = parseInt(endPart, 10);
+          if (!isNaN(end)) {
+            span = Math.max(1, end - start);
+          }
+        }
+      }
+
+      return { start, span };
+    };
+
+    headerElement.addEventListener('mousedown', (e) => {
       // Only start dragging if not clicking on a resize handle or input element
-      if (e.target.classList.contains('resize-handle') || 
-          e.target.tagName === 'INPUT' || 
-          e.target.tagName === 'BUTTON' || 
+      if (e.target.classList.contains('resize-handle') ||
+          e.target.tagName === 'INPUT' ||
+          e.target.tagName === 'BUTTON' ||
           e.target.tagName === 'SELECT') {
         return;
       }
-      
+
+      widgetElement = headerElement.closest('.widget');
+      if (!widgetElement) return;
+
+      const widgetInfo = this.widgets.find(w => w.element === widgetElement);
+
       isDragging = true;
       startX = e.clientX;
       startY = e.clientY;
-      
-      // Get current grid position
-      const computedStyle = window.getComputedStyle(element);
-      const gridColumn = computedStyle.gridColumn;
-      const gridRow = computedStyle.gridRow;
-      
-      // Parse grid position (simplified)
-      const columnParts = gridColumn.split(' ');
-      initialX = parseInt(columnParts[0]) - 1;
-      
-      const rowParts = gridRow.split(' ');
-      initialY = parseInt(rowParts[0]) - 1;
-      
+
+      // Get current grid position from the widget container
+      const computedStyle = window.getComputedStyle(widgetElement);
+      const { start: columnStart, span: columnSpan } = parseGridPosition(computedStyle.gridColumn);
+      const { start: rowStart, span: rowSpan } = parseGridPosition(computedStyle.gridRow);
+
+      initialX = columnStart - 1;
+      initialY = rowStart - 1;
+      widgetWidth = widgetInfo?.width || columnSpan;
+      widgetHeight = widgetInfo?.height || rowSpan;
+
       e.preventDefault();
     });
-    
+
     document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      
-      // Calculate new position (simplified)
+      if (!isDragging || !widgetElement) return;
+
+      // Calculate new position based on grid cell size
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
-      
-      // Convert pixel delta to grid units (simplified)
-      const gridDeltaX = Math.round(deltaX / 100);
-      const gridDeltaY = Math.round(deltaY / 100);
-      
-      const newX = Math.max(0, Math.min(this.gridColumns - 3, initialX + gridDeltaX));
-      const newY = Math.max(0, Math.min(this.gridRows - 2, initialY + gridDeltaY));
-      
-      element.style.gridColumn = `${newX+1} / span 3`;
-      element.style.gridRow = `${newY+1} / span 2`;
+
+      const cellWidth = this.container.clientWidth / this.gridColumns;
+      const cellHeight = this.container.clientHeight / this.gridRows;
+
+      const gridDeltaX = Math.round(deltaX / (cellWidth || 1));
+      const gridDeltaY = Math.round(deltaY / (cellHeight || 1));
+
+      const newX = Math.max(0, Math.min(this.gridColumns - widgetWidth, initialX + gridDeltaX));
+      const newY = Math.max(0, Math.min(this.gridRows - widgetHeight, initialY + gridDeltaY));
+
+      widgetElement.style.gridColumn = `${newX + 1} / span ${widgetWidth}`;
+      widgetElement.style.gridRow = `${newY + 1} / span ${widgetHeight}`;
     });
-    
+
     document.addEventListener('mouseup', () => {
-      if (isDragging) {
+      if (isDragging && widgetElement) {
         isDragging = false;
+
+        // Update stored widget position for accurate serialization
+        const info = this.widgets.find(w => w.element === widgetElement);
+        if (info) {
+          info.x = parseInt(widgetElement.style.gridColumn, 10) - 1 || 0;
+          info.y = parseInt(widgetElement.style.gridRow, 10) - 1 || 0;
+          info.width = widgetWidth;
+          info.height = widgetHeight;
+        }
+
         this.saveLayout();
       }
     });
