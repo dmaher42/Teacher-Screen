@@ -411,3 +411,34 @@ details:focus-visible,
   outline: 2px solid var(--focus-outline-color, #ffae00);
   outline-offset: 2px;
 }
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    border: 0;
+    padding: 0;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+}
+
+.notification-toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    background: var(--card-background, #fff);
+    color: var(--text-color, #222);
+    border-radius: var(--border-radius-medium, 8px);
+    padding: 0.6rem 1rem;
+    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.notification-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
