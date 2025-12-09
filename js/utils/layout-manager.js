@@ -16,6 +16,7 @@ class LayoutManager {
     this.draggedWidget = null;
     this.onLayoutChange = null;
     this.isRestoring = false;
+    this.lastSavedLayoutJSON = '';
   }
 
   init() {
@@ -365,6 +366,13 @@ class LayoutManager {
     if (this.isRestoring) return;
 
     const layout = this.serialize();
+    const json = JSON.stringify(layout);
+
+    if (json === this.lastSavedLayoutJSON) {
+      return; // no change → skip write
+    }
+
+    this.lastSavedLayoutJSON = json;
 
     if (this.onLayoutChange) {
       this.onLayoutChange(layout);
