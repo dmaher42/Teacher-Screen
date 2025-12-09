@@ -819,3 +819,26 @@ dialog::backdrop {
     font-size: 0.95rem;
     margin-left: var(--spacing-sm, 10px);
 }
+
+/* Student List Display */
+.student-list-display {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: var(--border-radius, 8px);
+    background: var(--hover-bg-color, #f9fafb);
+}
+
+.student-list-display li {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    font-size: 0.9rem;
+    color: var(--text-color, #333);
+}
+
+.student-list-display li:last-child {
+    border-bottom: none;
+}
