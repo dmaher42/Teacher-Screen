@@ -246,6 +246,21 @@
             </div>
         </dialog>
 
+        <dialog id="name-entry-dialog" aria-labelledby="name-entry-title">
+            <div class="modal-header">
+                <h3 id="name-entry-title">Add Item</h3>
+                <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="name-entry-input" class="visually-hidden">Name</label>
+                <input id="name-entry-input" type="text" name="name-entry" placeholder="Enter a name" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+                <button class="control-button modal-primary" id="name-entry-confirm">Add</button>
+                <button class="control-button" data-close>Cancel</button>
+            </div>
+        </dialog>
+
         <dialog id="help-dialog" aria-labelledby="help-dialog-title">
             <div class="modal-header">
                 <h3 id="help-dialog-title">How to Use Teacher Controls</h3>

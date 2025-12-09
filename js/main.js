@@ -51,6 +51,7 @@ class ClassroomScreenApp {
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
         this.confirmImportButton = document.getElementById('confirm-import');
+        this.nameEntryDialog = document.getElementById('name-entry-dialog');
         this.presetClassInput = document.getElementById('preset-class-name');
         this.presetPeriodInput = document.getElementById('preset-period');
         this.presetClassFilterInput = document.getElementById('preset-class-filter');
@@ -1071,7 +1072,13 @@ class ClassroomScreenApp {
     }
 
     setupDialogControls() {
-        const dialogs = [this.helpDialog, this.tourDialog, this.widgetModal, this.importDialog].filter(Boolean);
+        const dialogs = [
+            this.helpDialog,
+            this.tourDialog,
+            this.widgetModal,
+            this.importDialog,
+            this.nameEntryDialog
+        ].filter(Boolean);
         dialogs.forEach((dialog) => {
             dialog.addEventListener('click', (event) => {
                 if (event.target === dialog) {

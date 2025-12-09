@@ -58,6 +58,14 @@ p {
 button {
     font-weight: 600;
     letter-spacing: 0.01em;
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                transform calc(160ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+button:active {
+    transform: scale(0.98);
 }
 
 /* Base container surfaces */
@@ -285,6 +293,66 @@ details:focus-visible,
     transform: scale(1.05);
 }
 
+dialog {
+    border: none;
+    border-radius: var(--border-radius-large, 12px);
+    padding: 0;
+    width: min(520px, 92vw);
+    box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
+    background: var(--card-background, #ffffff);
+    transition: transform calc(240ms * (1 - var(--reduce-motion, 0))) ease,
+                opacity calc(240ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+dialog::backdrop {
+    background: var(--modal-backdrop, rgba(0, 0, 0, 0.35));
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-lg, 16px) var(--spacing-xl, 24px);
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.modal-body {
+    padding: var(--spacing-xl, 24px);
+    display: grid;
+    gap: var(--spacing-md, 12px);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-md, 12px);
+    padding: var(--spacing-lg, 16px) var(--spacing-xl, 24px);
+    border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+}
+
+.modal-body input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--border-radius, 8px);
+    border: 1px solid var(--border-color, #dfe4e2);
+    transition: border-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.modal-body input[type="text"]:focus-visible {
+    border-color: var(--primary-color, #8e82ff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #8e82ff) 25%, transparent);
+}
+
 /* Widget Modal */
 #widget-modal .modal-body {
     padding: 0;
@@ -434,6 +502,18 @@ details:focus-visible,
     padding: var(--spacing-lg, 15px);
     flex-grow: 1;
     overflow-y: auto;
+}
+
+.name-picker-display {
+    padding: var(--spacing-xl, 20px);
+    text-align: center;
+    font-weight: 600;
+    border: 1px dashed var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-large, 12px);
+    background: color-mix(in srgb, var(--hover-bg-color, #f5f5f5) 70%, transparent);
+    transition: background-color calc(240ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(240ms * (1 - var(--reduce-motion, 0))) ease,
+                transform calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
 .widget-help-text {
