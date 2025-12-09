@@ -1,3 +1,24 @@
+const toggleWidget = (widgetId) => {
+    const widget = document.getElementById(widgetId);
+    if (!widget) return;
+
+    const isHidden = getComputedStyle(widget).display === 'none';
+    widget.style.display = isHidden ? 'block' : 'none';
+};
+
+const setupWidgetToolbar = () => {
+    const toolbar = document.getElementById('widget-toolbar-wrapper');
+    if (!toolbar) return;
+
+    const controls = toolbar.querySelectorAll('[data-widget-id]');
+    controls.forEach((control) => {
+        const widgetId = control.getAttribute('data-widget-id');
+        if (!widgetId) return;
+
+        control.addEventListener('click', () => toggleWidget(widgetId));
+    });
+};
+
 const setupDrawingBoard = () => {
     const canvas = document.getElementById('drawing-canvas');
     const colorButtons = document.querySelectorAll('.color-btn');
@@ -101,8 +122,13 @@ const setupDrawingBoard = () => {
     });
 };
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupDrawingBoard);
-} else {
+const init = () => {
+    setupWidgetToolbar();
     setupDrawingBoard();
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
