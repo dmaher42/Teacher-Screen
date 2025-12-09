@@ -1171,4 +1171,13 @@ class ClassroomScreenApp {
 document.addEventListener('DOMContentLoaded', () => {
     const app = new ClassroomScreenApp();
     app.init();
+
+    const toolbarToggleBtn = document.getElementById('toolbar-toggle-btn');
+    const toolbarWrapper = document.getElementById('widget-toolbar-wrapper');
+
+    if (toolbarToggleBtn && toolbarWrapper) {
+        toolbarToggleBtn.addEventListener('click', () => {
+            toolbarWrapper.classList.toggle('toolbar-open');
+        });
+    }
 });
