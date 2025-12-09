@@ -47,6 +47,7 @@ class ClassroomScreenApp {
         this.widgetModal = document.getElementById('widget-modal');
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
+        this.widgetSelectorButtons = Array.from(document.querySelectorAll('.widget-selector-btn'));
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
@@ -175,6 +176,8 @@ class ClassroomScreenApp {
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
 
+        this.initializeWidgetSelector();
+
         // Accordion Cards
         const detailsElements = document.querySelectorAll('.control-card details');
         detailsElements.forEach(details => {
@@ -295,6 +298,27 @@ class ClassroomScreenApp {
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
     }
 
+    initializeWidgetSelector() {
+        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
+
+        this.widgetSelectorButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const widgetType = button.dataset.widget;
+                if (!widgetType) return;
+                this.setActiveWidgetButton(widgetType);
+                this.addWidget(widgetType);
+            });
+        });
+    }
+
+    setActiveWidgetButton(type) {
+        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
+        const targetButton = this.widgetSelectorButtons.find((btn) => btn.dataset.widget === type);
+        this.widgetSelectorButtons.forEach((btn) => {
+            btn.classList.toggle('active', btn === targetButton);
+        });
+    }
+
     addWidget(type) {
         let widget;
         try {
@@ -311,6 +335,7 @@ class ClassroomScreenApp {
 
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
+            this.setActiveWidgetButton(type);
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
