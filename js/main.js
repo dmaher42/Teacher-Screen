@@ -67,6 +67,12 @@ class ClassroomScreenApp {
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
         this.savedNotesListElement = document.getElementById('saved-notes-list');
         this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
+        this.mainMenuModal = document.getElementById('main-menu-modal');
+        this.mainMenuCloseBtn = this.mainMenuModal ? this.mainMenuModal.querySelector('.modal-close-btn') : null;
+        this.layoutNameInput = document.getElementById('layout-name-input');
+        this.saveLayoutButton = document.getElementById('save-layout-btn');
+        this.savedLayoutsList = document.getElementById('saved-layouts-list');
+        this.openMainMenuButton = document.getElementById('open-main-menu');
 
         // App State
         this.widgets = [];
@@ -168,6 +174,7 @@ class ClassroomScreenApp {
 
         this.renderThemeSelector();
         this.renderWidgetModal();
+        this.displaySavedLayouts();
         this.initializeSavedNotes();
 
         if (this.widgets.length === 0) {
@@ -189,6 +196,41 @@ class ClassroomScreenApp {
                 const value = this.reduceMotionToggle.checked ? 1 : 0;
                 document.documentElement.style.setProperty('--reduce-motion', value);
                 localStorage.setItem('reduceMotion', value);
+            });
+        }
+
+        if (this.openMainMenuButton) {
+            this.openMainMenuButton.addEventListener('click', () => this.openMainMenu());
+        }
+
+        if (this.mainMenuCloseBtn) {
+            this.mainMenuCloseBtn.addEventListener('click', () => this.closeMainMenu());
+        }
+
+        if (this.mainMenuModal) {
+            this.mainMenuModal.addEventListener('click', (event) => {
+                if (event.target === this.mainMenuModal) {
+                    this.closeMainMenu();
+                }
+            });
+        }
+
+        if (this.saveLayoutButton) {
+            this.saveLayoutButton.addEventListener('click', () => this.saveLayoutFromModal());
+        }
+
+        if (this.savedLayoutsList) {
+            this.savedLayoutsList.addEventListener('click', (event) => {
+                const targetButton = event.target.closest('button');
+                if (!targetButton) return;
+
+                const action = targetButton.dataset.action;
+                const name = targetButton.dataset.name;
+
+                if (!name) return;
+
+                if (action === 'load') this.loadLayout(name);
+                if (action === 'delete') this.deleteLayout(name);
             });
         }
 
@@ -602,6 +644,208 @@ class ClassroomScreenApp {
     switchTheme(themeName) {
         document.body.className = themeName;
         localStorage.setItem('selectedTheme', themeName);
+    }
+
+    getLayoutStorageKey(name) {
+        return `layouts_${name}`;
+    }
+
+    openMainMenu() {
+        if (!this.mainMenuModal) return;
+        this.displaySavedLayouts();
+        this.mainMenuModal.classList.add('visible');
+        if (this.layoutNameInput) {
+            this.layoutNameInput.focus();
+        }
+    }
+
+    closeMainMenu() {
+        if (!this.mainMenuModal) return;
+        this.mainMenuModal.classList.remove('visible');
+    }
+
+    captureLocalStorageState() {
+        const snapshot = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('layouts_')) continue;
+            snapshot[key] = localStorage.getItem(key);
+        }
+        return snapshot;
+    }
+
+    restoreLocalStorageState(snapshot = {}) {
+        Object.entries(snapshot).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+                localStorage.setItem(key, value);
+            }
+        });
+    }
+
+    saveLayoutFromModal() {
+        const layoutName = this.layoutNameInput ? this.layoutNameInput.value.trim() : '';
+        if (!layoutName) {
+            this.showNotification('Please enter a layout name.', 'warning');
+            return;
+        }
+
+        const layoutData = this.layoutManager.serialize();
+        layoutData.widgets = layoutData.widgets.map((widget, index) => {
+            const info = this.layoutManager.widgets[index];
+            const isVisible = info ? getComputedStyle(info.element).display !== 'none' : true;
+            return { ...widget, isVisible };
+        });
+
+        const payload = {
+            name: layoutName,
+            savedAt: Date.now(),
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: layoutData,
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
+            storage: this.captureLocalStorageState()
+        };
+
+        localStorage.setItem(this.getLayoutStorageKey(layoutName), JSON.stringify(payload));
+        this.displaySavedLayouts();
+        if (this.layoutNameInput) {
+            this.layoutNameInput.value = '';
+        }
+        this.showNotification('Layout saved.');
+    }
+
+    loadLayout(layoutName) {
+        const raw = localStorage.getItem(this.getLayoutStorageKey(layoutName));
+        if (!raw) {
+            this.showNotification('Layout not found.', 'warning');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(raw);
+
+            if (data.storage) {
+                this.restoreLocalStorageState(data.storage);
+            }
+
+            if (data.theme) {
+                this.switchTheme(data.theme);
+            }
+
+            if (data.background) {
+                this.backgroundManager.deserialize(data.background);
+            }
+
+            this.widgets = [];
+            if (data.layout && data.layout.widgets) {
+                this.layoutManager.deserialize(data.layout, (widgetData) => {
+                    let widget;
+                    switch (widgetData.type) {
+                        case 'TimerWidget': widget = new TimerWidget(); break;
+                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                        case 'MaskWidget': widget = new MaskWidget(); break;
+                        case 'NotesWidget': widget = new NotesWidget(); break;
+                    }
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
+                });
+            }
+
+            if (Array.isArray(data.layout?.widgets)) {
+                data.layout.widgets.forEach((widgetData, index) => {
+                    const info = this.layoutManager.widgets[index];
+                    if (info && widgetData) {
+                        info.element.style.display = widgetData.isVisible === false ? 'none' : 'block';
+                    }
+                });
+            }
+
+            if (data.lessonPlan && this.lessonPlanEditor) {
+                this.lessonPlanEditor.setContents(data.lessonPlan);
+            }
+
+            this.closeMainMenu();
+            this.saveState();
+            this.showNotification(`Loaded layout "${layoutName}".`);
+        } catch (error) {
+            console.error('Failed to load layout', error);
+            this.showNotification('Unable to load that layout.', 'error');
+        }
+    }
+
+    deleteLayout(layoutName) {
+        if (!confirm(`Delete layout "${layoutName}"?`)) return;
+        localStorage.removeItem(this.getLayoutStorageKey(layoutName));
+        this.displaySavedLayouts();
+        this.showNotification(`Deleted layout "${layoutName}".`);
+    }
+
+    displaySavedLayouts() {
+        if (!this.savedLayoutsList) return;
+
+        const layoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layouts_'));
+        if (layoutKeys.length === 0) {
+            this.savedLayoutsList.innerHTML = '<p>No saved layouts yet. Create one to get started.</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        layoutKeys.sort().forEach((key) => {
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+
+            let data;
+            try {
+                data = JSON.parse(raw);
+            } catch (e) {
+                return;
+            }
+
+            const name = key.replace('layouts_', '');
+            const item = document.createElement('div');
+            item.className = 'saved-layout-item';
+
+            const meta = document.createElement('div');
+            meta.className = 'saved-layout-meta';
+            const title = document.createElement('strong');
+            title.textContent = name;
+            const date = document.createElement('span');
+            date.textContent = data?.savedAt ? `Saved ${new Date(data.savedAt).toLocaleString()}` : 'Saved layout';
+            meta.appendChild(title);
+            meta.appendChild(date);
+
+            const actions = document.createElement('div');
+            actions.className = 'saved-layout-actions';
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'control-button modal-primary';
+            loadBtn.dataset.action = 'load';
+            loadBtn.dataset.name = name;
+            loadBtn.textContent = 'Load';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'control-button';
+            deleteBtn.dataset.action = 'delete';
+            deleteBtn.dataset.name = name;
+            deleteBtn.textContent = 'Delete';
+
+            actions.appendChild(loadBtn);
+            actions.appendChild(deleteBtn);
+
+            item.appendChild(meta);
+            item.appendChild(actions);
+
+            fragment.appendChild(item);
+        });
+
+        this.savedLayoutsList.innerHTML = '';
+        this.savedLayoutsList.appendChild(fragment);
     }
 
     saveState() {
