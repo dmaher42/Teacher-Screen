@@ -144,7 +144,18 @@
             <div class="placeholder-content">Timetable content coming soon</div>
         </section>
         <section id="notes-view" class="view" role="tabpanel" aria-labelledby="notes-tab" hidden>
-            <div class="placeholder-content">Notes content coming soon</div>
+            <div class="notes-panel">
+                <header class="notes-panel__header">
+                    <div>
+                        <h2>Saved Notes</h2>
+                        <p>Notes you save from the Notes widget will appear here for quick access.</p>
+                    </div>
+                    <span class="notes-panel__hint">Switch to the Classroom tab to edit notes.</span>
+                </header>
+                <div id="saved-notes-list" class="saved-notes-list" role="list">
+                    <p id="saved-notes-empty" class="notes-empty">No saved notes yet. Open the Notes widget and save a note to see it here.</p>
+                </div>
+            </div>
         </section>
 
         <!-- =====================================================
