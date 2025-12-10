@@ -79,6 +79,11 @@ class ClassroomScreenApp {
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
 
+        this.openAgendaButton = document.getElementById('open-agenda-btn');
+        this.agendaModal = document.getElementById('agenda-modal');
+        this.agendaList = document.getElementById('agenda-list');
+        this.agendaModalCloseBtn = this.agendaModal ? this.agendaModal.querySelector('.modal-close-btn') : null;
+
         // App State
         this.widgets = [];
         this.isTeacherPanelOpen = false;
@@ -238,6 +243,31 @@ class ClassroomScreenApp {
                 if (event.target === this.plannerModal) {
                     this.closePlannerModal();
                 }
+            });
+        }
+
+        if (this.openAgendaButton) {
+            this.openAgendaButton.addEventListener('click', () => this.openAgendaModal());
+        }
+
+        if (this.agendaModalCloseBtn) {
+            this.agendaModalCloseBtn.addEventListener('click', () => this.closeAgendaModal());
+        }
+
+        if (this.agendaModal) {
+            this.agendaModal.addEventListener('click', (event) => {
+                if (event.target === this.agendaModal) {
+                    this.closeAgendaModal();
+                }
+            });
+        }
+
+        if (this.agendaList) {
+            this.agendaList.addEventListener('click', (event) => {
+                const button = event.target.closest('button');
+                if (!button || !button.dataset.layoutName) return;
+                this.loadLayout(button.dataset.layoutName);
+                this.closeAgendaModal();
             });
         }
 
@@ -833,6 +863,73 @@ class ClassroomScreenApp {
         } else {
             alert('No lesson scheduled for the current time.');
         }
+    }
+
+    openAgendaModal() {
+        if (!this.agendaModal) return;
+        this.displayTodaysAgenda();
+        this.agendaModal.classList.add('visible');
+    }
+
+    closeAgendaModal() {
+        if (!this.agendaModal) return;
+        this.agendaModal.classList.remove('visible');
+    }
+
+    displayTodaysAgenda() {
+        if (!this.agendaList) return;
+
+        const schedule = this.getSchedule();
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const datePrefix = `${year}-${month}-${day}`;
+
+        // Find lessons for today
+        const todaysLessons = Object.entries(schedule)
+            .filter(([key, layoutName]) => key.startsWith(datePrefix))
+            .sort((a, b) => a[0].localeCompare(b[0])); // Sort by time
+
+        this.agendaList.innerHTML = '';
+
+        if (todaysLessons.length === 0) {
+            this.agendaList.innerHTML = '<div class="agenda-empty">No lessons scheduled for today.</div>';
+            return;
+        }
+
+        todaysLessons.forEach(([key, layoutName]) => {
+            // Key format: YYYY-MM-DD-HH:MM
+            const timePart = key.split('-').pop(); // HH:MM
+
+            const item = document.createElement('div');
+            item.className = 'agenda-item';
+
+            const infoDiv = document.createElement('div');
+            infoDiv.style.display = 'flex';
+            infoDiv.style.alignItems = 'center';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'agenda-time';
+            timeSpan.textContent = timePart;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'agenda-layout-name';
+            nameSpan.textContent = layoutName;
+
+            infoDiv.appendChild(timeSpan);
+            infoDiv.appendChild(nameSpan);
+
+            const loadButton = document.createElement('button');
+            loadButton.className = 'control-button modal-primary';
+            loadButton.textContent = 'Load';
+            loadButton.dataset.layoutName = layoutName;
+
+            item.appendChild(infoDiv);
+            item.appendChild(loadButton);
+
+            this.agendaList.appendChild(item);
+        });
     }
 
     captureLocalStorageState() {

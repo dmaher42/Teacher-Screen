@@ -459,6 +459,10 @@
                         <i class="fas fa-play" aria-hidden="true"></i>
                         <span>Load Today's Lesson</span>
                     </button>
+                    <button id="open-agenda-btn" class="control-button">
+                        <i class="fas fa-list-check" aria-hidden="true"></i>
+                        <span>Today's Agenda</span>
+                    </button>
                 </div>
                 <div class="layout-input-row">
                     <input type="text" id="layout-name-input" placeholder="New layout name..." aria-label="Layout name">
@@ -479,6 +483,19 @@
             <div class="modal-body">
                 <p>Click a time slot to assign a saved layout. Changes are stored locally.</p>
                 <div id="planner-calendar-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agenda Modal Overlay -->
+    <div id="agenda-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="agenda-modal-title">
+        <div class="modal-content">
+            <button class="modal-close-btn" aria-label="Close Agenda">&times;</button>
+            <div class="modal-header">
+                <h3 id="agenda-modal-title" class="modal-title">Today's Agenda</h3>
+            </div>
+            <div class="modal-body">
+                <div id="agenda-list" class="agenda-list"></div>
             </div>
         </div>
     </div>
