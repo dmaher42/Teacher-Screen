@@ -862,13 +862,6 @@ dialog::backdrop {
     padding-bottom: 10px;
 }
 
-/* Main menu modal */
-#main-menu-modal .modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
 #planner-modal .modal-content {
     width: 95%;
     max-width: 960px;
@@ -913,60 +906,6 @@ dialog::backdrop {
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 15%, var(--card-background, #ffffff) 85%);
     color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
     font-weight: 600;
-}
-
-.layout-input-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-#layout-name-input {
-    flex: 1 1 220px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color, #dfe4e2);
-    background: var(--card-background, #ffffff);
-    color: var(--text-color, #333);
-}
-
-.saved-layouts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, #f5f7f9);
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: 12px;
-    padding: 12px;
-    min-height: 80px;
-}
-
-.saved-layout-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    background: var(--card-background, #ffffff);
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: 10px;
-    box-shadow: var(--shadow-soft, 0 2px 6px rgba(0,0,0,0.05));
-}
-
-.saved-layout-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.saved-layout-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.saved-layout-actions .control-button {
-    padding: 8px 12px;
 }
 
 .widget-settings-btn {

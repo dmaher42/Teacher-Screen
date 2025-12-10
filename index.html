@@ -48,9 +48,20 @@
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
         </div>
-        <button id="open-main-menu" class="nav-tab" aria-label="Open main menu" title="Main Menu">
-            <i class="fas fa-folder-open" aria-hidden="true"></i>
-        </button>
+        <div class="nav-tabs" aria-label="Quick actions">
+            <button id="open-planner-btn" class="nav-tab" type="button">
+                <i class="fas fa-calendar-week" aria-hidden="true"></i>
+                <span>Planner</span>
+            </button>
+            <button id="load-todays-lesson-btn" class="nav-tab" type="button">
+                <i class="fas fa-play" aria-hidden="true"></i>
+                <span>Load Today's Lesson</span>
+            </button>
+            <button id="open-agenda-btn" class="nav-tab" type="button">
+                <i class="fas fa-list-check" aria-hidden="true"></i>
+                <span>Today's Agenda</span>
+            </button>
+        </div>
         <button id="open-projector-view" class="nav-tab" style="margin-left: auto;">Open Projector View</button>
     </nav>
 
@@ -438,38 +449,6 @@
             </div>
             <div class="modal-body">
                 <!-- Widget controls will be injected here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Menu Modal Overlay -->
-    <div id="main-menu-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="main-menu-title">
-        <div class="modal-content">
-            <button class="modal-close-btn" aria-label="Close Main Menu">&times;</button>
-            <div class="modal-header">
-                <h3 id="main-menu-title" class="modal-title">Main Menu</h3>
-            </div>
-            <div class="modal-body">
-                <h2>Lesson Layouts</h2>
-                <div class="button-group" style="justify-content: flex-start; gap: 12px;">
-                    <button id="open-planner-btn" class="control-button">
-                        <i class="fas fa-calendar-week" aria-hidden="true"></i>
-                        <span>Planner</span>
-                    </button>
-                    <button id="load-todays-lesson-btn" class="control-button modal-primary">
-                        <i class="fas fa-play" aria-hidden="true"></i>
-                        <span>Load Today's Lesson</span>
-                    </button>
-                    <button id="open-agenda-btn" class="control-button">
-                        <i class="fas fa-list-check" aria-hidden="true"></i>
-                        <span>Today's Agenda</span>
-                    </button>
-                </div>
-                <div class="layout-input-row">
-                    <input type="text" id="layout-name-input" placeholder="New layout name..." aria-label="Layout name">
-                    <button id="save-layout-btn" class="control-button">Save Current Layout</button>
-                </div>
-                <div id="saved-layouts-list" class="saved-layouts-list" aria-live="polite"></div>
             </div>
         </div>
     </div>
