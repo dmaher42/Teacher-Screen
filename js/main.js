@@ -1411,37 +1411,54 @@ class ClassroomScreenApp {
     }
 
     apply2x2Preset() {
-        const cols = this.layoutManager.gridColumns; // 12
-        const rows = this.layoutManager.gridRows;    // 8
+        const containerW = this.widgetsContainer.clientWidth || 1024;
+        const containerH = this.widgetsContainer.clientHeight || 768;
+
+        // Calculate dimensions for 2x2 grid
+        // Add some margin/gap if desired, or flush.
+        // Let's assume a small gap of 20px (GRID_SIZE)
+        const GRID_SIZE = 20;
+        const gap = GRID_SIZE;
+        const width = Math.floor((containerW - gap) / 2 / GRID_SIZE) * GRID_SIZE;
+        const height = Math.floor((containerH - gap) / 2 / GRID_SIZE) * GRID_SIZE;
+
         const slots = [
             { x: 0, y: 0 },
-            { x: 6, y: 0 },
-            { x: 0, y: 4 },
-            { x: 6, y: 4 }
+            { x: width + gap, y: 0 },
+            { x: 0, y: height + gap },
+            { x: width + gap, y: height + gap }
         ];
-        const width = 6;
-        const height = 4;
+
         this.layoutManager.widgets.forEach((info, index) => {
             const slot = slots[index % slots.length];
             info.x = slot.x;
             info.y = slot.y;
             info.width = width;
             info.height = height;
-            info.element.style.gridColumn = `${slot.x + 1} / span ${width}`;
-            info.element.style.gridRow = `${slot.y + 1} / span ${height}`;
+
+            info.element.style.left = `${slot.x}px`;
+            info.element.style.top = `${slot.y}px`;
+            info.element.style.width = `${width}px`;
+            info.element.style.height = `${height}px`;
         });
     }
 
     applyFullTimerPreset() {
         if (!this.layoutManager.widgets.length) return;
         const timerInfo = this.layoutManager.widgets.find(info => info.widget instanceof TimerWidget) || this.layoutManager.widgets[0];
-        const cols = this.layoutManager.gridColumns; // 12
+
+        const containerW = this.widgetsContainer.clientWidth || 1024;
+        const GRID_SIZE = 20;
+
         timerInfo.x = 0;
         timerInfo.y = 0;
-        timerInfo.width = cols;
-        timerInfo.height = 2;
-        timerInfo.element.style.gridColumn = `1 / span ${cols}`;
-        timerInfo.element.style.gridRow = `1 / span 2`;
+        timerInfo.width = Math.floor(containerW / GRID_SIZE) * GRID_SIZE;
+        timerInfo.height = 200; // Fixed height approx
+
+        timerInfo.element.style.left = '0px';
+        timerInfo.element.style.top = '0px';
+        timerInfo.element.style.width = `${timerInfo.width}px`;
+        timerInfo.element.style.height = `${timerInfo.height}px`;
     }
 
     savePreset() {
