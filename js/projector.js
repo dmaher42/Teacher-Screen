@@ -102,6 +102,7 @@ class ProjectorApp {
                         case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
+                        case 'NotesWidget': widget = new NotesWidget(); break;
                     }
                     if (widget) {
                         this.widgets.push(widget);
