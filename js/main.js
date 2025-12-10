@@ -31,6 +31,10 @@ const STATE_MIGRATIONS = [
 ];
 class ClassroomScreenApp {
     constructor() {
+        // Windows / Documents
+        this.teacherWindow = window.opener && !window.opener.closed ? window.opener : window;
+        const teacherDocument = this.teacherWindow.document;
+
         // DOM Elements
         this.appContainer = document.getElementById('app-container');
         this.studentView = document.getElementById('student-main'); // Using the new landmark ID
@@ -45,7 +49,7 @@ class ClassroomScreenApp {
         this.tourDialog = document.getElementById('tour-dialog');
         this.fab = document.getElementById('fab');
         this.widgetModal = document.getElementById('widget-modal');
-        this.widgetSettingsModal = document.getElementById('widget-settings-modal');
+        this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.widgetSelectorButtons = Array.from(document.querySelectorAll('.widget-selector-btn'));
@@ -129,6 +133,23 @@ class ClassroomScreenApp {
                 lessonPlan: null
             }
         ];
+    }
+
+    ensureWidgetSettingsModal(hostDocument) {
+        // Always attach the settings modal to the teacher window so it never renders on the projector.
+        let modal = hostDocument.getElementById('widget-settings-modal');
+
+        if (modal) {
+            return modal;
+        }
+
+        modal = document.getElementById('widget-settings-modal');
+
+        if (modal && hostDocument !== document) {
+            hostDocument.body.appendChild(modal);
+        }
+
+        return modal;
     }
 
     init() {
