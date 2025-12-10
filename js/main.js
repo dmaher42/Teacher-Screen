@@ -784,10 +784,13 @@ class ClassroomScreenApp {
         const savedLayoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layouts_'));
         const layoutNames = savedLayoutKeys.map(key => key.replace('layouts_', '')).sort();
 
+        // Container
+        const wrapper = document.createElement('div');
+        wrapper.className = 'recurrence-wrapper';
+        wrapper.addEventListener('click', (e) => e.stopPropagation());
+
         const select = document.createElement('select');
         select.className = 'layout-dropdown';
-
-        select.addEventListener('click', (e) => e.stopPropagation());
 
         const defaultOption = document.createElement('option');
         defaultOption.text = 'Select a layout...';
@@ -813,10 +816,6 @@ class ClassroomScreenApp {
         cancelOption.text = 'Cancel';
         select.appendChild(cancelOption);
 
-        newSlot.textContent = '';
-        newSlot.appendChild(select);
-        select.focus();
-
         select.addEventListener('change', (e) => {
             const selectedValue = e.target.value;
 
@@ -834,22 +833,118 @@ class ClassroomScreenApp {
             }
 
             this.saveSchedule(schedule);
+
+            // If clearing, close immediately. Otherwise keep open for recurrence options.
+            if (selectedValue === '__CLEAR__') {
+                this.generateWeeklyPlanner();
+            }
+        });
+
+        wrapper.appendChild(select);
+
+        // Recurrence Options
+        const recurrenceDiv = document.createElement('div');
+        recurrenceDiv.className = 'recurrence-options';
+
+        const header = document.createElement('div');
+        header.className = 'recurrence-header';
+        header.textContent = 'Repeat weekly on:';
+        recurrenceDiv.appendChild(header);
+
+        const daysDiv = document.createElement('div');
+        daysDiv.className = 'recurrence-days';
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        const dayMap = { 'Mon': 'Monday', 'Tue': 'Tuesday', 'Wed': 'Wednesday', 'Thu': 'Thursday', 'Fri': 'Friday' };
+
+        days.forEach(day => {
+            const label = document.createElement('label');
+            label.className = 'day-checkbox-label';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = dayMap[day];
+
+            // Auto-check the current day of the slot
+            // Safe way: parse date manually to avoid timezone issues with Date(string)
+            const parts = targetDatetime.split('-');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const d = parseInt(parts[2]);
+            const checkDate = new Date(year, month, d);
+
+            if (checkDate.toLocaleDateString('en-US', { weekday: 'long' }) === dayMap[day]) {
+                checkbox.checked = true;
+            }
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(day));
+            daysDiv.appendChild(label);
+        });
+        recurrenceDiv.appendChild(daysDiv);
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'recurrence-actions';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'save-recurring-btn';
+        saveBtn.textContent = 'Save Recurring';
+
+        saveBtn.addEventListener('click', () => {
+            const selectedLayout = select.value;
+            if (!selectedLayout || selectedLayout === '__CLEAR__' || selectedLayout === '__CANCEL__') {
+                this.showNotification('Please select a layout first.', 'warning');
+                return;
+            }
+
+            const checkedDays = Array.from(daysDiv.querySelectorAll('input:checked')).map(cb => cb.value);
+            if (checkedDays.length === 0) {
+                this.showNotification('Select at least one day.', 'warning');
+                return;
+            }
+
+            const time = targetDatetime.split('-').pop(); // HH:MM
+
+            const newRecurring = {
+                layoutName: selectedLayout,
+                days: checkedDays,
+                time: time
+            };
+
+            const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+            recurringLessons.push(newRecurring);
+            localStorage.setItem('teacherScreenRecurringLessons', JSON.stringify(recurringLessons));
+
+            this.showNotification('Recurring lesson saved.');
             this.generateWeeklyPlanner();
         });
 
-        select.addEventListener('blur', () => {
-            setTimeout(() => {
-                if (document.body.contains(select)) {
+        actionsDiv.appendChild(saveBtn);
+        recurrenceDiv.appendChild(actionsDiv);
+
+        wrapper.appendChild(recurrenceDiv);
+
+        newSlot.textContent = '';
+        newSlot.appendChild(wrapper);
+        select.focus();
+
+        // Click outside listener to close
+        const clickOutsideHandler = (e) => {
+            if (!newSlot.contains(e.target)) {
+                document.removeEventListener('click', clickOutsideHandler);
+                if (document.body.contains(newSlot)) {
                     this.generateWeeklyPlanner();
                 }
-            }, 200);
-        });
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', clickOutsideHandler);
+        }, 0);
     }
 
     generateWeeklyPlanner() {
         if (!this.plannerGrid) return;
 
         const schedule = this.getSchedule();
+        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
         const startOfWeek = this.getWeekStart();
         const days = Array.from({ length: 5 }, (_, index) => {
             const date = new Date(startOfWeek);
@@ -891,7 +986,19 @@ class ClassroomScreenApp {
                 cell.classList.add('planner-slot');
                 cell.dataset.datetime = slotKey;
 
-                const layoutName = schedule[slotKey];
+                let layoutName = schedule[slotKey];
+
+                if (!layoutName) {
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                    const timeString = `${String(hour).padStart(2, '0')}:00`;
+                    const match = recurringLessons.find(r =>
+                        r.days && r.days.includes(dayName) && r.time === timeString
+                    );
+                    if (match) {
+                        layoutName = match.layoutName;
+                    }
+                }
+
                 if (layoutName) {
                     cell.classList.add('scheduled');
                     cell.textContent = layoutName;
@@ -913,15 +1020,31 @@ class ClassroomScreenApp {
 
     loadTodaysLesson() {
         const schedule = this.getSchedule();
+        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+
         const now = new Date();
         now.setMinutes(0, 0, 0);
         const slotKey = this.formatSlotKeyForDate(now);
-        const layoutName = schedule[slotKey];
+        let layoutName = schedule[slotKey];
+
+        if (!layoutName) {
+            const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const hour = now.getHours();
+            const timeString = `${String(hour).padStart(2, '0')}:00`;
+
+            const match = recurringLessons.find(r =>
+                r.days && r.days.includes(dayName) && r.time === timeString
+            );
+
+            if (match) {
+                layoutName = match.layoutName;
+            }
+        }
 
         if (layoutName) {
             this.loadLayout(layoutName);
         } else {
-            alert('No lesson scheduled for the current time.');
+            this.showNotification('No lesson scheduled for the current time.', 'warning');
         }
     }
 
