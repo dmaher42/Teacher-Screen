@@ -1,0 +1,17 @@
+#link-to-planner-btn {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+#link-to-planner-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}

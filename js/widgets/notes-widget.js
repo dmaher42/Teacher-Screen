@@ -90,6 +90,18 @@ class NotesWidget {
         header.textContent = 'Edit Notes';
         this.controlsOverlay.appendChild(header);
 
+        // Link to Planner Button
+        const linkBtn = document.createElement('button');
+        linkBtn.id = 'link-to-planner-btn';
+        linkBtn.textContent = 'Link to Planner';
+        linkBtn.className = 'control-button';
+        // User requested redirect to pages/planner.html, but in this SPA we open the Planner Modal instead.
+        linkBtn.addEventListener('click', () => {
+             localStorage.setItem('noteToLink', this.noteId);
+             document.dispatchEvent(new CustomEvent('requestOpenPlanner'));
+        });
+        this.controlsOverlay.appendChild(linkBtn);
+
         // Editor container
         this.editorContainer = document.createElement('div');
         this.editorContainer.id = 'editor-container-' + Math.random().toString(36).substr(2, 9);

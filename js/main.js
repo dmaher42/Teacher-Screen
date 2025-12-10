@@ -377,6 +377,12 @@ class ClassroomScreenApp {
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
 
+        // Request Open Planner
+        document.addEventListener('requestOpenPlanner', () => {
+            this.closeWidgetSettings();
+            this.openPlannerModal();
+        });
+
         // Export/Import
         document.getElementById('export-layout').addEventListener('click', () => this.handleExportLayout());
         document.getElementById('import-layout').addEventListener('click', () => this.openDialog(this.importDialog));
