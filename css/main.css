@@ -147,13 +147,14 @@ details:focus-visible,
     position: fixed;
     top: 0;
     left: 0;
-    height: 0%;
+    height: 100vh; /* CHANGE THIS LINE */
     width: 100px;
     box-shadow: 4px 0 18px rgba(0, 0, 0, 0.25);
     z-index: 1100;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    flex-direction: column; /* This is also important for a vertical layout */
+    align-items: center;
+    justify-content: flex-start; /* Changed from center to align to top */
     padding-top: 90px;
 }
 
