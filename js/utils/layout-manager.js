@@ -321,10 +321,19 @@ class LayoutManager {
       if (isDragging) {
         isDragging = false;
 
+        const finalLeft = parseInt(widgetElement.style.left, 10) || 0;
+        const finalTop = parseInt(widgetElement.style.top, 10) || 0;
+
+        const snappedLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
+        const snappedTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
+
+        widgetElement.style.left = `${snappedLeft}px`;
+        widgetElement.style.top = `${snappedTop}px`;
+
         const info = this.widgets.find(w => w.element === widgetElement);
         if (info) {
-          info.x = parseInt(widgetElement.style.left, 10) || 0;
-          info.y = parseInt(widgetElement.style.top, 10) || 0;
+          info.x = snappedLeft;
+          info.y = snappedTop;
         }
 
         this.saveLayout();
