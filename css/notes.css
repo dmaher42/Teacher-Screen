@@ -15,3 +15,58 @@
     filter: brightness(1.1);
     transform: translateY(-1px);
 }
+
+/* Notes Widget Expanded State */
+.notes-widget-content.expanded {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 600px !important;
+    height: 400px !important;
+    z-index: 2000 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    /* Reset any inherited grid placement if possible, though 'fixed' handles it */
+}
+
+/* Add a backdrop when expanded */
+.notes-widget-content.expanded::before {
+    content: '';
+    position: fixed;
+    top: -50vh;
+    left: -50vw;
+    width: 200vw;
+    height: 200vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+    pointer-events: all; /* Catch clicks? */
+}
+
+/* Ensure editor wrapper takes full height */
+.notes-editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.ql-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ql-editor {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.notes-expanded-header button:hover {
+    color: #e74c3c;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 50%;
+}
