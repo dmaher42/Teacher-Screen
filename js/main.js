@@ -95,6 +95,7 @@ class ClassroomScreenApp {
         this.schemaVersion = 1; // Numeric schema version for data migrations
         this.savedNotes = [];
         this.scheduleStorageKey = 'teacherScreenSchedule';
+        this.noteIdToLink = null;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
 
@@ -172,6 +173,17 @@ class ClassroomScreenApp {
     init() {
         this.setupEventListeners();
         this.initLessonPlanner();
+
+        const noteToLink = localStorage.getItem('noteToLink');
+        if (noteToLink) {
+            this.noteIdToLink = noteToLink;
+            localStorage.removeItem('noteToLink');
+            setTimeout(() => {
+                this.showNotification("A note is ready to be linked. Click a time slot.");
+                this.openPlannerModal();
+            }, 500);
+        }
+
         this.loadSavedState();
         this.backgroundManager.init();
         this.layoutManager.init();
@@ -835,7 +847,15 @@ class ClassroomScreenApp {
             if (selectedValue === '__CLEAR__') {
                 delete schedule[targetDatetime];
             } else {
-                schedule[targetDatetime] = selectedValue;
+                schedule[targetDatetime] = {
+                    layout: selectedValue,
+                    noteId: this.noteIdToLink || null
+                };
+
+                if (this.noteIdToLink) {
+                    this.showNotification('Note linked to slot.');
+                    this.noteIdToLink = null;
+                }
             }
 
             this.saveSchedule(schedule);
@@ -992,7 +1012,8 @@ class ClassroomScreenApp {
                 cell.classList.add('planner-slot');
                 cell.dataset.datetime = slotKey;
 
-                let layoutName = schedule[slotKey];
+                let entry = schedule[slotKey];
+                let layoutName = (typeof entry === 'object' && entry !== null) ? entry.layout : entry;
 
                 if (!layoutName) {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1031,7 +1052,9 @@ class ClassroomScreenApp {
         const now = new Date();
         now.setMinutes(0, 0, 0);
         const slotKey = this.formatSlotKeyForDate(now);
-        let layoutName = schedule[slotKey];
+
+        let entry = schedule[slotKey];
+        let layoutName = (typeof entry === 'object' && entry !== null) ? entry.layout : entry;
 
         if (!layoutName) {
             const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1087,7 +1110,9 @@ class ClassroomScreenApp {
             return;
         }
 
-        todaysLessons.forEach(([key, layoutName]) => {
+        todaysLessons.forEach(([key, value]) => {
+            const layoutName = (typeof value === 'object' && value !== null) ? value.layout : value;
+
             // Key format: YYYY-MM-DD-HH:MM
             const timePart = key.split('-').pop(); // HH:MM
 
