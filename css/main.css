@@ -130,7 +130,6 @@ details:focus-visible,
 
 /* Top Navigation Bar */
 #top-nav {
-    display: none;
     position: fixed;
     top: 0;
     left: 0;
