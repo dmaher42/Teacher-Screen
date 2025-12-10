@@ -130,12 +130,6 @@ class NotesWidget {
         this.editorContainerWrapper.style.flexDirection = 'column';
         this.editorContainerWrapper.style.height = '100%';
 
-        this.editorContainer = document.createElement('div');
-        this.editorContainer.id = 'editor-container-' + Math.random().toString(36).substr(2, 9);
-        this.editorContainer.style.flex = '1';
-        this.editorContainer.style.backgroundColor = '#fff';
-
-        this.editorContainerWrapper.appendChild(this.editorContainer);
         this.element.appendChild(this.editorContainerWrapper);
 
         // Click listener for expansion
@@ -153,15 +147,6 @@ class NotesWidget {
 
             if (!this.isExpanded) {
                 this.expand();
-            } else {
-                // If already expanded, we collapse only if the user explicitly wants to.
-                // Clicking the "main container" might be ambiguous if the editor fills it.
-                // We'll add a "Done" or "Collapse" button in the expanded view header.
-                // But to strictly follow "click it again to save and minimize", we can check if the click target is the container wrapper itself.
-                // However, the editor will likely cover most of it.
-                // Let's assume the user might click a header or the border.
-                // For now, let's rely on a visual "Done" button or similar which we can inject.
-                // Or if the user clicks the "Minimize" icon.
             }
         });
 
@@ -189,43 +174,51 @@ class NotesWidget {
         // Show editor wrapper
         this.editorContainerWrapper.style.display = 'flex';
 
+        // Recreate structure to ensure clean state
+        this.editorContainerWrapper.innerHTML = '';
+
+        // Create Header
+        this.expandedHeader = document.createElement('div');
+        this.expandedHeader.className = 'notes-expanded-header';
+        this.expandedHeader.style.display = 'flex';
+        this.expandedHeader.style.justifyContent = 'space-between';
+        this.expandedHeader.style.alignItems = 'center';
+        this.expandedHeader.style.padding = '8px';
+        this.expandedHeader.style.background = '#f4f4f4';
+        this.expandedHeader.style.borderBottom = '1px solid #ddd';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = 'Editing Note';
+        titleSpan.style.fontWeight = 'bold';
+
+        const minimizeBtn = document.createElement('button');
+        minimizeBtn.innerHTML = '&times;';
+        minimizeBtn.title = 'Save and Minimize';
+        minimizeBtn.style.background = 'none';
+        minimizeBtn.style.border = 'none';
+        minimizeBtn.style.fontSize = '1.5rem';
+        minimizeBtn.style.cursor = 'pointer';
+        minimizeBtn.style.padding = '0 5px';
+
+        minimizeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.collapse();
+        });
+
+        this.expandedHeader.appendChild(titleSpan);
+        this.expandedHeader.appendChild(minimizeBtn);
+
+        this.editorContainerWrapper.appendChild(this.expandedHeader);
+
+        // Create Editor Container
+        this.editorContainer = document.createElement('div');
+        this.editorContainer.id = 'editor-container-' + Math.random().toString(36).substr(2, 9);
+        this.editorContainer.style.flex = '1';
+        this.editorContainer.style.backgroundColor = '#fff';
+        this.editorContainerWrapper.appendChild(this.editorContainer);
+
         // Create/Initialize Quill
         this.initializeEditor();
-
-        // Create a header for the expanded view with a minimize button
-        if (!this.expandedHeader) {
-            this.expandedHeader = document.createElement('div');
-            this.expandedHeader.className = 'notes-expanded-header';
-            this.expandedHeader.style.display = 'flex';
-            this.expandedHeader.style.justifyContent = 'space-between';
-            this.expandedHeader.style.alignItems = 'center';
-            this.expandedHeader.style.padding = '8px';
-            this.expandedHeader.style.background = '#f4f4f4';
-            this.expandedHeader.style.borderBottom = '1px solid #ddd';
-
-            const titleSpan = document.createElement('span');
-            titleSpan.textContent = 'Editing Note';
-            titleSpan.style.fontWeight = 'bold';
-
-            const minimizeBtn = document.createElement('button');
-            minimizeBtn.innerHTML = '&times;';
-            minimizeBtn.title = 'Save and Minimize';
-            minimizeBtn.style.background = 'none';
-            minimizeBtn.style.border = 'none';
-            minimizeBtn.style.fontSize = '1.5rem';
-            minimizeBtn.style.cursor = 'pointer';
-            minimizeBtn.style.padding = '0 5px';
-
-            minimizeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.collapse();
-            });
-
-            this.expandedHeader.appendChild(titleSpan);
-            this.expandedHeader.appendChild(minimizeBtn);
-
-            this.editorContainerWrapper.insertBefore(this.expandedHeader, this.editorContainer);
-        }
     }
 
     collapse() {
@@ -240,16 +233,10 @@ class NotesWidget {
         this.isExpanded = false;
         this.element.classList.remove('expanded');
 
-        // Destroy Quill to free resources (and avoid duplicate toolbars on re-init)
-        // Quill doesn't have a clean destroy method that removes DOM fully, but we can clear innerHTML of the container or just leave it.
-        // Better to just keep the instance if possible? No, requirement says "Destroy the Quill editor instance".
-        // To destroy, we can just set reference to null and clear the container content.
-        if (this.quillEditor) {
-            // Quill doesn't provide a .destroy() method in v1/v2 easily removing everything.
-            // We'll clear the container.
-            this.quillEditor = null;
-            this.editorContainer.innerHTML = '';
-        }
+        // Destroy Quill and clear DOM
+        this.quillEditor = null;
+        this.editorContainer = null;
+        this.editorContainerWrapper.innerHTML = '';
 
         // Hide editor wrapper
         this.editorContainerWrapper.style.display = 'none';
@@ -281,13 +268,13 @@ class NotesWidget {
     }
 
     initializeEditor() {
+        if (!this.editorContainer) return;
+
+        // Double check container exists in DOM
         const container = document.getElementById(this.editorContainer.id);
-
         if (!container) return;
-        if (this.quillEditor) return; // Already initialized
 
-        // Ensure container is empty
-        container.innerHTML = '';
+        if (this.quillEditor) return; // Already initialized
 
         this.quillEditor = new Quill(container, {
             theme: 'snow',
