@@ -541,6 +541,8 @@ class LayoutManager {
         return new DocumentViewerWidget();
       case 'MaskWidget':
         return new MaskWidget();
+      case 'NotesWidget':
+        return new NotesWidget();
       default:
         console.warn(`Unknown widget type: ${type}`);
         return null;

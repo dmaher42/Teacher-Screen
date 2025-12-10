@@ -47,7 +47,10 @@
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
         </div>
-    <button id="open-projector-view" class="nav-tab" style="margin-left: auto;">Open Projector View</button>
+        <button id="open-main-menu" class="nav-tab" aria-label="Open main menu" title="Main Menu">
+            <i class="fas fa-folder-open" aria-hidden="true"></i>
+        </button>
+        <button id="open-projector-view" class="nav-tab" style="margin-left: auto;">Open Projector View</button>
     </nav>
 
     <div id="app-container" class="app-container">
@@ -434,6 +437,24 @@
             </div>
             <div class="modal-body">
                 <!-- Widget controls will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Menu Modal Overlay -->
+    <div id="main-menu-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="main-menu-title">
+        <div class="modal-content">
+            <button class="modal-close-btn" aria-label="Close Main Menu">&times;</button>
+            <div class="modal-header">
+                <h3 id="main-menu-title" class="modal-title">Main Menu</h3>
+            </div>
+            <div class="modal-body">
+                <h2>Lesson Layouts</h2>
+                <div class="layout-input-row">
+                    <input type="text" id="layout-name-input" placeholder="New layout name..." aria-label="Layout name">
+                    <button id="save-layout-btn" class="control-button">Save Current Layout</button>
+                </div>
+                <div id="saved-layouts-list" class="saved-layouts-list" aria-live="polite"></div>
             </div>
         </div>
     </div>
