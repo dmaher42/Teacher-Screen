@@ -856,6 +856,52 @@ dialog::backdrop {
     gap: 16px;
 }
 
+#planner-modal .modal-content {
+    width: 95%;
+    max-width: 960px;
+}
+
+#planner-calendar-grid {
+    overflow-x: auto;
+}
+
+#planner-calendar-grid table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+#planner-calendar-grid th,
+#planner-calendar-grid td {
+    border: 1px solid var(--border-color, #dfe4e2);
+    padding: 8px;
+    text-align: center;
+}
+
+#planner-calendar-grid th {
+    background: color-mix(in srgb, var(--card-background, #ffffff) 80%, var(--hover-bg-color, #eef2f1) 20%);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.planner-slot {
+    min-height: 64px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.planner-slot:hover {
+    background-color: color-mix(in srgb, var(--hover-bg-color, #eef2f1) 85%, #ffffff 15%);
+    border-color: var(--primary-color, #8e82ff);
+}
+
+.planner-slot.scheduled {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 15%, var(--card-background, #ffffff) 85%);
+    color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
+    font-weight: 600;
+}
+
 .layout-input-row {
     display: flex;
     gap: 10px;

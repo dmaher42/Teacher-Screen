@@ -73,6 +73,11 @@ class ClassroomScreenApp {
         this.saveLayoutButton = document.getElementById('save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
         this.openMainMenuButton = document.getElementById('open-main-menu');
+        this.openPlannerButton = document.getElementById('open-planner-btn');
+        this.loadTodaysLessonButton = document.getElementById('load-todays-lesson-btn');
+        this.plannerModal = document.getElementById('planner-modal');
+        this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
+        this.plannerGrid = document.getElementById('planner-calendar-grid');
 
         // App State
         this.widgets = [];
@@ -84,6 +89,7 @@ class ClassroomScreenApp {
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
         this.savedNotes = [];
+        this.scheduleStorageKey = 'teacherScreenSchedule';
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
 
@@ -203,6 +209,14 @@ class ClassroomScreenApp {
             this.openMainMenuButton.addEventListener('click', () => this.openMainMenu());
         }
 
+        if (this.openPlannerButton) {
+            this.openPlannerButton.addEventListener('click', () => this.openPlannerModal());
+        }
+
+        if (this.loadTodaysLessonButton) {
+            this.loadTodaysLessonButton.addEventListener('click', () => this.loadTodaysLesson());
+        }
+
         if (this.mainMenuCloseBtn) {
             this.mainMenuCloseBtn.addEventListener('click', () => this.closeMainMenu());
         }
@@ -211,6 +225,18 @@ class ClassroomScreenApp {
             this.mainMenuModal.addEventListener('click', (event) => {
                 if (event.target === this.mainMenuModal) {
                     this.closeMainMenu();
+                }
+            });
+        }
+
+        if (this.plannerModalCloseBtn) {
+            this.plannerModalCloseBtn.addEventListener('click', () => this.closePlannerModal());
+        }
+
+        if (this.plannerModal) {
+            this.plannerModal.addEventListener('click', (event) => {
+                if (event.target === this.plannerModal) {
+                    this.closePlannerModal();
                 }
             });
         }
@@ -231,6 +257,28 @@ class ClassroomScreenApp {
 
                 if (action === 'load') this.loadLayout(name);
                 if (action === 'delete') this.deleteLayout(name);
+            });
+        }
+
+        if (this.plannerGrid) {
+            this.plannerGrid.addEventListener('click', (event) => {
+                const slot = event.target.closest('.planner-slot');
+                if (!slot || !slot.dataset.datetime) return;
+
+                const schedule = this.getSchedule();
+                const currentValue = schedule[slot.dataset.datetime] || '';
+                const layoutName = prompt('Assign a layout to this time slot:', currentValue);
+                if (layoutName === null) return;
+
+                const trimmed = layoutName.trim();
+                if (trimmed) {
+                    schedule[slot.dataset.datetime] = trimmed;
+                } else {
+                    delete schedule[slot.dataset.datetime];
+                }
+
+                this.saveSchedule(schedule);
+                this.generateWeeklyPlanner();
             });
         }
 
@@ -662,6 +710,129 @@ class ClassroomScreenApp {
     closeMainMenu() {
         if (!this.mainMenuModal) return;
         this.mainMenuModal.classList.remove('visible');
+    }
+
+    openPlannerModal() {
+        if (!this.plannerModal) return;
+        this.generateWeeklyPlanner();
+        this.plannerModal.classList.add('visible');
+    }
+
+    closePlannerModal() {
+        if (!this.plannerModal) return;
+        this.plannerModal.classList.remove('visible');
+    }
+
+    getSchedule() {
+        try {
+            const raw = localStorage.getItem(this.scheduleStorageKey) || '{}';
+            const parsed = JSON.parse(raw);
+            return typeof parsed === 'object' && parsed !== null ? parsed : {};
+        } catch (error) {
+            console.warn('Unable to parse schedule, resetting.', error);
+            return {};
+        }
+    }
+
+    saveSchedule(schedule) {
+        localStorage.setItem(this.scheduleStorageKey, JSON.stringify(schedule));
+    }
+
+    getWeekStart(date = new Date()) {
+        const start = new Date(date);
+        const day = start.getDay();
+        const diffToMonday = (day + 6) % 7;
+        start.setDate(start.getDate() - diffToMonday);
+        start.setHours(0, 0, 0, 0);
+        return start;
+    }
+
+    formatSlotKeyForDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}-${hour}:${minutes}`;
+    }
+
+    generateWeeklyPlanner() {
+        if (!this.plannerGrid) return;
+
+        const schedule = this.getSchedule();
+        const startOfWeek = this.getWeekStart();
+        const days = Array.from({ length: 5 }, (_, index) => {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + index);
+            return date;
+        });
+        const hours = Array.from({ length: 9 }, (_, index) => 8 + index);
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+
+        const timeHeader = document.createElement('th');
+        timeHeader.textContent = 'Time';
+        headerRow.appendChild(timeHeader);
+
+        days.forEach((date) => {
+            const th = document.createElement('th');
+            th.textContent = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+            headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        hours.forEach((hour) => {
+            const row = document.createElement('tr');
+            const timeCell = document.createElement('th');
+            timeCell.textContent = `${String(hour).padStart(2, '0')}:00`;
+            row.appendChild(timeCell);
+
+            days.forEach((date) => {
+                const slotDate = new Date(date);
+                slotDate.setHours(hour, 0, 0, 0);
+                const slotKey = this.formatSlotKeyForDate(slotDate);
+
+                const cell = document.createElement('td');
+                cell.classList.add('planner-slot');
+                cell.dataset.datetime = slotKey;
+
+                const layoutName = schedule[slotKey];
+                if (layoutName) {
+                    cell.classList.add('scheduled');
+                    cell.textContent = layoutName;
+                } else {
+                    cell.textContent = '—';
+                }
+
+                row.appendChild(cell);
+            });
+
+            tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+
+        this.plannerGrid.innerHTML = '';
+        this.plannerGrid.appendChild(table);
+    }
+
+    loadTodaysLesson() {
+        const schedule = this.getSchedule();
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        const slotKey = this.formatSlotKeyForDate(now);
+        const layoutName = schedule[slotKey];
+
+        if (layoutName) {
+            this.loadLayout(layoutName);
+        } else {
+            alert('No lesson scheduled for the current time.');
+        }
     }
 
     captureLocalStorageState() {

@@ -450,11 +450,35 @@
             </div>
             <div class="modal-body">
                 <h2>Lesson Layouts</h2>
+                <div class="button-group" style="justify-content: flex-start; gap: 12px;">
+                    <button id="open-planner-btn" class="control-button">
+                        <i class="fas fa-calendar-week" aria-hidden="true"></i>
+                        <span>Planner</span>
+                    </button>
+                    <button id="load-todays-lesson-btn" class="control-button modal-primary">
+                        <i class="fas fa-play" aria-hidden="true"></i>
+                        <span>Load Today's Lesson</span>
+                    </button>
+                </div>
                 <div class="layout-input-row">
                     <input type="text" id="layout-name-input" placeholder="New layout name..." aria-label="Layout name">
                     <button id="save-layout-btn" class="control-button">Save Current Layout</button>
                 </div>
                 <div id="saved-layouts-list" class="saved-layouts-list" aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planner Modal Overlay -->
+    <div id="planner-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="planner-modal-title">
+        <div class="modal-content">
+            <button class="modal-close-btn" aria-label="Close Planner">&times;</button>
+            <div class="modal-header">
+                <h3 id="planner-modal-title" class="modal-title">Weekly Planner</h3>
+            </div>
+            <div class="modal-body">
+                <p>Click a time slot to assign a saved layout. Changes are stored locally.</p>
+                <div id="planner-calendar-grid"></div>
             </div>
         </div>
     </div>
