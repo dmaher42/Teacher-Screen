@@ -67,12 +67,9 @@ class ClassroomScreenApp {
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
         this.savedNotesListElement = document.getElementById('saved-notes-list');
         this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
-        this.mainMenuModal = document.getElementById('main-menu-modal');
-        this.mainMenuCloseBtn = this.mainMenuModal ? this.mainMenuModal.querySelector('.modal-close-btn') : null;
         this.layoutNameInput = document.getElementById('layout-name-input');
         this.saveLayoutButton = document.getElementById('save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
-        this.openMainMenuButton = document.getElementById('open-main-menu');
         this.openPlannerButton = document.getElementById('open-planner-btn');
         this.loadTodaysLessonButton = document.getElementById('load-todays-lesson-btn');
         this.plannerModal = document.getElementById('planner-modal');
@@ -222,28 +219,12 @@ class ClassroomScreenApp {
             });
         }
 
-        if (this.openMainMenuButton) {
-            this.openMainMenuButton.addEventListener('click', () => this.openMainMenu());
-        }
-
         if (this.openPlannerButton) {
             this.openPlannerButton.addEventListener('click', () => this.openPlannerModal());
         }
 
         if (this.loadTodaysLessonButton) {
             this.loadTodaysLessonButton.addEventListener('click', () => this.loadTodaysLesson());
-        }
-
-        if (this.mainMenuCloseBtn) {
-            this.mainMenuCloseBtn.addEventListener('click', () => this.closeMainMenu());
-        }
-
-        if (this.mainMenuModal) {
-            this.mainMenuModal.addEventListener('click', (event) => {
-                if (event.target === this.mainMenuModal) {
-                    this.closeMainMenu();
-                }
-            });
         }
 
         if (this.plannerModalCloseBtn) {
@@ -730,20 +711,6 @@ class ClassroomScreenApp {
 
     getLayoutStorageKey(name) {
         return `layouts_${name}`;
-    }
-
-    openMainMenu() {
-        if (!this.mainMenuModal) return;
-        this.displaySavedLayouts();
-        this.mainMenuModal.classList.add('visible');
-        if (this.layoutNameInput) {
-            this.layoutNameInput.focus();
-        }
-    }
-
-    closeMainMenu() {
-        if (!this.mainMenuModal) return;
-        this.mainMenuModal.classList.remove('visible');
     }
 
     openPlannerModal() {
@@ -1252,7 +1219,6 @@ class ClassroomScreenApp {
                 this.lessonPlanEditor.setContents(data.lessonPlan);
             }
 
-            this.closeMainMenu();
             this.saveState();
             this.showNotification(`Loaded layout "${layoutName}".`);
         } catch (error) {
