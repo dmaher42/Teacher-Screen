@@ -262,7 +262,14 @@ details:focus-visible,
 }
 
 /* Student view styles */
-#student-view {
+.view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.student-view {
     flex: 1;
     overflow: hidden;
     position: relative;
@@ -640,6 +647,14 @@ dialog::backdrop {
 
 .widget:hover {
     box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
+}
+
+.widget:focus-within,
+.widget.selected {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+    z-index: 10;
 }
 
 /* .widget-header removed */
