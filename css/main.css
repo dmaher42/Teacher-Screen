@@ -1126,3 +1126,70 @@ dialog::backdrop {
     outline: 2px solid var(--primary-color, #8e82ff);
     border-color: transparent;
 }
+
+/* Recurrence Options in Planner */
+.recurrence-wrapper {
+    position: relative;
+    z-index: 10;
+}
+
+.recurrence-options {
+    margin-top: 8px;
+    padding: 10px;
+    background: var(--card-background, #ffffff);
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 8px);
+    box-shadow: var(--shadow-medium, 0 4px 12px rgba(0,0,0,0.15));
+    min-width: 220px;
+    text-align: left;
+}
+
+.recurrence-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-color, #333);
+}
+
+.recurrence-days {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.day-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-color, #333);
+}
+
+.day-checkbox-label input[type="checkbox"] {
+    accent-color: var(--primary-color, #8e82ff);
+    cursor: pointer;
+}
+
+.recurrence-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.save-recurring-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background: var(--primary-color, #8e82ff);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: filter 0.2s ease;
+}
+
+.save-recurring-btn:hover {
+    filter: brightness(1.1);
+}
