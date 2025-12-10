@@ -294,21 +294,7 @@ class ClassroomScreenApp {
             this.plannerGrid.addEventListener('click', (event) => {
                 const slot = event.target.closest('.planner-slot');
                 if (!slot || !slot.dataset.datetime) return;
-
-                const schedule = this.getSchedule();
-                const currentValue = schedule[slot.dataset.datetime] || '';
-                const layoutName = prompt('Assign a layout to this time slot:', currentValue);
-                if (layoutName === null) return;
-
-                const trimmed = layoutName.trim();
-                if (trimmed) {
-                    schedule[slot.dataset.datetime] = trimmed;
-                } else {
-                    delete schedule[slot.dataset.datetime];
-                }
-
-                this.saveSchedule(schedule);
-                this.generateWeeklyPlanner();
+                this.showDropdownInSlot(slot);
             });
         }
 
@@ -784,6 +770,80 @@ class ClassroomScreenApp {
         const hour = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day}-${hour}:${minutes}`;
+    }
+
+    showDropdownInSlot(slotElement) {
+        const targetDatetime = slotElement.dataset.datetime;
+
+        // Refresh grid to close any other open dropdowns and restore their text
+        this.generateWeeklyPlanner();
+
+        const newSlot = this.plannerGrid.querySelector(`.planner-slot[data-datetime="${targetDatetime}"]`);
+        if (!newSlot) return;
+
+        const savedLayoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layouts_'));
+        const layoutNames = savedLayoutKeys.map(key => key.replace('layouts_', '')).sort();
+
+        const select = document.createElement('select');
+        select.className = 'layout-dropdown';
+
+        select.addEventListener('click', (e) => e.stopPropagation());
+
+        const defaultOption = document.createElement('option');
+        defaultOption.text = 'Select a layout...';
+        defaultOption.value = '';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        select.appendChild(defaultOption);
+
+        layoutNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.text = name;
+            select.appendChild(option);
+        });
+
+        const clearOption = document.createElement('option');
+        clearOption.value = '__CLEAR__';
+        clearOption.text = 'Clear Slot';
+        select.appendChild(clearOption);
+
+        const cancelOption = document.createElement('option');
+        cancelOption.value = '__CANCEL__';
+        cancelOption.text = 'Cancel';
+        select.appendChild(cancelOption);
+
+        newSlot.textContent = '';
+        newSlot.appendChild(select);
+        select.focus();
+
+        select.addEventListener('change', (e) => {
+            const selectedValue = e.target.value;
+
+            if (selectedValue === '__CANCEL__') {
+                this.generateWeeklyPlanner();
+                return;
+            }
+
+            const schedule = this.getSchedule();
+
+            if (selectedValue === '__CLEAR__') {
+                delete schedule[targetDatetime];
+            } else {
+                schedule[targetDatetime] = selectedValue;
+            }
+
+            this.saveSchedule(schedule);
+            this.generateWeeklyPlanner();
+        });
+
+        select.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (document.body.contains(select)) {
+                    this.generateWeeklyPlanner();
+                }
+            }, 200);
+        });
     }
 
     generateWeeklyPlanner() {

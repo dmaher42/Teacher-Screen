@@ -1109,3 +1109,20 @@ dialog::backdrop {
     color: color-mix(in srgb, var(--text-color, #333) 70%, #000);
     font-style: italic;
 }
+
+/* Planner Dropdown */
+.layout-dropdown {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid var(--primary-color, #8e82ff);
+    border-radius: var(--border-radius-medium, 8px);
+    background: var(--card-background, #ffffff);
+    font-size: 0.9rem;
+    color: var(--text-color, #333);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.1));
+}
+
+.layout-dropdown:focus {
+    outline: 2px solid var(--primary-color, #8e82ff);
+    border-color: transparent;
+}
