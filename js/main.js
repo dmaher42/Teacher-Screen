@@ -61,6 +61,8 @@ class ClassroomScreenApp {
         this.layoutPresetSelect = document.getElementById('layout-preset');
         this.applyLayoutPresetButton = document.getElementById('apply-layout-preset');
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
+        this.savedNotesListElement = document.getElementById('saved-notes-list');
+        this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
 
         // App State
         this.widgets = [];
@@ -71,6 +73,7 @@ class ClassroomScreenApp {
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
+        this.savedNotes = [];
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
 
@@ -144,6 +147,7 @@ class ClassroomScreenApp {
 
         this.renderThemeSelector();
         this.renderWidgetModal();
+        this.initializeSavedNotes();
 
         if (this.widgets.length === 0) {
             this.addWidget('timer');
@@ -286,6 +290,10 @@ class ClassroomScreenApp {
             }
         });
 
+        if (tab === 'notes') {
+            this.renderSavedNotesList();
+        }
+
         // Teacher Panel Logic
         if (tab === 'classroom') {
             // Ensure student view is ready
@@ -304,6 +312,33 @@ class ClassroomScreenApp {
                  // this.showNotification(`${tab.charAt(0).toUpperCase() + tab.slice(1)} view active`);
             }
         }
+    }
+
+    initializeSavedNotes() {
+        if (window.SavedNotesStore && typeof window.SavedNotesStore.getAll === 'function') {
+            this.savedNotes = window.SavedNotesStore.getAll();
+        }
+
+        if (this.savedNotesListElement) {
+            this.savedNotesListElement.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('[data-note-action]');
+                if (!actionButton) return;
+
+                const noteId = actionButton.dataset.noteId;
+                const action = actionButton.dataset.noteAction;
+                if (!noteId || !action) return;
+
+                if (action === 'open') this.openSavedNote(noteId);
+                if (action === 'delete') this.deleteSavedNote(noteId);
+            });
+        }
+
+        document.addEventListener('savedNotesUpdated', (event) => {
+            this.savedNotes = event.detail?.notes || (window.SavedNotesStore?.getAll?.() || []);
+            this.renderSavedNotesList();
+        });
+
+        this.renderSavedNotesList();
     }
 
     toggleTeacherPanel(forceState = null) {
@@ -334,6 +369,131 @@ class ClassroomScreenApp {
         this.widgetSelectorButtons.forEach((btn) => {
             btn.classList.toggle('active', btn === targetButton);
         });
+    }
+
+    renderSavedNotesList() {
+        if (!this.savedNotesListElement) return;
+
+        this.savedNotesListElement.innerHTML = '';
+        const emptyState = this.savedNotesEmptyState;
+        const notes = Array.isArray(this.savedNotes) ? [...this.savedNotes] : [];
+
+        if (!notes.length) {
+            if (emptyState) {
+                emptyState.hidden = false;
+                this.savedNotesListElement.appendChild(emptyState);
+            }
+            return;
+        }
+
+        if (emptyState) {
+            emptyState.hidden = true;
+        }
+
+        notes
+            .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+            .forEach((note) => {
+                const card = document.createElement('div');
+                card.className = 'saved-note-card';
+                card.setAttribute('role', 'listitem');
+
+                const meta = document.createElement('div');
+                meta.className = 'saved-note-meta';
+
+                const title = document.createElement('span');
+                title.className = 'saved-note-title';
+                title.textContent = note.title || 'Untitled Note';
+
+                const updated = document.createElement('span');
+                updated.className = 'saved-note-updated';
+                updated.textContent = `Updated ${this.formatNoteDate(note.updatedAt)}`;
+
+                const preview = document.createElement('p');
+                preview.className = 'saved-note-preview';
+                preview.textContent = this.getNotePreviewText(note.content);
+
+                meta.appendChild(title);
+                meta.appendChild(updated);
+                meta.appendChild(preview);
+
+                const actions = document.createElement('div');
+                actions.className = 'saved-note-actions';
+
+                const openBtn = document.createElement('button');
+                openBtn.type = 'button';
+                openBtn.className = 'control-button';
+                openBtn.dataset.noteAction = 'open';
+                openBtn.dataset.noteId = note.id;
+                openBtn.textContent = 'Open';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'control-button';
+                deleteBtn.dataset.noteAction = 'delete';
+                deleteBtn.dataset.noteId = note.id;
+                deleteBtn.textContent = 'Delete';
+
+                actions.appendChild(openBtn);
+                actions.appendChild(deleteBtn);
+
+                card.appendChild(meta);
+                card.appendChild(actions);
+
+                this.savedNotesListElement.appendChild(card);
+            });
+    }
+
+    openSavedNote(noteId) {
+        if (!window.SavedNotesStore) return;
+        const note = window.SavedNotesStore.get(noteId);
+        if (!note) {
+            this.showNotification('Note could not be found.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+
+        const existing = this.layoutManager.widgets.find((info) => info.widget instanceof NotesWidget && info.widget.noteId === noteId);
+        let widget = existing ? existing.widget : null;
+
+        if (!widget) {
+            widget = new NotesWidget(note);
+            this.layoutManager.addWidget(widget);
+            this.widgets.push(widget);
+        } else {
+            widget.applySavedNote(note);
+        }
+
+        this.saveState();
+        this.showNotification(`Opened note "${note.title || 'Note'}"`);
+    }
+
+    deleteSavedNote(noteId) {
+        if (!window.SavedNotesStore) return;
+        const note = window.SavedNotesStore.get(noteId);
+        if (!note) return;
+
+        if (!confirm(`Delete note "${note.title || 'Untitled Note'}"?`)) return;
+
+        window.SavedNotesStore.delete(noteId);
+        this.savedNotes = window.SavedNotesStore.getAll();
+        this.renderSavedNotesList();
+        this.showNotification('Note deleted.');
+    }
+
+    getNotePreviewText(content = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = content || '';
+        const text = (temp.textContent || '').trim();
+        if (!text) return 'No content saved yet.';
+        return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+    }
+
+    formatNoteDate(dateValue) {
+        if (!dateValue) return 'just now';
+        const parsed = new Date(dateValue);
+        if (Number.isNaN(parsed.getTime())) return 'recently';
+        return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     }
 
     addWidget(type) {

@@ -2,11 +2,55 @@
  * Notes Widget Class
  * Creates a rich text editor widget using Quill.js.
  */
+
+const SAVED_NOTES_STORAGE_KEY = 'teacherScreenSavedNotes';
+
+const SavedNotesStore = window.SavedNotesStore || {
+    getAll() {
+        try {
+            const raw = localStorage.getItem(SAVED_NOTES_STORAGE_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            console.warn('Failed to parse saved notes.', error);
+            return [];
+        }
+    },
+    persist(notes) {
+        localStorage.setItem(SAVED_NOTES_STORAGE_KEY, JSON.stringify(notes));
+        document.dispatchEvent(new CustomEvent('savedNotesUpdated', { detail: { notes } }));
+    },
+    save(note) {
+        const notes = this.getAll();
+        const index = notes.findIndex((item) => item.id === note.id);
+        const nextNote = {
+            ...note,
+            updatedAt: note.updatedAt || new Date().toISOString(),
+        };
+        if (index >= 0) {
+            notes[index] = { ...notes[index], ...nextNote };
+        } else {
+            notes.push(nextNote);
+        }
+        this.persist(notes);
+        return nextNote;
+    },
+    delete(id) {
+        const filtered = this.getAll().filter((note) => note.id !== id);
+        this.persist(filtered);
+    },
+    get(id) {
+        return this.getAll().find((note) => note.id === id);
+    },
+};
+
+window.SavedNotesStore = SavedNotesStore;
+
 class NotesWidget {
     /**
      * Constructor for the NotesWidget.
      */
-    constructor() {
+    constructor(noteData = {}) {
         // Create the main widget element
         this.element = document.createElement('div');
         this.element.className = 'notes-widget-content';
@@ -56,7 +100,10 @@ class NotesWidget {
 
         // State
         this.quillEditor = null;
-        this.savedContent = '';
+        this.savedContent = noteData.content || '';
+        this.noteId = noteData.id || this.generateNoteId();
+        this.title = noteData.title || 'Untitled Note';
+        this.updatedAt = noteData.updatedAt || new Date().toISOString();
     }
 
     /**
@@ -106,6 +153,7 @@ class NotesWidget {
         if (this.quillEditor) {
             this.savedContent = this.quillEditor.root.innerHTML;
             this.updateDisplay();
+            this.persistNote();
         }
     }
 
@@ -113,6 +161,26 @@ class NotesWidget {
         if (this.display) {
             this.display.innerHTML = this.savedContent;
         }
+    }
+
+    persistNote() {
+        const title = this.getTitleFromContent();
+        const saved = SavedNotesStore.save({
+            id: this.noteId,
+            title,
+            content: this.savedContent,
+            updatedAt: new Date().toISOString(),
+        });
+        this.title = saved.title;
+        this.updatedAt = saved.updatedAt;
+    }
+
+    getTitleFromContent() {
+        const temp = document.createElement('div');
+        temp.innerHTML = this.savedContent;
+        const text = (temp.textContent || '').trim();
+        if (!text) return 'Untitled Note';
+        return text.split('\n')[0].slice(0, 80);
     }
 
     /**
@@ -131,7 +199,10 @@ class NotesWidget {
     serialize() {
         return {
             type: 'NotesWidget',
-            content: this.savedContent
+            content: this.savedContent,
+            id: this.noteId,
+            title: this.title,
+            updatedAt: this.updatedAt
         };
     }
 
@@ -140,9 +211,34 @@ class NotesWidget {
      * @param {object} data - The serialized state.
      */
     deserialize(data) {
+        if (data.id) {
+            this.noteId = data.id;
+        }
+        if (data.title) {
+            this.title = data.title;
+        }
+        if (data.updatedAt) {
+            this.updatedAt = data.updatedAt;
+        }
         if (data.content) {
             this.savedContent = data.content;
-            this.updateDisplay();
         }
+        this.updateDisplay();
+        this.persistNote();
+    }
+
+    applySavedNote(data) {
+        this.noteId = data.id || this.noteId || this.generateNoteId();
+        this.savedContent = data.content || '';
+        this.title = data.title || this.title;
+        this.updatedAt = data.updatedAt || this.updatedAt;
+        if (this.quillEditor) {
+            this.quillEditor.root.innerHTML = this.savedContent;
+        }
+        this.updateDisplay();
+    }
+
+    generateNoteId() {
+        return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
 }
