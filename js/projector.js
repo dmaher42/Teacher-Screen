@@ -24,6 +24,9 @@ class ProjectorApp {
         this.backgroundManager.init();
         this.layoutManager.init();
 
+        // Ask the teacher window for the latest state as soon as the projector starts.
+        this.projectorChannel.postMessage({ type: 'request-sync' });
+
         // Listen for storage events to update in real-time
         window.addEventListener('storage', (event) => {
             if (event.key === 'classroomScreenState') {
