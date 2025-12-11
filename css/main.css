@@ -652,6 +652,22 @@ dialog::backdrop {
     z-index: 10;
 }
 
+/* Clean-on-hover controls */
+.widget .secondary-control,
+.widget .secondary-text {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity calc(200ms * (1 - var(--reduce-motion, 0))) ease-in-out;
+}
+
+.widget:hover .secondary-control,
+.widget:focus-within .secondary-control,
+.widget:hover .secondary-text,
+.widget:focus-within .secondary-text {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* .widget-header removed */
 
 .widget-content {

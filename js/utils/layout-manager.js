@@ -183,7 +183,7 @@ class LayoutManager {
 
   createSettingsButton(widget, widgetElement) {
     const settingsButton = document.createElement('button');
-    settingsButton.className = 'widget-settings-btn';
+    settingsButton.className = 'widget-settings-btn secondary-control';
     settingsButton.innerHTML = '<i class="fas fa-cog"></i>';
     settingsButton.setAttribute('aria-label', 'Open Settings');
     settingsButton.title = 'Widget Settings';

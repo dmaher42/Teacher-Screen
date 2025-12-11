@@ -21,7 +21,7 @@ class WellbeingWidget {
 
     buildHeader() {
         this.header = document.createElement('div');
-        this.header.className = 'wellbeing-header';
+        this.header.className = 'wellbeing-header secondary-control';
 
         const title = document.createElement('div');
         title.className = 'wellbeing-title';
@@ -108,7 +108,7 @@ class WellbeingWidget {
         this.dashboardMode.appendChild(chartContainer);
 
         const actions = document.createElement('div');
-        actions.className = 'wellbeing-dashboard-actions';
+        actions.className = 'wellbeing-dashboard-actions secondary-control';
 
         this.saveBtn = document.createElement('button');
         this.saveBtn.type = 'button';
@@ -125,7 +125,7 @@ class WellbeingWidget {
         this.dashboardMode.appendChild(actions);
 
         this.status = document.createElement('div');
-        this.status.className = 'wellbeing-status';
+        this.status.className = 'wellbeing-status secondary-text';
         this.status.textContent = 'Ready for check-ins.';
         this.dashboardMode.appendChild(this.status);
 
