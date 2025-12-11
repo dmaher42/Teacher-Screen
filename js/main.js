@@ -219,6 +219,16 @@ class ClassroomScreenApp {
             });
         }
 
+        this.projectorChannel.onmessage = (event) => {
+            if (event.data && event.data.type === 'request-sync') {
+                const state = this.buildStateSnapshot();
+                this.projectorChannel.postMessage({
+                    type: 'layout-update',
+                    state
+                });
+            }
+        };
+
         if (this.openPlannerButton) {
             this.openPlannerButton.addEventListener('click', () => this.openPlannerModal());
         }
@@ -393,11 +403,15 @@ class ClassroomScreenApp {
         const openProjectorBtn = document.getElementById('open-projector-view');
         if (openProjectorBtn) {
             openProjectorBtn.addEventListener('click', () => {
+                const state = this.buildStateSnapshot();
+                const stateJSON = JSON.stringify(state);
+                // Save a fresh copy so the projector can load immediately from storage.
+                localStorage.setItem('classroomScreenState', stateJSON);
+
                 window.open('projector.html', '_blank');
 
                 // Immediately sync the current layout to the projector window
                 // so it renders even if no further edits occur.
-                const state = this.buildStateSnapshot();
                 this.projectorChannel.postMessage({
                     type: 'layout-update',
                     state
