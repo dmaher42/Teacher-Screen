@@ -7,6 +7,7 @@ const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 2, minH: 1, maxW: 12, maxH: 4 },
   NoiseMeterWidget: { minW: 2, minH: 2 },
   DocumentViewerWidget: { minW: 3, minH: 3 },
+  UrlViewerWidget: { minW: 3, minH: 3 },
   NamePickerWidget: { minW: 2, minH: 2 },
   WellbeingWidget: { minW: 3, minH: 3 }
 };
@@ -576,6 +577,8 @@ class LayoutManager {
         return new DrawingToolWidget();
       case 'DocumentViewerWidget':
         return new DocumentViewerWidget();
+      case 'UrlViewerWidget':
+        return new UrlViewerWidget();
       case 'MaskWidget':
         return new MaskWidget();
       case 'NotesWidget':

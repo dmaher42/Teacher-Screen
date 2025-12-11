@@ -1205,6 +1205,46 @@ dialog::backdrop {
 }
 
 /* ==========================
+   URL Viewer Widget Styles
+   ========================== */
+.url-viewer-widget-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.url-viewer-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+.url-viewer-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.url-viewer-content {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Presentation mode full-screen */
+.url-viewer-widget-content.presentation-mode {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50;
+    background: #000;
+}
+
+/* ==========================
    Well-being Widget Styles
    ========================== */
 .wellbeing-widget-content {
