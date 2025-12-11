@@ -70,7 +70,7 @@ class DrawingToolWidget {
      */
     setupCanvas() {
         // Set canvas size based on its container's dimensions
-        const rect = this.content.getBoundingClientRect();
+        const rect = this.element.getBoundingClientRect();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height - this.controls.offsetHeight; // Adjust for controls
 
