@@ -15,8 +15,8 @@ class DocumentViewerWidget {
         this.element.innerHTML = `
             <div class="document-viewer-controls">
                 <input type="file" class="document-viewer-file-input" style="display: none;">
-                <button class="control-button upload-button" type="button">Upload File</button>
                 <input type="text" class="document-viewer-url-input" placeholder="Enter URL to embed">
+                <button class="control-button upload-button" type="button">Upload File</button>
                 <button class="control-button embed-button" type="button">Embed</button>
 
                 <div class="document-viewer-pdf-controls">
@@ -43,6 +43,27 @@ class DocumentViewerWidget {
         this.presentBtn = this.element.querySelector('.present-button');
         this.exitPresentBtn = this.element.querySelector('.exit-present-button');
         this.pdfControls = this.element.querySelector('.document-viewer-pdf-controls');
+
+        // Build unified control bar
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.append(
+            this.element.querySelector('.upload-button'),
+            this.element.querySelector('.embed-button'),
+            this.pdfControls
+        );
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        this.presentBtn.title = 'Start presentation mode';
+        this.exitPresentBtn.title = 'Exit presentation mode';
+        secondaryActions.append(this.presentBtn, this.exitPresentBtn);
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
 
         // Canvas (created lazily)
         this.canvas = null;

@@ -31,8 +31,20 @@ class QRCodeWidget {
         // Assemble widget
         this.element.appendChild(this.helpText);
         this.element.appendChild(this.input);
-        this.element.appendChild(this.generateButton);
         this.element.appendChild(this.canvas);
+
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.appendChild(this.generateButton);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
 
         // Initialize with a default QR code
         this.input.value = 'https://example.com';

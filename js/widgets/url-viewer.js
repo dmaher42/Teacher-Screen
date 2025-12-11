@@ -10,20 +10,31 @@ class UrlViewerWidget {
         this.currentUrl = '';
 
         this.element.innerHTML = `
-            <div class="url-viewer-controls secondary-control">
-                <input 
-                    type="text" 
-                    class="url-viewer-input" 
-                    placeholder="Enter a web address (e.g. https://example.com)"
-                >
-                <button type="button" class="control-button load-url-button">Load</button>
-                <button type="button" class="control-button reload-url-button" disabled>Reload</button>
-                <button type="button" class="control-button open-newtab-button" disabled>Open in New Tab</button>
-                <button type="button" class="control-button present-button">Present</button>
-                <button type="button" class="control-button exit-present-button" style="display:none;">Exit</button>
+            <div class="url-viewer-body">
+                <div class="url-viewer-input-row">
+                    <input
+                        type="text"
+                        class="url-viewer-input"
+                        placeholder="Enter a web address (e.g. https://example.com)"
+                    >
+                </div>
+                <div class="url-viewer-content">
+                    <!-- iframe injected here -->
+                </div>
             </div>
-            <div class="url-viewer-content">
-                <!-- iframe injected here -->
+            <div class="widget-control-bar">
+                <div class="primary-actions">
+                    <button type="button" class="control-button load-url-button">Load</button>
+                    <button type="button" class="control-button reload-url-button" disabled>Reload</button>
+                    <button type="button" class="control-button present-button">Present</button>
+                    <button type="button" class="control-button exit-present-button" style="display:none;">Exit</button>
+                </div>
+                <div class="secondary-actions">
+                    <button type="button" class="control-button open-newtab-button" title="Open in new tab" disabled>
+                        <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        <span class="visually-hidden">Open in new tab</span>
+                    </button>
+                </div>
             </div>
         `;
 
