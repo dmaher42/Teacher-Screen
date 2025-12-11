@@ -217,59 +217,123 @@ class LayoutManager {
   }
   
   addResizeHandles(element) {
-    const resizeHandle = document.createElement('div');
-    resizeHandle.className = 'resize-handle';
-    element.appendChild(resizeHandle);
+    const handlePositions = [
+      'top',
+      'bottom',
+      'left',
+      'right',
+      'top-left',
+      'top-right',
+      'bottom-left',
+      'bottom-right'
+    ];
 
-    let isResizing = false;
-    let startX, startY;
-    let startWidth, startHeight;
+    handlePositions.forEach((position) => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle ${position}`;
+      element.appendChild(handle);
+    });
 
-    resizeHandle.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      startX = e.clientX;
-      startY = e.clientY;
+    const onMouseDown = (e) => {
+      const target = e.target;
+      if (!target.classList.contains('resize-handle')) return;
 
-      startWidth = parseInt(element.style.width, 10) || element.offsetWidth;
-      startHeight = parseInt(element.style.height, 10) || element.offsetHeight;
+      const classNames = Array.from(target.classList);
+      const isLeft = classNames.some(name => name.includes('left'));
+      const isRight = classNames.some(name => name.includes('right'));
+      const isTop = classNames.some(name => name.includes('top'));
+      const isBottom = classNames.some(name => name.includes('bottom'));
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const startWidth = parseInt(element.style.width, 10) || element.offsetWidth;
+      const startHeight = parseInt(element.style.height, 10) || element.offsetHeight;
+      const startLeft = parseInt(element.style.left, 10) || 0;
+      const startTop = parseInt(element.style.top, 10) || 0;
+
+      const minWidth = GRID_SIZE * 4;
+      const minHeight = GRID_SIZE * 3;
+
+      const onMouseMove = (moveEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        const deltaY = moveEvent.clientY - startY;
+
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newLeft = startLeft;
+        let newTop = startTop;
+
+        if (isRight) {
+          newWidth = startWidth + deltaX;
+        }
+
+        if (isLeft) {
+          newWidth = startWidth - deltaX;
+          newLeft = startLeft + deltaX;
+        }
+
+        if (isBottom) {
+          newHeight = startHeight + deltaY;
+        }
+
+        if (isTop) {
+          newHeight = startHeight - deltaY;
+          newTop = startTop + deltaY;
+        }
+
+        if (newWidth < minWidth) {
+          if (isLeft) {
+            newLeft -= (minWidth - newWidth);
+          }
+          newWidth = minWidth;
+        }
+
+        if (newHeight < minHeight) {
+          if (isTop) {
+            newTop -= (minHeight - newHeight);
+          }
+          newHeight = minHeight;
+        }
+
+        const maxLeft = Math.max(0, this.container.clientWidth - newWidth);
+        const maxTop = Math.max(0, this.container.clientHeight - newHeight);
+
+        newLeft = Math.min(Math.max(0, newLeft), maxLeft);
+        newTop = Math.min(Math.max(0, newTop), maxTop);
+
+        newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
+        newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
+        newLeft = Math.round(newLeft / GRID_SIZE) * GRID_SIZE;
+        newTop = Math.round(newTop / GRID_SIZE) * GRID_SIZE;
+
+        element.style.width = `${newWidth}px`;
+        element.style.height = `${newHeight}px`;
+        element.style.left = `${newLeft}px`;
+        element.style.top = `${newTop}px`;
+
+        const info = this.widgets.find(w => w.element === element);
+        if (info) {
+          info.width = newWidth;
+          info.height = newHeight;
+          info.x = newLeft;
+          info.y = newTop;
+        }
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        this.saveLayout();
+      };
 
       e.preventDefault();
       e.stopPropagation();
-    });
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-
-      let newWidth = startWidth + deltaX;
-      let newHeight = startHeight + deltaY;
-
-      // Snap to grid
-      newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
-      newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
-
-      // Minimal size
-      newWidth = Math.max(GRID_SIZE * 4, newWidth);
-      newHeight = Math.max(GRID_SIZE * 3, newHeight);
-
-      element.style.width = `${newWidth}px`;
-      element.style.height = `${newHeight}px`;
-
-      const info = this.widgets.find(w => w.element === element);
-      if (info) {
-          info.width = newWidth;
-          info.height = newHeight;
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-        this.saveLayout();
-      }
-    });
+    element.addEventListener('mousedown', onMouseDown);
   }
 
   addDragFunctionality(widgetElement) {
