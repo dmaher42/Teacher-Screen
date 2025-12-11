@@ -636,9 +636,6 @@ dialog::backdrop {
     box-shadow: var(--shadow-medium, 0 4px 12px rgba(0,0,0,0.1));
     display: flex;
     flex-direction: column;
-    /* Allow widgets to be resized by the user */
-    resize: both;
-    overflow: auto;
     transition: box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease,
                 transform calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
@@ -667,20 +664,81 @@ dialog::backdrop {
 /* Resize handle styling */
 .resize-handle {
     position: absolute;
-    width: 16px;
-    height: 16px;
-    right: 6px;
-    bottom: 6px;
-    background: var(--resize-handle-bg, linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.12) 50%));
-    cursor: se-resize;
-    border-radius: 4px;
-    opacity: 0.7;
+    background: var(--resize-handle-bg, rgba(0, 0, 0, 0.15));
+    z-index: 2;
+    opacity: 0;
     transition: opacity 0.2s ease;
 }
 
 .widget:hover .resize-handle,
 .resize-handle:focus-visible {
     opacity: 1;
+}
+
+.resize-handle.top,
+.resize-handle.bottom {
+    left: 10px;
+    width: calc(100% - 20px);
+    height: 6px;
+}
+
+.resize-handle.top {
+    top: 0;
+    cursor: ns-resize;
+}
+
+.resize-handle.bottom {
+    bottom: 0;
+    cursor: ns-resize;
+}
+
+.resize-handle.left,
+.resize-handle.right {
+    top: 10px;
+    height: calc(100% - 20px);
+    width: 6px;
+}
+
+.resize-handle.left {
+    left: 0;
+    cursor: ew-resize;
+}
+
+.resize-handle.right {
+    right: 0;
+    cursor: ew-resize;
+}
+
+.resize-handle.top-left,
+.resize-handle.top-right,
+.resize-handle.bottom-left,
+.resize-handle.bottom-right {
+    width: 12px;
+    height: 12px;
+}
+
+.resize-handle.top-left {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+}
+
+.resize-handle.top-right {
+    top: 0;
+    right: 0;
+    cursor: nesw-resize;
+}
+
+.resize-handle.bottom-left {
+    bottom: 0;
+    left: 0;
+    cursor: nesw-resize;
+}
+
+.resize-handle.bottom-right {
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
 }
 
 .name-picker-display {
