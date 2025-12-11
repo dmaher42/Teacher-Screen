@@ -21,9 +21,9 @@ class DrawingToolWidget {
         this.canvas.className = 'drawing-tool-canvas';
         this.ctx = this.canvas.getContext('2d');
 
-        // Create the controls
+        // Create the controls bar
         this.controls = document.createElement('div');
-        this.controls.className = 'drawing-tool-controls secondary-control';
+        this.controls.className = 'widget-control-bar drawing-tool-controls';
 
         // Color picker
         this.colorPicker = document.createElement('input');
@@ -43,12 +43,21 @@ class DrawingToolWidget {
         // Clear button
         this.clearButton = document.createElement('button');
         this.clearButton.textContent = 'Clear';
+        this.clearButton.title = 'Clear drawing';
         this.clearButton.addEventListener('click', () => this.clear());
 
         // Assemble the controls
-        this.controls.appendChild(this.colorPicker);
-        this.controls.appendChild(this.lineWidthSelector);
-        this.controls.appendChild(this.clearButton);
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.appendChild(this.colorPicker);
+        primaryActions.appendChild(this.lineWidthSelector);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        secondaryActions.appendChild(this.clearButton);
+
+        this.controls.appendChild(primaryActions);
+        this.controls.appendChild(secondaryActions);
 
         // Assemble the widget
         this.element.appendChild(this.helpText);

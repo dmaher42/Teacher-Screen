@@ -42,14 +42,30 @@ class NoiseMeterWidget {
         // Controls overlay (not appended here if controls live in a separate modal)
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls';
-        this.controlsOverlay.appendChild(this.helpText);
-        this.controlsOverlay.appendChild(this.startButton);
-        this.controlsOverlay.appendChild(this.status);
+        const modalHelp = this.helpText.cloneNode(true);
+        const modalStartButton = this.startButton.cloneNode(true);
+        modalStartButton.addEventListener('click', () => this.start());
+        const modalStatus = this.status.cloneNode(true);
+        this.controlsOverlay.appendChild(modalHelp);
+        this.controlsOverlay.appendChild(modalStartButton);
+        this.controlsOverlay.appendChild(modalStatus);
 
         // Assemble widget content
+        this.element.appendChild(this.helpText);
         this.element.appendChild(this.canvas);
-        // NOTE: if you want in-widget controls instead of a modal, uncomment:
-        // this.element.appendChild(this.controlsOverlay);
+        this.element.appendChild(this.status);
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.appendChild(this.startButton);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
 
         // NoiseMeter instance and state
         this.meter = new NoiseMeter(this.canvas);

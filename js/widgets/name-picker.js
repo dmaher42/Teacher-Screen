@@ -31,14 +31,16 @@ class NamePickerWidget {
 
         this.mainDisplay.appendChild(this.display);
 
-        // Add click handler to the main display for the primary action
-        this.mainDisplay.addEventListener('click', () => {
+        this.handlePickRequest = () => {
             if (this.names && this.names.length === 0 && this.originalNames && this.originalNames.length > 0) {
                  this.reset();
             } else {
                  this.pickRandom();
             }
-        });
+        };
+
+        // Add click handler to the main display for the primary action
+        this.mainDisplay.addEventListener('click', this.handlePickRequest);
 
         // --- Create Controls Section ---
         this.controlsOverlay = document.createElement('div');
@@ -129,13 +131,7 @@ class NamePickerWidget {
         this.pickButton.style.width = '100%';
         this.pickButton.style.marginTop = '10px';
         this.pickButton.setAttribute('aria-label', 'Pick a name');
-        this.pickButton.addEventListener('click', () => {
-             if (this.names && this.names.length === 0 && this.originalNames && this.originalNames.length > 0) {
-                 this.reset();
-            } else {
-                 this.pickRandom();
-            }
-        });
+        this.pickButton.addEventListener('click', this.handlePickRequest);
 
         this.status = document.createElement('div');
         this.status.className = 'widget-status';
@@ -152,7 +148,31 @@ class NamePickerWidget {
 
         // Assemble the widget
         this.element.appendChild(this.mainDisplay);
-        // this.element.appendChild(this.controlsOverlay); // Controls handled by modal
+        this.element.appendChild(this.status);
+
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        this.inlinePickButton = document.createElement('button');
+        this.inlinePickButton.className = 'control-button pick-button';
+        this.inlinePickButton.textContent = 'Pick a Name';
+        this.inlinePickButton.addEventListener('click', this.handlePickRequest);
+        primaryActions.appendChild(this.inlinePickButton);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        const resetButton = document.createElement('button');
+        resetButton.type = 'button';
+        resetButton.className = 'control-button';
+        resetButton.textContent = 'Reset List';
+        resetButton.title = 'Reset remaining names';
+        resetButton.addEventListener('click', () => this.reset());
+        secondaryActions.appendChild(resetButton);
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
 
         // Name Picker state
         const defaultNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Ethan', 'Fiona', 'George', 'Hannah'];

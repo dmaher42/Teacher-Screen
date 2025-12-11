@@ -217,6 +217,33 @@ class NotesWidget {
         this.editorContainer.style.backgroundColor = '#fff';
         this.editorContainerWrapper.appendChild(this.editorContainer);
 
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Save & Close';
+        saveButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.collapse();
+        });
+        primaryActions.appendChild(saveButton);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '&times;';
+        closeButton.title = 'Close editor';
+        closeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.collapse();
+        });
+        secondaryActions.appendChild(closeButton);
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.editorContainerWrapper.appendChild(controlBar);
+
         // Create/Initialize Quill
         this.initializeEditor();
     }

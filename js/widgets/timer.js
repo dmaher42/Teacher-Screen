@@ -176,6 +176,7 @@ class TimerWidget {
         this.soundButton.className = 'sound-button';
         this.soundButton.textContent = '🔊';
         this.soundButton.setAttribute('aria-label', 'Choose timer sound');
+        this.soundButton.title = 'Choose timer sound';
 
         this.soundMenu = document.createElement('div');
         this.soundMenu.className = 'sound-menu';
@@ -255,7 +256,21 @@ class TimerWidget {
         this.controlsOverlay.appendChild(this.status);
 
         this.element.appendChild(this.mainDisplay);
-        // this.element.appendChild(this.controlsOverlay); // Controls are now handled by the modal
+        this.element.appendChild(this.status);
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.appendChild(this.startButton);
+        primaryActions.appendChild(this.stopButton);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        secondaryActions.appendChild(this.soundButton);
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
 
         // Timer state
         this.time = 0;

@@ -40,7 +40,6 @@ class WellbeingWidget {
         this.toggleBtn.addEventListener('click', () => this.toggleMode());
 
         this.header.appendChild(title);
-        this.header.appendChild(this.toggleBtn);
         this.element.appendChild(this.header);
     }
 
@@ -107,9 +106,6 @@ class WellbeingWidget {
         chartContainer.appendChild(this.chartCanvas);
         this.dashboardMode.appendChild(chartContainer);
 
-        const actions = document.createElement('div');
-        actions.className = 'wellbeing-dashboard-actions secondary-control';
-
         this.saveBtn = document.createElement('button');
         this.saveBtn.type = 'button';
         this.saveBtn.textContent = "Save Today's Check-in";
@@ -120,10 +116,6 @@ class WellbeingWidget {
         this.historyBtn.textContent = 'View History';
         this.historyBtn.addEventListener('click', () => this.showHistory());
 
-        actions.appendChild(this.saveBtn);
-        actions.appendChild(this.historyBtn);
-        this.dashboardMode.appendChild(actions);
-
         this.status = document.createElement('div');
         this.status.className = 'wellbeing-status secondary-text';
         this.status.textContent = 'Ready for check-ins.';
@@ -132,6 +124,21 @@ class WellbeingWidget {
         this.modesContainer.appendChild(this.studentMode);
         this.modesContainer.appendChild(this.dashboardMode);
         this.element.appendChild(this.modesContainer);
+
+        const controlBar = document.createElement('div');
+        controlBar.className = 'widget-control-bar';
+
+        const primaryActions = document.createElement('div');
+        primaryActions.className = 'primary-actions';
+        primaryActions.append(this.saveBtn, this.historyBtn);
+
+        const secondaryActions = document.createElement('div');
+        secondaryActions.className = 'secondary-actions';
+        this.toggleBtn.title = 'Switch between student input and teacher dashboard';
+        secondaryActions.appendChild(this.toggleBtn);
+
+        controlBar.append(primaryActions, secondaryActions);
+        this.element.appendChild(controlBar);
     }
 
     toggleMode() {
