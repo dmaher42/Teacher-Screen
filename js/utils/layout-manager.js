@@ -7,7 +7,8 @@ const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 2, minH: 1, maxW: 12, maxH: 4 },
   NoiseMeterWidget: { minW: 2, minH: 2 },
   DocumentViewerWidget: { minW: 3, minH: 3 },
-  NamePickerWidget: { minW: 2, minH: 2 }
+  NamePickerWidget: { minW: 2, minH: 2 },
+  WellbeingWidget: { minW: 3, minH: 3 }
 };
 
 class LayoutManager {
@@ -515,6 +516,8 @@ class LayoutManager {
         return new MaskWidget();
       case 'NotesWidget':
         return new NotesWidget();
+      case 'WellbeingWidget':
+        return new WellbeingWidget();
       default:
         console.warn(`Unknown widget type: ${type}`);
         return null;
