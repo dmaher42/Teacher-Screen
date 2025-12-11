@@ -10,7 +10,7 @@ class UrlViewerWidget {
         this.currentUrl = '';
 
         this.element.innerHTML = `
-            <div class="url-viewer-controls">
+            <div class="url-viewer-controls secondary-control">
                 <input 
                     type="text" 
                     class="url-viewer-input" 

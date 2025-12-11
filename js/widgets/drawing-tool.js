@@ -12,7 +12,7 @@ class DrawingToolWidget {
         this.element.className = 'drawing-tool-widget-content';
 
         this.helpText = document.createElement('div');
-        this.helpText.className = 'widget-help-text';
+        this.helpText.className = 'widget-help-text secondary-text';
         this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Pick a color and line width, draw on the canvas, and use Clear to reset. Right-click or use browser tools to save your drawing.';
 
@@ -23,7 +23,7 @@ class DrawingToolWidget {
 
         // Create the controls
         this.controls = document.createElement('div');
-        this.controls.className = 'drawing-tool-controls';
+        this.controls.className = 'drawing-tool-controls secondary-control';
 
         // Color picker
         this.colorPicker = document.createElement('input');
