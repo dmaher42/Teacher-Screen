@@ -392,7 +392,17 @@ class ClassroomScreenApp {
         // Projector View Button
         const openProjectorBtn = document.getElementById('open-projector-view');
         if (openProjectorBtn) {
-            openProjectorBtn.addEventListener('click', () => window.open('projector.html', '_blank'));
+            openProjectorBtn.addEventListener('click', () => {
+                window.open('projector.html', '_blank');
+
+                // Immediately sync the current layout to the projector window
+                // so it renders even if no further edits occur.
+                const state = this.buildStateSnapshot();
+                this.projectorChannel.postMessage({
+                    type: 'layout-update',
+                    state
+                });
+            });
         }
     }
 
@@ -1296,8 +1306,8 @@ class ClassroomScreenApp {
         this.savedLayoutsList.appendChild(fragment);
     }
 
-    saveState() {
-        const state = {
+    buildStateSnapshot() {
+        return {
             version: this.appVersion,
             schemaVersion: this.schemaVersion,
             theme: document.body.className,
@@ -1305,6 +1315,10 @@ class ClassroomScreenApp {
             layout: this.layoutManager.serialize(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
+    }
+
+    saveState() {
+        const state = this.buildStateSnapshot();
         const stateJSON = JSON.stringify(state);
         localStorage.setItem('classroomScreenState', stateJSON);
 
