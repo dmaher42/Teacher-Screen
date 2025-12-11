@@ -24,6 +24,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
     
     <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js" defer></script>
@@ -111,6 +112,10 @@
                         <button id="notes-widget-btn" class="widget-selector-btn" data-widget="notes" type="button" aria-label="Notes widget">
                             <i class="fas fa-note-sticky" aria-hidden="true"></i>
                             <span class="visually-hidden">Notes Widget</span>
+                        </button>
+                        <button id="wellbeing-widget-btn" class="widget-selector-btn" data-widget="wellbeing" type="button" aria-label="Well-being widget">
+                            <i class="fas fa-heart" aria-hidden="true"></i>
+                            <span class="visually-hidden">Well-being Widget</span>
                         </button>
                     </div>
                 </div>
@@ -456,6 +461,7 @@
     <script src="js/widgets/document-viewer.js" defer></script>
     <script src="js/widgets/mask-widget.js" defer></script>
     <script src="js/widgets/notes-widget.js" defer></script>
+    <script src="js/widgets/wellbeing-widget.js" defer></script>
     <script src="js/script.js" defer></script>
     <script src="js/main.js" defer></script>
 

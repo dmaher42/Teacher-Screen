@@ -1145,3 +1145,168 @@ dialog::backdrop {
 .save-recurring-btn:hover {
     filter: brightness(1.1);
 }
+
+/* ==========================
+   Well-being Widget Styles
+   ========================== */
+.wellbeing-widget-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 12px;
+}
+
+.wellbeing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.wellbeing-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.wellbeing-title .icon {
+    font-size: 1.3rem;
+}
+
+.wellbeing-toggle-btn {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    background: #f7f7f7;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.wellbeing-toggle-btn:hover {
+    background: #eef2ff;
+}
+
+.wellbeing-modes {
+    flex: 1;
+    display: flex;
+}
+
+.wellbeing-mode {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.wellbeing-mode.active {
+    display: flex;
+}
+
+.wellbeing-prompt {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.wellbeing-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.wellbeing-option {
+    height: 80px;
+    font-size: 1.2rem;
+    border: 2px solid #d0d7de;
+    border-radius: 12px;
+    background: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.wellbeing-option .emoji {
+    font-size: 1.5rem;
+}
+
+.wellbeing-option:hover {
+    background-color: #eef2ff;
+    border-color: #5c7cfa;
+}
+
+.wellbeing-option.is-active {
+    background-color: #e0f2fe;
+    border-color: #0ea5e9;
+    transform: translateY(-2px);
+}
+
+.wellbeing-dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.wellbeing-chart-container {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px;
+    min-height: 200px;
+}
+
+.wellbeing-dashboard-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.wellbeing-dashboard-actions button {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #d0d7de;
+    background: #f7f7f7;
+    cursor: pointer;
+}
+
+.wellbeing-dashboard-actions button:hover {
+    background: #eef2ff;
+    border-color: #5c7cfa;
+}
+
+.wellbeing-status {
+    font-size: 0.95rem;
+    color: #4a5568;
+}
+
+.wellbeing-history-dialog {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    max-width: 480px;
+}
+
+.wellbeing-history-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.wellbeing-history-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px;
+    background: #f8fafc;
+}
+
+.wellbeing-history-item strong {
+    display: block;
+    margin-bottom: 6px;
+}
