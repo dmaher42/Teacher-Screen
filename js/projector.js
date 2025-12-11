@@ -104,6 +104,7 @@ class ProjectorApp {
                         case 'QRCodeWidget': widget = new QRCodeWidget(); break;
                         case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                     }
