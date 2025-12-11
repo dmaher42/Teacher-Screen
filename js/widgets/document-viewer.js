@@ -10,7 +10,7 @@ class DocumentViewerWidget {
         this.isRenderingPage = false;
 
         this.element = document.createElement('div');
-        this.element.className = 'document-viewer-widget-content';
+        this.element.className = 'document-viewer document-viewer-widget-content';
 
         this.element.innerHTML = `
             <div class="document-viewer-controls">
@@ -42,10 +42,12 @@ class DocumentViewerWidget {
         this.pageCounterEl = this.element.querySelector('.document-viewer-page-counter');
         this.presentBtn = this.element.querySelector('.present-button');
         this.exitPresentBtn = this.element.querySelector('.exit-present-button');
+        this.pdfControls = this.element.querySelector('.document-viewer-pdf-controls');
 
         // Canvas (created lazily)
         this.canvas = null;
         this.ctx = null;
+        this.canvasContainer = null;
 
         // Bind event handlers to this instance
         this.handleUploadClick = this.handleUploadClick.bind(this);
@@ -89,6 +91,12 @@ class DocumentViewerWidget {
             } else if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 active.goToPage(active.currentPage + 1);
+            } else if (event.key === 'Home') {
+                event.preventDefault();
+                active.goToPage(1);
+            } else if (event.key === 'End') {
+                event.preventDefault();
+                active.goToPage(active.totalPages);
             }
         });
 
@@ -145,11 +153,13 @@ class DocumentViewerWidget {
         this.totalPages = 0;
         this.currentPage = 1;
         this.isRenderingPage = false;
+        this.element.classList.remove('is-loading');
         this.updateNavControls();
     }
 
     renderPdf(file) {
         this.resetPdfState();
+        this.element.classList.add('is-loading');
         this.contentArea.innerHTML = `<p>Loading PDF…</p>`;
 
         const fileReader = new FileReader();
@@ -164,19 +174,22 @@ class DocumentViewerWidget {
 
                     // Prepare canvas
                     this.contentArea.innerHTML = '';
-                    if (!this.canvas) {
-                        const container = document.createElement('div');
-                        container.className = 'document-viewer-canvas-container';
+                    if (!this.canvasContainer) {
+                        this.canvasContainer = document.createElement('div');
+                        this.canvasContainer.className = 'document-viewer-canvas-container';
                         this.canvas = document.createElement('canvas');
-                        container.appendChild(this.canvas);
-                        this.contentArea.appendChild(container);
+                        this.canvasContainer.appendChild(this.canvas);
                         this.ctx = this.canvas.getContext('2d');
-                    } else {
-                        // Ensure canvas is attached
-                        this.contentArea.appendChild(this.canvas.parentElement || this.canvas);
+                    } else if (!this.canvas) {
+                        this.canvas = document.createElement('canvas');
+                        this.canvasContainer.appendChild(this.canvas);
+                        this.ctx = this.canvas.getContext('2d');
                     }
 
+                    this.contentArea.appendChild(this.canvasContainer);
+
                     this.updateNavControls();
+                    this.element.classList.remove('is-loading');
                     this.goToPage(1);
                 })
                 .catch((error) => {
@@ -195,17 +208,20 @@ class DocumentViewerWidget {
 
         // Clamp the page number
         pageNum = Math.max(1, Math.min(pageNum, this.totalPages));
-        if (pageNum === this.currentPage && this.canvas) {
-            // Already on this page
-            return;
-        }
 
         this.isRenderingPage = true;
         this.currentPage = pageNum;
         this.updateNavControls();
+        this.element.classList.add('is-loading');
 
         this.pdfDoc.getPage(this.currentPage).then((page) => {
-            const containerWidth = this.contentArea.clientWidth || 800;
+            if (!this.canvas || !this.ctx) {
+                this.isRenderingPage = false;
+                this.element.classList.remove('is-loading');
+                return Promise.resolve();
+            }
+
+            const containerWidth = this.contentArea.clientWidth || this.element.clientWidth || 800;
             const viewport = page.getViewport({ scale: 1 }); // initial scale
             const scale = containerWidth / viewport.width;
             const scaledViewport = page.getViewport({ scale });
@@ -222,9 +238,11 @@ class DocumentViewerWidget {
             return renderTask.promise;
         }).then(() => {
             this.isRenderingPage = false;
+            this.element.classList.remove('is-loading');
         }).catch((error) => {
             console.error('PDF render error:', error);
             this.isRenderingPage = false;
+            this.element.classList.remove('is-loading');
         });
     }
 
@@ -233,6 +251,10 @@ class DocumentViewerWidget {
 
         this.prevBtn.disabled = !hasPdf || this.currentPage <= 1;
         this.nextBtn.disabled = !hasPdf || this.currentPage >= this.totalPages;
+        const navVisibility = hasPdf ? 'visible' : 'hidden';
+        this.prevBtn.style.visibility = navVisibility;
+        this.nextBtn.style.visibility = navVisibility;
+        this.pageCounterEl.style.visibility = navVisibility;
 
         if (hasPdf) {
             this.pageCounterEl.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
