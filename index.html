@@ -45,7 +45,15 @@
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
             <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+            <div class="nav-item-with-dropdown">
+                <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+                <div id="planner-dropdown" class="nav-dropdown">
+                    <ul>
+                        <li><button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button></li>
+                        <li><button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button></li>
+                    </ul>
+                </div>
+            </div>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
         </div>
