@@ -334,6 +334,10 @@ details:focus-visible,
     width: 100%;
 }
 
+.view[hidden] {
+    display: none;
+}
+
 .student-view {
     flex: 1;
     overflow: hidden;
