@@ -152,6 +152,125 @@ function PollSlide({ slide, lessonId, results, setResults }) {
   );
 }
 
+function ScenarioSlide({ slide, lessonId, results, setResults }) {
+  const selectionKey = `${lessonId}:${slide.id}:selection`;
+  const selectedChoice = results[selectionKey] || '';
+
+  const selectChoice = (choice) => {
+    const updated = {
+      ...results,
+      [selectionKey]: choice
+    };
+    setResults(updated);
+    writeStorage(STORAGE_KEYS.pollResults, updated);
+  };
+
+  return (
+    <div className="h-full p-8 flex flex-col items-center justify-center text-center gap-6">
+      <h2 className="text-4xl font-bold">{slide.title}</h2>
+      <p className="text-2xl max-w-3xl">{slide.text}</p>
+      <div className="flex flex-wrap justify-center gap-3">
+        {(slide.choices || []).map((choice) => (
+          <button
+            key={choice}
+            onClick={() => selectChoice(choice)}
+            className={`px-4 py-2 rounded border ${selectedChoice === choice ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-900 border-slate-300'}`}
+          >
+            {choice}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RetrievalSlide({ slide }) {
+  const [revealed, setRevealed] = useState(false);
+  const hasAnswers = Array.isArray(slide.answers) && slide.answers.some((answer) => Boolean(answer));
+
+  return (
+    <div className="h-full p-8 flex flex-col gap-6">
+      <h2 className="text-3xl font-bold">Retrieval Practice</h2>
+      <ol className="list-decimal pl-8 space-y-3 text-xl">
+        {(slide.questions || []).map((question, index) => (
+          <li key={`${question}-${index}`} className={!hasAnswers && revealed ? 'font-semibold text-indigo-700' : ''}>
+            <p>{question}</p>
+            {hasAnswers && revealed && slide.answers[index] ? (
+              <p className="text-base text-slate-600 mt-1">Answer: {slide.answers[index]}</p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+      <button className="self-start px-4 py-2 rounded bg-indigo-600 text-white" onClick={() => setRevealed((value) => !value)}>
+        {revealed ? 'Hide Answers' : 'Reveal Answers'}
+      </button>
+    </div>
+  );
+}
+
+function TPSSlide({ slide }) {
+  const defaultThinkTime = Number(slide.thinkTime) || 60;
+  const [remaining, setRemaining] = useState(defaultThinkTime);
+  const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('think');
+
+  useEffect(() => {
+    if (phase !== 'think' || !running) return;
+    const timerId = setInterval(() => {
+      setRemaining((value) => {
+        if (value <= 1) {
+          setRunning(false);
+          setPhase('pair');
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [phase, running]);
+
+  useEffect(() => {
+    setRemaining(defaultThinkTime);
+    setRunning(false);
+    setPhase('think');
+  }, [slide.id, defaultThinkTime]);
+
+  const skipPhase = () => {
+    if (phase === 'think') {
+      setRunning(false);
+      setRemaining(0);
+      setPhase('pair');
+      return;
+    }
+    if (phase === 'pair') setPhase('share');
+  };
+
+  return (
+    <div className="h-full p-8 flex flex-col items-center justify-center text-center gap-5">
+      <h2 className="text-4xl font-bold max-w-4xl">{slide.question}</h2>
+      {phase === 'think' ? (
+        <>
+          <p className="text-2xl font-semibold">Think quietly</p>
+          <p className="text-6xl font-mono">{Math.floor(remaining / 60).toString().padStart(2, '0')}:{(remaining % 60).toString().padStart(2, '0')}</p>
+          <div className="flex gap-2">
+            <button className="px-4 py-2 rounded bg-emerald-600 text-white" onClick={() => setRunning(true)}>Start</button>
+            <button className="px-4 py-2 rounded bg-amber-500 text-white" onClick={() => setRunning(false)}>Pause</button>
+            <button className="px-4 py-2 rounded bg-slate-600 text-white" onClick={() => { setRunning(false); setRemaining(defaultThinkTime); }}>Reset</button>
+          </div>
+        </>
+      ) : null}
+      {phase === 'pair' ? <p className="text-3xl font-semibold">Pair and discuss</p> : null}
+      {phase === 'share' ? <p className="text-3xl font-semibold">Share with class</p> : null}
+      {phase !== 'share' ? (
+        <button className="px-4 py-2 rounded bg-indigo-600 text-white" onClick={skipPhase}>
+          Skip to next phase
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ReflectionSlide({ slide, lessonId }) {
   const storageKey = `${lessonId}:${slide.id}`;
   const [value, setValue] = useState(() => readStorage(STORAGE_KEYS.reflections, {})[storageKey] || '');
@@ -409,6 +528,31 @@ function App() {
         if (slide.type === 'reflection') {
           return { id: `import-${index + 1}`, type: 'reflection', title: 'Reflection', prompt: slide.prompt || '' };
         }
+        if (slide.type === 'scenario') {
+          return {
+            id: `import-${index + 1}`,
+            type: 'scenario',
+            title: slide.title || 'Decision Time',
+            text: slide.text || '',
+            choices: Array.isArray(slide.choices) ? slide.choices : []
+          };
+        }
+        if (slide.type === 'retrieval') {
+          return {
+            id: `import-${index + 1}`,
+            type: 'retrieval',
+            questions: Array.isArray(slide.questions) ? slide.questions : [],
+            answers: Array.isArray(slide.answers) ? slide.answers : []
+          };
+        }
+        if (slide.type === 'tps') {
+          return {
+            id: `import-${index + 1}`,
+            type: 'tps',
+            question: slide.question || '',
+            thinkTime: Number(slide.thinkTime) || 60
+          };
+        }
 
         throw new Error(`Unsupported slide type: ${slide.type}`);
       });
@@ -491,32 +635,43 @@ function App() {
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {visibleSlide.type === 'title' ? <TitleSlide slide={visibleSlide} logo={logo} /> : null}
-              {visibleSlide.type === 'list' ? (
-                <ListSlide
-                  slide={visibleSlide}
-                  revealCount={revealedBullets[visibleSlide.id] || 0}
-                  onRevealNext={() => revealNextBullet(visibleSlide.id, visibleSlide.bullets.length)}
-                />
-              ) : null}
-              {visibleSlide.type === 'timer' ? <TimerSlide slide={visibleSlide} /> : null}
-              {visibleSlide.type === 'poll' ? (
-                <PollSlide
-                  slide={visibleSlide}
-                  lessonId={lesson.id}
-                  results={pollResults}
-                  setResults={setPollResults}
-                />
-              ) : null}
-              {visibleSlide.type === 'reflection' ? <ReflectionSlide slide={visibleSlide} lessonId={lesson.id} /> : null}
-              {visibleSlide.type === 'randomName' ? (
-                <RandomNameSlide
-                  slide={visibleSlide}
-                  classList={classList}
-                  currentName={pickedName}
-                  onPick={() => setPickedName(classList[Math.floor(Math.random() * classList.length)] || '')}
-                />
-              ) : null}
+              {(() => {
+                switch (visibleSlide.type) {
+                  case 'title':
+                    return <TitleSlide slide={visibleSlide} logo={logo} />;
+                  case 'list':
+                    return (
+                      <ListSlide
+                        slide={visibleSlide}
+                        revealCount={revealedBullets[visibleSlide.id] || 0}
+                        onRevealNext={() => revealNextBullet(visibleSlide.id, visibleSlide.bullets.length)}
+                      />
+                    );
+                  case 'timer':
+                    return <TimerSlide slide={visibleSlide} />;
+                  case 'poll':
+                    return <PollSlide slide={visibleSlide} lessonId={lesson.id} results={pollResults} setResults={setPollResults} />;
+                  case 'reflection':
+                    return <ReflectionSlide slide={visibleSlide} lessonId={lesson.id} />;
+                  case 'randomName':
+                    return (
+                      <RandomNameSlide
+                        slide={visibleSlide}
+                        classList={classList}
+                        currentName={pickedName}
+                        onPick={() => setPickedName(classList[Math.floor(Math.random() * classList.length)] || '')}
+                      />
+                    );
+                  case 'scenario':
+                    return <ScenarioSlide slide={visibleSlide} lessonId={lesson.id} results={pollResults} setResults={setPollResults} />;
+                  case 'retrieval':
+                    return <RetrievalSlide slide={visibleSlide} />;
+                  case 'tps':
+                    return <TPSSlide slide={visibleSlide} />;
+                  default:
+                    return <div className="h-full flex items-center justify-center text-slate-500">Unsupported slide type: {visibleSlide.type}</div>;
+                }
+              })()}
             </div>
           )}
 
