@@ -2,6 +2,7 @@ const { useEffect, useMemo, useState, useRef } = React;
 
 const STORAGE_KEYS = {
   lessons: 'daniels-deck-lessons',
+  currentLesson: 'daniels-deck-current-lesson',
   pollResults: 'daniels-deck-poll-results',
   reflections: 'daniels-deck-reflections',
   classList: 'daniels-deck-class-list',
@@ -258,7 +259,7 @@ function LessonHistory({ lessons }) {
 }
 
 function App() {
-  const [lesson] = useState(defaultLesson);
+  const [lesson, setLesson] = useState(() => readStorage(STORAGE_KEYS.currentLesson, defaultLesson));
   const [horizontalIndex, setHorizontalIndex] = useState(0);
   const [verticalIndex, setVerticalIndex] = useState(0);
   const [revealedBullets, setRevealedBullets] = useState({});
@@ -268,6 +269,9 @@ function App() {
   const [theme, setTheme] = useState(() => readStorage(STORAGE_KEYS.theme, 'light'));
   const [logo, setLogo] = useState(() => readStorage(STORAGE_KEYS.logo, ''));
   const [view, setView] = useState('present');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [lessonImportValue, setLessonImportValue] = useState('');
+  const [importError, setImportError] = useState('');
   const touchStart = useRef(null);
 
   const slides = lesson.slides;
@@ -280,6 +284,10 @@ function App() {
     if (!hasLesson) {
       writeStorage(STORAGE_KEYS.lessons, [lesson, ...savedLessons]);
     }
+  }, [lesson]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.currentLesson, lesson);
   }, [lesson]);
 
   useEffect(() => {
@@ -373,15 +381,96 @@ function App() {
   const lessons = useMemo(() => readStorage(STORAGE_KEYS.lessons, []), [view]);
   const deckTheme = theme === 'dark' ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900';
 
+  const importLesson = () => {
+    try {
+      const parsed = JSON.parse(lessonImportValue);
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.slides) || typeof parsed.title !== 'string') {
+        setImportError('Lesson JSON must include a title and slides array.');
+        return;
+      }
+
+      const normalizedSlides = parsed.slides.map((slide, index) => {
+        if (!slide || typeof slide !== 'object' || typeof slide.type !== 'string') {
+          throw new Error(`Slide ${index + 1} is invalid.`);
+        }
+
+        if (slide.type === 'title') {
+          return { id: `import-${index + 1}`, type: 'title', title: slide.heading || '', subtitle: slide.subheading || '' };
+        }
+        if (slide.type === 'list') {
+          return { id: `import-${index + 1}`, type: 'list', title: slide.heading || '', bullets: Array.isArray(slide.items) ? slide.items : [] };
+        }
+        if (slide.type === 'timer') {
+          return { id: `import-${index + 1}`, type: 'timer', title: 'Timer', duration: Number(slide.duration) || 60 };
+        }
+        if (slide.type === 'poll') {
+          return { id: `import-${index + 1}`, type: 'poll', title: slide.question || 'Poll', options: Array.isArray(slide.options) ? slide.options : [] };
+        }
+        if (slide.type === 'reflection') {
+          return { id: `import-${index + 1}`, type: 'reflection', title: 'Reflection', prompt: slide.prompt || '' };
+        }
+
+        throw new Error(`Unsupported slide type: ${slide.type}`);
+      });
+
+      const nextLesson = {
+        id: `lesson-${Date.now()}`,
+        title: parsed.title,
+        date: new Date().toISOString(),
+        slides: normalizedSlides
+      };
+
+      setLesson(nextLesson);
+      setHorizontalIndex(0);
+      setVerticalIndex(0);
+      setRevealedBullets({});
+      writeStorage(STORAGE_KEYS.currentLesson, nextLesson);
+      setShowImportModal(false);
+      setLessonImportValue('');
+      setImportError('');
+      setView('present');
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Invalid JSON');
+    }
+  };
+
   return (
     <div className={`${deckTheme} min-h-screen`}>
       <header className="p-4 border-b border-slate-300 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Daniel's Deck</h1>
         <div className="flex gap-2">
+          <button className="px-3 py-2 rounded border" onClick={() => setShowImportModal(true)}>Import Lesson</button>
           <button className="px-3 py-2 rounded border" onClick={() => setView('present')}>Presentation</button>
           <button className="px-3 py-2 rounded border" onClick={() => setView('history')}>Saved lessons</button>
         </div>
       </header>
+
+      {showImportModal ? (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white text-slate-900 rounded-lg border border-slate-300 p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Import lesson JSON</h2>
+            <textarea
+              className="w-full h-72 rounded border border-slate-300 p-3 font-mono text-sm"
+              placeholder="Paste lesson JSON here..."
+              value={lessonImportValue}
+              onChange={(event) => setLessonImportValue(event.target.value)}
+            />
+            {importError ? <p className="text-sm text-rose-600">{importError}</p> : null}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-3 py-2 rounded border"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportError('');
+                }}
+              >
+                Cancel
+              </button>
+              <button className="px-3 py-2 rounded bg-indigo-600 text-white" onClick={importLesson}>Load Lesson</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <main className="flex flex-col md:flex-row">
         <TeacherToolbar
