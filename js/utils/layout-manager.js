@@ -10,7 +10,8 @@ const WIDGET_SIZE_RULES = {
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   RevealManagerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
-  WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 }
+  WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  RichTextWidget: { minW: 4, minH: 3 }
 };
 
 class LayoutManager {
@@ -595,6 +596,8 @@ class LayoutManager {
         return new NotesWidget();
       case 'WellbeingWidget':
         return new WellbeingWidget();
+      case 'RichTextWidget':
+        return new RichTextWidget();
       default:
         console.warn(`Unknown widget type: ${type}`);
         return null;
