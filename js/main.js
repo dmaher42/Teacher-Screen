@@ -29,6 +29,14 @@ const STATE_MIGRATIONS = [
         }
     }
 ];
+
+const THEME_CLASSES = [
+    'ocean-theme',
+    'dark-theme',
+    'light-theme',
+    'professional-theme-v2'
+];
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -205,10 +213,8 @@ class ClassroomScreenApp {
         this.setupPresetControls();
         this.renderBackgroundSelector();
 
-        const savedTheme = localStorage.getItem('selectedTheme');
-        if (savedTheme) {
-            document.body.className = savedTheme;
-        }
+        const savedTheme = localStorage.getItem('selectedTheme') || 'professional-theme-v2';
+        this.switchTheme(savedTheme);
 
         this.renderThemeSelector();
         this.renderWidgetModal();
@@ -737,7 +743,7 @@ class ClassroomScreenApp {
                 <span>${theme.name}</span>
             `;
             const input = label.querySelector('input');
-            input.checked = (document.body.className === theme.id);
+            input.checked = document.body.classList.contains(theme.id);
             input.addEventListener('change', () => {
                 this.switchTheme(theme.id);
                 this.saveState();
@@ -747,7 +753,11 @@ class ClassroomScreenApp {
     }
 
     switchTheme(themeName) {
-        document.body.className = themeName;
+        THEME_CLASSES.forEach(theme => {
+            document.body.classList.remove(theme);
+        });
+
+        document.body.classList.add(themeName);
         localStorage.setItem('selectedTheme', themeName);
     }
 
