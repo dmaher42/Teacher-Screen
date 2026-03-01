@@ -1682,3 +1682,8 @@ dialog::backdrop {
     height: 100%;
     border: none;
 }
+
+.widget-settings-toggle {
+    margin-top: 12px;
+    font-size: 0.9rem;
+}
