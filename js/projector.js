@@ -3,6 +3,14 @@
  * Loads and displays the classroom screen state in a read-only mode.
  */
 
+const THEMES = ['theme-ocean', 'theme-professional', 'theme-light'];
+
+function applyTheme(themeName) {
+    const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
+    THEMES.forEach(theme => document.body.classList.remove(theme));
+    document.body.classList.add(nextTheme);
+}
+
 class ProjectorApp {
     constructor() {
         this.appContainer = document.getElementById('app-container');
@@ -48,10 +56,8 @@ class ProjectorApp {
     }
 
     loadTheme() {
-        const theme = localStorage.getItem('selectedTheme');
-        if (theme) {
-            document.body.className = `projector-view ${theme}`;
-        }
+        const theme = localStorage.getItem('selectedTheme') || 'theme-professional';
+        applyTheme(theme);
     }
 
     loadSavedState() {
@@ -75,7 +81,7 @@ class ProjectorApp {
         try {
             // Restore theme (if stored in state, though main.js seems to store it in body class and state)
             if (state.theme) {
-                document.body.className = `projector-view ${state.theme}`;
+                applyTheme(state.theme);
             }
 
             // Restore background

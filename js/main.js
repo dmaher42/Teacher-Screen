@@ -30,12 +30,18 @@ const STATE_MIGRATIONS = [
     }
 ];
 
-const THEME_CLASSES = [
-    'ocean-theme',
-    'dark-theme',
-    'light-theme',
-    'professional-theme-v2'
+const THEMES = [
+    'theme-ocean',
+    'theme-professional',
+    'theme-light'
 ];
+
+function applyTheme(themeName) {
+    const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
+    THEMES.forEach(theme => document.body.classList.remove(theme));
+    document.body.classList.add(nextTheme);
+    localStorage.setItem('selectedTheme', nextTheme);
+}
 
 class ClassroomScreenApp {
     constructor() {
@@ -134,17 +140,9 @@ class ClassroomScreenApp {
         ];
 
         this.themes = [
-            { name: 'Professional V2', id: 'professional-theme-v2', swatch: '#6366f1' },
-            { name: 'Memory Cue', id: 'memory-cue-theme', swatch: '#8e82ff' },
-            { name: 'Light', id: 'light-theme', swatch: '#3498db' },
-            { name: 'Dark', id: 'dark-theme', swatch: '#4dabf7' },
-            { name: 'Ocean', id: 'ocean-theme', swatch: '#0077b6' },
-            { name: 'Forest', id: 'forest-theme', swatch: '#2d6a4f' },
-            { name: 'Sunset', id: 'sunset-theme', swatch: '#d62828' },
-            { name: 'Royal', id: 'royal-theme', swatch: '#6a4c93' },
-            { name: 'Monochrome', id: 'monochrome-theme', swatch: '#495057' },
-            { name: 'High Contrast', id: 'high-contrast-theme', swatch: '#000000' },
-            { name: 'Calm Classroom', id: 'calm-theme', swatch: '#4f8fbf' }
+            { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
+            { name: 'Ocean', id: 'theme-ocean', swatch: '#38bdf8' },
+            { name: 'Light', id: 'theme-light', swatch: '#2563eb' }
         ];
 
         this.defaultPresets = [
@@ -152,7 +150,7 @@ class ClassroomScreenApp {
                 name: 'Default',
                 className: '',
                 period: '',
-                theme: 'professional-theme-v2',
+                theme: 'theme-professional',
                 background: {
                     type: 'gradient',
                     value: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
@@ -164,7 +162,7 @@ class ClassroomScreenApp {
                 name: 'Focus Mode',
                 className: 'All Classes',
                 period: 'Afternoon',
-                theme: 'dark-theme',
+                theme: 'theme-ocean',
                 background: {
                     type: 'solid',
                     value: '#1a1a1a'
@@ -213,7 +211,7 @@ class ClassroomScreenApp {
         this.setupPresetControls();
         this.renderBackgroundSelector();
 
-        const savedTheme = localStorage.getItem('selectedTheme') || 'professional-theme-v2';
+        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
         this.switchTheme(savedTheme);
 
         this.renderThemeSelector();
@@ -753,12 +751,7 @@ class ClassroomScreenApp {
     }
 
     switchTheme(themeName) {
-        THEME_CLASSES.forEach(theme => {
-            document.body.classList.remove(theme);
-        });
-
-        document.body.classList.add(themeName);
-        localStorage.setItem('selectedTheme', themeName);
+        applyTheme(themeName);
     }
 
     getLayoutStorageKey(name) {
