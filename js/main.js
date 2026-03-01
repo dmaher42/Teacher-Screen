@@ -200,6 +200,7 @@ class ClassroomScreenApp {
         this.loadSavedState();
         this.backgroundManager.init();
         this.layoutManager.init();
+        this.updateProjectorVisibility();
         this.setupPresetControls();
         this.renderBackgroundSelector();
 
@@ -224,6 +225,8 @@ class ClassroomScreenApp {
             document.documentElement.style.setProperty('--reduce-motion', 1);
             if (this.reduceMotionToggle) this.reduceMotionToggle.checked = true;
         }
+
+        this.updateProjectorVisibility();
     }
 
     setupEventListeners() {
@@ -244,6 +247,10 @@ class ClassroomScreenApp {
                 });
             }
         };
+
+        window.addEventListener('storage', () => {
+            this.updateProjectorVisibility();
+        });
 
 
         if (this.plannerModalCloseBtn) {
@@ -1257,6 +1264,7 @@ class ClassroomScreenApp {
                 this.lessonPlanEditor.setContents(data.lessonPlan);
             }
 
+            this.updateProjectorVisibility();
             this.saveState();
             this.showNotification(`Loaded layout "${layoutName}".`);
         } catch (error) {
@@ -1543,6 +1551,7 @@ class ClassroomScreenApp {
             return widget;
         });
 
+        this.updateProjectorVisibility();
         this.saveState();
         this.showNotification(`Preset "${preset.name}" loaded.`);
     }
@@ -1684,6 +1693,7 @@ class ClassroomScreenApp {
                 return widget;
             });
 
+            this.updateProjectorVisibility();
             this.saveState();
             this.closeDialog(this.importDialog);
             this.showNotification('Layout and presets imported successfully.');
@@ -1865,6 +1875,7 @@ class ClassroomScreenApp {
                     }
                     return widget;
                 });
+                this.updateProjectorVisibility();
             }
 
             // Restore lesson plan
@@ -2193,20 +2204,24 @@ class ClassroomScreenApp {
              this.closeWidgetSettings();
         });
 
-        // Toggle Projector Button
-        const projectorToggleBtn = document.createElement('button');
-        projectorToggleBtn.className = 'control-button';
+        // Toggle Projector Visibility
+        const projectorToggle = document.createElement('label');
+        projectorToggle.className = 'widget-settings-toggle';
         const widgetInfo = this.layoutManager.widgets.find(w => w.widget === widget);
         const isVisible = widgetInfo ? widgetInfo.visibleOnProjector : true;
-
-        projectorToggleBtn.textContent = isVisible ? 'Hide on Projector' : 'Show on Projector';
-        projectorToggleBtn.addEventListener('click', () => {
-             if (widgetInfo) {
-                 widgetInfo.visibleOnProjector = !widgetInfo.visibleOnProjector;
-                 projectorToggleBtn.textContent = widgetInfo.visibleOnProjector ? 'Hide on Projector' : 'Show on Projector';
-                 this.layoutManager.saveLayout();
-             }
-        });
+        projectorToggle.innerHTML = `
+            <input type="checkbox" id="projectorToggle" ${isVisible ? 'checked' : ''}>
+            Show on projector
+        `;
+        const projectorToggleInput = projectorToggle.querySelector('input');
+        if (projectorToggleInput) {
+            projectorToggleInput.addEventListener('change', (event) => {
+                if (!widgetInfo) return;
+                widgetInfo.visibleOnProjector = event.target.checked;
+                this.layoutManager.saveLayout();
+                this.updateProjectorVisibility();
+            });
+        }
 
         // Help Button
         const helpBtn = document.createElement('button');
@@ -2224,7 +2239,7 @@ class ClassroomScreenApp {
         rightGroup.style.display = 'flex';
         rightGroup.style.gap = '10px';
         rightGroup.appendChild(helpBtn);
-        rightGroup.appendChild(projectorToggleBtn);
+        rightGroup.appendChild(projectorToggle);
 
         commonControls.appendChild(removeBtn);
         commonControls.appendChild(rightGroup);
@@ -2259,6 +2274,21 @@ class ClassroomScreenApp {
 
         this.saveState();
         this.activeSettingsWidget = null;
+    }
+
+    updateProjectorVisibility() {
+        if (!this.layoutManager || !Array.isArray(this.layoutManager.widgets)) return;
+
+        const isProjector = window.location.search.includes('projector=true');
+
+        this.layoutManager.widgets.forEach((info) => {
+            if (!info || !info.element) return;
+            if (isProjector && info.visibleOnProjector === false) {
+                info.element.style.display = 'none';
+            } else {
+                info.element.style.display = 'block';
+            }
+        });
     }
 }
 
