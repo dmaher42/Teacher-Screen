@@ -70,6 +70,8 @@ class RevealManagerWidget {
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
+        this.controlsContainer = this.element.querySelector('.reveal-manager-controls');
+        this.presentationRow = this.element.querySelector('.reveal-presentation-row');
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
         this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
@@ -99,6 +101,17 @@ class RevealManagerWidget {
         this.renderSavedDeckOptions();
         this.updateModeUI();
         this.updatePresentationUI();
+
+        if (document.body.classList.contains('projector-view')) {
+            this.setProjectorControlsHidden(true);
+        }
+    }
+
+    setProjectorControlsHidden(hidden) {
+        if (!this.controlsContainer || !this.presentationRow) return;
+
+        this.controlsContainer.style.display = hidden ? 'none' : '';
+        this.presentationRow.style.display = hidden ? 'none' : '';
     }
 
     getCurrentMode() {
