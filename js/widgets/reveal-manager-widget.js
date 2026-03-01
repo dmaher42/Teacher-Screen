@@ -37,6 +37,12 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-launch-btn">Launch</button>
                     <button type="button" class="control-button reveal-save-btn">Save Deck</button>
                 </div>
+                <div class="reveal-manager-row reveal-manager-actions">
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="prev">Prev</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="next">Next</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="up">Up</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="down">Down</button>
+                </div>
                 <div class="reveal-manager-row">
                     <select class="reveal-saved-select">
                         <option value="">Select saved deck</option>
@@ -58,22 +64,29 @@ class RevealManagerWidget {
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
+        this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
+
+        // Keep a stable iframe reference for toolbar navigation, similar to React's useRef.
+        this.iframeRef = { current: null };
 
         this.iframe = document.createElement('iframe');
         this.iframe.className = 'reveal-manager-iframe';
         this.iframe.title = 'Reveal deck frame';
         this.iframe.setAttribute('referrerpolicy', 'no-referrer');
         this.frameWrap.appendChild(this.iframe);
+        this.iframeRef.current = this.iframe;
 
         this.handleModeChange = this.handleModeChange.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
         this.handleLaunchSaved = this.handleLaunchSaved.bind(this);
+        this.handleNavButtonClick = this.handleNavButtonClick.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
+        this.navButtons.forEach((button) => button.addEventListener('click', this.handleNavButtonClick));
 
         this.renderSavedDeckOptions();
         this.updateModeUI();
@@ -168,6 +181,28 @@ class RevealManagerWidget {
         }
     }
 
+    sendKeyToIframe(direction) {
+        const frame = this.iframeRef.current;
+        if (!frame || !frame.contentWindow) return;
+
+        // Reveal deck pages loaded in the iframe must listen for this event:
+        // window.addEventListener("message", function(event) {
+        //   if (event.data.type === "reveal-nav") {
+        //     if (event.data.direction === "next") Reveal.next();
+        //     if (event.data.direction === "prev") Reveal.prev();
+        //     if (event.data.direction === "up") Reveal.up();
+        //     if (event.data.direction === "down") Reveal.down();
+        //   }
+        // });
+        frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
+    }
+
+    handleNavButtonClick(event) {
+        const direction = event.currentTarget.dataset.direction;
+        if (!direction) return;
+        this.sendKeyToIframe(direction);
+    }
+
     handleLaunchFromInputs() {
         const deck = this.buildDeckFromInputs();
         if (!deck) return;
@@ -235,6 +270,7 @@ class RevealManagerWidget {
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);
+        this.navButtons.forEach((button) => button.removeEventListener('click', this.handleNavButtonClick));
         this.element.remove();
 
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
