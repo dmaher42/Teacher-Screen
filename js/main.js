@@ -126,6 +126,7 @@ class ClassroomScreenApp {
         ];
 
         this.themes = [
+            { name: 'Professional V2', id: 'professional-theme-v2', swatch: '#6366f1' },
             { name: 'Memory Cue', id: 'memory-cue-theme', swatch: '#8e82ff' },
             { name: 'Light', id: 'light-theme', swatch: '#3498db' },
             { name: 'Dark', id: 'dark-theme', swatch: '#4dabf7' },
@@ -143,7 +144,7 @@ class ClassroomScreenApp {
                 name: 'Default',
                 className: '',
                 period: '',
-                theme: 'memory-cue-theme',
+                theme: 'professional-theme-v2',
                 background: {
                     type: 'gradient',
                     value: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
