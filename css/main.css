@@ -926,6 +926,110 @@ dialog::backdrop {
     margin-bottom: 10px;
 }
 
+.rich-text-widget-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: var(--text-primary);
+}
+
+.rich-text-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.rich-text-editor-container {
+    flex: 1;
+    min-height: 0;
+}
+
+.rich-text-widget-inner .ql-toolbar,
+.rich-text-widget-inner .ql-editor {
+    transition: all 0.3s ease;
+}
+
+.rich-text-widget-inner .ql-toolbar {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium, 12px) var(--border-radius-medium, 12px) 0 0;
+    background: var(--bg-elevated);
+}
+
+.rich-text-widget-inner .ql-container {
+    border: 1px solid var(--border-color);
+    border-top: 0;
+    border-radius: 0 0 var(--border-radius-medium, 12px) var(--border-radius-medium, 12px);
+    background: var(--bg-primary);
+    min-height: 220px;
+}
+
+.rich-text-widget-inner .ql-editor {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.8rem;
+    line-height: 1.9;
+    letter-spacing: 0.3px;
+    padding: 2rem;
+    color: var(--text-primary);
+}
+
+.rich-text-widget-inner .ql-editor h2 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin: 1.5rem 0 1rem;
+    border-left: 8px solid var(--accent);
+    padding-left: 1rem;
+    line-height: 1.2;
+}
+
+.rich-text-widget-inner .ql-editor h3 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 1.2rem 0 0.6rem;
+    line-height: 1.25;
+}
+
+.rich-text-widget-inner .ql-editor ul li,
+.rich-text-widget-inner .ql-editor ol li {
+    margin-bottom: 0.8rem;
+    font-weight: 500;
+}
+
+.rich-text-widget-inner .ql-editor .display-callout {
+    background: var(--bg-elevated);
+    border-left: 8px solid var(--accent);
+    padding: 1.2rem 1.5rem;
+    border-radius: 14px;
+    margin: 1.5rem 0;
+    box-shadow: var(--shadow-soft);
+}
+
+.rich-text-widget-inner .ql-formats .ql-insertSectionBlock {
+    min-width: 10.75rem;
+    width: auto;
+}
+
+.rich-text-widget-inner .ql-formats .ql-insertSectionBlock::before {
+    content: 'Insert Section Block';
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.rich-text-widget-inner.display-mode .ql-toolbar {
+    display: none;
+}
+
+.rich-text-widget-inner.display-mode .ql-editor {
+    font-size: 2.1rem;
+    transition: font-size 0.3s ease;
+}
+
+.rich-text-widget-inner.display-mode .rich-text-editor-container,
+.rich-text-widget-inner.display-mode .ql-container {
+    width: 100%;
+}
+
 /* Background Selector Accessibility */
 .background-selector {
   display: flex;
