@@ -1578,6 +1578,10 @@ dialog::backdrop {
     width: 100%;
 }
 
+.reveal-manager-row select {
+    min-width: 0;
+}
+
 .reveal-content-textarea {
     min-height: 110px;
     resize: vertical;
@@ -1585,6 +1589,44 @@ dialog::backdrop {
 
 .reveal-manager-actions {
     justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.reveal-btn {
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.reveal-btn-primary {
+    background-color: #2563eb;
+    border-color: #1d4ed8;
+    color: #ffffff;
+}
+
+.reveal-btn-primary:hover {
+    background-color: #1d4ed8;
+}
+
+.reveal-btn-secondary {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.reveal-btn-secondary:hover {
+    background-color: #e2e8f0;
+}
+
+.reveal-btn-danger {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.reveal-btn-danger:hover {
+    background-color: #fecaca;
 }
 
 .reveal-presentation-row {

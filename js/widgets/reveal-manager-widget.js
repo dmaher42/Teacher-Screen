@@ -35,24 +35,26 @@ class RevealManagerWidget {
                     <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
                 </div>
                 <div class="reveal-manager-row reveal-manager-actions">
-                    <button type="button" class="control-button reveal-launch-btn">Launch</button>
-                    <button type="button" class="control-button reveal-save-btn">Save Deck</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn">Launch</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save Deck</button>
                 </div>
                 <div class="reveal-manager-row reveal-manager-actions">
-                    <button type="button" class="control-button reveal-nav-btn" data-direction="prev">Prev</button>
-                    <button type="button" class="control-button reveal-nav-btn" data-direction="next">Next</button>
-                    <button type="button" class="control-button reveal-nav-btn" data-direction="up">Up</button>
-                    <button type="button" class="control-button reveal-nav-btn" data-direction="down">Down</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="prev">Prev</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="next">Next</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="up">Up</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="down">Down</button>
                 </div>
                 <div class="reveal-manager-row">
                     <select class="reveal-saved-select">
                         <option value="">Select saved deck</option>
                     </select>
-                    <button type="button" class="control-button reveal-launch-saved-btn">Launch Saved</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Launch Saved</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
                 </div>
             </div>
             <div class="reveal-manager-row reveal-presentation-row">
-                <button type="button" class="control-button reveal-presentation-toggle-btn">Enter Presentation Mode</button>
+                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn">Enter Presentation Mode</button>
             </div>
             <div class="reveal-container">
                 <div class="reveal-manager-frame-wrap"></div>
@@ -69,6 +71,8 @@ class RevealManagerWidget {
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
+        this.renameButton = this.element.querySelector('.reveal-rename-btn');
+        this.deleteButton = this.element.querySelector('.reveal-delete-btn');
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
         this.controlsContainer = this.element.querySelector('.reveal-manager-controls');
         this.presentationRow = this.element.querySelector('.reveal-presentation-row');
@@ -90,12 +94,16 @@ class RevealManagerWidget {
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
         this.handleLaunchSaved = this.handleLaunchSaved.bind(this);
+        this.handleRenameDeck = this.handleRenameDeck.bind(this);
+        this.handleDeleteDeck = this.handleDeleteDeck.bind(this);
         this.handlePresentationToggle = this.handlePresentationToggle.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
+        this.renameButton.addEventListener('click', this.handleRenameDeck);
+        this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.addEventListener('click', this.handlePresentationToggle);
 
         this.renderSavedDeckOptions();
@@ -159,7 +167,8 @@ class RevealManagerWidget {
         decks.forEach((deck) => {
             const option = document.createElement('option');
             option.value = String(deck.id);
-            option.textContent = `${deck.name} (${deck.type.toUpperCase()})`;
+            const isActive = this.activeDeck && this.activeDeck.id === deck.id;
+            option.textContent = `${isActive ? '● ' : ''}${deck.name} (${deck.type.toUpperCase()})`;
             this.savedSelect.appendChild(option);
         });
 
@@ -201,6 +210,9 @@ class RevealManagerWidget {
             this.iframe.removeAttribute('src');
             this.iframe.srcdoc = deck.content;
         }
+
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(deck.id);
     }
 
     sendKeyToIframe(direction) {
@@ -260,6 +272,42 @@ class RevealManagerWidget {
         this.launchDeck(deck);
     }
 
+    handleRenameDeck() {
+        const selectedId = Number(this.savedSelect.value);
+        const nextName = this.deckNameInput.value.trim();
+        if (!selectedId || !nextName) return;
+
+        const decks = this.getSavedDecks();
+        const deckToRename = decks.find((item) => item.id === selectedId);
+        if (!deckToRename) return;
+
+        deckToRename.name = nextName;
+        this.saveDecks(decks);
+
+        if (this.activeDeck && this.activeDeck.id === selectedId) {
+            this.activeDeck.name = nextName;
+        }
+
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(selectedId);
+    }
+
+    handleDeleteDeck() {
+        const selectedId = Number(this.savedSelect.value);
+        if (!selectedId) return;
+
+        const decks = this.getSavedDecks();
+        const nextDecks = decks.filter((item) => item.id !== selectedId);
+        this.saveDecks(nextDecks);
+
+        if (this.activeDeck && this.activeDeck.id === selectedId) {
+            this.activeDeck = null;
+        }
+
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = '';
+    }
+
     handlePresentationToggle() {
         this.presentationMode = !this.presentationMode;
         this.updatePresentationUI();
@@ -314,6 +362,8 @@ class RevealManagerWidget {
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);
+        this.renameButton.removeEventListener('click', this.handleRenameDeck);
+        this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.removeEventListener('click', this.handlePresentationToggle);
         this.element.remove();
 
