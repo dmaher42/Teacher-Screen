@@ -255,6 +255,13 @@ class RevealManagerWidget {
     updatePresentationUI() {
         this.element.classList.toggle('presentation-mode', this.presentationMode);
         this.revealContainer.classList.toggle('presentation', this.presentationMode);
+
+        if (this.presentationMode) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
         this.presentationToggleButton.textContent = this.presentationMode
             ? 'Exit Presentation Mode'
             : 'Enter Presentation Mode';
@@ -288,6 +295,8 @@ class RevealManagerWidget {
     }
 
     remove() {
+        document.body.style.overflow = 'auto';
+
         this.modeRadios.forEach((radio) => radio.removeEventListener('change', this.handleModeChange));
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
