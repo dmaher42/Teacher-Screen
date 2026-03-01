@@ -8,6 +8,7 @@ const WIDGET_SIZE_RULES = {
   NoiseMeterWidget: { minW: 2, minH: 2 },
   DocumentViewerWidget: { minW: 3, minH: 3 },
   UrlViewerWidget: { minW: 3, minH: 3 },
+  RevealManagerWidget: { minW: 3, minH: 3 },
   NamePickerWidget: { minW: 2, minH: 2 },
   WellbeingWidget: { minW: 3, minH: 3 }
 };

@@ -1548,3 +1548,54 @@ dialog::backdrop {
     display: block;
     margin-bottom: 6px;
 }
+
+/* ==========================
+   Reveal Manager Widget Styles
+   ========================== */
+.reveal-manager-widget-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 0.5rem;
+}
+
+.reveal-manager-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reveal-manager-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.reveal-manager-row input[type="text"],
+.reveal-manager-row textarea,
+.reveal-manager-row select {
+    width: 100%;
+}
+
+.reveal-content-textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+.reveal-manager-actions {
+    justify-content: flex-start;
+}
+
+.reveal-manager-frame-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.reveal-manager-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+}
