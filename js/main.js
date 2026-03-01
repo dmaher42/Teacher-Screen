@@ -2177,10 +2177,8 @@ class ClassroomScreenApp {
         removeBtn.style.backgroundColor = '#e74c3c'; // Red-ish
         removeBtn.style.color = 'white';
         removeBtn.addEventListener('click', () => {
-             if (confirm('Remove this widget?')) {
-                 this.layoutManager.removeWidget(widget);
-                 this.closeWidgetSettings();
-             }
+             this.layoutManager.removeWidget(widget);
+             this.closeWidgetSettings();
         });
 
         // Toggle Projector Button
