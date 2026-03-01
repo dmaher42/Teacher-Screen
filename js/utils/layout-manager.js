@@ -4,13 +4,13 @@ const GRID_SIZE = 20; // Widgets will snap to a 20px grid
 const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
 
 const WIDGET_SIZE_RULES = {
-  TimerWidget: { minW: 2, minH: 1, maxW: 12, maxH: 4 },
-  NoiseMeterWidget: { minW: 2, minH: 2 },
-  DocumentViewerWidget: { minW: 3, minH: 3 },
-  UrlViewerWidget: { minW: 3, minH: 3 },
-  RevealManagerWidget: { minW: 3, minH: 3 },
-  NamePickerWidget: { minW: 2, minH: 2 },
-  WellbeingWidget: { minW: 3, minH: 3 }
+  TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
+  NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  RevealManagerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
+  WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 }
 };
 
 class LayoutManager {
@@ -111,10 +111,14 @@ class LayoutManager {
      const containerH = this.container.clientHeight || 768;
      const colW = containerW / this.gridColumns;
      const rowH = containerH / this.gridRows;
+     const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
+     const defaultW = rules.defaultW || 3;
+     const defaultH = rules.defaultH || 2;
+     const maxCols = 3;
 
-     // Default size (3x2 grid units approx) if not provided
-     let finalW = width !== null ? width : colW * 3;
-     let finalH = height !== null ? height : rowH * 2;
+     // Default size uses widget-specific grid unit defaults when not provided.
+     let finalW = width !== null ? width : colW * defaultW;
+     let finalH = height !== null ? height : rowH * defaultH;
 
      // Heuristic: if width is small (<= 12), assume grid units and convert.
      if (finalW <= 12) finalW = finalW * colW;
@@ -124,10 +128,12 @@ class LayoutManager {
      let finalY = y;
 
      if (finalX === null || finalY === null) {
-        // Cascade placement
+        // Place widgets in a row-by-row grid to avoid cascade overlap.
         const count = this.widgets.length;
-        finalX = (count * 40) % (containerW - finalW);
-        finalY = (count * 40) % (containerH - finalH);
+        const col = count % maxCols;
+        const row = Math.floor(count / maxCols);
+        finalX = col * (colW * defaultW + GRID_SIZE);
+        finalY = row * (rowH * defaultH + GRID_SIZE);
      } else {
          // Heuristic: if x is small (<= 12), assume grid units
          if (finalX <= 12 && finalX < containerW / 20) finalX = finalX * colW;
@@ -254,8 +260,12 @@ class LayoutManager {
       const startLeft = parseInt(element.style.left, 10) || 0;
       const startTop = parseInt(element.style.top, 10) || 0;
 
-      const minWidth = GRID_SIZE * 4;
-      const minHeight = GRID_SIZE * 3;
+      const info = this.widgets.find(w => w.element === element);
+      const rules = info ? WIDGET_SIZE_RULES[info.widget.constructor.name] || {} : {};
+      const colW = this.container.clientWidth / this.gridColumns || COL_PX_ESTIMATE;
+      const rowH = this.container.clientHeight / this.gridRows || COL_PX_ESTIMATE;
+      const minWidth = Math.round((rules.minW ? rules.minW * colW : GRID_SIZE * 4) / GRID_SIZE) * GRID_SIZE;
+      const minHeight = Math.round((rules.minH ? rules.minH * rowH : GRID_SIZE * 3) / GRID_SIZE) * GRID_SIZE;
 
       const onMouseMove = (moveEvent) => {
         const deltaX = moveEvent.clientX - startX;
@@ -314,7 +324,6 @@ class LayoutManager {
         element.style.left = `${newLeft}px`;
         element.style.top = `${newTop}px`;
 
-        const info = this.widgets.find(w => w.element === element);
         if (info) {
           info.width = newWidth;
           info.height = newHeight;
