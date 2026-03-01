@@ -70,13 +70,10 @@ class ClassroomScreenApp {
         this.layoutNameInput = document.getElementById('layout-name-input');
         this.saveLayoutButton = document.getElementById('save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
-        this.openPlannerButton = document.getElementById('open-planner-btn');
-        this.loadTodaysLessonButton = document.getElementById('load-todays-lesson-btn');
         this.plannerModal = document.getElementById('planner-modal');
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
 
-        this.openAgendaButton = document.getElementById('open-agenda-btn');
         this.agendaModal = document.getElementById('agenda-modal');
         this.agendaList = document.getElementById('agenda-list');
         this.agendaModalCloseBtn = this.agendaModal ? this.agendaModal.querySelector('.modal-close-btn') : null;
@@ -230,13 +227,6 @@ class ClassroomScreenApp {
             }
         };
 
-        if (this.openPlannerButton) {
-            this.openPlannerButton.addEventListener('click', () => this.openPlannerModal());
-        }
-
-        if (this.loadTodaysLessonButton) {
-            this.loadTodaysLessonButton.addEventListener('click', () => this.loadTodaysLesson());
-        }
 
         if (this.plannerModalCloseBtn) {
             this.plannerModalCloseBtn.addEventListener('click', () => this.closePlannerModal());
@@ -250,9 +240,6 @@ class ClassroomScreenApp {
             });
         }
 
-        if (this.openAgendaButton) {
-            this.openAgendaButton.addEventListener('click', () => this.openAgendaModal());
-        }
 
         if (this.agendaModalCloseBtn) {
             this.agendaModalCloseBtn.addEventListener('click', () => this.closeAgendaModal());
@@ -400,25 +387,6 @@ class ClassroomScreenApp {
             this.applyLayoutPresetButton.addEventListener('click', () => this.applyLayoutPreset());
         }
 
-        // Projector View Button
-        const openProjectorBtn = document.getElementById('open-projector-view');
-        if (openProjectorBtn) {
-            openProjectorBtn.addEventListener('click', () => {
-                const state = this.buildStateSnapshot();
-                const stateJSON = JSON.stringify(state);
-                // Save a fresh copy so the projector can load immediately from storage.
-                localStorage.setItem('classroomScreenState', stateJSON);
-
-                window.open('projector.html', '_blank');
-
-                // Immediately sync the current layout to the projector window
-                // so it renders even if no further edits occur.
-                this.projectorChannel.postMessage({
-                    type: 'layout-update',
-                    state
-                });
-            });
-        }
     }
 
     handleNavClick(tab) {
