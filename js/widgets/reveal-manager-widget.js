@@ -6,6 +6,7 @@ class RevealManagerWidget {
     constructor() {
         this.storageKey = 'revealDecks';
         this.activeDeck = null;
+        this.presentationMode = false;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content';
@@ -44,7 +45,12 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-launch-saved-btn">Launch Saved</button>
                 </div>
             </div>
-            <div class="reveal-manager-frame-wrap"></div>
+            <div class="reveal-manager-row reveal-presentation-row">
+                <button type="button" class="control-button reveal-presentation-toggle-btn">Enter Presentation Mode</button>
+            </div>
+            <div class="reveal-container">
+                <div class="reveal-manager-frame-wrap"></div>
+            </div>
         `;
 
         this.modeRadios = Array.from(this.element.querySelectorAll('input[type="radio"]'));
@@ -57,6 +63,8 @@ class RevealManagerWidget {
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
+        this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
+        this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
 
         this.iframe = document.createElement('iframe');
@@ -69,14 +77,17 @@ class RevealManagerWidget {
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
         this.handleLaunchSaved = this.handleLaunchSaved.bind(this);
+        this.handlePresentationToggle = this.handlePresentationToggle.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
+        this.presentationToggleButton.addEventListener('click', this.handlePresentationToggle);
 
         this.renderSavedDeckOptions();
         this.updateModeUI();
+        this.updatePresentationUI();
     }
 
     getCurrentMode() {
@@ -203,6 +214,19 @@ class RevealManagerWidget {
         this.launchDeck(deck);
     }
 
+    handlePresentationToggle() {
+        this.presentationMode = !this.presentationMode;
+        this.updatePresentationUI();
+    }
+
+    updatePresentationUI() {
+        this.element.classList.toggle('presentation-mode', this.presentationMode);
+        this.revealContainer.classList.toggle('presentation', this.presentationMode);
+        this.presentationToggleButton.textContent = this.presentationMode
+            ? 'Exit Presentation Mode'
+            : 'Enter Presentation Mode';
+    }
+
     serialize() {
         return {
             type: 'RevealManagerWidget',
@@ -235,6 +259,7 @@ class RevealManagerWidget {
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);
+        this.presentationToggleButton.removeEventListener('click', this.handlePresentationToggle);
         this.element.remove();
 
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
