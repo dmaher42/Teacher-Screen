@@ -38,6 +38,12 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-launch-btn">Launch</button>
                     <button type="button" class="control-button reveal-save-btn">Save Deck</button>
                 </div>
+                <div class="reveal-manager-row reveal-manager-actions">
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="prev">Prev</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="next">Next</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="up">Up</button>
+                    <button type="button" class="control-button reveal-nav-btn" data-direction="down">Down</button>
+                </div>
                 <div class="reveal-manager-row">
                     <select class="reveal-saved-select">
                         <option value="">Select saved deck</option>
@@ -66,12 +72,17 @@ class RevealManagerWidget {
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
+        this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
+
+        // Keep a stable iframe reference for toolbar navigation, similar to React's useRef.
+        this.iframeRef = { current: null };
 
         this.iframe = document.createElement('iframe');
         this.iframe.className = 'reveal-manager-iframe';
         this.iframe.title = 'Reveal deck frame';
         this.iframe.setAttribute('referrerpolicy', 'no-referrer');
         this.frameWrap.appendChild(this.iframe);
+        this.iframeRef.current = this.iframe;
 
         this.handleModeChange = this.handleModeChange.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
@@ -177,6 +188,28 @@ class RevealManagerWidget {
             this.iframe.removeAttribute('src');
             this.iframe.srcdoc = deck.content;
         }
+    }
+
+    sendKeyToIframe(direction) {
+        const frame = this.iframeRef.current;
+        if (!frame || !frame.contentWindow) return;
+
+        // Reveal deck pages loaded in the iframe must listen for this event:
+        // window.addEventListener("message", function(event) {
+        //   if (event.data.type === "reveal-nav") {
+        //     if (event.data.direction === "next") Reveal.next();
+        //     if (event.data.direction === "prev") Reveal.prev();
+        //     if (event.data.direction === "up") Reveal.up();
+        //     if (event.data.direction === "down") Reveal.down();
+        //   }
+        // });
+        frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
+    }
+
+    handleNavButtonClick(event) {
+        const direction = event.currentTarget.dataset.direction;
+        if (!direction) return;
+        this.sendKeyToIframe(direction);
     }
 
     handleLaunchFromInputs() {
