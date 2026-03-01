@@ -78,7 +78,7 @@ class RevealManagerWidget {
         this.iframeRef = { current: null };
 
         this.iframe = document.createElement('iframe');
-        this.iframe.className = 'reveal-manager-iframe';
+        this.iframe.className = 'reveal-frame';
         this.iframe.title = 'Reveal deck frame';
         this.iframe.setAttribute('referrerpolicy', 'no-referrer');
         this.frameWrap.appendChild(this.iframe);
