@@ -630,9 +630,21 @@ dialog::backdrop {
 
 .widget-categories {
     display: grid;
+    gap: var(--spacing-lg, 15px);
+    padding: 20px;
+}
+
+.widget-category-section {
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: var(--spacing-md, 10px);
-    padding: 20px;
+}
+
+.widget-category-title {
+    margin: 0;
+    grid-column: 1 / -1;
+    font-size: 0.95rem;
+    color: color-mix(in srgb, var(--text-color, #333) 85%, #fff 15%);
 }
 
 .widget-category-btn {

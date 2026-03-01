@@ -101,10 +101,27 @@ class ClassroomScreenApp {
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.widgetCategories = [
-            { name: 'Time Management', icon: 'timer.svg', widgets: [{ type: 'timer', label: 'Timer' }] },
-            { name: 'Engagement', icon: 'engagement.svg', widgets: [{ type: 'noise-meter', label: 'Noise Meter' }, { type: 'name-picker', label: 'Name Picker' }] },
-            { name: 'Well-being', icon: 'engagement.svg', widgets: [{ type: 'wellbeing', label: 'Well-being Check-in' }] },
-            { name: 'Tools', icon: 'tools.svg', widgets: [{ type: 'qr-code', label: 'QR Code' }, { type: 'drawing-tool', label: 'Drawing Tool' }, { type: 'document-viewer', label: 'Document Viewer' }, { type: 'url-viewer', label: 'URL Viewer' }, { type: 'reveal-manager', label: 'Reveal Manager' }, { type: 'mask', label: 'Mask' }, { type: 'notes', label: 'Notes' }] }
+            {
+                name: 'Primary',
+                widgets: [
+                    { type: 'timer', label: 'Timer' },
+                    { type: 'noise-meter', label: 'Noise Meter' },
+                    { type: 'name-picker', label: 'Random Name Picker' }
+                ]
+            },
+            {
+                name: 'Secondary',
+                widgets: [
+                    { type: 'qr-code', label: 'QR Code' },
+                    { type: 'drawing-tool', label: 'Drawing Tool' },
+                    { type: 'document-viewer', label: 'Document Viewer' },
+                    { type: 'url-viewer', label: 'URL Viewer' },
+                    { type: 'reveal-manager', label: 'Reveal Manager' },
+                    { type: 'mask', label: 'Mask' },
+                    { type: 'notes', label: 'Notes' },
+                    { type: 'wellbeing', label: 'Well-being Check-in' }
+                ]
+            }
         ];
 
         this.themes = [
@@ -669,8 +686,16 @@ class ClassroomScreenApp {
     renderWidgetModal() {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
-        this.widgetCategories.forEach(category => {
-            category.widgets.forEach(widget => {
+        this.widgetCategories.forEach((category) => {
+            const section = document.createElement('section');
+            section.className = 'widget-category-section';
+
+            const heading = document.createElement('h4');
+            heading.className = 'widget-category-title';
+            heading.textContent = category.name;
+            section.appendChild(heading);
+
+            category.widgets.forEach((widget) => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
                 button.innerHTML = `
@@ -678,8 +703,10 @@ class ClassroomScreenApp {
                     <span>${widget.label}</span>
                 `;
                 button.addEventListener('click', () => this.addWidget(widget.type));
-                container.appendChild(button);
+                section.appendChild(button);
             });
+
+            container.appendChild(section);
         });
     }
 
