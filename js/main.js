@@ -119,7 +119,8 @@ class ClassroomScreenApp {
                     { type: 'reveal-manager', label: 'Reveal Manager' },
                     { type: 'mask', label: 'Mask' },
                     { type: 'notes', label: 'Notes' },
-                    { type: 'wellbeing', label: 'Well-being Check-in' }
+                    { type: 'wellbeing', label: 'Well-being Check-in' },
+                    { name: 'Rich Text Board', type: 'RichTextWidget', icon: 'fa-pen' }
                 ]
             }
         ];
@@ -647,6 +648,7 @@ class ClassroomScreenApp {
                 case 'mask': widget = new MaskWidget(); break;
                 case 'notes': widget = new NotesWidget(); break;
                 case 'wellbeing': widget = new WellbeingWidget(); break;
+                case 'RichTextWidget': widget = new RichTextWidget(); break;
                 default: throw new Error(`Unknown widget type: ${type}`);
             }
 
@@ -678,7 +680,8 @@ class ClassroomScreenApp {
             'reveal-manager': 'Reveal Manager',
             'mask': 'Mask',
             'notes': 'Notes',
-            'wellbeing': 'Well-being'
+            'wellbeing': 'Well-being',
+            'RichTextWidget': 'Rich Text Board'
         };
         return names[type] || 'Widget';
     }
@@ -698,7 +701,12 @@ class ClassroomScreenApp {
             category.widgets.forEach((widget) => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
-                button.innerHTML = `
+                button.innerHTML = widget.icon
+                    ? `
+                    <i class="fas ${widget.icon} category-icon" aria-hidden="true"></i>
+                    <span>${widget.name}</span>
+                `
+                    : `
                     <img src="assets/icons/${widget.type}.svg" alt="" class="category-icon">
                     <span>${widget.label}</span>
                 `;
@@ -1227,6 +1235,7 @@ class ClassroomScreenApp {
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                        case 'RichTextWidget': widget = new RichTextWidget(); break;
                     }
                     if (widget) {
                         this.widgets.push(widget);
@@ -1526,6 +1535,7 @@ class ClassroomScreenApp {
                 case 'MaskWidget': widget = new MaskWidget(); break;
                 case 'NotesWidget': widget = new NotesWidget(); break;
                 case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                case 'RichTextWidget': widget = new RichTextWidget(); break;
             }
             if (widget) {
                 this.widgets.push(widget);
@@ -1666,6 +1676,7 @@ class ClassroomScreenApp {
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                        case 'RichTextWidget': widget = new RichTextWidget(); break;
                     }
                 if (widget) {
                     this.widgets.push(widget);
@@ -1847,6 +1858,7 @@ class ClassroomScreenApp {
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                        case 'RichTextWidget': widget = new RichTextWidget(); break;
                     }
                     if (widget) {
                         this.widgets.push(widget);
