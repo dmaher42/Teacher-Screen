@@ -29,52 +29,6 @@ class RichTextWidget {
 
     this.controls.appendChild(this.displayModeButton);
 
-    const templates = [
-      {
-        label: 'Insert Lesson Outline',
-        html: `<h2>Learning Intention</h2>
-<ul>
-  <li>We are learning to...</li>
-</ul>
-<h2>Success Criteria</h2>
-<ul>
-  <li>I can...</li>
-</ul>
-<h2>Instructions</h2>
-<ol>
-  <li>Step one</li>
-  <li>Step two</li>
-</ol>`
-      },
-      {
-        label: 'Insert Brainstorm',
-        html: `<h2>Brainstorm</h2>
-<ul>
-  <li>What do we already know?</li>
-  <li>What ideas can we build on?</li>
-  <li>What questions do we have?</li>
-</ul>`
-      },
-      {
-        label: 'Insert Reflection',
-        html: `<h2>Reflection</h2>
-<ul>
-  <li>What did you learn today?</li>
-  <li>What challenged you?</li>
-  <li>What will you try next lesson?</li>
-</ul>`
-      }
-    ];
-
-    templates.forEach((template) => {
-      const button = document.createElement('button');
-      button.className = 'control-button';
-      button.type = 'button';
-      button.textContent = template.label;
-      button.addEventListener('click', () => this.insertTemplate(template.html));
-      this.controls.appendChild(button);
-    });
-
     this.element.appendChild(this.controls);
 
     this.editorContainer = document.createElement('div');
@@ -84,30 +38,31 @@ class RichTextWidget {
     this.element.appendChild(this.editorContainer);
 
     setTimeout(() => {
+      const SizeStyle = Quill.import('attributors/style/size');
+      SizeStyle.whitelist = ['small', 'large', 'huge'];
+      Quill.register(SizeStyle, true);
+
+      const BackgroundStyle = Quill.import('attributors/style/background');
+      BackgroundStyle.whitelist = ['#fff3bf', '#c8f7c5', '#bee3f8', '#ffd6e7'];
+      Quill.register(BackgroundStyle, true);
+
       const toolbarOptions = [
         [{ header: [2, 3, false] }],
+        [{ size: ['small', false, 'large', 'huge'] }],
         ['bold'],
+        [{ background: [] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
-        ['insertSectionBlock', 'clean']
+        ['clean']
       ];
 
       this.quill = new Quill(this.editorContainer, {
         theme: 'snow',
         modules: {
           toolbar: {
-            container: toolbarOptions,
-            handlers: {
-              insertSectionBlock: () => this.insertSectionBlock()
-            }
+            container: toolbarOptions
           }
         }
       });
-
-      const sectionButton = this.element.querySelector('.ql-insertSectionBlock');
-      if (sectionButton) {
-        sectionButton.textContent = 'Insert Section Block';
-        sectionButton.setAttribute('aria-label', 'Insert Section Block');
-      }
 
       this.load();
       this.quill.on('text-change', () => this.save());
@@ -123,20 +78,6 @@ class RichTextWidget {
     const insertIndex = range ? range.index : this.quill.getLength();
     this.quill.clipboard.dangerouslyPasteHTML(insertIndex, html);
     this.quill.setSelection(insertIndex + 1, 0);
-  }
-
-  insertSectionBlock() {
-    this.insertHtml(`<div class="display-callout">
-  <h3>Section Title</h3>
-  <ul>
-    <li>Point one</li>
-    <li>Point two</li>
-  </ul>
-</div><p><br></p>`);
-  }
-
-  insertTemplate(templateHtml) {
-    this.insertHtml(`${templateHtml}<p><br></p>`);
   }
 
   serialize() {

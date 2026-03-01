@@ -973,6 +973,18 @@ dialog::backdrop {
     color: var(--text-primary);
 }
 
+.rich-text-widget-inner .ql-editor .ql-size-small {
+    font-size: 1.5rem;
+}
+
+.rich-text-widget-inner .ql-editor .ql-size-large {
+    font-size: 2.3rem;
+}
+
+.rich-text-widget-inner .ql-editor .ql-size-huge {
+    font-size: 2.8rem;
+}
+
 .rich-text-widget-inner .ql-editor h2 {
     font-size: 3rem;
     font-weight: 800;
@@ -1004,16 +1016,9 @@ dialog::backdrop {
     box-shadow: var(--shadow-soft);
 }
 
-.rich-text-widget-inner .ql-formats .ql-insertSectionBlock {
-    min-width: 10.75rem;
-    width: auto;
-}
-
-.rich-text-widget-inner .ql-formats .ql-insertSectionBlock::before {
-    content: 'Insert Section Block';
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-primary);
+.rich-text-widget-inner .ql-editor span[style*="background-color"] {
+    padding: 0.2rem 0.4rem;
+    border-radius: 6px;
 }
 
 .rich-text-widget-inner.display-mode .ql-toolbar {
