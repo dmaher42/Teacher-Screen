@@ -1,5 +1,6 @@
 class MaskWidget {
     constructor() {
+        this.layoutType = 'overlay';
         this.element = document.createElement('div');
         this.element.className = 'mask-widget-content';
         this.element.innerHTML = `<p>Resize to cover content</p>`;
@@ -14,4 +15,6 @@ class MaskWidget {
             type: 'MaskWidget',
         };
     }
+
+    setEditable() {}
 }

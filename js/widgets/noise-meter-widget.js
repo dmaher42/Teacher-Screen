@@ -9,6 +9,7 @@
  */
 class NoiseMeterWidget {
     constructor() {
+        this.layoutType = 'grid';
         // Root container for the widget
         this.element = document.createElement('div');
         this.element.className = 'noise-meter-widget-content';
@@ -79,6 +80,8 @@ class NoiseMeterWidget {
         this.startButton.addEventListener('click', this.handleStartClick);
         document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
+
+    setEditable() {}
 
     /**
      * Begin capturing audio and drawing the noise meter visualization.

@@ -111,7 +111,14 @@ class ClassroomScreenApp {
         this.saveState = debounce(this.saveState.bind(this), 300);
 
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.layoutManager.onLayoutChange = () => this.saveState('teacher');
+        this.layoutManager.setEditable(true);
+        this.layoutManager.onLayoutChange = (payload) => {
+            if (payload && payload.type === 'widget-update') {
+                this.applyProjectorLayoutDelta(payload, 'projector');
+                return;
+            }
+            this.saveState('teacher');
+        };
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.widgetCategories = [
@@ -253,6 +260,11 @@ class ClassroomScreenApp {
                     state,
                     source: 'teacher'
                 });
+                return;
+            }
+
+            if (message.type === 'layout-delta-from-projector' && message.source === 'projector' && message.delta) {
+                this.applyProjectorLayoutDelta(message.delta, 'teacher');
                 return;
             }
 
@@ -1434,6 +1446,20 @@ class ClassroomScreenApp {
 
         this.widgets = this.layoutManager.widgets.map(info => info.widget);
         this.saveState('teacher');
+    }
+
+    applyProjectorLayoutDelta(delta, source = 'teacher') {
+        if (!delta || delta.type !== 'widget-update') {
+            return;
+        }
+
+        this.layoutManager.applyLayoutDelta(delta);
+        this.saveState(source);
+        this.projectorChannel.postMessage({
+            type: 'layout-delta',
+            source,
+            delta
+        });
     }
 
     setupPresetControls() {

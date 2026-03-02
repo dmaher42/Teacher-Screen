@@ -7,6 +7,7 @@ class TimerWidget {
      * Constructor for the TimerWidget.
      */
     constructor() {
+        this.layoutType = 'grid';
         // Create the main widget element
         this.element = document.createElement('div');
         this.element.className = 'timer-widget-content';
@@ -280,6 +281,8 @@ class TimerWidget {
         this.isIntervalMode = false;
         this.currentPhase = null;
     }
+
+    setEditable() {}
 
     addNamedPreset(name, minutes) {
         const presetName = name || this.newPresetName.value.trim();

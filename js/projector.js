@@ -28,7 +28,7 @@ class ProjectorApp {
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.layoutManager.setInteractionEnabled(false);
+        this.layoutManager.setEditable(false);
         // Disable editing in LayoutManager if possible, but we already hid controls with CSS.
         // We can also override methods if needed.
 
@@ -68,6 +68,14 @@ class ProjectorApp {
                 }
 
                 this.rebuildLayout(message.state);
+                return;
+            }
+
+            if (message.type === 'layout-delta' && message.delta) {
+                if (message.source === 'projector') {
+                    return;
+                }
+                this.layoutManager.applyLayoutDelta(message.delta);
             }
         };
 
@@ -123,15 +131,19 @@ class ProjectorApp {
             this.toggleEditMode();
         });
 
-        this.layoutManager.onLayoutChange = (layout) => {
+        this.layoutManager.onLayoutChange = (payload) => {
             if (!this.isEditMode) {
                 return;
             }
 
+            if (!payload || payload.type !== 'widget-update') {
+                return;
+            }
+
             this.projectorChannel.postMessage({
-                type: 'layout-update-from-projector',
+                type: 'layout-delta-from-projector',
                 source: 'projector',
-                layout
+                delta: payload
             });
         };
 
@@ -152,7 +164,7 @@ class ProjectorApp {
             this.preEditLayoutSnapshot = null;
         }
 
-        this.layoutManager.setInteractionEnabled(this.isEditMode);
+        this.layoutManager.setEditable(this.isEditMode);
         document.body.classList.toggle('edit-mode', this.isEditMode);
 
         if (this.editControls) {

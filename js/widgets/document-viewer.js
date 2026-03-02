@@ -4,6 +4,7 @@ class DocumentViewerWidget {
     static keyboardHandlerInitialized = false;
 
     constructor() {
+        this.layoutType = 'stage';
         this.pdfDoc = null;
         this.totalPages = 0;
         this.currentPage = 1;
@@ -336,6 +337,8 @@ class DocumentViewerWidget {
         };
     }
 
+    setEditable() {}
+
     // Optional: Call this if your larger system supports destroying widgets
     destroy() {
         this.element.removeEventListener('click', this.handleRootClick);
@@ -354,4 +357,3 @@ class DocumentViewerWidget {
         }
     }
 }
-

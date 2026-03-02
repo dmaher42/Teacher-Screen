@@ -10,6 +10,7 @@ class NamePickerWidget {
      * Constructor for NamePickerWidget.
      */
     constructor() {
+        this.layoutType = 'grid';
         // Create the main widget element
         this.element = document.createElement('div');
         this.element.className = 'name-picker-widget-content';
@@ -327,6 +328,8 @@ class NamePickerWidget {
              if (this.lastPicked) this.display.textContent = this.lastPicked;
         }
     }
+
+    setEditable() {}
 
     /**
      * Get the data for the current group.
