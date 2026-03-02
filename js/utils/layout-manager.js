@@ -24,6 +24,7 @@ class LayoutManager {
     this.draggedWidget = null;
     this.onLayoutChange = null;
     this.isRestoring = false;
+    this.interactionEnabled = true;
 
     if (typeof debounce === 'function') {
         this.saveLayout = debounce(this.saveLayout.bind(this), 200);
@@ -37,6 +38,10 @@ class LayoutManager {
         };
         this.saveLayout = localDebounce(this.saveLayout.bind(this), 200);
     }
+  }
+
+  setInteractionEnabled(enabled) {
+    this.interactionEnabled = !!enabled;
   }
 
   init() {
@@ -244,6 +249,8 @@ class LayoutManager {
     });
 
     const onMouseDown = (e) => {
+      if (!this.interactionEnabled) return;
+
       const target = e.target;
       if (!target.classList.contains('resize-handle')) return;
 
@@ -354,6 +361,8 @@ class LayoutManager {
     let initialLeft, initialTop;
 
     widgetElement.addEventListener('mousedown', (e) => {
+      if (!this.interactionEnabled) return;
+
       if (e.target.classList.contains('resize-handle') ||
           e.target.tagName === 'INPUT' ||
           e.target.tagName === 'BUTTON' ||

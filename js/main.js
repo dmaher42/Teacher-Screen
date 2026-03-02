@@ -111,7 +111,7 @@ class ClassroomScreenApp {
         this.saveState = debounce(this.saveState.bind(this), 300);
 
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.layoutManager.onLayoutChange = () => this.saveState();
+        this.layoutManager.onLayoutChange = () => this.saveState('teacher');
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.widgetCategories = [
@@ -244,12 +244,20 @@ class ClassroomScreenApp {
         }
 
         this.projectorChannel.onmessage = (event) => {
-            if (event.data && event.data.type === 'request-sync') {
+            const message = event.data || {};
+
+            if (message.type === 'request-sync') {
                 const state = this.buildStateSnapshot();
                 this.projectorChannel.postMessage({
                     type: 'layout-update',
-                    state
+                    state,
+                    source: 'teacher'
                 });
+                return;
+            }
+
+            if (message.type === 'layout-update-from-projector' && message.source === 'projector' && message.layout) {
+                this.applyProjectorLayoutUpdate(message.layout);
             }
         };
 
@@ -1357,7 +1365,7 @@ class ClassroomScreenApp {
         };
     }
 
-    saveState() {
+    saveState(source = 'teacher') {
         const state = this.buildStateSnapshot();
         const stateJSON = JSON.stringify(state);
         localStorage.setItem('classroomScreenState', stateJSON);
@@ -1380,8 +1388,52 @@ class ClassroomScreenApp {
 
         this.projectorChannel.postMessage({
             type: 'layout-update',
-            state: state
+            state: state,
+            source
         });
+    }
+
+
+    applyProjectorLayoutUpdate(layout) {
+        if (!layout || !Array.isArray(layout.widgets)) {
+            return;
+        }
+
+        const savedString = localStorage.getItem('classroomScreenState');
+        let existingState = null;
+
+        if (savedString) {
+            try {
+                existingState = JSON.parse(savedString);
+            } catch (error) {
+                console.warn('Failed to parse classroomScreenState while applying projector layout update.', error);
+            }
+        }
+
+        const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
+        mergedState.layout = layout;
+
+        this.layoutManager.deserialize(layout, (widgetData) => {
+            let widget;
+            switch (widgetData.type) {
+                case 'TimerWidget': widget = new TimerWidget(); break;
+                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
+                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                case 'MaskWidget': widget = new MaskWidget(); break;
+                case 'NotesWidget': widget = new NotesWidget(); break;
+                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                case 'RichTextWidget': widget = new RichTextWidget(); break;
+            }
+            return widget;
+        });
+
+        this.widgets = this.layoutManager.widgets.map(info => info.widget);
+        this.saveState('teacher');
     }
 
     setupPresetControls() {

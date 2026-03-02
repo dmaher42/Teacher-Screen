@@ -17,9 +17,18 @@ class ProjectorApp {
         this.studentView = document.getElementById('student-view');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.widgets = [];
+        this.isEditMode = false;
+        this.lastTeacherLayoutSnapshot = null;
+        this.preEditLayoutSnapshot = null;
+
+        this.editControls = document.getElementById('projector-edit-controls');
+        this.editStatus = document.getElementById('projector-edit-status');
+        this.doneEditButton = document.getElementById('projector-edit-done');
+        this.resetLastChangeButton = document.getElementById('projector-reset-last-change');
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
+        this.layoutManager.setInteractionEnabled(false);
         // Disable editing in LayoutManager if possible, but we already hid controls with CSS.
         // We can also override methods if needed.
 
@@ -31,6 +40,7 @@ class ProjectorApp {
     init() {
         this.backgroundManager.init();
         this.layoutManager.init();
+        this.setupEditModeControls();
 
         // Ask the teacher window for the latest state as soon as the projector starts.
         this.projectorChannel.postMessage({ type: 'request-sync' });
@@ -46,8 +56,18 @@ class ProjectorApp {
         });
 
         this.projectorChannel.onmessage = (event) => {
-            if (event.data.type === 'layout-update') {
-                this.rebuildLayout(event.data.state);
+            const message = event.data || {};
+
+            if (message.type === 'layout-update') {
+                if (message.source === 'projector') {
+                    return;
+                }
+
+                if (message.state && message.state.layout) {
+                    this.lastTeacherLayoutSnapshot = JSON.parse(JSON.stringify(message.state.layout));
+                }
+
+                this.rebuildLayout(message.state);
             }
         };
 
@@ -73,7 +93,106 @@ class ProjectorApp {
         }
 
         if (state && typeof state === 'object') {
+            if (state.layout) {
+                this.lastTeacherLayoutSnapshot = JSON.parse(JSON.stringify(state.layout));
+            }
             this.rebuildLayout(state);
+        }
+    }
+
+
+    setupEditModeControls() {
+        const params = new URLSearchParams(window.location.search);
+        const startsInEditMode = params.get('edit') === '1';
+
+        if (this.doneEditButton) {
+            this.doneEditButton.addEventListener('click', () => this.setEditMode(false));
+        }
+
+        if (this.resetLastChangeButton) {
+            this.resetLastChangeButton.addEventListener('click', () => this.resetLastChange());
+        }
+
+        document.addEventListener('keydown', (event) => {
+            const isModifierPressed = event.ctrlKey || event.metaKey;
+            if (!isModifierPressed || event.key.toLowerCase() !== 'e') {
+                return;
+            }
+
+            event.preventDefault();
+            this.setEditMode(!this.isEditMode);
+        });
+
+        this.layoutManager.onLayoutChange = (layout) => {
+            if (!this.isEditMode) {
+                return;
+            }
+
+            this.projectorChannel.postMessage({
+                type: 'layout-update-from-projector',
+                source: 'projector',
+                layout
+            });
+        };
+
+        this.setEditMode(startsInEditMode);
+    }
+
+    setEditMode(enabled) {
+        this.isEditMode = !!enabled;
+        if (this.isEditMode && !this.preEditLayoutSnapshot) {
+            this.preEditLayoutSnapshot = this.layoutManager.serialize();
+        }
+
+        if (!this.isEditMode) {
+            this.preEditLayoutSnapshot = null;
+        }
+
+        this.layoutManager.setInteractionEnabled(this.isEditMode);
+        document.body.classList.toggle('edit-mode', this.isEditMode);
+
+        if (this.editControls) {
+            this.editControls.hidden = !this.isEditMode;
+        }
+
+        if (this.editStatus) {
+            this.editStatus.textContent = this.isEditMode ? 'Edit: ON' : 'Edit: OFF';
+        }
+    }
+
+    resetLastChange() {
+        const resetSnapshot = this.preEditLayoutSnapshot || this.lastTeacherLayoutSnapshot;
+        if (!resetSnapshot) {
+            return;
+        }
+
+        this.layoutManager.deserialize(resetSnapshot, (widgetData) => {
+            if (widgetData.visibleOnProjector === false) {
+                return null;
+            }
+
+            let widget;
+            switch (widgetData.type) {
+                case 'TimerWidget': widget = new TimerWidget(); break;
+                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
+                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
+                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
+                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
+                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
+                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
+                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                case 'MaskWidget': widget = new MaskWidget(); break;
+                case 'NotesWidget': widget = new NotesWidget(); break;
+            }
+            return widget;
+        });
+
+        if (this.isEditMode) {
+            this.projectorChannel.postMessage({
+                type: 'layout-update-from-projector',
+                source: 'projector',
+                layout: this.layoutManager.serialize()
+            });
         }
     }
 
