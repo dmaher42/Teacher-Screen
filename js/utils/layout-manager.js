@@ -8,8 +8,8 @@ const WIDGET_SIZE_RULES = {
   NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
-  // Larger default footprint keeps Reveal stage usable on first add.
-  RevealManagerWidget: { minW: 3, minH: 4, defaultW: 5, defaultH: 4 },
+  // Reveal manager needs larger default stage space.
+  RevealManagerWidget: { minW: 3, minH: 4, defaultW: 5, defaultH: 5 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
   WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   RichTextWidget: { minW: 4, minH: 3 }

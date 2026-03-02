@@ -20,17 +20,18 @@ class RevealManagerWidget {
 
         const modeGroupName = `reveal-input-mode-${Date.now()}`;
 
-        // DOM structure: compact topbar + collapsible panel + flex stage + floating overlay nav.
+        // DOM structure: flex column manager with compact topbar, collapsible advanced panel, and stage overlay nav.
         // toggleCompact(false) shows the full controls panel while preserving deck storage keys.
         this.element.innerHTML = `
-            <div class="reveal-manager__topbar">
-                <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
-                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
-                <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
-                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
-            </div>
+            <div class="reveal-manager">
+                <div class="reveal-manager__topbar">
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
+                    <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
+                </div>
 
-            <div class="reveal-manager__panel" hidden>
+            <div class="reveal-manager__panel advanced-controls" hidden>
                 <details class="reveal-manager__section" open>
                     <summary>Source</summary>
                     <div class="reveal-manager-row">
@@ -71,26 +72,16 @@ class RevealManagerWidget {
                     </div>
                 </details>
 
-                <details class="reveal-manager__section" open>
-                    <summary>Navigation</summary>
-                    <div class="reveal-manager-row reveal-manager-actions">
-                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="prev">Prev</button>
-                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="next">Next</button>
-                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="up">Up</button>
-                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="down">Down</button>
-                    </div>
-                </details>
             </div>
 
-            <div class="reveal-manager__stage">
-                <div class="reveal-manager__overlay-nav" aria-label="Deck navigation overlay">
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="prev">Prev</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="next">Next</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="up">Up</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="down">Down</button>
-                </div>
-                <div class="reveal-container">
-                <div class="reveal-manager-frame-wrap"></div>
+                <div class="reveal-manager__stage">
+                    <div class="reveal-overlay-nav" aria-label="Deck navigation overlay">
+                        <button type="button" class="control-button reveal-nav-btn" data-nav="prev">‹</button>
+                        <button type="button" class="control-button reveal-nav-btn" data-nav="next">›</button>
+                    </div>
+                    <div class="reveal-container">
+                    <div class="reveal-manager-frame-wrap"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -152,8 +143,9 @@ class RevealManagerWidget {
         this.navButtons.forEach((button) => {
             button.addEventListener('click', (event) => this.handleNavButtonClick(event));
             button.addEventListener('mousedown', this.handleOverlayNavPointerDown);
-            button.title = `Navigate ${button.dataset.direction}`;
-            button.setAttribute('aria-label', `Navigate ${button.dataset.direction}`);
+            const direction = button.dataset.nav || button.dataset.direction;
+            button.title = `Navigate ${direction}`;
+            button.setAttribute('aria-label', `Navigate ${direction}`);
         });
 
         RevealManagerWidget.initKeyboardHandler();
@@ -384,7 +376,8 @@ class RevealManagerWidget {
     }
 
     handleNavButtonClick(event) {
-        const direction = event.currentTarget.dataset.direction;
+        event.stopPropagation();
+        const direction = event.currentTarget.dataset.nav || event.currentTarget.dataset.direction;
         if (!direction) return;
         this.sendKeyToIframe(direction);
     }
