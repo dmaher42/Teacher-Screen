@@ -120,7 +120,7 @@ class ProjectorApp {
             }
 
             event.preventDefault();
-            this.setEditMode(!this.isEditMode);
+            this.toggleEditMode();
         });
 
         this.layoutManager.onLayoutChange = (layout) => {
@@ -136,6 +136,10 @@ class ProjectorApp {
         };
 
         this.setEditMode(startsInEditMode);
+    }
+
+    toggleEditMode() {
+        this.setEditMode(!this.isEditMode);
     }
 
     setEditMode(enabled) {
