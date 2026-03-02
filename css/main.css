@@ -1746,6 +1746,17 @@ dialog::backdrop {
     align-items: center;
 }
 
+.reveal-presenter-status {
+    margin-left: auto;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-soft-2);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
 .reveal-manager__topbar .reveal-launch-btn {
     min-width: 72px;
 }
