@@ -11,6 +11,8 @@ class RevealManagerWidget {
         this.activeDeck = null;
         this.presentationMode = false;
         this.isCompact = true;
+        this.presenterWindow = null;
+        this.presenterWindowMonitor = null;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -24,6 +26,7 @@ class RevealManagerWidget {
             <div class="reveal-manager__topbar">
                 <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
                 <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
+                <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                 <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
             </div>
 
@@ -111,6 +114,7 @@ class RevealManagerWidget {
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
         this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
+        this.presenterStatus = this.element.querySelector('.reveal-presenter-status');
 
         // Keep a stable iframe reference for toolbar navigation, similar to React's useRef.
         this.iframeRef = { current: null };
@@ -132,6 +136,7 @@ class RevealManagerWidget {
         this.handleToggleControls = this.handleToggleControls.bind(this);
         this.handleRootInteraction = this.handleRootInteraction.bind(this);
         this.handleOverlayNavPointerDown = this.handleOverlayNavPointerDown.bind(this);
+        this.handleWindowMessage = this.handleWindowMessage.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
@@ -143,6 +148,7 @@ class RevealManagerWidget {
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
+        window.addEventListener('message', this.handleWindowMessage);
         this.navButtons.forEach((button) => {
             button.addEventListener('click', (event) => this.handleNavButtonClick(event));
             button.addEventListener('mousedown', this.handleOverlayNavPointerDown);
@@ -305,6 +311,7 @@ class RevealManagerWidget {
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.launchButton.textContent = 'Stop';
+        this.sendDeckToPresenter();
     }
 
     stopDeck() {
@@ -313,6 +320,7 @@ class RevealManagerWidget {
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
         this.launchButton.textContent = 'Open';
+        this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
     }
 
     sendKeyToIframe(direction) {
@@ -329,6 +337,50 @@ class RevealManagerWidget {
         //   }
         // });
         frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
+        this.sendNavToPresenter(direction);
+    }
+
+    sendNavToPresenter(direction) {
+        if (!this.presenterWindow) return;
+
+        if (this.presenterWindow.closed) {
+            this.markPresenterClosed();
+            return;
+        }
+
+        this.presenterWindow.postMessage({ type: 'reveal-nav', direction }, window.location.origin);
+    }
+
+    sendDeckToPresenter() {
+        if (!this.presenterWindow || !this.activeDeck) return;
+
+        if (this.presenterWindow.closed) {
+            this.markPresenterClosed();
+            return;
+        }
+
+        this.presenterWindow.postMessage(
+            {
+                type: 'reveal-presenter-load',
+                deck: this.activeDeck
+            },
+            window.location.origin
+        );
+    }
+
+    setPresenterStatus(text) {
+        if (!this.presenterStatus) return;
+        this.presenterStatus.textContent = text || '';
+        this.presenterStatus.hidden = !text;
+    }
+
+    markPresenterClosed() {
+        this.presenterWindow = null;
+        if (this.presenterWindowMonitor) {
+            clearInterval(this.presenterWindowMonitor);
+            this.presenterWindowMonitor = null;
+        }
+        this.setPresenterStatus('Presenter closed');
     }
 
     handleNavButtonClick(event) {
@@ -414,8 +466,30 @@ class RevealManagerWidget {
     }
 
     handlePresentationToggle() {
-        this.presentationMode = !this.presentationMode;
-        this.updatePresentationUI();
+        if (!this.activeDeck) {
+            this.setPresenterStatus('Open a deck first');
+            return;
+        }
+
+        const presenterUrl = new URL('reveal-presenter.html', window.location.href);
+        this.presenterWindow = window.open(presenterUrl.toString(), 'reveal-presenter-window');
+
+        if (!this.presenterWindow) {
+            this.setPresenterStatus('Unable to open presenter');
+            return;
+        }
+
+        this.setPresenterStatus('Presenter opening...');
+        if (this.presenterWindowMonitor) {
+            clearInterval(this.presenterWindowMonitor);
+        }
+        this.presenterWindowMonitor = window.setInterval(() => {
+            if (this.presenterWindow && this.presenterWindow.closed) {
+                this.markPresenterClosed();
+            }
+        }, 1000);
+
+        this.sendDeckToPresenter();
     }
 
     updatePresentationUI() {
@@ -428,9 +502,20 @@ class RevealManagerWidget {
             document.body.style.overflow = 'auto';
         }
 
-        this.presentationToggleButton.textContent = this.presentationMode
-            ? 'Exit Presentation Mode'
-            : 'Enter Presentation Mode';
+        this.presentationToggleButton.textContent = 'Enter Presentation Mode';
+    }
+
+    handleWindowMessage(event) {
+        if (event.origin !== window.location.origin || !event.data) return;
+
+        if (event.data.type === 'reveal-presenter-ready') {
+            this.setPresenterStatus('Presenter connected');
+            this.sendDeckToPresenter();
+        }
+
+        if (event.data.type === 'reveal-presenter-closed') {
+            this.markPresenterClosed();
+        }
     }
 
     serialize() {
@@ -473,7 +558,13 @@ class RevealManagerWidget {
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
+        window.removeEventListener('message', this.handleWindowMessage);
         this.navButtons.forEach((button) => button.removeEventListener('mousedown', this.handleOverlayNavPointerDown));
+
+        if (this.presenterWindowMonitor) {
+            clearInterval(this.presenterWindowMonitor);
+            this.presenterWindowMonitor = null;
+        }
 
         if (RevealManagerWidget.activeInstance === this) {
             RevealManagerWidget.activeInstance = null;
