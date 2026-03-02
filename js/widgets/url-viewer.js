@@ -4,6 +4,7 @@
  */
 class UrlViewerWidget {
     constructor() {
+        this.layoutType = 'stage';
         this.element = document.createElement('div');
         this.element.className = 'url-viewer-widget-content';
 
@@ -160,6 +161,8 @@ class UrlViewerWidget {
             this.loadUrl(data.url, { keepInput: true });
         }
     }
+
+    setEditable() {}
 
     remove() {
         this.loadBtn.removeEventListener('click', this.handleLoadClick);

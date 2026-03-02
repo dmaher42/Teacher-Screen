@@ -836,9 +836,39 @@ dialog::backdrop {
     transition: opacity 0.2s ease;
 }
 
-.widget:hover .resize-handle,
-.resize-handle:focus-visible {
+.layout-edit-mode .widget:hover .resize-handle,
+.layout-edit-mode .resize-handle:focus-visible {
     opacity: 1;
+}
+
+
+.layout-stage-container {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    height: 100%;
+    gap: 12px;
+}
+
+.layout-stage-main {
+    position: relative;
+    overflow: hidden;
+}
+
+.layout-stage-sidebar {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px;
+}
+
+.layout-stage-main .widget {
+    position: absolute;
+}
+
+.layout-stage-main .widget.mask-widget,
+.layout-stage-main .widget.notes-widget {
+    z-index: 50;
 }
 
 .resize-handle.top,

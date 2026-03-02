@@ -51,6 +51,7 @@ class NotesWidget {
      * Constructor for the NotesWidget.
      */
     constructor(noteData = {}) {
+        this.layoutType = 'overlay';
         this.isExpanded = false;
 
         // Create the main widget element
@@ -403,6 +404,8 @@ class NotesWidget {
         this.updateDisplay();
         // Don't persist immediately on load to avoid spamming storage events
     }
+
+    setEditable() {}
 
     generateNoteId() {
         return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

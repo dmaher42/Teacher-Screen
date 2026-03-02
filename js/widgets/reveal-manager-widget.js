@@ -7,6 +7,7 @@ class RevealManagerWidget {
     static keyboardHandlerInitialized = false;
 
     constructor() {
+        this.layoutType = 'stage';
         this.storageKey = 'revealDecks';
         this.activeDeck = null;
         this.presentationMode = false;
@@ -537,6 +538,8 @@ class RevealManagerWidget {
     toggleHelp() {
         // No help text defined for this widget yet.
     }
+
+    setEditable() {}
 
     remove() {
         document.body.style.overflow = 'auto';

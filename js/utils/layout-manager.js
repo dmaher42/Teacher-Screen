@@ -6,10 +6,10 @@ const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
 const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
   NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
-  DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 6, defaultH: 6 },
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   // Reveal manager needs larger default stage space.
-  RevealManagerWidget: { minW: 3, minH: 4, defaultW: 5, defaultH: 5 },
+  RevealManagerWidget: { minW: 3, minH: 4, defaultW: 6, defaultH: 6 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
   WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   RichTextWidget: { minW: 4, minH: 3 }
@@ -18,6 +18,8 @@ const WIDGET_SIZE_RULES = {
 class LayoutManager {
   constructor(container) {
     this.container = container;
+    this.mode = 'dashboard';
+    this.editable = false;
     this.widgets = [];
     // Keep these for legacy reference, though we are free-form now
     this.gridColumns = 12;
@@ -42,7 +44,18 @@ class LayoutManager {
   }
 
   setInteractionEnabled(enabled) {
-    this.interactionEnabled = !!enabled;
+    this.setEditable(enabled);
+  }
+
+  setEditable(isEditable) {
+    this.editable = !!isEditable;
+    this.interactionEnabled = this.editable;
+    this.container.classList.toggle('layout-edit-mode', this.editable);
+    this.widgets.forEach((widgetInfo) => {
+      if (widgetInfo.widget && typeof widgetInfo.widget.setEditable === 'function') {
+        widgetInfo.widget.setEditable(this.editable);
+      }
+    });
   }
 
   init() {
@@ -60,6 +73,99 @@ class LayoutManager {
     this.container.style.gridTemplateRows = '';
     this.container.style.gap = '';
     this.container.style.padding = '0';
+  }
+
+  clearStageLayout() {
+    this.stageContainer = null;
+    this.stageMain = null;
+    this.stageSidebar = null;
+  }
+
+  setupModeStructure() {
+    this.container.innerHTML = '';
+    this.clearStageLayout();
+
+    if (this.mode !== 'stage') {
+      this.applyGridStyles();
+      return;
+    }
+
+    this.container.style.display = 'block';
+    this.container.style.position = 'relative';
+    this.container.style.height = '100%';
+    this.container.style.overflow = 'hidden';
+
+    this.stageContainer = document.createElement('div');
+    this.stageContainer.className = 'layout-stage-container';
+    this.stageMain = document.createElement('div');
+    this.stageMain.className = 'layout-stage-main';
+    this.stageSidebar = document.createElement('div');
+    this.stageSidebar.className = 'layout-stage-sidebar';
+
+    this.stageContainer.appendChild(this.stageMain);
+    this.stageContainer.appendChild(this.stageSidebar);
+    this.container.appendChild(this.stageContainer);
+  }
+
+  getWidgetLayoutType(widgetData, widgetInstance) {
+    return (widgetData && widgetData.layoutType) || (widgetInstance && widgetInstance.layoutType) || 'grid';
+  }
+
+  getNextWidgetId() {
+    this.widgetCounter = (this.widgetCounter || 0) + 1;
+    return `widget-${this.widgetCounter}`;
+  }
+
+  emitWidgetUpdate(widgetInfo) {
+    if (!widgetInfo || !this.onLayoutChange || this.isRestoring) return;
+    this.onLayoutChange({
+      type: 'widget-update',
+      id: widgetInfo.id,
+      x: widgetInfo.x,
+      y: widgetInfo.y,
+      w: widgetInfo.width,
+      h: widgetInfo.height
+    });
+  }
+
+  mountWidgetElement(widgetInfo) {
+    const { element, layoutType } = widgetInfo;
+    if (this.mode !== 'stage') {
+      element.style.position = 'absolute';
+      element.style.left = `${widgetInfo.x}px`;
+      element.style.top = `${widgetInfo.y}px`;
+      element.style.width = `${widgetInfo.width}px`;
+      element.style.height = `${widgetInfo.height}px`;
+      this.container.appendChild(element);
+      return;
+    }
+
+    if (layoutType === 'overlay') {
+      element.style.position = 'absolute';
+      element.style.left = `${widgetInfo.x}px`;
+      element.style.top = `${widgetInfo.y}px`;
+      element.style.width = `${widgetInfo.width}px`;
+      element.style.height = `${widgetInfo.height}px`;
+      this.stageMain.appendChild(element);
+      return;
+    }
+
+    if (layoutType === 'stage') {
+      element.style.position = 'absolute';
+      element.style.left = '0';
+      element.style.top = '0';
+      element.style.width = '100%';
+      element.style.height = '100%';
+      this.stageMain.appendChild(element);
+      return;
+    }
+
+    element.style.position = 'relative';
+    element.style.left = '';
+    element.style.top = '';
+    element.style.width = '100%';
+    element.style.height = `${Math.max(widgetInfo.height, GRID_SIZE * 6)}px`;
+    this.stageSidebar.appendChild(element);
   }
 
   getConstrainedSize(widget, widthPx, heightPx) {
@@ -109,7 +215,8 @@ class LayoutManager {
       info.element.style.left = `${newX}px`;
       info.element.style.top = `${newY}px`;
 
-      this.saveLayout();
+      this.emitWidgetUpdate(info);
+      this.saveLayout({ emitFull: false });
     }
   }
 
@@ -158,13 +265,6 @@ class LayoutManager {
     const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
     widgetElement.className = `widget ${widgetType}-widget`;
 
-    // Set styles
-    widgetElement.style.position = 'absolute';
-    widgetElement.style.left = `${finalX}px`;
-    widgetElement.style.top = `${finalY}px`;
-    widgetElement.style.width = `${finalW}px`;
-    widgetElement.style.height = `${finalH}px`;
-
     // Clear grid styles
     widgetElement.style.gridColumn = '';
     widgetElement.style.gridRow = '';
@@ -179,17 +279,26 @@ class LayoutManager {
     this.addResizeHandles(widgetElement);
     this.addDragFunctionality(widgetElement);
     
-    this.container.appendChild(widgetElement);
-    
-    this.widgets.push({
+    const widgetInfo = {
+      id: this.getNextWidgetId(),
       element: widgetElement,
       widget: widget,
+      layoutType: this.getWidgetLayoutType(null, widget),
       x: finalX,
       y: finalY,
       width: finalW,
       height: finalH,
       visibleOnProjector: true
-    });
+    };
+
+    this.widgets.push(widgetInfo);
+    this.mode = this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
+    this.setupModeStructure();
+    this.widgets.forEach((info) => this.mountWidgetElement(info));
+
+    if (typeof widget.setEditable === 'function') {
+      widget.setEditable(this.editable);
+    }
 
     this.saveLayout();
     return widgetElement;
@@ -250,7 +359,7 @@ class LayoutManager {
     });
 
     const onMouseDown = (e) => {
-      if (!this.interactionEnabled) return;
+      if (!this.editable) return;
 
       const target = e.target;
       if (!target.classList.contains('resize-handle')) return;
@@ -344,7 +453,8 @@ class LayoutManager {
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-        this.saveLayout();
+        this.emitWidgetUpdate(info);
+        this.saveLayout({ emitFull: false });
       };
 
       e.preventDefault();
@@ -362,7 +472,7 @@ class LayoutManager {
     let initialLeft, initialTop;
 
     widgetElement.addEventListener('mousedown', (e) => {
-      if (!this.interactionEnabled) return;
+      if (!this.editable) return;
 
       if (e.target.classList.contains('resize-handle') ||
           e.target.tagName === 'INPUT' ||
@@ -423,12 +533,13 @@ class LayoutManager {
           info.y = snappedTop;
         }
 
-        this.saveLayout();
+        this.emitWidgetUpdate(info);
+        this.saveLayout({ emitFull: false });
       }
     });
   }
   
-  saveLayout() {
+  saveLayout(options = {}) {
     if (this.isRestoring) return;
 
     const layout = this.serialize();
@@ -440,7 +551,7 @@ class LayoutManager {
 
     this.lastSavedLayoutJSON = json;
 
-    if (this.onLayoutChange) {
+    if (this.onLayoutChange && options.emitFull !== false) {
       this.onLayoutChange(layout);
     }
   }
@@ -449,7 +560,9 @@ class LayoutManager {
     const widgets = this.widgets.map(widgetInfo => {
       // Return pixels
       return {
+        id: widgetInfo.id,
         type: widgetInfo.widget.constructor.name,
+        layoutType: widgetInfo.layoutType || 'grid',
         x: widgetInfo.x,
         y: widgetInfo.y,
         width: widgetInfo.width,
@@ -460,6 +573,7 @@ class LayoutManager {
     });
 
     return {
+      mode: this.mode,
       widgets,
       viewport: {
         width: this.container.clientWidth || null,
@@ -491,7 +605,8 @@ class LayoutManager {
       return;
     }
 
-    this.container.innerHTML = '';
+    this.mode = layoutData.mode || (layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
+    this.setupModeStructure();
     this.widgets = [];
 
     const containerW = this.container.clientWidth || 1024;
@@ -570,12 +685,6 @@ class LayoutManager {
       const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
       widgetElement.className = `widget ${widgetType}-widget`;
 
-      widgetElement.style.position = 'absolute';
-      widgetElement.style.left = `${finalX}px`;
-      widgetElement.style.top = `${finalY}px`;
-      widgetElement.style.width = `${finalW}px`;
-      widgetElement.style.height = `${finalH}px`;
-
       this.createSettingsButton(widget, widgetElement);
 
       const content = document.createElement('div');
@@ -587,22 +696,40 @@ class LayoutManager {
       this.addResizeHandles(widgetElement);
       this.addDragFunctionality(widgetElement);
 
-      this.container.appendChild(widgetElement);
-
       if (widgetData.data && typeof widget.deserialize === 'function') {
         widget.deserialize(widgetData.data);
       }
 
       this.widgets.push({
+        id: widgetData.id || this.getNextWidgetId(),
         element: widgetElement,
         widget: widget,
+        layoutType: this.getWidgetLayoutType(widgetData, widget),
         x: finalX,
         y: finalY,
         width: finalW,
         height: finalH,
         visibleOnProjector: widgetData.visibleOnProjector !== false
       });
+
+      if (typeof widget.setEditable === 'function') {
+        widget.setEditable(this.editable);
+      }
     });
+
+    this.widgets.forEach((widgetInfo) => this.mountWidgetElement(widgetInfo));
+  }
+
+  applyLayoutDelta(delta) {
+    if (!delta || delta.type !== 'widget-update') return;
+    const widget = this.widgets.find((w) => w.id === delta.id);
+    if (!widget) return;
+
+    widget.x = typeof delta.x === 'number' ? delta.x : widget.x;
+    widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
+    widget.width = typeof delta.w === 'number' ? delta.w : widget.width;
+    widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
+    this.mountWidgetElement(widget);
   }
 
   createWidgetFromType(type) {
