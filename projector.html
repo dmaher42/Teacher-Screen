@@ -20,6 +20,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js" defer></script>
 </head>
 <body class="projector-view theme-professional">
+    <div id="projector-edit-controls" class="projector-edit-controls" aria-live="polite" hidden>
+        <span id="projector-edit-status" class="projector-edit-status">Edit: ON</span>
+        <button id="projector-edit-done" type="button" class="projector-edit-button">Done</button>
+        <button id="projector-reset-last-change" type="button" class="projector-edit-button projector-edit-reset">Reset last change</button>
+    </div>
     <div id="app-container" class="app-container" style="margin-top: 0; height: 100vh;">
         <section id="student-view" class="view student-view" role="region" aria-label="Projector View">
             <div id="widgets-container" class="widgets-grid">
@@ -47,21 +52,22 @@
 
     <style>
         /* Projector View Overrides */
-        .projector-view .widget-header {
+        .projector-view:not(.edit-mode) .widget-header {
             display: none !important;
         }
-        .projector-view .resize-handle {
-            display: none !important;
-        }
-        .projector-view .widget {
-            box-shadow: none; /* Optional: cleaner look */
-            /* Maybe keep box-shadow if it helps visibility */
-        }
-        /* Hide nav and other elements just in case, though they are not in the HTML */
-        /* Since we re-used app-container and student-view structure to reuse CSS, we should be fine */
 
-        /* Ensure widgets take full space if header is hidden? */
-        /* Widget content usually has flex-grow: 1, so it should expand */
+        .projector-view:not(.edit-mode) .resize-handle {
+            display: none !important;
+        }
+
+        .projector-view.edit-mode .resize-handle {
+            display: block !important;
+            opacity: 1;
+        }
+
+        .projector-view .widget {
+            box-shadow: none;
+        }
     </style>
 </body>
 </html>
