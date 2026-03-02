@@ -3,19 +3,34 @@
  * Manages Reveal deck sources from URL or raw HTML and renders them in a persistent iframe.
  */
 class RevealManagerWidget {
+    static activeInstance = null;
+    static keyboardHandlerInitialized = false;
+
     constructor() {
         this.storageKey = 'revealDecks';
         this.activeDeck = null;
         this.presentationMode = false;
+        this.isCompact = true;
 
         this.element = document.createElement('div');
-        this.element.className = 'reveal-manager-widget-content';
+        this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
+        this.element.tabIndex = 0;
 
         const modeGroupName = `reveal-input-mode-${Date.now()}`;
 
+        // DOM structure: compact topbar + collapsible panel + flex stage + floating overlay nav.
+        // toggleCompact(false) shows the full controls panel while preserving deck storage keys.
         this.element.innerHTML = `
-            <div class="reveal-manager-controls">
-                <div class="reveal-manager-row">
+            <div class="reveal-manager__topbar">
+                <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
+                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
+                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
+            </div>
+
+            <div class="reveal-manager__panel" hidden>
+                <details class="reveal-manager__section" open>
+                    <summary>Source</summary>
+                    <div class="reveal-manager-row">
                     <label>
                         <input type="radio" name="${modeGroupName}" value="url" checked>
                         URL
@@ -33,31 +48,47 @@ class RevealManagerWidget {
                 </div>
                 <div class="reveal-manager-row reveal-html-row" style="display:none;">
                     <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
-                </div>
-                <div class="reveal-manager-row reveal-manager-actions">
-                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn">Launch</button>
+                    </div>
+                    <div class="reveal-manager-row reveal-manager-actions">
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save Deck</button>
-                </div>
-                <div class="reveal-manager-row reveal-manager-actions">
+                    </div>
+                </details>
+
+                <details class="reveal-manager__section" open>
+                    <summary>Library</summary>
+                    <div class="reveal-manager-row">
+                        <select class="reveal-saved-select">
+                            <option value="">Select saved deck</option>
+                        </select>
+                        <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Launch Saved</button>
+                    </div>
+                    <div class="reveal-manager-row reveal-manager-actions">
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
+                    </div>
+                </details>
+
+                <details class="reveal-manager__section" open>
+                    <summary>Navigation</summary>
+                    <div class="reveal-manager-row reveal-manager-actions">
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="prev">Prev</button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="next">Next</button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="up">Up</button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="down">Down</button>
+                    </div>
+                </details>
+            </div>
+
+            <div class="reveal-manager__stage">
+                <div class="reveal-manager__overlay-nav" aria-label="Deck navigation overlay">
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="prev">Prev</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="next">Next</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="up">Up</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-nav-btn" data-direction="down">Down</button>
                 </div>
-                <div class="reveal-manager-row">
-                    <select class="reveal-saved-select">
-                        <option value="">Select saved deck</option>
-                    </select>
-                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Launch Saved</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
-                </div>
-            </div>
-            <div class="reveal-manager-row reveal-presentation-row">
-                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn">Enter Presentation Mode</button>
-            </div>
-            <div class="reveal-container">
+                <div class="reveal-container">
                 <div class="reveal-manager-frame-wrap"></div>
+                </div>
             </div>
         `;
 
@@ -74,8 +105,9 @@ class RevealManagerWidget {
         this.renameButton = this.element.querySelector('.reveal-rename-btn');
         this.deleteButton = this.element.querySelector('.reveal-delete-btn');
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
-        this.controlsContainer = this.element.querySelector('.reveal-manager-controls');
-        this.presentationRow = this.element.querySelector('.reveal-presentation-row');
+        this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
+        this.panelContainer = this.element.querySelector('.reveal-manager__panel');
+        this.topbar = this.element.querySelector('.reveal-manager__topbar');
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
         this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
@@ -97,6 +129,9 @@ class RevealManagerWidget {
         this.handleRenameDeck = this.handleRenameDeck.bind(this);
         this.handleDeleteDeck = this.handleDeleteDeck.bind(this);
         this.handlePresentationToggle = this.handlePresentationToggle.bind(this);
+        this.handleToggleControls = this.handleToggleControls.bind(this);
+        this.handleRootInteraction = this.handleRootInteraction.bind(this);
+        this.handleOverlayNavPointerDown = this.handleOverlayNavPointerDown.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
@@ -105,9 +140,21 @@ class RevealManagerWidget {
         this.renameButton.addEventListener('click', this.handleRenameDeck);
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.addEventListener('click', this.handlePresentationToggle);
+        this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
+        this.element.addEventListener('click', this.handleRootInteraction);
+        this.element.addEventListener('focusin', this.handleRootInteraction);
+        this.navButtons.forEach((button) => {
+            button.addEventListener('click', (event) => this.handleNavButtonClick(event));
+            button.addEventListener('mousedown', this.handleOverlayNavPointerDown);
+            button.title = `Navigate ${button.dataset.direction}`;
+            button.setAttribute('aria-label', `Navigate ${button.dataset.direction}`);
+        });
+
+        RevealManagerWidget.initKeyboardHandler();
 
         this.renderSavedDeckOptions();
         this.updateModeUI();
+        this.toggleCompact(true);
         this.updatePresentationUI();
 
         if (document.body.classList.contains('projector-view')) {
@@ -116,10 +163,54 @@ class RevealManagerWidget {
     }
 
     setProjectorControlsHidden(hidden) {
-        if (!this.controlsContainer || !this.presentationRow) return;
+        if (!this.topbar || !this.panelContainer) return;
 
-        this.controlsContainer.style.display = hidden ? 'none' : '';
-        this.presentationRow.style.display = hidden ? 'none' : '';
+        this.topbar.style.display = hidden ? 'none' : '';
+        this.panelContainer.style.display = hidden ? 'none' : '';
+    }
+
+    static initKeyboardHandler() {
+        if (RevealManagerWidget.keyboardHandlerInitialized) return;
+
+        document.addEventListener('keydown', (event) => {
+            const active = RevealManagerWidget.activeInstance;
+            if (!active) return;
+
+            const directionMap = {
+                ArrowLeft: 'prev',
+                ArrowRight: 'next',
+                ArrowUp: 'up',
+                ArrowDown: 'down'
+            };
+            const direction = directionMap[event.key];
+            if (!direction) return;
+
+            event.preventDefault();
+            active.sendKeyToIframe(direction);
+        });
+
+        RevealManagerWidget.keyboardHandlerInitialized = true;
+    }
+
+    handleRootInteraction() {
+        RevealManagerWidget.activeInstance = this;
+    }
+
+    handleOverlayNavPointerDown(event) {
+        event.stopPropagation();
+    }
+
+    toggleCompact(compact) {
+        this.isCompact = compact;
+        this.element.classList.toggle('reveal-manager--compact', compact);
+        this.panelContainer.hidden = compact;
+        this.toggleControlsButton.textContent = compact ? '⋯' : 'Close';
+        this.toggleControlsButton.title = compact ? 'Show full controls' : 'Hide full controls';
+    }
+
+    handleToggleControls(event) {
+        event.stopPropagation();
+        this.toggleCompact(!this.isCompact);
     }
 
     getCurrentMode() {
@@ -213,6 +304,15 @@ class RevealManagerWidget {
 
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
+        this.launchButton.textContent = 'Stop';
+    }
+
+    stopDeck() {
+        this.activeDeck = null;
+        this.savedSelect.value = '';
+        this.iframe.removeAttribute('src');
+        this.iframe.srcdoc = '';
+        this.launchButton.textContent = 'Open';
     }
 
     sendKeyToIframe(direction) {
@@ -238,6 +338,11 @@ class RevealManagerWidget {
     }
 
     handleLaunchFromInputs() {
+        if (this.activeDeck) {
+            this.stopDeck();
+            return;
+        }
+
         const deck = this.buildDeckFromInputs();
         if (!deck) return;
         this.launchDeck(deck);
@@ -301,7 +406,7 @@ class RevealManagerWidget {
         this.saveDecks(nextDecks);
 
         if (this.activeDeck && this.activeDeck.id === selectedId) {
-            this.activeDeck = null;
+            this.stopDeck();
         }
 
         this.renderSavedDeckOptions();
@@ -365,6 +470,14 @@ class RevealManagerWidget {
         this.renameButton.removeEventListener('click', this.handleRenameDeck);
         this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.removeEventListener('click', this.handlePresentationToggle);
+        this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
+        this.element.removeEventListener('click', this.handleRootInteraction);
+        this.element.removeEventListener('focusin', this.handleRootInteraction);
+        this.navButtons.forEach((button) => button.removeEventListener('mousedown', this.handleOverlayNavPointerDown));
+
+        if (RevealManagerWidget.activeInstance === this) {
+            RevealManagerWidget.activeInstance = null;
+        }
         this.element.remove();
 
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
