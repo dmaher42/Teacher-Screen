@@ -449,7 +449,13 @@ class LayoutManager {
       };
     });
 
-    return { widgets };
+    return {
+      widgets,
+      viewport: {
+        width: this.container.clientWidth || null,
+        height: this.container.clientHeight || null
+      }
+    };
   }
   
   loadLayout() {
@@ -480,6 +486,14 @@ class LayoutManager {
 
     const containerW = this.container.clientWidth || 1024;
     const containerH = this.container.clientHeight || 768;
+    const sourceViewportW = layoutData.viewport && Number(layoutData.viewport.width) > 0
+      ? Number(layoutData.viewport.width)
+      : containerW;
+    const sourceViewportH = layoutData.viewport && Number(layoutData.viewport.height) > 0
+      ? Number(layoutData.viewport.height)
+      : containerH;
+    const widthScale = containerW / sourceViewportW;
+    const heightScale = containerH / sourceViewportH;
     const colW = containerW / this.gridColumns;
     const rowH = containerH / this.gridRows;
 
@@ -522,6 +536,13 @@ class LayoutManager {
          if (finalW <= 12) finalW = finalW * colW;
          if (finalH <= 12) finalH = finalH * rowH;
       }
+
+      // Keep widget placement and size proportional when restoring into a different viewport
+      // (e.g. projector screen resolution differs from teacher view).
+      finalX *= widthScale;
+      finalY *= heightScale;
+      finalW *= widthScale;
+      finalH *= heightScale;
 
       // Default fallback
       if (finalW == null) finalW = colW * 3;
