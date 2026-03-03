@@ -2213,7 +2213,7 @@ const TIMER_SOUND_OPTIONS_DATA = [
       "AQAA0ACQAFAAAA+//1/+7/6P/g/9n/0v/M/8X/wP+7/7b/s/+w/6//r/+w/7H/tf+5/77/xP/L/9P/3P" +
       "/l/+//+f8CAAwAFgAgACkAMgA6AEEASABNAFEAVABWAFcAVwBVAFMATwBLAEYAPwA5ADEAKgAiABoAEg" +
       "AKAAIA/P/1/+//6f/k/+D/3f/a/9j/1//X/9j/2f/b/93/4P/j/+b/6v/t//H/9P/3//r//P/+////AA" +
-      "A=""
+      "A="
   },
   {
     label: "Soft Tone",
