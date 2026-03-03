@@ -150,7 +150,7 @@ class LayoutManager {
       return;
     }
 
-    if (layoutType === 'stage') {
+    if (layoutType === 'stage' && widgetInfo.widget.constructor.name !== 'RevealManagerWidget') {
       element.style.position = 'absolute';
       element.style.left = '0';
       element.style.top = '0';
