@@ -1,3 +1,7 @@
+const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+const isTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
+const isProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
+
 /**
  * RevealManagerWidget
  * Manages Reveal deck sources from URL or raw HTML and renders them in a persistent iframe.
@@ -19,7 +23,6 @@ class RevealManagerWidget {
         this.isTeacherMode = appModeUtils.isTeacherMode || (() => this.appMode === 'teacher');
         this.isProjectorMode = appModeUtils.isProjectorMode || (() => this.appMode === 'projector');
         this.isProjectorView = this.isProjectorMode();
-        this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
         this.slideChangeHandlerAttached = false;
 
         this.element = document.createElement('div');
@@ -214,10 +217,16 @@ class RevealManagerWidget {
     }
 
     setupRevealSync() {
-        if (!this.revealSync || !this.isProjectorView) return;
+        if (!appBus || !isProjectorMode()) return;
 
-        this.revealSync.onSlideState((state) => {
-            this.applySlideState(state);
+        appBus.on('reveal-slide-change', (payload) => {
+            if (!payload) return;
+            this.applySlideState(payload);
+        });
+
+        appBus.on('reveal-fragment-change', (state) => {
+            if (!state) return;
+            this.applyFragmentState(state);
         });
     }
 
@@ -227,20 +236,28 @@ class RevealManagerWidget {
     }
 
     bindSlideChangeListener() {
-        if (this.isProjectorView || !this.revealSync || this.slideChangeHandlerAttached) return;
+        if (this.isProjectorView || !appBus || !isTeacherMode() || this.slideChangeHandlerAttached) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = frameWindow && frameWindow.Reveal;
         if (!reveal || typeof reveal.on !== 'function') return;
 
         reveal.on('slidechanged', (event) => {
-            const state = {
+            appBus.emit('reveal-slide-change', {
                 indexh: event.indexh,
                 indexv: event.indexv,
                 indexf: event.indexf || 0
-            };
+            });
+        });
 
-            this.revealSync.sendSlideState(state);
+        reveal.on('fragmentshown', () => {
+            if (typeof reveal.getState !== 'function') return;
+            appBus.emit('reveal-fragment-change', reveal.getState());
+        });
+
+        reveal.on('fragmenthidden', () => {
+            if (typeof reveal.getState !== 'function') return;
+            appBus.emit('reveal-fragment-change', reveal.getState());
         });
 
         this.slideChangeHandlerAttached = true;
@@ -380,6 +397,22 @@ class RevealManagerWidget {
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
     }
 
+    applyFragmentState(state) {
+        if (!state) return;
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        const reveal = frameWindow && frameWindow.Reveal;
+
+        if (reveal && typeof reveal.setState === 'function') {
+            reveal.setState(state);
+            return;
+        }
+
+        if (frameWindow) {
+            frameWindow.postMessage({ type: 'reveal-fragment-state', state }, '*');
+        }
+    }
+
     sendKeyToIframe(direction) {
         const frame = this.iframeRef.current;
         if (!frame || !frame.contentWindow) return;
@@ -396,20 +429,20 @@ class RevealManagerWidget {
         frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
         this.sendNavToPresenter(direction);
 
-        if (this.revealSync && !this.isProjectorView) {
+        if (!this.isProjectorView && isTeacherMode()) {
             this.broadcastCurrentSlideState();
         }
     }
 
     broadcastCurrentSlideState() {
-        if (!this.revealSync || this.isProjectorView) return;
+        if (!appBus || this.isProjectorView || !isTeacherMode()) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = frameWindow && frameWindow.Reveal;
         if (!reveal || typeof reveal.getIndices !== 'function') return;
 
         const indices = reveal.getIndices();
-        this.revealSync.sendSlideState({
+        appBus.emit('reveal-slide-change', {
             indexh: indices.h || 0,
             indexv: indices.v || 0,
             indexf: indices.f || 0
@@ -648,9 +681,6 @@ class RevealManagerWidget {
             this.presenterWindowMonitor = null;
         }
 
-        if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
-            this.revealSync.channel.close();
-        }
 
         if (RevealManagerWidget.activeInstance === this) {
             RevealManagerWidget.activeInstance = null;
