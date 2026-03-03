@@ -8,8 +8,8 @@ const WIDGET_SIZE_RULES = {
   NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 6, defaultH: 6 },
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
-  // Reveal manager needs larger default stage space.
-  RevealManagerWidget: { minW: 3, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
+  // Reveal manager uses standard grid sizing.
+  RevealManagerWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
   WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   RichTextWidget: { minW: 4, minH: 3 }
@@ -152,7 +152,7 @@ class LayoutManager {
       return;
     }
 
-    if (layoutType === 'stage' && widgetInfo.widget.constructor.name !== 'RevealManagerWidget') {
+    if (layoutType === 'stage') {
       element.style.position = 'absolute';
       element.style.left = '0';
       element.style.top = '0';
