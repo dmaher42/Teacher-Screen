@@ -7,7 +7,7 @@ class RevealManagerWidget {
     static keyboardHandlerInitialized = false;
 
     constructor() {
-        this.layoutType = 'stage';
+        this.layoutType = 'grid';
         this.storageKey = 'revealDecks';
         this.activeDeck = null;
         this.presentationMode = false;
