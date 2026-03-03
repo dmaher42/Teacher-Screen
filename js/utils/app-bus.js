@@ -1,5 +1,5 @@
 const CHANNEL_NAME = 'teacher-screen-bus';
-const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+const appBusMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 
 class AppBus {
     constructor() {
@@ -11,7 +11,7 @@ class AppBus {
         this.channel.postMessage({
             type: eventType,
             payload,
-            source: APP_MODE,
+            source: appBusMode,
             timestamp: Date.now()
         });
     }
@@ -29,7 +29,7 @@ class AppBus {
             const { type, payload, source } = event.data || {};
 
             // Prevent same-mode loop
-            if (source === APP_MODE) return;
+            if (source === appBusMode) return;
 
             const handlers = this.listeners[type] || [];
             handlers.forEach((handler) => handler(payload, source));
