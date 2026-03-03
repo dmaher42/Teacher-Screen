@@ -1,5 +1,18 @@
 const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', APP_MODE);
+const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+const isTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => APP_MODE === 'teacher';
+
+if (appBus) {
+    appBus.init();
+    console.log('AppBus initialised');
+}
+
+if (appBus && isTeacherMode()) {
+    window.testBroadcast = () => {
+        appBus.emit('debug-event', { message: 'Hello from teacher' });
+    };
+}
 
 /**
  * Main application class for the Custom Classroom Screen.

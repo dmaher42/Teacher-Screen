@@ -1,5 +1,14 @@
 const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', APP_MODE);
+const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+
+if (appBus) {
+    appBus.init();
+    console.log('AppBus initialised');
+    appBus.on('debug-event', (payload, source) => {
+        console.log('Received debug-event from', source, payload);
+    });
+}
 
 /**
  * Projector View Application Script
