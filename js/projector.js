@@ -1,3 +1,6 @@
+const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+console.log('Teacher-Screen App Mode:', APP_MODE);
+
 /**
  * Projector View Application Script
  * Loads and displays the classroom screen state in a read-only mode.
