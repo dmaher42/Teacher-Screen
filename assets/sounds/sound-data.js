@@ -885,7 +885,7 @@ const TIMER_SOUND_OPTIONS_DATA = [
       "AAAQUBBQEBAfkA7gDfAM0AuACgAIcAbABQADQAFwD8/+D/xv+u/5f/g/9x/2L/Vv9N/0j/Rf9F/0n/T/" +
       "9Y/2P/cf+A/5H/o/+1/8n/3P/w/wIAFAAlADUAQwBPAFoAYwBqAG4AcQByAHAAbQBoAGIAWwBSAEgAPg" +
       "AzACgAHgATAAkAAAD3/+//6P/i/93/2v/X/9b/1f/W/9j/2v/d/+D/5P/o/+z/8P/0//j/+//9////AA" +
-      "A=""
+      "A="
   },
   {
     label: "Bell Chime",
