@@ -1,3 +1,6 @@
+const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+console.log('Teacher-Screen App Mode:', APP_MODE);
+
 /**
  * Main application class for the Custom Classroom Screen.
  * This class initializes the app, manages widgets, and handles user interactions.

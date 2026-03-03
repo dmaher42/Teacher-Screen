@@ -14,7 +14,11 @@ class RevealManagerWidget {
         this.isCompact = true;
         this.presenterWindow = null;
         this.presenterWindowMonitor = null;
-        this.isProjectorView = document.body.classList.contains('projector-view');
+        const appModeUtils = window.TeacherScreenAppMode || {};
+        this.appMode = appModeUtils.APP_MODE || 'teacher';
+        this.isTeacherMode = appModeUtils.isTeacherMode || (() => this.appMode === 'teacher');
+        this.isProjectorMode = appModeUtils.isProjectorMode || (() => this.appMode === 'projector');
+        this.isProjectorView = this.isProjectorMode();
         this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
         this.slideChangeHandlerAttached = false;
 
@@ -163,8 +167,11 @@ class RevealManagerWidget {
 
         this.setupRevealSync();
 
-        if (document.body.classList.contains('projector-view')) {
+        if (this.isProjectorMode()) {
+            this.layoutType = 'grid';
             this.setProjectorControlsHidden(true);
+        } else {
+            this.layoutType = 'grid';
         }
     }
 

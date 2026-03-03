@@ -2,6 +2,10 @@
 
 const GRID_SIZE = 20; // Widgets will snap to a 20px grid
 const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
+const isTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
+const applyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
+  ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
+  : widgetInstance);
 
 const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
@@ -152,7 +156,7 @@ class LayoutManager {
       return;
     }
 
-    if (layoutType === 'stage') {
+    if (isTeacherMode() && layoutType === 'stage') {
       element.style.position = 'absolute';
       element.style.left = '0';
       element.style.top = '0';
@@ -223,6 +227,7 @@ class LayoutManager {
   }
 
   addWidget(widget, x = null, y = null, width = null, height = null) {
+    applyAppModeToWidget(widget);
      const containerW = this.container.clientWidth || 1024;
      const containerH = this.container.clientHeight || 768;
      const colW = containerW / this.gridColumns;
@@ -294,7 +299,7 @@ class LayoutManager {
     };
 
     this.widgets.push(widgetInfo);
-    this.mode = this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
+    this.mode = isTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
     this.widgets.forEach((info) => this.mountWidgetElement(info));
 
@@ -628,7 +633,7 @@ class LayoutManager {
       return;
     }
 
-    this.mode = layoutData.mode || (layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
+    this.mode = layoutData.mode || (isTeacherMode() && layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
     this.setupModeStructure();
     this.widgets = [];
 
@@ -659,6 +664,7 @@ class LayoutManager {
     layoutData.widgets.forEach((widgetData) => {
       const widget = widgetFactory ? widgetFactory(widgetData) : this.createWidgetFromType(widgetData.type);
       if (!widget || !widget.element) return;
+      applyAppModeToWidget(widget);
 
       // Determine dimensions (pixels)
       let finalX = widgetData.x;
