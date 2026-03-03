@@ -14,6 +14,9 @@ class RevealManagerWidget {
         this.isCompact = true;
         this.presenterWindow = null;
         this.presenterWindowMonitor = null;
+        this.isProjectorView = document.body.classList.contains('projector-view');
+        this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
+        this.slideChangeHandlerAttached = false;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -129,6 +132,7 @@ class RevealManagerWidget {
         this.handleRootInteraction = this.handleRootInteraction.bind(this);
         this.handleOverlayNavPointerDown = this.handleOverlayNavPointerDown.bind(this);
         this.handleWindowMessage = this.handleWindowMessage.bind(this);
+        this.handleIframeLoad = this.handleIframeLoad.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
@@ -141,6 +145,7 @@ class RevealManagerWidget {
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
         window.addEventListener('message', this.handleWindowMessage);
+        this.iframe.addEventListener('load', this.handleIframeLoad);
         this.navButtons.forEach((button) => {
             button.addEventListener('click', (event) => this.handleNavButtonClick(event));
             button.addEventListener('mousedown', this.handleOverlayNavPointerDown);
@@ -155,6 +160,8 @@ class RevealManagerWidget {
         this.updateModeUI();
         this.toggleCompact(true);
         this.updatePresentationUI();
+
+        this.setupRevealSync();
 
         if (document.body.classList.contains('projector-view')) {
             this.setProjectorControlsHidden(true);
@@ -197,6 +204,55 @@ class RevealManagerWidget {
 
     handleOverlayNavPointerDown(event) {
         event.stopPropagation();
+    }
+
+    setupRevealSync() {
+        if (!this.revealSync || !this.isProjectorView) return;
+
+        this.revealSync.onSlideState((state) => {
+            this.applySlideState(state);
+        });
+    }
+
+    handleIframeLoad() {
+        this.slideChangeHandlerAttached = false;
+        this.bindSlideChangeListener();
+    }
+
+    bindSlideChangeListener() {
+        if (this.isProjectorView || !this.revealSync || this.slideChangeHandlerAttached) return;
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        const reveal = frameWindow && frameWindow.Reveal;
+        if (!reveal || typeof reveal.on !== 'function') return;
+
+        reveal.on('slidechanged', (event) => {
+            const state = {
+                indexh: event.indexh,
+                indexv: event.indexv,
+                indexf: event.indexf || 0
+            };
+
+            this.revealSync.sendSlideState(state);
+        });
+
+        this.slideChangeHandlerAttached = true;
+    }
+
+    applySlideState(state) {
+        if (!state) return;
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        const reveal = frameWindow && frameWindow.Reveal;
+
+        if (reveal && typeof reveal.slide === 'function') {
+            reveal.slide(state.indexh || 0, state.indexv || 0, state.indexf || 0);
+            return;
+        }
+
+        if (frameWindow) {
+            frameWindow.postMessage({ type: 'reveal-slide-state', state }, '*');
+        }
     }
 
     toggleCompact(compact) {
@@ -305,6 +361,7 @@ class RevealManagerWidget {
         this.savedSelect.value = String(deck.id);
         this.launchButton.textContent = 'Stop';
         this.sendDeckToPresenter();
+        this.bindSlideChangeListener();
     }
 
     stopDeck() {
@@ -331,6 +388,25 @@ class RevealManagerWidget {
         // });
         frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
         this.sendNavToPresenter(direction);
+
+        if (this.revealSync && !this.isProjectorView) {
+            this.broadcastCurrentSlideState();
+        }
+    }
+
+    broadcastCurrentSlideState() {
+        if (!this.revealSync || this.isProjectorView) return;
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        const reveal = frameWindow && frameWindow.Reveal;
+        if (!reveal || typeof reveal.getIndices !== 'function') return;
+
+        const indices = reveal.getIndices();
+        this.revealSync.sendSlideState({
+            indexh: indices.h || 0,
+            indexv: indices.v || 0,
+            indexf: indices.f || 0
+        });
     }
 
     sendNavToPresenter(direction) {
@@ -484,6 +560,7 @@ class RevealManagerWidget {
         }, 1000);
 
         this.sendDeckToPresenter();
+        this.bindSlideChangeListener();
     }
 
     updatePresentationUI() {
@@ -505,6 +582,7 @@ class RevealManagerWidget {
         if (event.data.type === 'reveal-presenter-ready') {
             this.setPresenterStatus('Presenter connected');
             this.sendDeckToPresenter();
+            this.bindSlideChangeListener();
         }
 
         if (event.data.type === 'reveal-presenter-closed') {
@@ -555,11 +633,16 @@ class RevealManagerWidget {
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         window.removeEventListener('message', this.handleWindowMessage);
+        this.iframe.removeEventListener('load', this.handleIframeLoad);
         this.navButtons.forEach((button) => button.removeEventListener('mousedown', this.handleOverlayNavPointerDown));
 
         if (this.presenterWindowMonitor) {
             clearInterval(this.presenterWindowMonitor);
             this.presenterWindowMonitor = null;
+        }
+
+        if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
+            this.revealSync.channel.close();
         }
 
         if (RevealManagerWidget.activeInstance === this) {

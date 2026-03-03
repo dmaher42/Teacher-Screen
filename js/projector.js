@@ -35,6 +35,7 @@ class ProjectorApp {
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
     }
 
     init() {
@@ -54,6 +55,14 @@ class ProjectorApp {
                 this.loadTheme();
             }
         });
+
+        if (this.revealSync) {
+            this.revealSync.onSlideState((state) => {
+                if (window.Reveal && typeof window.Reveal.slide === 'function') {
+                    window.Reveal.slide(state.indexh, state.indexv, state.indexf);
+                }
+            });
+        }
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
@@ -260,6 +269,13 @@ class ProjectorApp {
             console.error('Projector layout rebuild failed:', err);
         }
     }
+
+    destroy() {
+        if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
+            this.revealSync.channel.close();
+        }
+    }
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {
