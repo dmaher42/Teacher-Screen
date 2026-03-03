@@ -140,7 +140,9 @@ class LayoutManager {
       return;
     }
 
-    if (layoutType === 'overlay') {
+    // In stage mode, default/grid widgets should remain freely placeable on the main stage.
+    // Treat both `overlay` and legacy/default `grid` layout types as absolute widgets.
+    if (layoutType === 'overlay' || layoutType === 'grid') {
       element.style.position = 'absolute';
       element.style.left = `${widgetInfo.x}px`;
       element.style.top = `${widgetInfo.y}px`;
