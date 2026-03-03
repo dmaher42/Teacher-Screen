@@ -1,6 +1,6 @@
-const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-const isTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
-const isProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
+const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
+const revealWidgetIsProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
 
 /**
  * RevealManagerWidget
@@ -217,14 +217,14 @@ class RevealManagerWidget {
     }
 
     setupRevealSync() {
-        if (!appBus || !isProjectorMode()) return;
+        if (!revealWidgetAppBus || !revealWidgetIsProjectorMode()) return;
 
-        appBus.on('reveal-slide-change', (payload) => {
+        revealWidgetAppBus.on('reveal-slide-change', (payload) => {
             if (!payload) return;
             this.applySlideState(payload);
         });
 
-        appBus.on('reveal-fragment-change', (state) => {
+        revealWidgetAppBus.on('reveal-fragment-change', (state) => {
             if (!state) return;
             this.applyFragmentState(state);
         });
@@ -236,14 +236,14 @@ class RevealManagerWidget {
     }
 
     bindSlideChangeListener() {
-        if (this.isProjectorView || !appBus || !isTeacherMode() || this.slideChangeHandlerAttached) return;
+        if (this.isProjectorView || !revealWidgetAppBus || !revealWidgetIsTeacherMode() || this.slideChangeHandlerAttached) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = frameWindow && frameWindow.Reveal;
         if (!reveal || typeof reveal.on !== 'function') return;
 
         reveal.on('slidechanged', (event) => {
-            appBus.emit('reveal-slide-change', {
+            revealWidgetAppBus.emit('reveal-slide-change', {
                 indexh: event.indexh,
                 indexv: event.indexv,
                 indexf: event.indexf || 0
@@ -252,12 +252,12 @@ class RevealManagerWidget {
 
         reveal.on('fragmentshown', () => {
             if (typeof reveal.getState !== 'function') return;
-            appBus.emit('reveal-fragment-change', reveal.getState());
+            revealWidgetAppBus.emit('reveal-fragment-change', reveal.getState());
         });
 
         reveal.on('fragmenthidden', () => {
             if (typeof reveal.getState !== 'function') return;
-            appBus.emit('reveal-fragment-change', reveal.getState());
+            revealWidgetAppBus.emit('reveal-fragment-change', reveal.getState());
         });
 
         this.slideChangeHandlerAttached = true;
@@ -429,20 +429,20 @@ class RevealManagerWidget {
         frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
         this.sendNavToPresenter(direction);
 
-        if (!this.isProjectorView && isTeacherMode()) {
+        if (!this.isProjectorView && revealWidgetIsTeacherMode()) {
             this.broadcastCurrentSlideState();
         }
     }
 
     broadcastCurrentSlideState() {
-        if (!appBus || this.isProjectorView || !isTeacherMode()) return;
+        if (!revealWidgetAppBus || this.isProjectorView || !revealWidgetIsTeacherMode()) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = frameWindow && frameWindow.Reveal;
         if (!reveal || typeof reveal.getIndices !== 'function') return;
 
         const indices = reveal.getIndices();
-        appBus.emit('reveal-slide-change', {
+        revealWidgetAppBus.emit('reveal-slide-change', {
             indexh: indices.h || 0,
             indexv: indices.v || 0,
             indexf: indices.f || 0

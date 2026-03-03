@@ -1,16 +1,16 @@
-const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
-console.log('Teacher-Screen App Mode:', APP_MODE);
-const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-const isTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => APP_MODE === 'teacher';
+const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
+const mainAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+const mainIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => mainResolvedAppMode === 'teacher';
 
-if (appBus) {
-    appBus.init();
+if (mainAppBus) {
+    mainAppBus.init();
     console.log('AppBus initialised');
 }
 
-if (appBus && isTeacherMode()) {
+if (mainAppBus && mainIsTeacherMode()) {
     window.testBroadcast = () => {
-        appBus.emit('debug-event', { message: 'Hello from teacher' });
+        mainAppBus.emit('debug-event', { message: 'Hello from teacher' });
     };
 }
 
