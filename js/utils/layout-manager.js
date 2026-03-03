@@ -333,12 +333,33 @@ class LayoutManager {
   removeWidget(widget) {
     const widgetInfo = this.widgets.find(info => info.widget === widget);
     if (widgetInfo) {
-      widgetInfo.element.remove();
+      let widgetRemovedEventDispatched = false;
+
+      const trackWidgetRemoved = (event) => {
+        if (event && event.detail && event.detail.widget === widget) {
+          widgetRemovedEventDispatched = true;
+        }
+      };
+
+      document.addEventListener('widgetRemoved', trackWidgetRemoved);
+
+      if (widget && typeof widget.remove === 'function') {
+        widget.remove();
+      }
+
+      document.removeEventListener('widgetRemoved', trackWidgetRemoved);
+
+      if (widgetInfo.element && widgetInfo.element.isConnected) {
+        widgetInfo.element.remove();
+      }
+
       this.widgets = this.widgets.filter(info => info.widget !== widget);
       this.saveLayout();
 
-      const event = new CustomEvent('widgetRemoved', { detail: { widget } });
-      document.dispatchEvent(event);
+      if (!widgetRemovedEventDispatched) {
+        const event = new CustomEvent('widgetRemoved', { detail: { widget } });
+        document.dispatchEvent(event);
+      }
     }
   }
   
