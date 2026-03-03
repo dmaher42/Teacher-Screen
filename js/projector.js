@@ -1,5 +1,5 @@
-const APP_MODE = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
-console.log('Teacher-Screen App Mode:', APP_MODE);
+const projectorAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+console.log('Teacher-Screen App Mode:', projectorAppMode);
 const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 
 if (appBus) {
