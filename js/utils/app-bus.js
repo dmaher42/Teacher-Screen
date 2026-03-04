@@ -37,7 +37,7 @@ class AppBus {
     }
 }
 
-const appBus = new AppBus();
+export const appBus = new AppBus();
 
 if (typeof window !== 'undefined') {
     window.TeacherScreenAppBus = {
