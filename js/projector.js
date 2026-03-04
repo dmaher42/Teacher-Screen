@@ -1,13 +1,42 @@
 import { appBus } from './utils/app-bus.js';
+import { APP_MODE } from './utils/app-mode.js';
 
-const projectorAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
-console.log('Teacher-Screen App Mode:', projectorAppMode);
+console.log('Projector Mode:', APP_MODE);
 
 appBus.init();
 console.log('AppBus initialised');
-appBus.on('debug-event', (payload, source) => {
-    console.log('Received debug-event from', source, payload);
+
+const loadClassicScript = (src) => new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
 });
+
+const bootstrapProjectorDependencies = async () => {
+    await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
+    await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js');
+    await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
+    await loadClassicScript('js/utils/layout-manager.js');
+    await loadClassicScript('js/utils/background-manager.js');
+    await loadClassicScript('js/utils/reveal-sync.js');
+    await loadClassicScript('assets/sounds/sound-data.js');
+    await loadClassicScript('js/widgets/timer.js');
+    await loadClassicScript('js/widgets/noise-meter.js');
+    await loadClassicScript('js/widgets/noise-meter-widget.js');
+    await loadClassicScript('js/widgets/name-picker.js');
+    await loadClassicScript('js/widgets/qr-code-widget.js');
+    await loadClassicScript('js/widgets/drawing-tool.js');
+    await loadClassicScript('js/widgets/document-viewer.js');
+    await loadClassicScript('js/widgets/url-viewer.js');
+    await loadClassicScript('js/widgets/reveal-manager-widget.js');
+    await loadClassicScript('js/widgets/notes-widget.js');
+    await loadClassicScript('js/widgets/wellbeing-widget.js');
+    await loadClassicScript('js/widgets/rich-text-widget.js');
+    await loadClassicScript('js/widgets/mask-widget.js');
+};
 
 /**
  * Projector View Application Script
@@ -289,7 +318,8 @@ class ProjectorApp {
 
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await bootstrapProjectorDependencies();
     const app = new ProjectorApp();
     app.init();
 });
