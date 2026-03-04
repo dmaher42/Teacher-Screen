@@ -189,7 +189,7 @@ class DocumentViewerWidget {
             const typedarray = new Uint8Array(fileReader.result);
 
             // pdfjsLib should be available globally
-            pdfjsLib.getDocument(typedarray).promise
+            pdfjsLib.getDocument({ data: typedarray, isEvalSupported: false }).promise
                 .then((pdf) => {
                     this.pdfDoc = pdf;
                     this.totalPages = pdf.numPages;

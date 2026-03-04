@@ -22,7 +22,7 @@ const loadOptionalClassicScript = async (src, label = src) => {
 const bootstrapTeacherDependencies = async () => {
     await loadClassicScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
     await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
-    await loadClassicScript('https://cdn.quilljs.com/1.3.6/quill.min.js');
+    await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js');
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
     await loadClassicScript('./js/utils/layout-manager.js');
     await loadClassicScript('./js/utils/background-manager.js');
