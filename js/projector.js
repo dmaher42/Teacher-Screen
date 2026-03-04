@@ -1,14 +1,13 @@
+import { appBus } from './utils/app-bus.js';
+
 const projectorAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', projectorAppMode);
-const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 
-if (appBus) {
-    appBus.init();
-    console.log('AppBus initialised');
-    appBus.on('debug-event', (payload, source) => {
-        console.log('Received debug-event from', source, payload);
-    });
-}
+appBus.init();
+console.log('AppBus initialised');
+appBus.on('debug-event', (payload, source) => {
+    console.log('Received debug-event from', source, payload);
+});
 
 /**
  * Projector View Application Script
