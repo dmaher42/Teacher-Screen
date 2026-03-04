@@ -39,3 +39,4 @@ if (typeof window !== 'undefined') {
     };
 }
 
+export { APP_MODE, isTeacherMode, isProjectorMode, applyAppModeToWidget };

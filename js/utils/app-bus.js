@@ -1,5 +1,7 @@
+import { APP_MODE } from './app-mode.js';
+
 const CHANNEL_NAME = 'teacher-screen-bus';
-const appBusMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
+const appBusMode = APP_MODE;
 
 class AppBus {
     constructor() {
