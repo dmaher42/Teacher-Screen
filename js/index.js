@@ -28,19 +28,19 @@ const bootstrapTeacherDependencies = async () => {
     await loadClassicScript('./js/utils/background-manager.js');
     await loadClassicScript('./js/utils/reveal-sync.js');
     await loadOptionalClassicScript('./assets/sounds/sound-data.js', 'sound-data');
-    await loadClassicScript('./js/widgets/timer.js');
-    await loadClassicScript('./js/widgets/noise-meter.js');
-    await loadClassicScript('./js/widgets/noise-meter-widget.js');
-    await loadClassicScript('./js/widgets/name-picker.js');
-    await loadClassicScript('./js/widgets/qr-code-widget.js');
-    await loadClassicScript('./js/widgets/drawing-tool.js');
-    await loadClassicScript('./js/widgets/document-viewer.js');
-    await loadClassicScript('./js/widgets/url-viewer.js');
-    await loadClassicScript('./js/widgets/reveal-manager-widget.js');
-    await loadClassicScript('./js/widgets/mask-widget.js');
-    await loadClassicScript('./js/widgets/notes-widget.js');
-    await loadClassicScript('./js/widgets/wellbeing-widget.js');
-    await loadClassicScript('./js/widgets/rich-text-widget.js');
+    await loadOptionalClassicScript('./js/widgets/timer.js', 'timer');
+    await loadOptionalClassicScript('./js/widgets/noise-meter.js', 'noise-meter');
+    await loadOptionalClassicScript('./js/widgets/noise-meter-widget.js', 'noise-meter-widget');
+    await loadOptionalClassicScript('./js/widgets/name-picker.js', 'name-picker');
+    await loadOptionalClassicScript('./js/widgets/qr-code-widget.js', 'qr-code-widget');
+    await loadOptionalClassicScript('./js/widgets/drawing-tool.js', 'drawing-tool');
+    await loadOptionalClassicScript('./js/widgets/document-viewer.js', 'document-viewer');
+    await loadOptionalClassicScript('./js/widgets/url-viewer.js', 'url-viewer');
+    await loadOptionalClassicScript('./js/widgets/reveal-manager-widget.js', 'reveal-manager-widget');
+    await loadOptionalClassicScript('./js/widgets/mask-widget.js', 'mask-widget');
+    await loadOptionalClassicScript('./js/widgets/notes-widget.js', 'notes-widget');
+    await loadOptionalClassicScript('./js/widgets/wellbeing-widget.js', 'wellbeing-widget');
+    await loadOptionalClassicScript('./js/widgets/rich-text-widget.js', 'rich-text-widget');
 };
 
 const init = async () => {
