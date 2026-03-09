@@ -77,7 +77,7 @@ class ClassroomScreenApp {
         this.presetListElement = document.getElementById('preset-list');
         this.helpDialog = document.getElementById('help-dialog');
         this.tourDialog = document.getElementById('tour-dialog');
-        this.fab = document.getElementById('fab');
+        this.fab = document.getElementById('add-widget-btn');
         this.widgetModal = document.getElementById('widget-modal');
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
@@ -361,7 +361,15 @@ class ClassroomScreenApp {
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
 
         // FAB and Modals
-        this.fab.addEventListener('click', () => this.openDialog(this.widgetModal));
+        const addBtn = document.getElementById('add-widget-btn');
+
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                console.log('Add widget clicked');
+                this.openWidgetPicker();
+            });
+            console.log('Add widget button handler attached');
+        }
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
 
@@ -2197,6 +2205,10 @@ class ClassroomScreenApp {
         if (!dialog.open) {
             dialog.showModal();
         }
+    }
+
+    openWidgetPicker() {
+        this.openDialog(this.widgetModal);
     }
 
     closeDialog(dialog) {
