@@ -126,7 +126,7 @@ class ClassroomScreenApp {
         // Managers
         this.saveState = debounce(this.saveState.bind(this), 300);
 
-        this.layoutManager = new LayoutManager(this.widgetsContainer);
+        this.layoutManager = new LayoutManager(this.studentView);
         this.layoutManager.setEditable(true);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
@@ -1940,6 +1940,8 @@ class ClassroomScreenApp {
             console.warn('Corrupt state detected and no backups available; clearing.');
             localStorage.removeItem('classroomScreenState');
         }
+
+        console.log('No saved layout found — loading default layout');
     }
 
     applyState(state) {
@@ -2403,6 +2405,12 @@ class ClassroomScreenApp {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const studentMain = document.getElementById("student-main");
+    if (!studentMain) {
+        console.error("Layout container #student-main not found");
+        return;
+    }
+
     const app = new ClassroomScreenApp();
     app.init();
 });
