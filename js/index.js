@@ -44,6 +44,8 @@ const bootstrapTeacherDependencies = async () => {
 };
 
 const init = async () => {
+    console.log('[bootstrap] Starting app initialization');
+
     try {
         await bootstrapTeacherDependencies();
     } catch (error) {
@@ -51,8 +53,15 @@ const init = async () => {
         throw error;
     }
 
-    await import('./script.js');
-    await import('./main.js');
+    try {
+        await import('./script.js');
+        await import('./main.js');
+    } catch (error) {
+        console.error('[bootstrap] Failed to load main application scripts:', error);
+        throw error;
+    }
+
+    console.log('[bootstrap] App initialized successfully');
 };
 
 if (document.readyState === 'loading') {
