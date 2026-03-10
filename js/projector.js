@@ -96,6 +96,19 @@ class ProjectorApp {
             if (event.key === 'selectedTheme') {
                 this.loadTheme();
             }
+            if (event.key === 'teacher-slide' && event.newValue) {
+                try {
+                    const data = JSON.parse(event.newValue);
+                    console.log('[sync] projector received slide update');
+                    console.log('[sync] teacher slide update', data);
+
+                    if (window.Reveal && typeof window.Reveal.slide === 'function') {
+                        window.Reveal.slide(data.indexh, data.indexv);
+                    }
+                } catch (error) {
+                    console.warn('[sync] invalid teacher slide payload', error);
+                }
+            }
         });
 
         if (this.revealSync) {
