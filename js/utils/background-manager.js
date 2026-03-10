@@ -16,13 +16,13 @@ class BackgroundManager {
     this.currentBackground = { ...this.defaultBackground };
   }
 
-  safeParse(key) {
+  safeParseLocalStorage(key) {
     try {
       const value = localStorage.getItem(key);
       if (!value) return null;
       return JSON.parse(value);
     } catch (error) {
-      console.warn('Invalid localStorage data for', key);
+      console.warn('Invalid localStorage data detected for:', key);
       localStorage.removeItem(key);
       return null;
     }
@@ -36,7 +36,7 @@ class BackgroundManager {
   
   init() {
     // Load saved background if available
-    const savedBackground = this.safeParse('background');
+    const savedBackground = this.safeParseLocalStorage('background');
     if (!savedBackground || !this.isValidBackground(savedBackground)) {
       this.currentBackground = { ...this.defaultBackground };
       localStorage.removeItem('background');
@@ -103,6 +103,7 @@ class BackgroundManager {
       this.currentBackground = data;
     } else {
       this.currentBackground = { ...this.defaultBackground };
+      localStorage.removeItem('background');
     }
 
     this.applyBackground();
