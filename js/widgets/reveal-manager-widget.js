@@ -363,22 +363,101 @@ class RevealManagerWidget {
         };
     }
 
+    ensureRevealInitScript(html) {
+        if (!html || typeof html !== 'string') return html;
+        if (html.includes('teacher-screen-reveal-init')) return html;
+
+        const revealBootstrapScript = `
+<script id="teacher-screen-reveal-init">
+(function () {
+    function initReveal() {
+        const revealEl = document.querySelector('.reveal');
+        if (!revealEl) {
+            console.warn('Reveal container not found');
+            return false;
+        }
+
+        if (!window.Reveal || typeof window.Reveal.initialize !== 'function') {
+            return false;
+        }
+
+        if (typeof window.Reveal.isReady === 'function' && window.Reveal.isReady()) {
+            return true;
+        }
+
+        window.Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            embedded: true
+        });
+
+        return true;
+    }
+
+    function waitForReveal() {
+        let attempts = 0;
+        const maxAttempts = 120;
+
+        function check() {
+            attempts += 1;
+            const revealEl = document.querySelector('.reveal');
+            const hasRevealJs = !!window.Reveal;
+
+            if (revealEl && hasRevealJs) {
+                initReveal();
+                return;
+            }
+
+            if (attempts >= maxAttempts) {
+                if (!revealEl) {
+                    console.warn('Reveal container not found');
+                }
+                if (!hasRevealJs) {
+                    console.warn('Reveal.js script not loaded');
+                }
+                return;
+            }
+
+            setTimeout(check, 50);
+        }
+
+        check();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', waitForReveal);
+        return;
+    }
+
+    waitForReveal();
+})();
+</script>`;
+
+        if (html.includes('</body>')) {
+            return html.replace('</body>', `${revealBootstrapScript}\n</body>`);
+        }
+
+        return `${html}\n${revealBootstrapScript}`;
+    }
+
     launchDeck(deck) {
         if (!deck) return;
+
+        const content = deck.type === 'html' ? this.ensureRevealInitScript(deck.content) : deck.content;
 
         this.activeDeck = {
             id: deck.id,
             name: deck.name,
             type: deck.type,
-            content: deck.content
+            content
         };
 
         if (deck.type === 'url') {
             this.iframe.srcdoc = '';
-            this.iframe.src = deck.content;
+            this.iframe.src = content;
         } else {
             this.iframe.removeAttribute('src');
-            this.iframe.srcdoc = deck.content;
+            this.iframe.srcdoc = content;
         }
 
         this.renderSavedDeckOptions();
