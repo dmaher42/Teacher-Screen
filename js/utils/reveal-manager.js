@@ -110,3 +110,19 @@ export async function initReveal(container) {
 
     return null;
 }
+
+export function layoutReveal(container) {
+    if (!container) {
+        return;
+    }
+
+    const existingDeck = container.__teacherScreenRevealDeck;
+    if (existingDeck && typeof existingDeck.layout === 'function') {
+        existingDeck.layout();
+        return;
+    }
+
+    if (window.Reveal && typeof window.Reveal.layout === 'function') {
+        window.Reveal.layout();
+    }
+}
