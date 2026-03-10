@@ -1,4 +1,4 @@
-import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey } from './widgets/widget-registry.js';
+import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
@@ -175,32 +175,6 @@ class ClassroomScreenApp {
             this.saveState('teacher');
         };
         this.backgroundManager = new BackgroundManager(this.studentView);
-
-        this.widgetCategories = [
-            {
-                name: 'Primary',
-                widgets: [
-                    { type: 'timer', label: 'Timer' },
-                    { type: 'noise-meter', label: 'Noise Meter' },
-                    { type: 'name-picker', label: 'Random Name Picker' }
-                ]
-            },
-            {
-                name: 'Secondary',
-                widgets: [
-                    { type: 'qr-code', label: 'QR Code' },
-                    { type: 'drawing-tool', label: 'Drawing Tool' },
-                    { type: 'document-viewer', label: 'Document Viewer' },
-                    { type: 'url-viewer', label: 'URL Viewer' },
-                    { type: 'reveal-manager', label: 'Reveal Manager' },
-                    { type: 'presentation', label: 'Presentation Loader' },
-                    { type: 'mask', label: 'Mask' },
-                    { type: 'notes', label: 'Notes' },
-                    { type: 'wellbeing', label: 'Well-being Check-in' },
-                    { name: 'Rich Text Board', type: 'rich-text', icon: 'fa-pen' }
-                ]
-            }
-        ];
 
         this.themes = [
             { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
@@ -592,7 +566,7 @@ class ClassroomScreenApp {
 
         selector.innerHTML = '';
         Object.entries(WidgetRegistry).forEach(([key, widget]) => {
-            this.createToolbarButton(widget.icon, widget.name, key, selector);
+            this.createToolbarButton(widget.icon, widget.label, key, selector);
         });
 
         this.widgetSelectorButtons = Array.from(selector.querySelectorAll('.widget-selector-btn'));
@@ -788,34 +762,39 @@ class ClassroomScreenApp {
 
     getFriendlyWidgetName(type) {
         const key = getRegistryWidgetKey(type);
-        return WidgetRegistry[key]?.name || 'Widget';
+        return WidgetRegistry[key]?.label || 'Widget';
     }
 
     renderWidgetModal() {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
-        this.widgetCategories.forEach((category) => {
+
+        const categories = {};
+        listAvailableWidgets().forEach((widget) => {
+            const categoryName = widget.category || 'Secondary';
+            if (!categories[categoryName]) {
+                categories[categoryName] = [];
+            }
+            categories[categoryName].push(widget);
+        });
+
+        Object.entries(categories).forEach(([categoryName, widgets]) => {
             const section = document.createElement('section');
             section.className = 'widget-category-section';
 
             const heading = document.createElement('h4');
             heading.className = 'widget-category-title';
-            heading.textContent = category.name;
+            heading.textContent = categoryName;
             section.appendChild(heading);
 
-            category.widgets.forEach((widget) => {
+            widgets.forEach((widget) => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
-                button.innerHTML = widget.icon
-                    ? `
-                    <i class="fas ${widget.icon} category-icon" aria-hidden="true"></i>
-                    <span>${widget.name}</span>
-                `
-                    : `
-                    <img src="assets/icons/${widget.type}.svg" alt="" class="category-icon">
+                button.innerHTML = `
+                    <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
                     <span>${widget.label}</span>
                 `;
-                button.addEventListener('click', () => this.addWidget(widget.type));
+                button.addEventListener('click', () => this.addWidget(widget.key));
                 section.appendChild(button);
             });
 
