@@ -765,6 +765,14 @@ ${revealBootstrapScript}`;
         if (!reveal || typeof reveal.getIndices !== 'function') return;
 
         const indices = reveal.getIndices();
+        if (revealWidgetEventBus) {
+            revealWidgetEventBus.emit('reveal:slide-changed', {
+                h: indices.h || 0,
+                v: indices.v || 0,
+                f: indices.f || 0
+            });
+        }
+
         revealWidgetAppBus.emit('reveal-slide-change', {
             indexh: indices.h || 0,
             indexv: indices.v || 0,
@@ -790,6 +798,11 @@ ${revealBootstrapScript}`;
         }
 
         this.presenterWindow.postMessage({ type: 'reveal-nav', direction }, window.location.origin);
+    }
+
+    handleInternalRevealNavigate(payload = {}) {
+        if (!payload || !payload.direction || this.isProjectorView) return;
+        this.navigate(payload.direction);
     }
 
     sendDeckToPresenter() {
@@ -1047,6 +1060,10 @@ ${revealBootstrapScript}`;
         if (this.syncChannel) {
             this.syncChannel.close();
             this.syncChannel = null;
+        }
+
+        if (revealWidgetEventBus) {
+            revealWidgetEventBus.off('reveal:navigate', this.handleInternalRevealNavigate);
         }
 
 

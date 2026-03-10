@@ -162,6 +162,7 @@ class ClassroomScreenApp {
         this.noteIdToLink = null;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.eventBusSubscriptions = [];
 
         this.handleWidgetRemovedEvent = (payload) => {
             if (payload && payload.widget) {
@@ -177,9 +178,10 @@ class ClassroomScreenApp {
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
                 this.applyProjectorLayoutDelta(payload, 'projector');
+                eventBus.emit('widget:moved', { payload, source: 'projector' });
                 return;
             }
-            this.saveState('teacher');
+            eventBus.emit('layout:updated', { source: 'teacher', payload });
         };
         this.backgroundManager = new BackgroundManager(this.studentView);
 
@@ -235,6 +237,7 @@ class ClassroomScreenApp {
     }
 
     init() {
+        this.setupInternalEventBus();
         this.setupEventListeners();
         this.initLessonPlanner();
 
@@ -281,6 +284,51 @@ class ClassroomScreenApp {
         }
 
         this.updateProjectorVisibility();
+    }
+
+    setupInternalEventBus() {
+        this.subscribeToEventBus('widget:removed', ({ widget }) => {
+            this.handleWidgetRemoved(widget);
+        });
+
+        this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true } = {}) => {
+            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+            if (!timerWidget) {
+                this.showNotification('No timer widget found. Add one first!', 'error');
+                return;
+            }
+
+            if (!Number.isFinite(minutes) || minutes <= 0) {
+                this.showNotification('Please set a timer duration.', 'warning');
+                return;
+            }
+
+            timerWidget.start(minutes);
+            if (showNotification) {
+                this.showNotification(`Timer started for ${Math.round(minutes * 100) / 100} minutes.`);
+            }
+        });
+
+        this.subscribeToEventBus('timer:stopped', () => {
+            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+            if (!timerWidget) {
+                this.showNotification('No timer widget found.', 'error');
+                return;
+            }
+
+            timerWidget.stop();
+            this.showNotification('Timer stopped.');
+        });
+
+        this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
+            this.saveState(source);
+        });
+
+    }
+
+    subscribeToEventBus(eventName, handler) {
+        eventBus.on(eventName, handler);
+        this.eventBusSubscriptions.push({ eventName, handler });
     }
 
     setupEventListeners() {
@@ -491,6 +539,8 @@ class ClassroomScreenApp {
     }
 
     handleNavClick(tab) {
+        eventBus.emit('scene:changed', { tab });
+
         // Update tab states
         this.navTabs.forEach(t => {
             const isSelected = t.dataset.tab === tab;
@@ -755,6 +805,7 @@ class ClassroomScreenApp {
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
             this.setActiveWidgetButton(type);
+            eventBus.emit('widget:created', { type, widget, element: widgetElement });
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
@@ -1919,6 +1970,7 @@ class ClassroomScreenApp {
     }
 
     handleWidgetRemoved(widget) {
+        if (!widget) return;
         this.widgets = this.widgets.filter(existing => existing !== widget);
         if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
             this.layoutManager.widgets = this.layoutManager.widgets.filter(info => info.widget !== widget);
