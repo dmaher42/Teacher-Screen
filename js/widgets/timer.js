@@ -1,3 +1,5 @@
+const timerEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
+
 /**
  * Timer Widget Class
  * Creates a countdown timer widget with start/stop functionality.
@@ -280,6 +282,59 @@ class TimerWidget {
         this.running = false;
         this.isIntervalMode = false;
         this.currentPhase = null;
+
+        this.handleTimerStartEvent = this.handleTimerStartEvent.bind(this);
+        this.handleTimerStopEvent = this.handleTimerStopEvent.bind(this);
+        this.handleTimerResetEvent = this.handleTimerResetEvent.bind(this);
+        this.subscribeToTimerEvents();
+    }
+
+    subscribeToTimerEvents() {
+        if (!timerEventBus) return;
+
+        timerEventBus.on('timer:start', this.handleTimerStartEvent);
+        timerEventBus.on('timer:stop', this.handleTimerStopEvent);
+        timerEventBus.on('timer:reset', this.handleTimerResetEvent);
+    }
+
+    unsubscribeFromTimerEvents() {
+        if (!timerEventBus) return;
+
+        timerEventBus.off('timer:start', this.handleTimerStartEvent);
+        timerEventBus.off('timer:stop', this.handleTimerStopEvent);
+        timerEventBus.off('timer:reset', this.handleTimerResetEvent);
+    }
+
+    emitTimerEvent(eventName, payload) {
+        if (!timerEventBus) return;
+
+        try {
+            timerEventBus.emit(eventName, payload);
+        } catch (error) {
+            console.error(`[TimerWidget] Failed to emit ${eventName}`, error);
+        }
+    }
+
+    handleTimerStartEvent(payload = {}) {
+        const targetId = payload && payload.widgetId ? payload.widgetId : null;
+        if (targetId && targetId !== this.widgetId) return;
+
+        const minutes = typeof payload.minutes === 'number' ? payload.minutes : null;
+        this.start(minutes);
+    }
+
+    handleTimerStopEvent(payload = {}) {
+        const targetId = payload && payload.widgetId ? payload.widgetId : null;
+        if (targetId && targetId !== this.widgetId) return;
+
+        this.stop(false);
+    }
+
+    handleTimerResetEvent(payload = {}) {
+        const targetId = payload && payload.widgetId ? payload.widgetId : null;
+        if (targetId && targetId !== this.widgetId) return;
+
+        this.reset(false);
     }
 
     setEditable() {}
@@ -402,6 +457,7 @@ class TimerWidget {
             this.flashDisplay();
             this.interval = setInterval(() => this.tick(), 1000);
             this.running = true;
+            this.emitTimerEvent('timer:start', { widgetId: this.widgetId, minutes: this.totalTime / 60 });
         }
     }
 
@@ -445,12 +501,35 @@ class TimerWidget {
     /**
      * Stop the timer.
      */
-    stop() {
+    stop(emitEvent = true) {
         clearInterval(this.interval);
         this.interval = null;
         this.running = false;
         this.setStatus('Timer stopped.', 'warning');
         this.flashDisplay();
+
+        if (emitEvent) {
+            this.emitTimerEvent('timer:stop', { widgetId: this.widgetId });
+        }
+    }
+
+    reset(emitEvent = true) {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+        }
+
+        this.running = false;
+        this.time = 0;
+        this.totalTime = 0;
+        this.currentPhase = null;
+        this.display.style.color = '';
+        this.updateDisplay();
+        this.setStatus('Timer reset.', 'warning');
+
+        if (emitEvent) {
+            this.emitTimerEvent('timer:reset', { widgetId: this.widgetId });
+        }
     }
 
     /**
@@ -510,6 +589,8 @@ class TimerWidget {
      * Remove the widget from the DOM.
      */
     remove() {
+        this.unsubscribeFromTimerEvents();
+
         if (this.interval) {
             this.stop();
         }

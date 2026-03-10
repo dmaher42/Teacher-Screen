@@ -6,6 +6,7 @@ const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.T
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
   : widgetInstance);
+const layoutManagerEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 
 
 function safeParseLocalStorage(key) {
@@ -164,6 +165,16 @@ class LayoutManager {
     });
   }
 
+  emitBusEvent(eventName, payload) {
+    if (!layoutManagerEventBus) return;
+
+    try {
+      layoutManagerEventBus.emit(eventName, payload);
+    } catch (error) {
+      console.error(`[LayoutManager] Failed to emit ${eventName}`, error);
+    }
+  }
+
   mountWidgetElement(widgetInfo) {
     const { element, layoutType } = widgetInfo;
     if (this.mode !== 'stage') {
@@ -254,6 +265,7 @@ class LayoutManager {
       info.element.style.top = `${newY}px`;
 
       this.emitWidgetUpdate(info);
+      this.emitBusEvent('widget:moved', { id: info.id, x: newX, y: newY, width: info.width, height: info.height });
       this.saveLayout({ emitFull: false });
     }
   }
@@ -330,6 +342,7 @@ class LayoutManager {
       visibleOnProjector: true
     };
 
+    widget.widgetId = widgetInfo.id;
     this.widgets.push(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
@@ -339,6 +352,7 @@ class LayoutManager {
       widget.setEditable(this.editable);
     }
 
+    this.emitBusEvent('widget:created', { id: widgetInfo.id, type: widget.constructor.name });
     this.saveLayout();
     return widgetElement;
   }
@@ -397,6 +411,8 @@ class LayoutManager {
         const event = new CustomEvent('widgetRemoved', { detail: { widget } });
         document.dispatchEvent(event);
       }
+
+      this.emitBusEvent('widget:removed', { id: widgetInfo.id, type: widgetInfo.widget?.constructor?.name || null, widget: widgetInfo.widget });
     }
   }
   
@@ -514,6 +530,9 @@ class LayoutManager {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
         this.emitWidgetUpdate(info);
+        if (info) {
+          this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
+        }
         this.saveLayout({ emitFull: false });
       };
 
@@ -594,6 +613,9 @@ class LayoutManager {
         }
 
         this.emitWidgetUpdate(info);
+        if (info) {
+          this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
+        }
         this.saveLayout({ emitFull: false });
       }
     });
@@ -614,6 +636,8 @@ class LayoutManager {
     if (this.onLayoutChange && options.emitFull !== false) {
       this.onLayoutChange(layout);
     }
+
+    this.emitBusEvent('layout:updated', { layout, options });
   }
 
   serialize() {
@@ -765,8 +789,11 @@ class LayoutManager {
         widget.deserialize(widgetData.data);
       }
 
+      const resolvedWidgetId = widgetData.id || this.getNextWidgetId();
+      widget.widgetId = resolvedWidgetId;
+
       this.widgets.push({
-        id: widgetData.id || this.getNextWidgetId(),
+        id: resolvedWidgetId,
         element: widgetElement,
         widget: widget,
         layoutType: this.getWidgetLayoutType(widgetData, widget),

@@ -1,5 +1,6 @@
 import './utils/app-mode.js';
 import './utils/app-bus.js';
+import './core/event-bus.js';
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');

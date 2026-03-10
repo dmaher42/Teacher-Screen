@@ -1,4 +1,5 @@
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
+import { eventBus } from './core/event-bus.js';
 
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
@@ -161,6 +162,12 @@ class ClassroomScreenApp {
         this.noteIdToLink = null;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+
+        this.handleWidgetRemovedEvent = (payload) => {
+            if (payload && payload.widget) {
+                this.handleWidgetRemoved(payload.widget);
+            }
+        };
 
         // Managers
         this.saveState = debounce(this.saveState.bind(this), 300);
@@ -459,6 +466,7 @@ class ClassroomScreenApp {
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
+        eventBus.on('widget:removed', this.handleWidgetRemovedEvent);
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
 
         // Request Open Planner
@@ -1947,7 +1955,7 @@ class ClassroomScreenApp {
 
             const totalMinutes = (hours * 60) + minutes + (seconds / 60);
             if (totalMinutes > 0) {
-                timerWidget.start(totalMinutes);
+                eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes });
                 this.showNotification('Timer started!');
             } else {
                 this.showNotification('Please set a timer duration.', 'warning');
@@ -1967,14 +1975,14 @@ class ClassroomScreenApp {
             return;
         }
 
-        timerWidget.start(minutes);
+        eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes });
         this.showNotification(`Timer started for ${minutes} minutes.`);
     }
 
     stopTimerFromControls() {
         const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
         if (timerWidget) {
-            timerWidget.stop();
+            eventBus.emit('timer:stop', { widgetId: timerWidget.widgetId });
             this.showNotification('Timer stopped.');
         } else {
             this.showNotification('No timer widget found.', 'error');
