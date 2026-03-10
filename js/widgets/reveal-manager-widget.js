@@ -128,6 +128,17 @@ class RevealManagerWidget {
         this.frameWrap.appendChild(this.iframe);
         this.iframeRef.current = this.iframe;
 
+        this.inlineDeckContainer = document.createElement('div');
+        this.inlineDeckContainer.className = 'reveal-inline-deck';
+        this.inlineDeckContainer.style.display = 'none';
+        this.inlineDeckContainer.style.width = '100%';
+        this.inlineDeckContainer.style.height = '100%';
+        this.frameWrap.appendChild(this.inlineDeckContainer);
+
+        this.resizeObserver = null;
+        this.positionObserver = null;
+        this.layoutObserverInterval = null;
+
         this.handleModeChange = this.handleModeChange.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
@@ -167,6 +178,7 @@ class RevealManagerWidget {
         this.updateModeUI();
         this.toggleCompact(true);
         this.updatePresentationUI();
+        this.initLayoutObservers();
 
         this.setupRevealSync();
 
@@ -239,7 +251,7 @@ class RevealManagerWidget {
         if (this.isProjectorView || !revealWidgetAppBus || !revealWidgetIsTeacherMode() || this.slideChangeHandlerAttached) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
-        const reveal = frameWindow && frameWindow.Reveal;
+        const reveal = this.getActiveRevealApi();
         if (!reveal || typeof reveal.on !== 'function') return;
 
         reveal.on('slidechanged', (event) => {
@@ -347,6 +359,77 @@ class RevealManagerWidget {
         }
     }
 
+    initLayoutObservers() {
+        if (typeof ResizeObserver === 'function') {
+            this.resizeObserver = new ResizeObserver(() => {
+                this.requestRevealLayout();
+            });
+            this.resizeObserver.observe(this.element);
+        }
+
+        const attachPositionObserver = () => {
+            const widgetShell = this.element.parentElement;
+            if (!widgetShell) return false;
+
+            this.positionObserver = new MutationObserver(() => {
+                this.requestRevealLayout();
+            });
+            this.positionObserver.observe(widgetShell, { attributes: true, attributeFilter: ['style'] });
+            return true;
+        };
+
+        if (!attachPositionObserver()) {
+            this.layoutObserverInterval = window.setInterval(() => {
+                if (attachPositionObserver()) {
+                    clearInterval(this.layoutObserverInterval);
+                    this.layoutObserverInterval = null;
+                }
+            }, 300);
+        }
+    }
+
+    requestRevealLayout() {
+        if (!this.activeDeck) return;
+
+        if (this.activeDeck.type === 'html') {
+            import('../utils/reveal-manager.js')
+                .then(({ layoutReveal }) => {
+                    layoutReveal(this.inlineDeckContainer);
+                })
+                .catch((error) => {
+                    console.warn('[Reveal] unable to layout presentation', error);
+                });
+            return;
+        }
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        const reveal = frameWindow && frameWindow.Reveal;
+        if (reveal && typeof reveal.layout === 'function') {
+            reveal.layout();
+        }
+    }
+
+    getActiveRevealApi() {
+        if (this.activeDeck && this.activeDeck.type === 'html') {
+            return window.Reveal || null;
+        }
+
+        const frameWindow = this.iframeRef.current?.contentWindow;
+        return frameWindow && frameWindow.Reveal ? frameWindow.Reveal : null;
+    }
+
+    loadPresentation(container, html) {
+        container.innerHTML = html;
+
+        import('../utils/reveal-manager.js')
+            .then(({ initReveal }) => {
+                initReveal(container);
+            })
+            .catch((error) => {
+                console.warn('[Reveal] unable to initialize presentation', error);
+            });
+    }
+
     buildDeckFromInputs() {
         const type = this.getCurrentMode();
         const content = type === 'url' ? this.urlInput.value.trim() : this.htmlInput.value;
@@ -373,77 +456,76 @@ class RevealManagerWidget {
     function initReveal() {
         const revealEl = document.querySelector('.reveal');
         if (!revealEl) {
-            console.warn('Reveal container not found');
+            console.warn('[Reveal] container not found');
             return false;
         }
 
         if (!window.Reveal || typeof window.Reveal.initialize !== 'function') {
+            console.warn('[Reveal] library not loaded');
             return false;
         }
 
-        if (typeof window.Reveal.isReady === 'function' && window.Reveal.isReady()) {
+        if (typeof window.Reveal.isReady === 'function' && !window.Reveal.isReady()) {
+            window.Reveal.initialize({
+                embedded: true,
+                hash: true,
+                slideNumber: true,
+                controls: true,
+                progress: true
+            });
+            console.log('[Reveal] presentation initialized');
             return true;
         }
 
-        window.Reveal.initialize({
-            hash: true,
-            slideNumber: true,
-            embedded: true
-        });
-
+        if (typeof window.Reveal.sync === 'function') {
+            window.Reveal.sync();
+        }
+        console.log('[Reveal] presentation initialized');
         return true;
     }
 
-    function waitForReveal() {
-        let attempts = 0;
-        const maxAttempts = 120;
-
-        function check() {
-            attempts += 1;
-            const revealEl = document.querySelector('.reveal');
-            const hasRevealJs = !!window.Reveal;
-
-            if (revealEl && hasRevealJs) {
-                initReveal();
-                return;
-            }
-
-            if (attempts >= maxAttempts) {
-                if (!revealEl) {
-                    console.warn('Reveal container not found');
-                }
-                if (!hasRevealJs) {
-                    console.warn('Reveal.js script not loaded');
-                }
-                return;
-            }
-
-            setTimeout(check, 50);
-        }
-
-        check();
-    }
-
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', waitForReveal);
-        return;
+        document.addEventListener('DOMContentLoaded', initReveal);
+    } else {
+        initReveal();
     }
 
-    waitForReveal();
+    window.addEventListener('resize', function () {
+        if (window.Reveal && typeof window.Reveal.layout === 'function') {
+            window.Reveal.layout();
+        }
+    });
 })();
 </script>`;
 
-        if (html.includes('</body>')) {
-            return html.replace('</body>', `${revealBootstrapScript}\n</body>`);
+        const revealAssets = `
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/black.css">
+<script src="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js"></script>`;
+
+        let nextHtml = html;
+
+        if (nextHtml.includes('</head>')) {
+            nextHtml = nextHtml.replace('</head>', `${revealAssets}
+</head>`);
+        } else {
+            nextHtml = `${revealAssets}
+${nextHtml}`;
         }
 
-        return `${html}\n${revealBootstrapScript}`;
+        if (nextHtml.includes('</body>')) {
+            return nextHtml.replace('</body>', `${revealBootstrapScript}
+</body>`);
+        }
+
+        return `${nextHtml}
+${revealBootstrapScript}`;
     }
 
     launchDeck(deck) {
         if (!deck) return;
 
-        const content = deck.type === 'html' ? this.ensureRevealInitScript(deck.content) : deck.content;
+        const content = deck.type === 'html' ? deck.content : deck.content;
 
         this.activeDeck = {
             id: deck.id,
@@ -453,11 +535,22 @@ class RevealManagerWidget {
         };
 
         if (deck.type === 'url') {
+            this.inlineDeckContainer.innerHTML = '';
+            this.inlineDeckContainer.style.display = 'none';
+            this.iframe.style.display = '';
             this.iframe.srcdoc = '';
             this.iframe.src = content;
         } else {
             this.iframe.removeAttribute('src');
-            this.iframe.srcdoc = content;
+            this.iframe.srcdoc = '';
+            this.iframe.style.display = 'none';
+            this.inlineDeckContainer.style.display = '';
+
+            const hasRevealStructure = /class=["']reveal["']/.test(content) && /class=["']slides["']/.test(content);
+            const revealHtml = hasRevealStructure
+                ? content
+                : `<div class="reveal"><div class="slides"><section>${content}</section></div></div>`;
+            this.loadPresentation(this.inlineDeckContainer, revealHtml);
         }
 
         this.renderSavedDeckOptions();
@@ -472,6 +565,9 @@ class RevealManagerWidget {
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
+        this.iframe.style.display = '';
+        this.inlineDeckContainer.innerHTML = '';
+        this.inlineDeckContainer.style.display = 'none';
         this.launchButton.textContent = 'Open';
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
     }
@@ -480,7 +576,7 @@ class RevealManagerWidget {
         if (!state) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
-        const reveal = frameWindow && frameWindow.Reveal;
+        const reveal = this.getActiveRevealApi();
 
         if (reveal && typeof reveal.setState === 'function') {
             reveal.setState(state);
@@ -493,19 +589,29 @@ class RevealManagerWidget {
     }
 
     sendKeyToIframe(direction) {
-        const frame = this.iframeRef.current;
-        if (!frame || !frame.contentWindow) return;
+        const reveal = this.getActiveRevealApi();
 
-        // Reveal deck pages loaded in the iframe must listen for this event:
-        // window.addEventListener("message", function(event) {
-        //   if (event.data.type === "reveal-nav") {
-        //     if (event.data.direction === "next") Reveal.next();
-        //     if (event.data.direction === "prev") Reveal.prev();
-        //     if (event.data.direction === "up") Reveal.up();
-        //     if (event.data.direction === "down") Reveal.down();
-        //   }
-        // });
-        frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
+        if (this.activeDeck && this.activeDeck.type === 'html' && reveal) {
+            if (direction === 'next' && typeof reveal.next === 'function') reveal.next();
+            if (direction === 'prev' && typeof reveal.prev === 'function') reveal.prev();
+            if (direction === 'up' && typeof reveal.up === 'function') reveal.up();
+            if (direction === 'down' && typeof reveal.down === 'function') reveal.down();
+        } else {
+            const frame = this.iframeRef.current;
+            if (!frame || !frame.contentWindow) return;
+
+            // Reveal deck pages loaded in the iframe must listen for this event:
+            // window.addEventListener("message", function(event) {
+            //   if (event.data.type === "reveal-nav") {
+            //     if (event.data.direction === "next") Reveal.next();
+            //     if (event.data.direction === "prev") Reveal.prev();
+            //     if (event.data.direction === "up") Reveal.up();
+            //     if (event.data.direction === "down") Reveal.down();
+            //   }
+            // });
+            frame.contentWindow.postMessage({ type: 'reveal-nav', direction }, '*');
+        }
+
         this.sendNavToPresenter(direction);
 
         if (!this.isProjectorView && revealWidgetIsTeacherMode()) {
@@ -516,8 +622,7 @@ class RevealManagerWidget {
     broadcastCurrentSlideState() {
         if (!revealWidgetAppBus || this.isProjectorView || !revealWidgetIsTeacherMode()) return;
 
-        const frameWindow = this.iframeRef.current?.contentWindow;
-        const reveal = frameWindow && frameWindow.Reveal;
+        const reveal = this.getActiveRevealApi();
         if (!reveal || typeof reveal.getIndices !== 'function') return;
 
         const indices = reveal.getIndices();
@@ -547,10 +652,14 @@ class RevealManagerWidget {
             return;
         }
 
+        const presenterDeck = this.activeDeck.type === 'html'
+            ? { ...this.activeDeck, content: this.ensureRevealInitScript(this.activeDeck.content) }
+            : this.activeDeck;
+
         this.presenterWindow.postMessage(
             {
                 type: 'reveal-presenter-load',
-                deck: this.activeDeck
+                deck: presenterDeck
             },
             window.location.origin
         );
@@ -754,6 +863,19 @@ class RevealManagerWidget {
         window.removeEventListener('message', this.handleWindowMessage);
         this.iframe.removeEventListener('load', this.handleIframeLoad);
         this.navButtons.forEach((button) => button.removeEventListener('mousedown', this.handleOverlayNavPointerDown));
+
+        if (this.layoutObserverInterval) {
+            clearInterval(this.layoutObserverInterval);
+            this.layoutObserverInterval = null;
+        }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        if (this.positionObserver) {
+            this.positionObserver.disconnect();
+            this.positionObserver = null;
+        }
 
         if (this.presenterWindowMonitor) {
             clearInterval(this.presenterWindowMonitor);
