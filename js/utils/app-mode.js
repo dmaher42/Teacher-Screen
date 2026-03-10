@@ -1,10 +1,17 @@
 const PATH_PROJECTOR = '/projector';
+const MODE_PARAM = 'mode';
+const MODE_PROJECTOR = 'projector';
 
 const isProjector = () => {
     try {
         const searchParams = new URLSearchParams(window.location.search);
-        const modeParam = (searchParams.get('mode') || '').toLowerCase();
-        if (modeParam === 'projector') {
+        const modeParam = (searchParams.get(MODE_PARAM) || '').toLowerCase();
+        if (modeParam === MODE_PROJECTOR) {
+            return true;
+        }
+
+        // Legacy compatibility for existing deep links.
+        if (searchParams.get('projector') === 'true') {
             return true;
         }
 

@@ -2,6 +2,10 @@ const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/rev
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
 
 function isProjectorView() {
+    if (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.isProjectorMode === 'function') {
+        return window.TeacherScreenAppMode.isProjectorMode();
+    }
+
     return window.location.pathname.includes('/projector');
 }
 
