@@ -1,5 +1,6 @@
 import { appBus } from './utils/app-bus.js';
 import { APP_MODE } from './utils/app-mode.js';
+import { createWidgetByType } from './widgets/widget-registry.js';
 
 console.log('Projector Mode:', APP_MODE);
 
@@ -250,24 +251,7 @@ class ProjectorApp {
             if (widgetData.visibleOnProjector === false) {
                 return null;
             }
-
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
-            return widget;
+            return createWidgetByType(widgetData.type);
         });
 
         if (this.isEditMode) {
@@ -304,22 +288,7 @@ class ProjectorApp {
                         return null;
                     }
 
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+                    const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }

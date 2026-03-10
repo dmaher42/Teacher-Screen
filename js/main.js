@@ -1,3 +1,5 @@
+import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey } from './widgets/widget-registry.js';
+
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
 const mainAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
@@ -119,7 +121,7 @@ class ClassroomScreenApp {
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
-        this.widgetSelectorButtons = Array.from(document.querySelectorAll('.widget-selector-btn'));
+        this.widgetSelectorButtons = [];
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
@@ -195,7 +197,7 @@ class ClassroomScreenApp {
                     { type: 'mask', label: 'Mask' },
                     { type: 'notes', label: 'Notes' },
                     { type: 'wellbeing', label: 'Well-being Check-in' },
-                    { name: 'Rich Text Board', type: 'RichTextWidget', icon: 'fa-pen' }
+                    { name: 'Rich Text Board', type: 'rich-text', icon: 'fa-pen' }
                 ]
             }
         ];
@@ -585,7 +587,15 @@ class ClassroomScreenApp {
     }
 
     initializeWidgetSelector() {
-        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
+        const selector = document.getElementById('widget-selector');
+        if (!selector) return;
+
+        selector.innerHTML = '';
+        Object.entries(WidgetRegistry).forEach(([key, widget]) => {
+            this.createToolbarButton(widget.icon, widget.name, key, selector);
+        });
+
+        this.widgetSelectorButtons = Array.from(selector.querySelectorAll('.widget-selector-btn'));
 
         document.addEventListener('click', (event) => {
             const widgetButton = event.target.closest('.widget-selector-btn');
@@ -597,6 +607,26 @@ class ClassroomScreenApp {
             this.setActiveWidgetButton(widgetType);
             this.addWidget(widgetType);
         });
+    }
+
+    createToolbarButton(icon, name, key, container) {
+        const button = document.createElement('button');
+        button.className = 'widget-selector-btn';
+        button.dataset.widget = key;
+        button.type = 'button';
+        button.setAttribute('aria-label', name);
+
+        const iconSpan = document.createElement('span');
+        iconSpan.setAttribute('aria-hidden', 'true');
+        iconSpan.textContent = icon;
+
+        const label = document.createElement('span');
+        label.className = 'visually-hidden';
+        label.textContent = name;
+
+        button.appendChild(iconSpan);
+        button.appendChild(label);
+        container.appendChild(button);
     }
 
     setActiveWidgetButton(type) {
@@ -735,21 +765,9 @@ class ClassroomScreenApp {
     addWidget(type) {
         let widget;
         try {
-            switch (type) {
-                case 'timer': widget = new TimerWidget(); break;
-                case 'noise-meter': widget = new NoiseMeterWidget(); break;
-                case 'name-picker': widget = new NamePickerWidget(); break;
-                case 'qr-code': widget = new QRCodeWidget(); break;
-                case 'drawing-tool': widget = new DrawingToolWidget(); break;
-                case 'document-viewer': widget = new DocumentViewerWidget(); break;
-                case 'url-viewer': widget = new UrlViewerWidget(); break;
-                case 'reveal-manager': widget = new RevealManagerWidget(); break;
-                case 'presentation': widget = new PresentationWidget(); break;
-                case 'mask': widget = new MaskWidget(); break;
-                case 'notes': widget = new NotesWidget(); break;
-                case 'wellbeing': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-                default: throw new Error(`Unknown widget type: ${type}`);
+            widget = createWidgetByType(type);
+            if (!widget) {
+                throw new Error(`Unknown widget type: ${type}`);
             }
 
             const widgetElement = this.layoutManager.addWidget(widget);
@@ -769,22 +787,8 @@ class ClassroomScreenApp {
     }
 
     getFriendlyWidgetName(type) {
-        const names = {
-            'timer': 'Timer',
-            'noise-meter': 'Noise Meter',
-            'name-picker': 'Name Picker',
-            'qr-code': 'QR Code',
-            'drawing-tool': 'Drawing Tool',
-            'document-viewer': 'Document Viewer',
-            'url-viewer': 'URL Viewer',
-            'reveal-manager': 'Reveal Manager',
-            'presentation': 'Presentation Loader',
-            'mask': 'Mask',
-            'notes': 'Notes',
-            'wellbeing': 'Well-being',
-            'RichTextWidget': 'Rich Text Board'
-        };
-        return names[type] || 'Widget';
+        const key = getRegistryWidgetKey(type);
+        return WidgetRegistry[key]?.name || 'Widget';
     }
 
     renderWidgetModal() {
@@ -1322,22 +1326,7 @@ class ClassroomScreenApp {
             this.widgets = [];
             if (data.layout && data.layout.widgets) {
                 this.layoutManager.deserialize(data.layout, (widgetData) => {
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+                    const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }
@@ -1487,213 +1476,11 @@ class ClassroomScreenApp {
         mergedState.layout = layout;
 
         this.layoutManager.deserialize(layout, (widgetData) => {
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
-            return widget;
-        });
-
-        this.widgets = this.layoutManager.widgets.map(info => info.widget);
-        this.saveState('teacher');
-    }
-
-    applyProjectorLayoutDelta(delta, source = 'teacher') {
-        if (!delta || delta.type !== 'widget-update') {
-            return;
-        }
-
-        this.layoutManager.applyLayoutDelta(delta);
-        this.saveState(source);
-        this.projectorChannel.postMessage({
-            type: 'layout-delta',
-            source,
-            delta
-        });
-    }
-
-    setupPresetControls() {
-        const storedPresets = localStorage.getItem(this.presetsKey);
-        try {
-            this.presets = storedPresets ? JSON.parse(storedPresets) : [];
-        } catch (e) {
-            console.error('Failed to parse presets:', e);
-            this.presets = [];
-        }
-
-        if (!Array.isArray(this.presets) || this.presets.length === 0) {
-            this.presets = [...this.defaultPresets];
-        }
-
-        // Ensure old presets have new fields
-        this.presets.forEach(p => {
-            p.className = p.className || '';
-            p.period = p.period || '';
-        });
-
-        this.savePresets();
-        this.renderPresetList();
-    }
-
-    savePresets() {
-        localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
-    }
-
-    applyLayoutPreset() {
-        const preset = this.layoutPresetSelect ? this.layoutPresetSelect.value : '';
-        if (!preset) return;
-        if (!this.layoutManager || !Array.isArray(this.layoutManager.widgets)) return;
-
-        switch (preset) {
-            case '2x2':
-                this.apply2x2Preset();
-                break;
-            case 'full-timer':
-                this.applyFullTimerPreset();
-                break;
-        }
-
-        this.layoutManager.saveLayout();
-        this.saveState();
-        this.showNotification('Layout preset applied.');
-    }
-
-    apply2x2Preset() {
-        const containerW = this.widgetsContainer.clientWidth || 1024;
-        const containerH = this.widgetsContainer.clientHeight || 768;
-
-        // Calculate dimensions for 2x2 grid
-        // Add some margin/gap if desired, or flush.
-        // Let's assume a small gap of 20px (GRID_SIZE)
-        const GRID_SIZE = 20;
-        const gap = GRID_SIZE;
-        const width = Math.floor((containerW - gap) / 2 / GRID_SIZE) * GRID_SIZE;
-        const height = Math.floor((containerH - gap) / 2 / GRID_SIZE) * GRID_SIZE;
-
-        const slots = [
-            { x: 0, y: 0 },
-            { x: width + gap, y: 0 },
-            { x: 0, y: height + gap },
-            { x: width + gap, y: height + gap }
-        ];
-
-        this.layoutManager.widgets.forEach((info, index) => {
-            const slot = slots[index % slots.length];
-            info.x = slot.x;
-            info.y = slot.y;
-            info.width = width;
-            info.height = height;
-
-            info.element.style.left = `${slot.x}px`;
-            info.element.style.top = `${slot.y}px`;
-            info.element.style.width = `${width}px`;
-            info.element.style.height = `${height}px`;
-        });
-    }
-
-    applyFullTimerPreset() {
-        if (!this.layoutManager.widgets.length) return;
-        const timerInfo = this.layoutManager.widgets.find(info => info.widget instanceof TimerWidget) || this.layoutManager.widgets[0];
-
-        const containerW = this.widgetsContainer.clientWidth || 1024;
-        const GRID_SIZE = 20;
-
-        timerInfo.x = 0;
-        timerInfo.y = 0;
-        timerInfo.width = Math.floor(containerW / GRID_SIZE) * GRID_SIZE;
-        timerInfo.height = 200; // Fixed height approx
-
-        timerInfo.element.style.left = '0px';
-        timerInfo.element.style.top = '0px';
-        timerInfo.element.style.width = `${timerInfo.width}px`;
-        timerInfo.element.style.height = `${timerInfo.height}px`;
-    }
-
-    savePreset() {
-        const presetName = this.presetNameInput ? this.presetNameInput.value.trim() : '';
-        if (!presetName) {
-            this.showNotification('Please enter a preset name.', 'warning');
-            return;
-        }
-
-        const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
-        const period = this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '';
-
-        const newPreset = {
-            name: presetName,
-            className,
-            period,
-            theme: document.body.className,
-            background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize(),
-            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
-        };
-
-        const existingIndex = this.presets.findIndex(preset => preset.name.toLowerCase() === presetName.toLowerCase());
-        if (existingIndex !== -1) {
-            if (!confirm(`Preset "${presetName}" exists. Overwrite it?`)) {
-                return;
-            }
-            this.presets[existingIndex] = newPreset;
-            this.showNotification(`Preset "${presetName}" updated.`);
-        } else {
-            this.presets.push(newPreset);
-            this.showNotification(`Preset "${presetName}" saved.`);
-        }
-
-        this.savePresets();
-        this.renderPresetList();
-    }
-
-    loadPreset(name) {
-        const preset = this.presets.find(item => item.name === name);
-        if (!preset) {
-            this.showNotification('Preset not found.', 'error');
-            return;
-        }
-
-        if (this.presetNameInput) this.presetNameInput.value = preset.name;
-        if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
-        if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
-
-        if (preset.theme) this.switchTheme(preset.theme);
-        if (preset.background) this.backgroundManager.deserialize(preset.background);
-        if (preset.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(preset.lessonPlan);
-
-        this.widgets = [];
-        this.layoutManager.deserialize(preset.layout, (widgetData) => {
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
-            if (widget) {
-                this.widgets.push(widget);
-            }
-            return widget;
+                    const widget = createWidgetByType(widgetData.type);
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
         });
 
         this.updateProjectorVisibility();
@@ -1817,26 +1604,11 @@ class ClassroomScreenApp {
 
             this.widgets = [];
             this.layoutManager.deserialize(state.layout, (widgetData) => {
-                let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
+                    const widget = createWidgetByType(widgetData.type);
+                    if (widget) {
+                        this.widgets.push(widget);
                     }
-                if (widget) {
-                    this.widgets.push(widget);
-                }
-                return widget;
+                    return widget;
             });
 
             this.updateProjectorVisibility();
@@ -2010,22 +1782,7 @@ class ClassroomScreenApp {
             if (state.layout && state.layout.widgets) {
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
                     // This factory function recreates widgets from saved data
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+                    const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }
