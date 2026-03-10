@@ -1,33 +1,108 @@
-const widgetFactories = {
-    timer: () => new TimerWidget(),
-    'noise-meter': () => new NoiseMeterWidget(),
-    'name-picker': () => new NamePickerWidget(),
-    'qr-code': () => new QRCodeWidget(),
-    'drawing-tool': () => new DrawingToolWidget(),
-    'document-viewer': () => new DocumentViewerWidget(),
-    'url-viewer': () => new UrlViewerWidget(),
-    'reveal-manager': () => new RevealManagerWidget(),
-    presentation: () => new PresentationWidget(),
-    mask: () => new MaskWidget(),
-    notes: () => new NotesWidget(),
-    wellbeing: () => new WellbeingWidget(),
-    'rich-text': () => new RichTextWidget()
-};
-
 export const WidgetRegistry = {
-    timer: { name: 'Timer', icon: '⏱️', create: widgetFactories.timer },
-    'noise-meter': { name: 'Noise Meter', icon: '🔊', create: widgetFactories['noise-meter'] },
-    'name-picker': { name: 'Random Name Picker', icon: '🎲', create: widgetFactories['name-picker'] },
-    'qr-code': { name: 'QR Code', icon: '🔳', create: widgetFactories['qr-code'] },
-    'drawing-tool': { name: 'Drawing Tool', icon: '✏️', create: widgetFactories['drawing-tool'] },
-    'document-viewer': { name: 'Document Viewer', icon: '📄', create: widgetFactories['document-viewer'] },
-    'url-viewer': { name: 'URL Viewer', icon: '🔗', create: widgetFactories['url-viewer'] },
-    'reveal-manager': { name: 'Reveal Manager', icon: '🖥️', create: widgetFactories['reveal-manager'] },
-    presentation: { name: 'Presentation Loader', icon: '📽️', create: widgetFactories.presentation },
-    mask: { name: 'Mask', icon: '🎭', create: widgetFactories.mask },
-    notes: { name: 'Notes', icon: '📝', create: widgetFactories.notes },
-    wellbeing: { name: 'Well-being Check-in', icon: '💚', create: widgetFactories.wellbeing },
-    'rich-text': { name: 'Rich Text Board', icon: '✒️', create: widgetFactories['rich-text'] }
+    timer: {
+        key: 'timer',
+        className: 'TimerWidget',
+        label: 'Timer',
+        icon: '⏱️',
+        category: 'Primary',
+        create: () => new TimerWidget()
+    },
+    'noise-meter': {
+        key: 'noise-meter',
+        className: 'NoiseMeterWidget',
+        label: 'Noise Meter',
+        icon: '🔊',
+        category: 'Primary',
+        create: () => new NoiseMeterWidget()
+    },
+    'name-picker': {
+        key: 'name-picker',
+        className: 'NamePickerWidget',
+        label: 'Random Name Picker',
+        icon: '🎲',
+        category: 'Primary',
+        create: () => new NamePickerWidget()
+    },
+    'qr-code': {
+        key: 'qr-code',
+        className: 'QRCodeWidget',
+        label: 'QR Code',
+        icon: '🔳',
+        category: 'Secondary',
+        create: () => new QRCodeWidget()
+    },
+    'drawing-tool': {
+        key: 'drawing-tool',
+        className: 'DrawingToolWidget',
+        label: 'Drawing Tool',
+        icon: '✏️',
+        category: 'Secondary',
+        create: () => new DrawingToolWidget()
+    },
+    'document-viewer': {
+        key: 'document-viewer',
+        className: 'DocumentViewerWidget',
+        label: 'Document Viewer',
+        icon: '📄',
+        category: 'Secondary',
+        create: () => new DocumentViewerWidget()
+    },
+    'url-viewer': {
+        key: 'url-viewer',
+        className: 'UrlViewerWidget',
+        label: 'URL Viewer',
+        icon: '🔗',
+        category: 'Secondary',
+        create: () => new UrlViewerWidget()
+    },
+    'reveal-manager': {
+        key: 'reveal-manager',
+        className: 'RevealManagerWidget',
+        label: 'Reveal Manager',
+        icon: '🖥️',
+        category: 'Secondary',
+        create: () => new RevealManagerWidget()
+    },
+    presentation: {
+        key: 'presentation',
+        className: 'PresentationWidget',
+        label: 'Presentation Loader',
+        icon: '📽️',
+        category: 'Secondary',
+        create: () => new PresentationWidget()
+    },
+    mask: {
+        key: 'mask',
+        className: 'MaskWidget',
+        label: 'Mask',
+        icon: '🎭',
+        category: 'Secondary',
+        create: () => new MaskWidget()
+    },
+    notes: {
+        key: 'notes',
+        className: 'NotesWidget',
+        label: 'Notes',
+        icon: '📝',
+        category: 'Secondary',
+        create: () => new NotesWidget()
+    },
+    wellbeing: {
+        key: 'wellbeing',
+        className: 'WellbeingWidget',
+        label: 'Well-being Check-in',
+        icon: '💚',
+        category: 'Secondary',
+        create: () => new WellbeingWidget()
+    },
+    'rich-text': {
+        key: 'rich-text',
+        className: 'RichTextWidget',
+        label: 'Rich Text Board',
+        icon: '✒️',
+        category: 'Secondary',
+        create: () => new RichTextWidget()
+    }
 };
 
 const widgetTypeAliases = {
@@ -43,16 +118,55 @@ const widgetTypeAliases = {
     MaskWidget: 'mask',
     NotesWidget: 'notes',
     WellbeingWidget: 'wellbeing',
-    RichTextWidget: 'rich-text'
+    RichTextWidget: 'rich-text',
+    timer: 'timer',
+    'noise-meter': 'noise-meter',
+    'name-picker': 'name-picker',
+    'qr-code': 'qr-code',
+    'drawing-tool': 'drawing-tool',
+    'document-viewer': 'document-viewer',
+    'url-viewer': 'url-viewer',
+    'reveal-manager': 'reveal-manager',
+    presentation: 'presentation',
+    mask: 'mask',
+    notes: 'notes',
+    wellbeing: 'wellbeing',
+    'rich-text': 'rich-text'
 };
 
 export function getRegistryWidgetKey(type) {
-    return widgetTypeAliases[type] || type;
+    return widgetTypeAliases[type] || null;
 }
 
-export function createWidgetByType(type) {
+export function getWidgetDefinition(type) {
     const key = getRegistryWidgetKey(type);
-    const config = WidgetRegistry[key];
+    if (!key) {
+        return null;
+    }
+    return WidgetRegistry[key] || null;
+}
+
+export function getWidgetMeta(type) {
+    const definition = getWidgetDefinition(type);
+    if (!definition) {
+        return null;
+    }
+
+    return {
+        key: definition.key,
+        className: definition.className,
+        label: definition.label,
+        icon: definition.icon,
+        category: definition.category
+    };
+}
+
+export function listAvailableWidgets() {
+    return Object.values(WidgetRegistry);
+}
+
+export function createWidgetInstance(type) {
+    const config = getWidgetDefinition(type);
     if (!config || typeof config.create !== 'function') {
         console.warn(`Unknown widget type: ${type}`);
         return null;
@@ -60,8 +174,13 @@ export function createWidgetByType(type) {
     return config.create();
 }
 
+export const createWidgetByType = createWidgetInstance;
+
 if (typeof window !== 'undefined') {
     window.WidgetRegistry = WidgetRegistry;
     window.createWidgetByType = createWidgetByType;
     window.getRegistryWidgetKey = getRegistryWidgetKey;
+    window.getWidgetDefinition = getWidgetDefinition;
+    window.getWidgetMeta = getWidgetMeta;
+    window.listAvailableWidgets = listAvailableWidgets;
 }
