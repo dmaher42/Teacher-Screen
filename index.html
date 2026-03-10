@@ -313,88 +313,88 @@
 
     <div class="panel-backdrop"></div>
 
-        <!-- =====================================================
-             GLOBAL CONTROLS (REDESIGNED)
-             ===================================================== -->
-        <button id="add-widget-btn" class="fab" aria-label="Add widget">+</button>
+    <!-- =====================================================
+         GLOBAL CONTROLS (REDESIGNED)
+         ===================================================== -->
+    <button id="add-widget-btn" class="fab" aria-label="Add widget">+</button>
 
-        <dialog id="widget-modal" aria-labelledby="widget-modal-title">
-            <div class="modal-header">
-                <h3 id="widget-modal-title">Add a Widget</h3>
-                <button class="modal-close" aria-label="Close">&times;</button>
+    <dialog id="widget-modal" aria-labelledby="widget-modal-title">
+        <div class="modal-header">
+            <h3 id="widget-modal-title">Add a Widget</h3>
+            <button class="modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="widget-categories">
+                <!-- Categories and widgets will be populated by JS -->
             </div>
-            <div class="modal-body">
-                <div class="widget-categories">
-                    <!-- Categories and widgets will be populated by JS -->
-                </div>
-            </div>
-        </dialog>
+        </div>
+    </dialog>
 
-        <dialog id="name-entry-dialog" aria-labelledby="name-entry-title">
-            <div class="modal-header">
-                <h3 id="name-entry-title">Add Item</h3>
-                <button class="modal-close" aria-label="Close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <label for="name-entry-input" class="visually-hidden">Name</label>
-                <input id="name-entry-input" type="text" name="name-entry" placeholder="Enter a name" autocomplete="off">
-            </div>
-            <div class="modal-actions">
-                <button class="control-button modal-primary" id="name-entry-confirm">Add</button>
-                <button class="control-button" data-close>Cancel</button>
-            </div>
-        </dialog>
+    <dialog id="name-entry-dialog" aria-labelledby="name-entry-title">
+        <div class="modal-header">
+            <h3 id="name-entry-title">Add Item</h3>
+            <button class="modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <label for="name-entry-input" class="visually-hidden">Name</label>
+            <input id="name-entry-input" type="text" name="name-entry" placeholder="Enter a name" autocomplete="off">
+        </div>
+        <div class="modal-actions">
+            <button class="control-button modal-primary" id="name-entry-confirm">Add</button>
+            <button class="control-button" data-close>Cancel</button>
+        </div>
+    </dialog>
 
-        <dialog id="help-dialog" aria-labelledby="help-dialog-title">
-            <div class="modal-header">
-                <h3 id="help-dialog-title">How to Use Teacher Controls</h3>
-                <button class="modal-close" aria-label="Close Help">&times;</button>
-            </div>
-            <div class="modal-body">
-                <ul>
-                    <li>Use the navigation bar to switch between views.</li>
-                    <li>Use the floating action button (+) to add widgets.</li>
-                    <li>All changes save automatically to your browser.</li>
-                </ul>
-            </div>
-            <div class="modal-actions">
-                <button class="control-button modal-primary" data-close>Got it</button>
-            </div>
-        </dialog>
+    <dialog id="help-dialog" aria-labelledby="help-dialog-title">
+        <div class="modal-header">
+            <h3 id="help-dialog-title">How to Use Teacher Controls</h3>
+            <button class="modal-close" aria-label="Close Help">&times;</button>
+        </div>
+        <div class="modal-body">
+            <ul>
+                <li>Use the navigation bar to switch between views.</li>
+                <li>Use the floating action button (+) to add widgets.</li>
+                <li>All changes save automatically to your browser.</li>
+            </ul>
+        </div>
+        <div class="modal-actions">
+            <button class="control-button modal-primary" data-close>Got it</button>
+        </div>
+    </dialog>
 
-        <dialog id="tour-dialog" aria-labelledby="tour-dialog-title">
-            <div class="modal-header">
-                <h3 id="tour-dialog-title">Welcome to Your New Classroom Screen</h3>
-                <button class="modal-close" aria-label="Close Tour">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Take a quick tour of the new layout:</p>
-                <ol>
-                    <li><strong>Top Navigation</strong>: Switch between the Classroom, Dashboard, and other tools.</li>
-                    <li><strong>Teacher Panel</strong>: Access all controls from the slide-out panel on the right.</li>
-                    <li><strong>Floating Action Button</strong>: Use the "+" button to add new widgets to the screen.</li>
-                </ol>
-            </div>
-            <div class="modal-actions">
-                <button class="control-button modal-primary" data-close>Start Teaching</button>
-            </div>
-        </dialog>
+    <dialog id="tour-dialog" aria-labelledby="tour-dialog-title">
+        <div class="modal-header">
+            <h3 id="tour-dialog-title">Welcome to Your New Classroom Screen</h3>
+            <button class="modal-close" aria-label="Close Tour">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Take a quick tour of the new layout:</p>
+            <ol>
+                <li><strong>Top Navigation</strong>: Switch between the Classroom, Dashboard, and other tools.</li>
+                <li><strong>Teacher Panel</strong>: Access all controls from the slide-out panel on the right.</li>
+                <li><strong>Floating Action Button</strong>: Use the "+" button to add new widgets to the screen.</li>
+            </ol>
+        </div>
+        <div class="modal-actions">
+            <button class="control-button modal-primary" data-close>Start Teaching</button>
+        </div>
+    </dialog>
 
-        <dialog id="import-dialog" aria-labelledby="import-dialog-title">
-            <div class="modal-header">
-                <h3 id="import-dialog-title">Import Layout & Presets</h3>
-                <button class="modal-close" aria-label="Close Import">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Paste a layout + presets JSON below:</p>
-                <textarea id="import-json-input" rows="8"></textarea>
-                <div id="import-summary" class="import-summary"></div>
-            </div>
-            <div class="modal-actions">
-                <button class="control-button modal-primary" id="confirm-import">Import</button>
-                <button class="control-button" data-close>Cancel</button>
-            </div>
-        </dialog>
+    <dialog id="import-dialog" aria-labelledby="import-dialog-title">
+        <div class="modal-header">
+            <h3 id="import-dialog-title">Import Layout & Presets</h3>
+            <button class="modal-close" aria-label="Close Import">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Paste a layout + presets JSON below:</p>
+            <textarea id="import-json-input" rows="8"></textarea>
+            <div id="import-summary" class="import-summary"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="control-button modal-primary" id="confirm-import">Import</button>
+            <button class="control-button" data-close>Cancel</button>
+        </div>
+    </dialog>
 
     <div id="live-region" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
 
