@@ -41,7 +41,8 @@
         </div>
     </noscript>
 
-    <nav id="top-nav" aria-label="Main sections">
+    <header>
+        <nav id="top-nav" aria-label="Main sections">
         <div class="nav-tabs" role="tablist">
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
             <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
@@ -58,7 +59,8 @@
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
         </div>
-    </nav>
+        </nav>
+    </header>
 
     <div id="app-container" class="app-container" tabindex="-1">
         <!-- =====================================================
@@ -398,12 +400,6 @@
 
     <div id="live-region" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
 
-    <!-- =====================================================
-         JAVASCRIPT FILES
-         ===================================================== -->
-    <!-- Bootstrap loader must be the only app script entrypoint (no direct script.js/main.js tags). -->
-    <script type="module" src="js/index.js"></script>
-
     <!-- Widget Settings Modal Overlay -->
     <div id="widget-settings-modal" class="modal-overlay">
         <div class="modal-content">
@@ -443,6 +439,12 @@
             </div>
         </div>
     </div>
+
+    <!-- =====================================================
+         JAVASCRIPT FILES
+         ===================================================== -->
+    <!-- Bootstrap loader must be the only app script entrypoint (no direct script.js/main.js tags). -->
+    <script type="module" src="js/index.js"></script>
 
 </body>
 </html>
