@@ -59,6 +59,25 @@ function applyTheme(themeName) {
     localStorage.setItem('selectedTheme', nextTheme);
 }
 
+function safeParse(key) {
+    try {
+        const value = localStorage.getItem(key);
+        if (!value) return null;
+        return JSON.parse(value);
+    } catch (error) {
+        console.warn('Invalid localStorage data for', key);
+        localStorage.removeItem(key);
+        return null;
+    }
+}
+
+function resetAppState() {
+    localStorage.removeItem('classroomScreenState');
+    localStorage.removeItem('widgetLayout');
+    localStorage.removeItem('background');
+    localStorage.removeItem('selectedTheme');
+}
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -228,7 +247,12 @@ class ClassroomScreenApp {
             }, 500);
         }
 
-        this.loadSavedState();
+        try {
+            this.loadSavedState();
+        } catch (error) {
+            console.error('State restore failed. Resetting state.', error);
+            resetAppState();
+        }
         this.backgroundManager.init();
         this.layoutManager.init();
         this.updateProjectorVisibility();
@@ -1439,16 +1463,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        const savedString = localStorage.getItem('classroomScreenState');
-        let existingState = null;
-
-        if (savedString) {
-            try {
-                existingState = JSON.parse(savedString);
-            } catch (error) {
-                console.warn('Failed to parse classroomScreenState while applying projector layout update.', error);
-            }
-        }
+        const existingState = safeParse('classroomScreenState');
 
         const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
         mergedState.layout = layout;
@@ -1907,13 +1922,17 @@ class ClassroomScreenApp {
 
     loadSavedState() {
         const attemptLoad = (key) => {
-            const savedString = localStorage.getItem(key);
-            if (!savedString) return null;
-            try {
-                const parsed = JSON.parse(savedString);
-                if (parsed && typeof parsed === 'object') return parsed;
-            } catch (e) {
-                console.warn(`Failed to parse state from ${key}`, e);
+            const parsed = safeParse(key);
+            if (parsed && typeof parsed === 'object') {
+                if (!this.isValidLayoutData(parsed.layout)) {
+                    console.warn('Invalid layout data. Resetting layout.');
+                    localStorage.removeItem('classroomScreenState');
+                    return {
+                        ...parsed,
+                        layout: { mode: 'dashboard', widgets: [] }
+                    };
+                }
+                return parsed;
             }
             return null;
         };
@@ -1945,10 +1964,25 @@ class ClassroomScreenApp {
         // If all fail, ensure corrupt state is cleared so defaults can load
         if (localStorage.getItem('classroomScreenState')) {
             console.warn('Corrupt state detected and no backups available; clearing.');
-            localStorage.removeItem('classroomScreenState');
+            resetAppState();
         }
 
         console.log('No saved layout found — loading default layout');
+    }
+
+    isValidLayoutData(layout) {
+        if (!layout || typeof layout !== 'object') return false;
+        if (!['dashboard', 'stage'].includes(layout.mode)) return false;
+        if (!Array.isArray(layout.widgets)) return false;
+        return layout.widgets.every((widget) => (
+            widget &&
+            typeof widget.id === 'string' &&
+            typeof widget.type === 'string' &&
+            typeof widget.x === 'number' &&
+            typeof widget.y === 'number' &&
+            typeof widget.width === 'number' &&
+            typeof widget.height === 'number'
+        ));
     }
 
     applyState(state) {
