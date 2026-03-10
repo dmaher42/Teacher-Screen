@@ -14,13 +14,15 @@ function isProjectorView() {
 }
 
 function getRevealOptions() {
+    const projectorMode = isProjectorView();
+
     return {
         embedded: true,
-        keyboard: true,
+        keyboard: !projectorMode,
         hash: true,
         slideNumber: true,
-        controls: true,
-        progress: true
+        controls: !projectorMode,
+        progress: !projectorMode
     };
 }
 
