@@ -112,17 +112,16 @@ export async function initReveal(container) {
 }
 
 export function layoutReveal(container) {
-    if (!container) {
+    if (!container) return;
+
+    const revealElement = container.querySelector('.reveal');
+    if (!revealElement) return;
+
+    const deck = revealElement.Reveal;
+
+    if (!deck || typeof deck.layout !== 'function' || typeof deck.isReady !== 'function' || !deck.isReady()) {
         return;
     }
 
-    const existingDeck = container.__teacherScreenRevealDeck;
-    if (existingDeck && typeof existingDeck.layout === 'function') {
-        existingDeck.layout();
-        return;
-    }
-
-    if (window.Reveal && typeof window.Reveal.layout === 'function') {
-        window.Reveal.layout();
-    }
+    deck.layout();
 }

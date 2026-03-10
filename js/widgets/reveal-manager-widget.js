@@ -137,8 +137,10 @@ class RevealManagerWidget {
         this.frameWrap.appendChild(this.inlineDeckContainer);
 
         this.resizeObserver = null;
+        this.revealResizeObserver = null;
         this.positionObserver = null;
         this.layoutObserverInterval = null;
+        this.layoutTimeout = null;
 
         this.handleModeChange = this.handleModeChange.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
@@ -394,13 +396,21 @@ class RevealManagerWidget {
         if (!this.activeDeck) return;
 
         if (this.activeDeck.type === 'html') {
-            import('../utils/reveal-manager.js')
-                .then(({ layoutReveal }) => {
-                    layoutReveal(this.inlineDeckContainer);
-                })
-                .catch((error) => {
+            clearTimeout(this.layoutTimeout);
+
+            this.layoutTimeout = setTimeout(async () => {
+                try {
+                    const module = await import('../utils/reveal-manager.js');
+
+                    if (typeof module.layoutReveal === 'function') {
+                        module.layoutReveal(this.inlineDeckContainer);
+                    } else {
+                        console.warn('[Reveal] layoutReveal not available');
+                    }
+                } catch (error) {
                     console.warn('[Reveal] unable to layout presentation', error);
-                });
+                }
+            }, 120);
             return;
         }
 
@@ -429,6 +439,17 @@ class RevealManagerWidget {
                 if (!deck) return;
 
                 this.revealDeck = deck;
+
+                if (this.revealResizeObserver) {
+                    this.revealResizeObserver.disconnect();
+                }
+                if (typeof ResizeObserver === 'function') {
+                    this.revealResizeObserver = new ResizeObserver(() => {
+                        this.requestRevealLayout();
+                    });
+                    this.revealResizeObserver.observe(this.inlineDeckContainer);
+                }
+
                 this.revealDeckContainer = container;
                 this.nextSlide = () => this.revealDeck && typeof this.revealDeck.next === 'function' ? this.revealDeck.next() : null;
                 this.prevSlide = () => this.revealDeck && typeof this.revealDeck.prev === 'function' ? this.revealDeck.prev() : null;
@@ -883,9 +904,17 @@ ${revealBootstrapScript}`;
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
+        if (this.revealResizeObserver) {
+            this.revealResizeObserver.disconnect();
+            this.revealResizeObserver = null;
+        }
         if (this.positionObserver) {
             this.positionObserver.disconnect();
             this.positionObserver = null;
+        }
+        if (this.layoutTimeout) {
+            clearTimeout(this.layoutTimeout);
+            this.layoutTimeout = null;
         }
 
         if (this.presenterWindowMonitor) {
