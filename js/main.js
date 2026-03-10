@@ -154,6 +154,7 @@ class ClassroomScreenApp {
                     { type: 'document-viewer', label: 'Document Viewer' },
                     { type: 'url-viewer', label: 'URL Viewer' },
                     { type: 'reveal-manager', label: 'Reveal Manager' },
+                    { type: 'presentation', label: 'Presentation Loader' },
                     { type: 'mask', label: 'Mask' },
                     { type: 'notes', label: 'Notes' },
                     { type: 'wellbeing', label: 'Well-being Check-in' },
@@ -701,6 +702,7 @@ class ClassroomScreenApp {
                 case 'document-viewer': widget = new DocumentViewerWidget(); break;
                 case 'url-viewer': widget = new UrlViewerWidget(); break;
                 case 'reveal-manager': widget = new RevealManagerWidget(); break;
+                case 'presentation': widget = new PresentationWidget(); break;
                 case 'mask': widget = new MaskWidget(); break;
                 case 'notes': widget = new NotesWidget(); break;
                 case 'wellbeing': widget = new WellbeingWidget(); break;
@@ -734,6 +736,7 @@ class ClassroomScreenApp {
             'document-viewer': 'Document Viewer',
             'url-viewer': 'URL Viewer',
             'reveal-manager': 'Reveal Manager',
+            'presentation': 'Presentation Loader',
             'mask': 'Mask',
             'notes': 'Notes',
             'wellbeing': 'Well-being',
@@ -1287,6 +1290,7 @@ class ClassroomScreenApp {
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                                case 'PresentationWidget': widget = new PresentationWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
@@ -1460,6 +1464,7 @@ class ClassroomScreenApp {
                 case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                 case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                 case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                        case 'PresentationWidget': widget = new PresentationWidget(); break;
                 case 'MaskWidget': widget = new MaskWidget(); break;
                 case 'NotesWidget': widget = new NotesWidget(); break;
                 case 'WellbeingWidget': widget = new WellbeingWidget(); break;
@@ -1646,6 +1651,7 @@ class ClassroomScreenApp {
                 case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                 case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                 case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                        case 'PresentationWidget': widget = new PresentationWidget(); break;
                 case 'MaskWidget': widget = new MaskWidget(); break;
                 case 'NotesWidget': widget = new NotesWidget(); break;
                 case 'WellbeingWidget': widget = new WellbeingWidget(); break;
@@ -1788,6 +1794,7 @@ class ClassroomScreenApp {
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                                case 'PresentationWidget': widget = new PresentationWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
@@ -1973,6 +1980,7 @@ class ClassroomScreenApp {
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                                case 'PresentationWidget': widget = new PresentationWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                         case 'WellbeingWidget': widget = new WellbeingWidget(); break;
