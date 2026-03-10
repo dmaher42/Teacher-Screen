@@ -14,6 +14,7 @@ const WIDGET_SIZE_RULES = {
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   // Reveal manager uses standard grid sizing.
   RevealManagerWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
+  PresentationWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
   WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   RichTextWidget: { minW: 4, minH: 3 }
@@ -777,6 +778,8 @@ class LayoutManager {
         return new DocumentViewerWidget();
       case 'UrlViewerWidget':
         return new UrlViewerWidget();
+      case 'PresentationWidget':
+        return new PresentationWidget();
       case 'MaskWidget':
         return new MaskWidget();
       case 'NotesWidget':

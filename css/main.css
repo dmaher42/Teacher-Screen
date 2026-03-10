@@ -1959,3 +1959,35 @@ dialog::backdrop {
     margin-top: 12px;
     font-size: 0.9rem;
 }
+
+/* ==========================
+   Presentation Widget Styles
+   ========================== */
+.presentation-widget-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.presentation-widget-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.presentation-widget-controls .presentation-select {
+    flex: 1;
+}
+
+.presentation-widget-stage {
+    flex: 1;
+    min-height: 0;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 8px;
+    background: var(--bg-surface);
+}
+
+.presentation-widget-stage .reveal {
+    height: 100%;
+}

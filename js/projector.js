@@ -32,6 +32,7 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('js/widgets/document-viewer.js');
     await loadClassicScript('js/widgets/url-viewer.js');
     await loadClassicScript('js/widgets/reveal-manager-widget.js');
+    await loadClassicScript('js/widgets/presentation-widget.js');
     await loadClassicScript('js/widgets/notes-widget.js');
     await loadClassicScript('js/widgets/wellbeing-widget.js');
     await loadClassicScript('js/widgets/rich-text-widget.js');
@@ -246,6 +247,7 @@ class ProjectorApp {
                 case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                 case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                 case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                case 'PresentationWidget': widget = new PresentationWidget(); break;
                 case 'MaskWidget': widget = new MaskWidget(); break;
                 case 'NotesWidget': widget = new NotesWidget(); break;
             }
@@ -296,6 +298,7 @@ class ProjectorApp {
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
+                case 'PresentationWidget': widget = new PresentationWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
                     }

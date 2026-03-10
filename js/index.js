@@ -37,6 +37,7 @@ const bootstrapTeacherDependencies = async () => {
     await loadOptionalClassicScript('./js/widgets/document-viewer.js', 'document-viewer');
     await loadOptionalClassicScript('./js/widgets/url-viewer.js', 'url-viewer');
     await loadOptionalClassicScript('./js/widgets/reveal-manager-widget.js', 'reveal-manager-widget');
+    await loadOptionalClassicScript('./js/widgets/presentation-widget.js', 'presentation-widget');
     await loadOptionalClassicScript('./js/widgets/mask-widget.js', 'mask-widget');
     await loadOptionalClassicScript('./js/widgets/notes-widget.js', 'notes-widget');
     await loadOptionalClassicScript('./js/widgets/wellbeing-widget.js', 'wellbeing-widget');
