@@ -110,3 +110,18 @@ export async function initReveal(container) {
 
     return null;
 }
+
+export function layoutReveal(container) {
+    if (!container) return;
+
+    const revealElement = container.querySelector('.reveal');
+    if (!revealElement) return;
+
+    const deck = revealElement.Reveal;
+
+    if (!deck || typeof deck.layout !== 'function' || typeof deck.isReady !== 'function' || !deck.isReady()) {
+        return;
+    }
+
+    deck.layout();
+}
