@@ -1,6 +1,7 @@
 const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
 const revealWidgetIsProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
+const REVEAL_SYNC_CHANNEL_NAME = 'teacher-screen-sync';
 
 /**
  * RevealManagerWidget
@@ -25,6 +26,9 @@ class RevealManagerWidget {
         this.isProjectorView = this.isProjectorMode();
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
+        this.syncChannel = null;
+        this.isApplyingRemoteSlide = false;
+        this.handleSyncChannelMessage = this.handleSyncChannelMessage.bind(this);
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -232,6 +236,11 @@ class RevealManagerWidget {
     }
 
     setupRevealSync() {
+        if (typeof BroadcastChannel === 'function') {
+            this.syncChannel = new BroadcastChannel(REVEAL_SYNC_CHANNEL_NAME);
+            this.syncChannel.onmessage = this.handleSyncChannelMessage;
+        }
+
         if (!revealWidgetAppBus || !revealWidgetIsProjectorMode()) return;
 
         revealWidgetAppBus.on('reveal-slide-change', (payload) => {
@@ -243,6 +252,18 @@ class RevealManagerWidget {
             if (!state) return;
             this.applyFragmentState(state);
         });
+    }
+
+    handleSyncChannelMessage(event) {
+        const message = event && event.data ? event.data : {};
+        if (!message || message.type !== 'reveal-slide-change') return;
+        if (!this.isProjectorView) return;
+
+        this.applySlideState({
+            indexh: message.h,
+            indexv: message.v,
+            indexf: message.f || 0
+        }, true);
     }
 
     handleIframeLoad() {
@@ -259,11 +280,25 @@ class RevealManagerWidget {
         if (!reveal || typeof reveal.on !== 'function') return;
 
         reveal.on('slidechanged', (event) => {
+            if (this.isApplyingRemoteSlide) {
+                this.isApplyingRemoteSlide = false;
+                return;
+            }
+
             revealWidgetAppBus.emit('reveal-slide-change', {
                 indexh: event.indexh,
                 indexv: event.indexv,
                 indexf: event.indexf || 0
             });
+
+            if (this.syncChannel && revealWidgetIsTeacherMode() && !this.isProjectorView) {
+                this.syncChannel.postMessage({
+                    type: 'reveal-slide-change',
+                    h: event.indexh || 0,
+                    v: event.indexv || 0,
+                    f: event.indexf || 0
+                });
+            }
         });
 
         reveal.on('fragmentshown', () => {
@@ -279,13 +314,14 @@ class RevealManagerWidget {
         this.slideChangeHandlerAttached = true;
     }
 
-    applySlideState(state) {
+    applySlideState(state, fromSyncChannel = false) {
         if (!state) return;
 
         const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = frameWindow && frameWindow.Reveal;
 
         if (reveal && typeof reveal.slide === 'function') {
+            this.isApplyingRemoteSlide = fromSyncChannel;
             reveal.slide(state.indexh || 0, state.indexv || 0, state.indexf || 0);
             return;
         }
@@ -663,6 +699,15 @@ ${revealBootstrapScript}`;
             indexv: indices.v || 0,
             indexf: indices.f || 0
         });
+
+        if (this.syncChannel) {
+            this.syncChannel.postMessage({
+                type: 'reveal-slide-change',
+                h: indices.h || 0,
+                v: indices.v || 0,
+                f: indices.f || 0
+            });
+        }
     }
 
     sendNavToPresenter(direction) {
@@ -709,6 +754,7 @@ ${revealBootstrapScript}`;
             clearInterval(this.presenterWindowMonitor);
             this.presenterWindowMonitor = null;
         }
+
         this.setPresenterStatus('Presenter closed');
     }
 
@@ -920,6 +966,11 @@ ${revealBootstrapScript}`;
         if (this.presenterWindowMonitor) {
             clearInterval(this.presenterWindowMonitor);
             this.presenterWindowMonitor = null;
+        }
+
+        if (this.syncChannel) {
+            this.syncChannel.close();
+            this.syncChannel = null;
         }
 
 
