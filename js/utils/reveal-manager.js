@@ -6,7 +6,11 @@ function isProjectorView() {
         return window.TeacherScreenAppMode.isProjectorMode();
     }
 
-    return window.location.pathname.includes('/projector');
+    const normalizedPath = window.location.pathname.toLowerCase();
+    return normalizedPath === '/projector'
+        || normalizedPath === '/projector/'
+        || normalizedPath.endsWith('/projector.html')
+        || normalizedPath.endsWith('/projector/index.html');
 }
 
 function getRevealOptions() {
