@@ -6,17 +6,9 @@ function isProjectorView() {
 }
 
 function getRevealOptions() {
-    if (isProjectorView()) {
-        return {
-            embedded: true,
-            controls: false,
-            keyboard: false,
-            touch: false
-        };
-    }
-
     return {
         embedded: true,
+        keyboard: true,
         hash: true,
         slideNumber: true,
         controls: true,
@@ -92,9 +84,10 @@ export async function initReveal(container) {
     }
 
     if (typeof window.Reveal === 'function') {
-        const deck = new window.Reveal(revealElement, getRevealOptions());
-        await deck.initialize();
+        const deck = new window.Reveal(revealElement);
+        await deck.initialize(getRevealOptions());
         bindTeacherSlideSync(deck);
+        console.log('[Reveal] deck initialized');
         container.__teacherScreenRevealDeck = deck;
         return deck;
     }
@@ -102,6 +95,7 @@ export async function initReveal(container) {
     if (window.Reveal && typeof window.Reveal.initialize === 'function') {
         await window.Reveal.initialize(getRevealOptions());
         bindTeacherSlideSync(window.Reveal);
+        console.log('[Reveal] deck initialized');
         container.__teacherScreenRevealDeck = window.Reveal;
         return window.Reveal;
     }

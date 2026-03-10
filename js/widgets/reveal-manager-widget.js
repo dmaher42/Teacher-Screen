@@ -24,6 +24,7 @@ class RevealManagerWidget {
         this.isProjectorMode = appModeUtils.isProjectorMode || (() => this.appMode === 'projector');
         this.isProjectorView = this.isProjectorMode();
         this.slideChangeHandlerAttached = false;
+        this.revealDeck = null;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -244,6 +245,7 @@ class RevealManagerWidget {
 
     handleIframeLoad() {
         this.slideChangeHandlerAttached = false;
+        this.revealDeck = null;
         this.bindSlideChangeListener();
     }
 
@@ -411,7 +413,7 @@ class RevealManagerWidget {
 
     getActiveRevealApi() {
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            return window.Reveal || null;
+            return this.revealDeck || null;
         }
 
         const frameWindow = this.iframeRef.current?.contentWindow;
@@ -422,8 +424,15 @@ class RevealManagerWidget {
         container.innerHTML = html;
 
         import('../utils/reveal-manager.js')
-            .then(({ initReveal }) => {
-                initReveal(container);
+            .then(({ initReveal }) => initReveal(container))
+            .then((deck) => {
+                if (!deck) return;
+
+                this.revealDeck = deck;
+                this.revealDeckContainer = container;
+                this.nextSlide = () => this.revealDeck && typeof this.revealDeck.next === 'function' ? this.revealDeck.next() : null;
+                this.prevSlide = () => this.revealDeck && typeof this.revealDeck.prev === 'function' ? this.revealDeck.prev() : null;
+                this.bindSlideChangeListener();
             })
             .catch((error) => {
                 console.warn('[Reveal] unable to initialize presentation', error);
@@ -468,19 +477,20 @@ class RevealManagerWidget {
         if (typeof window.Reveal.isReady === 'function' && !window.Reveal.isReady()) {
             window.Reveal.initialize({
                 embedded: true,
+                keyboard: true,
                 hash: true,
                 slideNumber: true,
                 controls: true,
                 progress: true
             });
-            console.log('[Reveal] presentation initialized');
+            console.log('[Reveal] deck initialized');
             return true;
         }
 
         if (typeof window.Reveal.sync === 'function') {
             window.Reveal.sync();
         }
-        console.log('[Reveal] presentation initialized');
+        console.log('[Reveal] deck initialized');
         return true;
     }
 
@@ -562,6 +572,7 @@ ${revealBootstrapScript}`;
 
     stopDeck() {
         this.activeDeck = null;
+        this.revealDeck = null;
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
