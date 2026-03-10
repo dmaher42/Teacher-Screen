@@ -246,29 +246,7 @@ class ProjectorApp {
             return;
         }
 
-        this.layoutManager.deserialize(resetSnapshot, (widgetData) => {
-            if (widgetData.visibleOnProjector === false) {
-                return null;
-            }
-
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
-            return widget;
-        });
+        this.layoutManager.deserialize(resetSnapshot, (widgetData) => this.createProjectorWidget(widgetData));
 
         if (this.isEditMode) {
             this.projectorChannel.postMessage({
@@ -299,27 +277,7 @@ class ProjectorApp {
                 // LayoutManager.deserialize clears the container.
 
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
-                    // Filter out widgets not meant for the projector
-                    if (widgetData.visibleOnProjector === false) {
-                        return null;
-                    }
-
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+                    const widget = this.createProjectorWidget(widgetData);
                     if (widget) {
                         this.widgets.push(widget);
                     }
@@ -329,6 +287,14 @@ class ProjectorApp {
         } catch (err) {
             console.error('Projector layout rebuild failed:', err);
         }
+    }
+
+    createProjectorWidget(widgetData) {
+        if (widgetData.visibleOnProjector === false) {
+            return null;
+        }
+
+        return this.layoutManager.createWidgetFromType(widgetData.type);
     }
 
     destroy() {
