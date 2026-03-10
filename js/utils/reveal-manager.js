@@ -24,26 +24,6 @@ function getRevealOptions() {
     };
 }
 
-function bindTeacherSlideSync(revealApi) {
-    if (isProjectorView() || typeof revealApi?.on !== 'function' || revealApi.__teacherScreenSlideSyncBound) {
-        return;
-    }
-
-    revealApi.on('slidechanged', () => {
-        const state = typeof revealApi.getState === 'function' ? revealApi.getState() : { indexh: 0, indexv: 0 };
-        const data = {
-            type: 'slide-update',
-            indexh: state.indexh,
-            indexv: state.indexv
-        };
-
-        console.log('[sync] teacher slide update', data);
-        localStorage.setItem('teacher-slide', JSON.stringify(data));
-    });
-
-    revealApi.__teacherScreenSlideSyncBound = true;
-}
-
 function ensureRevealCss() {
     if (document.querySelector(`link[data-teacher-screen-reveal="base"]`)) {
         return;
@@ -94,7 +74,6 @@ export async function initReveal(container) {
     if (typeof window.Reveal === 'function') {
         const deck = new window.Reveal(revealElement);
         await deck.initialize(getRevealOptions());
-        bindTeacherSlideSync(deck);
         console.log('[Reveal] deck initialized');
         container.__teacherScreenRevealDeck = deck;
         return deck;
@@ -102,7 +81,6 @@ export async function initReveal(container) {
 
     if (window.Reveal && typeof window.Reveal.initialize === 'function') {
         await window.Reveal.initialize(getRevealOptions());
-        bindTeacherSlideSync(window.Reveal);
         console.log('[Reveal] deck initialized');
         container.__teacherScreenRevealDeck = window.Reveal;
         return window.Reveal;

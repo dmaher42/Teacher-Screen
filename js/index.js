@@ -27,7 +27,6 @@ const bootstrapTeacherDependencies = async () => {
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
     await loadClassicScript('./js/utils/layout-manager.js');
     await loadClassicScript('./js/utils/background-manager.js');
-    await loadClassicScript('./js/utils/reveal-sync.js');
     await loadOptionalClassicScript('./assets/sounds/sound-data.js', 'sound-data');
     await loadOptionalClassicScript('./js/widgets/timer.js', 'timer');
     await loadOptionalClassicScript('./js/widgets/noise-meter.js', 'noise-meter');

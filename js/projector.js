@@ -23,7 +23,6 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
     await loadClassicScript('js/utils/layout-manager.js');
     await loadClassicScript('js/utils/background-manager.js');
-    await loadClassicScript('js/utils/reveal-sync.js');
     await loadClassicScript('assets/sounds/sound-data.js');
     await loadClassicScript('js/widgets/timer.js');
     await loadClassicScript('js/widgets/noise-meter.js');
@@ -78,7 +77,6 @@ class ProjectorApp {
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
-        this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
     }
 
     init() {
@@ -97,28 +95,7 @@ class ProjectorApp {
             if (event.key === 'selectedTheme') {
                 this.loadTheme();
             }
-            if (event.key === 'teacher-slide' && event.newValue) {
-                try {
-                    const data = JSON.parse(event.newValue);
-                    console.log('[sync] projector received slide update');
-                    console.log('[sync] teacher slide update', data);
-
-                    if (window.Reveal && typeof window.Reveal.slide === 'function') {
-                        window.Reveal.slide(data.indexh, data.indexv);
-                    }
-                } catch (error) {
-                    console.warn('[sync] invalid teacher slide payload', error);
-                }
-            }
         });
-
-        if (this.revealSync) {
-            this.revealSync.onSlideState((state) => {
-                if (window.Reveal && typeof window.Reveal.slide === 'function') {
-                    window.Reveal.slide(state.indexh, state.indexv, state.indexf);
-                }
-            });
-        }
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
@@ -300,11 +277,7 @@ class ProjectorApp {
         }
     }
 
-    destroy() {
-        if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
-            this.revealSync.channel.close();
-        }
-    }
+    destroy() {}
 
 }
 
