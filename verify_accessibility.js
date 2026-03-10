@@ -43,8 +43,8 @@ const classroomView = document.getElementById('classroom-view');
 assert(classroomView.getAttribute('role') === 'tabpanel', 'Classroom view should have role="tabpanel"');
 assert(classroomView.getAttribute('aria-labelledby') === 'classroom-tab', 'Classroom view should be labelled by tab');
 
-const studentMain = document.getElementById('student-main');
-assert(studentMain.tagName === 'MAIN', 'Student main should be a <main> element');
+const studentMain = document.getElementById('student-view');
+assert(studentMain.tagName === 'SECTION', 'Student main should be a <section> element');
 assert(studentMain.getAttribute('role') === 'main', 'Student main should have role="main"');
 assert(studentMain.getAttribute('aria-label') === 'Student view', 'Student main should have aria-label="Student view"');
 
