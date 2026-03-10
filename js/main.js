@@ -2404,13 +2404,20 @@ class ClassroomScreenApp {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const studentMain = document.getElementById("student-main");
+function startApp() {
+    const studentMain = document.getElementById('student-main');
+
     if (!studentMain) {
-        console.error("Layout container #student-main not found");
+        console.error('Layout container #student-main not found');
         return;
     }
 
     const app = new ClassroomScreenApp();
     app.init();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp);
+} else {
+    startApp();
+}
