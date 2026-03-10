@@ -1485,7 +1485,103 @@ class ClassroomScreenApp {
 
         this.updateProjectorVisibility();
         this.saveState();
+        this.showNotification('Layout updated from projector.');
+    }
+
+    setupPresetControls() {
+        const storedPresets = safeParseLocalStorage(this.presetsKey);
+        this.presets = Array.isArray(storedPresets) ? storedPresets : [];
+
+        this.presets.forEach((preset) => {
+            preset.className = preset.className || '';
+            preset.period = preset.period || '';
+        });
+
+        this.renderPresetList();
+        this.renderLayoutPresetOptions();
+    }
+
+    savePresets() {
+        localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
+        this.renderLayoutPresetOptions();
+    }
+
+    renderLayoutPresetOptions() {
+        if (!this.layoutPresetSelect) return;
+
+        this.layoutPresetSelect.innerHTML = '<option value="">Select preset</option>';
+
+        this.presets.forEach((preset) => {
+            const option = document.createElement('option');
+            option.value = preset.name;
+            option.textContent = preset.name;
+            this.layoutPresetSelect.appendChild(option);
+        });
+    }
+
+    savePreset() {
+        const name = this.presetNameInput ? this.presetNameInput.value.trim() : '';
+        if (!name) {
+            this.showNotification('Enter a preset name first.', 'error');
+            return;
+        }
+
+        if (this.presets.some((preset) => preset.name === name)) {
+            this.showNotification(`Preset "${name}" already exists. Use Overwrite.`, 'error');
+            return;
+        }
+
+        const preset = {
+            name,
+            className: this.presetClassInput ? this.presetClassInput.value.trim() : '',
+            period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
+            theme: document.body.className,
+            background: this.backgroundManager.serialize(),
+            layout: this.layoutManager.serialize(),
+            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
+        };
+
+        this.presets.push(preset);
+        this.savePresets();
+        this.renderPresetList();
+        this.showNotification(`Preset "${name}" saved.`);
+    }
+
+    loadPreset(name) {
+        const preset = this.presets.find((item) => item.name === name);
+        if (!preset) {
+            this.showNotification('Preset not found.', 'error');
+            return;
+        }
+
+        if (preset.theme) this.switchTheme(preset.theme);
+        if (preset.background) this.backgroundManager.deserialize(preset.background);
+        if (preset.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(preset.lessonPlan);
+
+        this.widgets = [];
+        this.layoutManager.deserialize(preset.layout, (widgetData) => {
+            const widget = createWidgetByType(widgetData.type);
+            if (widget) {
+                this.widgets.push(widget);
+            }
+            return widget;
+        });
+
+        this.updateProjectorVisibility();
+        this.saveState();
         this.showNotification(`Preset "${preset.name}" loaded.`);
+    }
+
+    applyLayoutPreset() {
+        if (!this.layoutPresetSelect) return;
+
+        const selectedName = this.layoutPresetSelect.value;
+        if (!selectedName) {
+            this.showNotification('Select a preset first.', 'error');
+            return;
+        }
+
+        this.loadPreset(selectedName);
     }
 
     overwritePreset(name) {
