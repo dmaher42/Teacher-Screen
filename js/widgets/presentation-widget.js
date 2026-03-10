@@ -42,11 +42,17 @@ class PresentationWidget {
         const selectedName = this.select.value;
         if (!selectedName) return;
 
+        await this.loadPresentationByName(selectedName);
+    }
+
+    async loadPresentationByName(name) {
+        if (!name) return;
+
         console.log('[presentation-widget] loading presentation');
 
         const { loadPresentation } = await import('./../utils/presentation-loader.js');
-        await loadPresentation(this.stage, selectedName);
-        this.currentPresentation = selectedName;
+        await loadPresentation(this.stage, name);
+        this.currentPresentation = name;
     }
 
     handleResize() {
@@ -54,6 +60,12 @@ class PresentationWidget {
         if (deck && typeof deck.layout === 'function') {
             deck.layout();
             return;
+        }
+
+        // If Reveal did not initialize previously (e.g. widget restored while hidden),
+        // retry loading the selected presentation when the widget is resized/visible.
+        if (this.currentPresentation && !this.stage.querySelector('.reveal')) {
+            this.loadPresentationByName(this.currentPresentation);
         }
 
         if (window.Reveal && typeof window.Reveal.layout === 'function') {
@@ -73,7 +85,7 @@ class PresentationWidget {
         if (!selectedName) return;
 
         this.select.value = selectedName;
-        this.handleLoadClick();
+        this.loadPresentationByName(selectedName);
     }
 
     setEditable() {}
