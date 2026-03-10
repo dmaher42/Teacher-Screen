@@ -67,7 +67,7 @@ class ClassroomScreenApp {
 
         // DOM Elements
         this.appContainer = document.getElementById('app-container');
-        this.studentView = document.getElementById('student-main'); // Using the new landmark ID
+        this.studentView = document.getElementById('student-view'); // Using the new landmark ID
         this.teacherPanel = document.getElementById('teacher-panel');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.closeTeacherPanelBtn = document.getElementById('close-teacher-panel');
@@ -2413,10 +2413,10 @@ class ClassroomScreenApp {
 }
 
 function startApp() {
-    const studentMain = document.getElementById('student-main');
+    const studentMain = document.getElementById('student-view');
 
     if (!studentMain) {
-        console.error('Layout container #student-main not found');
+        console.error('Layout container #student-view not found');
         return;
     }
 

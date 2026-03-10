@@ -35,9 +35,9 @@ if (document.readyState === 'loading') {
 Where `startApp()` contains:
 
 ```js
-const studentMain = document.getElementById('student-main');
+const studentMain = document.getElementById('student-view');
 if (!studentMain) {
-  console.error('Layout container #student-main not found');
+  console.error('Layout container #student-view not found');
   return;
 }
 const app = new ClassroomScreenApp();
