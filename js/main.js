@@ -2433,7 +2433,9 @@ class ClassroomScreenApp {
     updateProjectorVisibility() {
         if (!this.layoutManager || !Array.isArray(this.layoutManager.widgets)) return;
 
-        const isProjector = window.location.search.includes('projector=true');
+        const isProjector = window.TeacherScreenAppMode
+            ? window.TeacherScreenAppMode.isProjectorMode()
+            : false;
 
         this.layoutManager.widgets.forEach((info) => {
             if (!info || !info.element) return;
