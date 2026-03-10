@@ -1,4 +1,5 @@
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
+import { eventBus } from './core/event-bus.js';
 
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
@@ -161,6 +162,7 @@ class ClassroomScreenApp {
         this.noteIdToLink = null;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.eventBusSubscriptions = [];
 
         // Managers
         this.saveState = debounce(this.saveState.bind(this), 300);
@@ -170,9 +172,10 @@ class ClassroomScreenApp {
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
                 this.applyProjectorLayoutDelta(payload, 'projector');
+                eventBus.emit('widget:moved', { payload, source: 'projector' });
                 return;
             }
-            this.saveState('teacher');
+            eventBus.emit('layout:updated', { source: 'teacher', payload });
         };
         this.backgroundManager = new BackgroundManager(this.studentView);
 
@@ -228,6 +231,7 @@ class ClassroomScreenApp {
     }
 
     init() {
+        this.setupInternalEventBus();
         this.setupEventListeners();
         this.initLessonPlanner();
 
@@ -274,6 +278,51 @@ class ClassroomScreenApp {
         }
 
         this.updateProjectorVisibility();
+    }
+
+    setupInternalEventBus() {
+        this.subscribeToEventBus('widget:removed', ({ widget }) => {
+            this.handleWidgetRemoved(widget);
+        });
+
+        this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true } = {}) => {
+            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+            if (!timerWidget) {
+                this.showNotification('No timer widget found. Add one first!', 'error');
+                return;
+            }
+
+            if (!Number.isFinite(minutes) || minutes <= 0) {
+                this.showNotification('Please set a timer duration.', 'warning');
+                return;
+            }
+
+            timerWidget.start(minutes);
+            if (showNotification) {
+                this.showNotification(`Timer started for ${Math.round(minutes * 100) / 100} minutes.`);
+            }
+        });
+
+        this.subscribeToEventBus('timer:stopped', () => {
+            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+            if (!timerWidget) {
+                this.showNotification('No timer widget found.', 'error');
+                return;
+            }
+
+            timerWidget.stop();
+            this.showNotification('Timer stopped.');
+        });
+
+        this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
+            this.saveState(source);
+        });
+
+    }
+
+    subscribeToEventBus(eventName, handler) {
+        eventBus.on(eventName, handler);
+        this.eventBusSubscriptions.push({ eventName, handler });
     }
 
     setupEventListeners() {
@@ -459,7 +508,9 @@ class ClassroomScreenApp {
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
-        document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
+        document.addEventListener('widgetRemoved', (event) => {
+            eventBus.emit('widget:removed', { widget: event.detail.widget });
+        });
 
         // Request Open Planner
         document.addEventListener('requestOpenPlanner', () => {
@@ -483,6 +534,8 @@ class ClassroomScreenApp {
     }
 
     handleNavClick(tab) {
+        eventBus.emit('scene:changed', { tab });
+
         // Update tab states
         this.navTabs.forEach(t => {
             const isSelected = t.dataset.tab === tab;
@@ -747,6 +800,7 @@ class ClassroomScreenApp {
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
             this.setActiveWidgetButton(type);
+            eventBus.emit('widget:created', { type, widget, element: widgetElement });
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
@@ -1911,6 +1965,7 @@ class ClassroomScreenApp {
     }
 
     handleWidgetRemoved(widget) {
+        if (!widget) return;
         this.widgets = this.widgets.filter(existing => existing !== widget);
         if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
             this.layoutManager.widgets = this.layoutManager.widgets.filter(info => info.widget !== widget);
@@ -1922,63 +1977,23 @@ class ClassroomScreenApp {
     }
 
     startTimerFromControls() {
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-        if (timerWidget) {
-            const hours = parseInt(document.getElementById('timer-hours').value, 10) || 0;
-            const minutes = parseInt(document.getElementById('timer-minutes').value, 10) || 0;
-            const seconds = parseInt(document.getElementById('timer-seconds').value, 10) || 0;
-            // The existing TimerWidget.start() takes minutes, or we need to update it to take arbitrary time?
-            // The existing startTimerFromControls uses timerWidget.set(totalSeconds) which doesn't seem to exist in the TimerWidget code I read.
-            // Let's re-read TimerWidget carefully. It has start(minutes). It has this.time = chosenMinutes * 60.
-            // It does NOT have a set(seconds) method. The current implementation in main.js seems to be broken or relying on a different version?
-            // "timerWidget.set(totalSeconds)" -> checking TimerWidget source again.
-            // TimerWidget has start(minutes), tick(), stop(), notifyComplete(), etc. No set().
-            // So I should fix this method as well while I am here, or at least implement the new one correctly.
+        const hours = parseInt(document.getElementById('timer-hours').value, 10) || 0;
+        const minutes = parseInt(document.getElementById('timer-minutes').value, 10) || 0;
+        const seconds = parseInt(document.getElementById('timer-seconds').value, 10) || 0;
+        const totalMinutes = (hours * 60) + minutes + (seconds / 60);
 
-            // Wait, looking at TimerWidget.start(minutes):
-            // const customMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : null;
-            // ... this.time = chosenMinutes * 60;
-
-            // The user input in teacher panel has HH:MM:SS.
-            // If I want to support seconds, I might need to update TimerWidget to support starting with seconds or modify how I call it.
-            // But my task is "Timer quick-preset buttons".
-
-            // Let's implement startTimerPresetFromControls first.
-
-            const totalMinutes = (hours * 60) + minutes + (seconds / 60);
-            if (totalMinutes > 0) {
-                timerWidget.start(totalMinutes);
-                this.showNotification('Timer started!');
-            } else {
-                this.showNotification('Please set a timer duration.', 'warning');
-            }
-        } else {
-            this.showNotification('No timer widget found. Add one first!', 'error');
-        }
+        eventBus.emit('timer:started', {
+            minutes: totalMinutes,
+            showNotification: totalMinutes > 0
+        });
     }
 
     startTimerPresetFromControls(minutes) {
-        let timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-        if (!timerWidget) {
-            // "Finds first TimerWidget and calls widget.start(minutes)"
-            // If none exists, maybe I should create one? The instructions say "Finds first TimerWidget".
-            // I'll stick to finding. If not found, I'll notify.
-            this.showNotification('No timer widget found. Add one first!', 'error');
-            return;
-        }
-
-        timerWidget.start(minutes);
-        this.showNotification(`Timer started for ${minutes} minutes.`);
+        eventBus.emit('timer:started', { minutes });
     }
 
     stopTimerFromControls() {
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-        if (timerWidget) {
-            timerWidget.stop();
-            this.showNotification('Timer stopped.');
-        } else {
-            this.showNotification('No timer widget found.', 'error');
-        }
+        eventBus.emit('timer:stopped');
     }
 
     renderBackgroundSelector() {
