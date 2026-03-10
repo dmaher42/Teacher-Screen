@@ -798,35 +798,12 @@ class LayoutManager {
   }
 
   createWidgetFromType(type) {
-    switch (type) {
-      case 'TimerWidget':
-        return new TimerWidget();
-      case 'NoiseMeterWidget':
-        return new NoiseMeterWidget();
-      case 'NamePickerWidget':
-        return new NamePickerWidget();
-      case 'QRCodeWidget':
-        return new QRCodeWidget();
-      case 'DrawingToolWidget':
-        return new DrawingToolWidget();
-      case 'DocumentViewerWidget':
-        return new DocumentViewerWidget();
-      case 'UrlViewerWidget':
-        return new UrlViewerWidget();
-      case 'PresentationWidget':
-        return new PresentationWidget();
-      case 'MaskWidget':
-        return new MaskWidget();
-      case 'NotesWidget':
-        return new NotesWidget();
-      case 'WellbeingWidget':
-        return new WellbeingWidget();
-      case 'RichTextWidget':
-        return new RichTextWidget();
-      default:
-        console.warn(`Unknown widget type: ${type}`);
-        return null;
+    if (typeof window !== 'undefined' && typeof window.createWidgetByType === 'function') {
+      return window.createWidgetByType(type);
     }
+
+    console.warn(`Unknown widget type: ${type}`);
+    return null;
   }
 }
 

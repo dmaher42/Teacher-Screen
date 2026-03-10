@@ -25,6 +25,7 @@ const bootstrapTeacherDependencies = async () => {
     await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js');
     await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
+    await loadClassicScript('./js/widgets/widget-registry.js');
     await loadClassicScript('./js/utils/layout-manager.js');
     await loadClassicScript('./js/utils/background-manager.js');
     await loadClassicScript('./js/utils/reveal-sync.js');
