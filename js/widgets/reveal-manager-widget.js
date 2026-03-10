@@ -1,5 +1,5 @@
 const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-const revealWidgetEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
+const revealEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
 const revealWidgetIsProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
 const REVEAL_SYNC_CHANNEL_NAME = 'teacher-screen-sync';
@@ -30,11 +30,8 @@ class RevealManagerWidget {
         this.syncChannel = null;
         this.isApplyingRemoteSlide = false;
         this.handleSyncChannelMessage = this.handleSyncChannelMessage.bind(this);
-        this.handleInternalRevealNavigate = this.handleInternalRevealNavigate.bind(this);
-
-        if (revealWidgetEventBus) {
-            revealWidgetEventBus.on('reveal:navigate', this.handleInternalRevealNavigate);
-        }
+        this.handleRevealSlideEvent = this.handleRevealSlideEvent.bind(this);
+        this.handleRevealFragmentEvent = this.handleRevealFragmentEvent.bind(this);
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -247,17 +244,50 @@ class RevealManagerWidget {
             this.syncChannel.onmessage = this.handleSyncChannelMessage;
         }
 
+        if (revealEventBus) {
+            revealEventBus.on('reveal:slide-changed', this.handleRevealSlideEvent);
+            revealEventBus.on('reveal:fragment-changed', this.handleRevealFragmentEvent);
+        }
+
         if (!revealWidgetAppBus || !revealWidgetIsProjectorMode()) return;
 
         revealWidgetAppBus.on('reveal-slide-change', (payload) => {
-            if (!payload) return;
-            this.applySlideState(payload);
+            if (!payload || !revealEventBus) return;
+            try {
+                revealEventBus.emit('reveal:slide-changed', { ...payload, source: 'app-bus' });
+            } catch (error) {
+                console.error('[Reveal] failed to forward slide event', error);
+            }
         });
 
         revealWidgetAppBus.on('reveal-fragment-change', (state) => {
-            if (!state) return;
-            this.applyFragmentState(state);
+            if (!state || !revealEventBus) return;
+            try {
+                revealEventBus.emit('reveal:fragment-changed', { state, source: 'app-bus' });
+            } catch (error) {
+                console.error('[Reveal] failed to forward fragment event', error);
+            }
         });
+    }
+
+    handleRevealSlideEvent(payload) {
+        if (!payload) return;
+
+        if (payload.source === 'teacher-local' && this.isProjectorView) {
+            this.applySlideState(payload);
+            return;
+        }
+
+        if (payload.source === 'app-bus' && this.isProjectorView) {
+            this.applySlideState(payload);
+        }
+    }
+
+    handleRevealFragmentEvent(payload) {
+        const fragmentState = payload && payload.state ? payload.state : payload;
+        if (!fragmentState || !this.isProjectorView) return;
+
+        this.applyFragmentState(fragmentState);
     }
 
     handleSyncChannelMessage(event) {
@@ -291,11 +321,26 @@ class RevealManagerWidget {
                 return;
             }
 
-            revealWidgetAppBus.emit('reveal-slide-change', {
-                indexh: event.indexh,
-                indexv: event.indexv,
-                indexf: event.indexf || 0
-            });
+            if (revealEventBus) {
+                try {
+                    revealEventBus.emit('reveal:slide-changed', {
+                        indexh: event.indexh,
+                        indexv: event.indexv,
+                        indexf: event.indexf || 0,
+                        source: 'teacher-local'
+                    });
+                } catch (error) {
+                    console.error('[Reveal] failed to emit slide-changed', error);
+                }
+            }
+
+            if (revealWidgetAppBus) {
+                revealWidgetAppBus.emit('reveal-slide-change', {
+                    indexh: event.indexh,
+                    indexv: event.indexv,
+                    indexf: event.indexf || 0
+                });
+            }
 
             if (this.syncChannel && revealWidgetIsTeacherMode() && !this.isProjectorView) {
                 this.syncChannel.postMessage({
@@ -309,12 +354,32 @@ class RevealManagerWidget {
 
         reveal.on('fragmentshown', () => {
             if (typeof reveal.getState !== 'function') return;
-            revealWidgetAppBus.emit('reveal-fragment-change', reveal.getState());
+            const state = reveal.getState();
+            if (revealEventBus) {
+                try {
+                    revealEventBus.emit('reveal:fragment-changed', { state, source: 'teacher-local' });
+                } catch (error) {
+                    console.error('[Reveal] failed to emit fragment-changed', error);
+                }
+            }
+            if (revealWidgetAppBus) {
+                revealWidgetAppBus.emit('reveal-fragment-change', state);
+            }
         });
 
         reveal.on('fragmenthidden', () => {
             if (typeof reveal.getState !== 'function') return;
-            revealWidgetAppBus.emit('reveal-fragment-change', reveal.getState());
+            const state = reveal.getState();
+            if (revealEventBus) {
+                try {
+                    revealEventBus.emit('reveal:fragment-changed', { state, source: 'teacher-local' });
+                } catch (error) {
+                    console.error('[Reveal] failed to emit fragment-changed', error);
+                }
+            }
+            if (revealWidgetAppBus) {
+                revealWidgetAppBus.emit('reveal-fragment-change', state);
+            }
         });
 
         this.slideChangeHandlerAttached = true;
@@ -945,6 +1010,11 @@ ${revealBootstrapScript}`;
     setEditable() {}
 
     remove() {
+        if (revealEventBus) {
+            revealEventBus.off('reveal:slide-changed', this.handleRevealSlideEvent);
+            revealEventBus.off('reveal:fragment-changed', this.handleRevealFragmentEvent);
+        }
+
         document.body.style.overflow = 'auto';
 
         this.modeRadios.forEach((radio) => radio.removeEventListener('change', this.handleModeChange));

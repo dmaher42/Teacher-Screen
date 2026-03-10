@@ -1,53 +1,62 @@
-const EVENT_BUS_DEBUG = typeof window !== 'undefined' && window.EVENT_BUS_DEBUG === true;
+const EVENT_BUS_DEBUG = typeof window !== 'undefined' && typeof window.EVENT_BUS_DEBUG === 'boolean'
+    ? window.EVENT_BUS_DEBUG
+    : false;
 
 class EventBus {
     constructor() {
-        this.events = {};
+        this.listeners = new Map();
     }
 
-    on(event, handler) {
-        if (!event || typeof handler !== 'function') return;
-
-        if (!this.events[event]) {
-            this.events[event] = new Set();
+    on(eventName, handler) {
+        if (typeof handler !== 'function') {
+            return () => {};
         }
 
-        this.events[event].add(handler);
+        if (!this.listeners.has(eventName)) {
+            this.listeners.set(eventName, new Set());
+        }
+
+        const handlers = this.listeners.get(eventName);
+        handlers.add(handler);
+
+        return () => this.off(eventName, handler);
     }
 
-    off(event, handler) {
-        if (!event || typeof handler !== 'function' || !this.events[event]) return;
+    off(eventName, handler) {
+        const handlers = this.listeners.get(eventName);
+        if (!handlers) return;
 
-        this.events[event].delete(handler);
-        if (this.events[event].size === 0) {
-            delete this.events[event];
+        handlers.delete(handler);
+        if (handlers.size === 0) {
+            this.listeners.delete(eventName);
         }
     }
 
-    emit(event, payload) {
-        if (!event) return;
+    emit(eventName, payload) {
+        const handlers = this.listeners.get(eventName);
 
         if (EVENT_BUS_DEBUG) {
-            console.log(`[EventBus] ${event}`, payload);
+            console.log(`[EventBus] ${eventName}`, payload || '');
         }
 
-        const handlers = this.events[event];
         if (!handlers || handlers.size === 0) return;
 
-        for (const handler of handlers) {
+        handlers.forEach((handler) => {
             try {
                 handler(payload);
             } catch (error) {
-                console.error('EventBus handler error:', error);
+                console.error(`[EventBus] Handler error for "${eventName}"`, error);
             }
-        }
+        });
     }
 }
 
+export { EVENT_BUS_DEBUG };
 export const eventBus = new EventBus();
 
 if (typeof window !== 'undefined') {
     window.TeacherScreenEventBus = {
-        eventBus
+        eventBus,
+        EVENT_BUS_DEBUG
     };
 }
