@@ -264,6 +264,8 @@ class ProjectorApp {
                 case 'PresentationWidget': widget = new PresentationWidget(); break;
                 case 'MaskWidget': widget = new MaskWidget(); break;
                 case 'NotesWidget': widget = new NotesWidget(); break;
+                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                case 'RichTextWidget': widget = new RichTextWidget(); break;
             }
             return widget;
         });
@@ -312,9 +314,11 @@ class ProjectorApp {
                         case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
                         case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
                         case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                case 'PresentationWidget': widget = new PresentationWidget(); break;
+                        case 'PresentationWidget': widget = new PresentationWidget(); break;
                         case 'MaskWidget': widget = new MaskWidget(); break;
                         case 'NotesWidget': widget = new NotesWidget(); break;
+                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
+                        case 'RichTextWidget': widget = new RichTextWidget(); break;
                     }
                     if (widget) {
                         this.widgets.push(widget);
