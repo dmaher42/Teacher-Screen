@@ -59,16 +59,34 @@ function applyTheme(themeName) {
     localStorage.setItem('selectedTheme', nextTheme);
 }
 
-function safeParse(key) {
+function safeParseLocalStorage(key) {
     try {
         const value = localStorage.getItem(key);
         if (!value) return null;
         return JSON.parse(value);
     } catch (error) {
-        console.warn('Invalid localStorage data for', key);
+        console.warn('Invalid localStorage data detected for:', key);
         localStorage.removeItem(key);
         return null;
     }
+}
+
+function isValidLayout(layout) {
+    if (!layout || typeof layout !== 'object') return false;
+    if (!['dashboard', 'stage'].includes(layout.mode)) return false;
+    if (!Array.isArray(layout.widgets)) return false;
+
+    for (const widget of layout.widgets) {
+        if (!widget || typeof widget !== 'object') return false;
+        if (typeof widget.id !== 'string') return false;
+        if (typeof widget.type !== 'string') return false;
+        if (typeof widget.x !== 'number') return false;
+        if (typeof widget.y !== 'number') return false;
+        if (typeof widget.width !== 'number') return false;
+        if (typeof widget.height !== 'number') return false;
+    }
+
+    return true;
 }
 
 function resetAppState() {
@@ -250,7 +268,7 @@ class ClassroomScreenApp {
         try {
             this.loadSavedState();
         } catch (error) {
-            console.error('State restore failed. Resetting state.', error);
+            console.error('State restore failed. Resetting application state.', error);
             resetAppState();
         }
         this.backgroundManager.init();
@@ -1017,7 +1035,7 @@ class ClassroomScreenApp {
                 time: time
             };
 
-            const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+            const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
             recurringLessons.push(newRecurring);
             localStorage.setItem('teacherScreenRecurringLessons', JSON.stringify(recurringLessons));
 
@@ -1053,7 +1071,7 @@ class ClassroomScreenApp {
         if (!this.plannerGrid) return;
 
         const schedule = this.getSchedule();
-        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+        const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
         const startOfWeek = this.getWeekStart();
         const days = Array.from({ length: 5 }, (_, index) => {
             const date = new Date(startOfWeek);
@@ -1130,7 +1148,7 @@ class ClassroomScreenApp {
 
     loadTodaysLesson() {
         const schedule = this.getSchedule();
-        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+        const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
 
         const now = new Date();
         now.setMinutes(0, 0, 0);
@@ -1463,7 +1481,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        const existingState = safeParse('classroomScreenState');
+        const existingState = safeParseLocalStorage('classroomScreenState');
 
         const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
         mergedState.layout = layout;
@@ -1922,15 +1940,12 @@ class ClassroomScreenApp {
 
     loadSavedState() {
         const attemptLoad = (key) => {
-            const parsed = safeParse(key);
+            const parsed = safeParseLocalStorage(key);
             if (parsed && typeof parsed === 'object') {
-                if (!this.isValidLayoutData(parsed.layout)) {
-                    console.warn('Invalid layout data. Resetting layout.');
-                    localStorage.removeItem('classroomScreenState');
-                    return {
-                        ...parsed,
-                        layout: { mode: 'dashboard', widgets: [] }
-                    };
+                if (!isValidLayout(parsed.layout)) {
+                    console.warn('Invalid layout detected. Resetting layout state.');
+                    resetAppState();
+                    return null;
                 }
                 return parsed;
             }
@@ -1970,25 +1985,16 @@ class ClassroomScreenApp {
         console.log('No saved layout found — loading default layout');
     }
 
-    isValidLayoutData(layout) {
-        if (!layout || typeof layout !== 'object') return false;
-        if (!['dashboard', 'stage'].includes(layout.mode)) return false;
-        if (!Array.isArray(layout.widgets)) return false;
-        return layout.widgets.every((widget) => (
-            widget &&
-            typeof widget.id === 'string' &&
-            typeof widget.type === 'string' &&
-            typeof widget.x === 'number' &&
-            typeof widget.y === 'number' &&
-            typeof widget.width === 'number' &&
-            typeof widget.height === 'number'
-        ));
-    }
-
     applyState(state) {
         try {
             // Run migration pipeline
             state = this.runMigrations(state);
+
+            if (!isValidLayout(state.layout)) {
+                console.warn('Invalid layout detected. Resetting layout state.');
+                resetAppState();
+                return;
+            }
 
             // Restore theme
             if (state.theme) {

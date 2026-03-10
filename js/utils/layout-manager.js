@@ -7,6 +7,37 @@ const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScr
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
   : widgetInstance);
 
+
+function safeParseLocalStorage(key) {
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return null;
+    return JSON.parse(value);
+  } catch (error) {
+    console.warn('Invalid localStorage data detected for:', key);
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function isValidLayout(layout) {
+  if (!layout || typeof layout !== 'object') return false;
+  if (!['dashboard', 'stage'].includes(layout.mode)) return false;
+  if (!Array.isArray(layout.widgets)) return false;
+
+  for (const widget of layout.widgets) {
+    if (!widget || typeof widget !== 'object') return false;
+    if (typeof widget.id !== 'string') return false;
+    if (typeof widget.type !== 'string') return false;
+    if (typeof widget.x !== 'number') return false;
+    if (typeof widget.y !== 'number') return false;
+    if (typeof widget.width !== 'number') return false;
+    if (typeof widget.height !== 'number') return false;
+  }
+
+  return true;
+}
+
 const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
   NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
@@ -614,12 +645,16 @@ class LayoutManager {
   loadLayout() {
     // This function seems unused as `main.js` calls deserialize directly from `loadSavedState`
     // but we can keep it for consistency.
-    const savedLayout = localStorage.getItem('widgetLayout');
-    if (savedLayout) {
+    const layout = safeParseLocalStorage('widgetLayout');
+    if (layout) {
       this.isRestoring = true;
       try {
-        const layout = JSON.parse(savedLayout);
-        const layoutData = Array.isArray(layout) ? { widgets: layout } : layout;
+        const layoutData = Array.isArray(layout) ? { mode: 'dashboard', widgets: layout } : layout;
+        if (!isValidLayout(layoutData)) {
+          console.warn('Invalid layout detected. Resetting layout state.');
+          localStorage.removeItem('widgetLayout');
+          return;
+        }
         this.deserialize(layoutData, (widgetData) => this.createWidgetFromType(widgetData.type));
       } catch (e) {
         console.error('Failed to load layout:', e);
