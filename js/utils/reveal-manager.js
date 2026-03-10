@@ -1,6 +1,49 @@
 const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js';
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
 
+function isProjectorView() {
+    return window.location.pathname.includes('/projector');
+}
+
+function getRevealOptions() {
+    if (isProjectorView()) {
+        return {
+            embedded: true,
+            controls: false,
+            keyboard: false,
+            touch: false
+        };
+    }
+
+    return {
+        embedded: true,
+        hash: true,
+        slideNumber: true,
+        controls: true,
+        progress: true
+    };
+}
+
+function bindTeacherSlideSync(revealApi) {
+    if (isProjectorView() || typeof revealApi?.on !== 'function' || revealApi.__teacherScreenSlideSyncBound) {
+        return;
+    }
+
+    revealApi.on('slidechanged', () => {
+        const state = typeof revealApi.getState === 'function' ? revealApi.getState() : { indexh: 0, indexv: 0 };
+        const data = {
+            type: 'slide-update',
+            indexh: state.indexh,
+            indexv: state.indexv
+        };
+
+        console.log('[sync] teacher slide update', data);
+        localStorage.setItem('teacher-slide', JSON.stringify(data));
+    });
+
+    revealApi.__teacherScreenSlideSyncBound = true;
+}
+
 function ensureRevealCss() {
     if (document.querySelector(`link[data-teacher-screen-reveal="base"]`)) {
         return;
@@ -49,22 +92,16 @@ export async function initReveal(container) {
     }
 
     if (typeof window.Reveal === 'function') {
-        const deck = new window.Reveal(revealElement, {
-            embedded: true,
-            hash: false,
-            slideNumber: true
-        });
+        const deck = new window.Reveal(revealElement, getRevealOptions());
         await deck.initialize();
+        bindTeacherSlideSync(deck);
         container.__teacherScreenRevealDeck = deck;
         return deck;
     }
 
     if (window.Reveal && typeof window.Reveal.initialize === 'function') {
-        await window.Reveal.initialize({
-            embedded: true,
-            hash: false,
-            slideNumber: true
-        });
+        await window.Reveal.initialize(getRevealOptions());
+        bindTeacherSlideSync(window.Reveal);
         container.__teacherScreenRevealDeck = window.Reveal;
         return window.Reveal;
     }
