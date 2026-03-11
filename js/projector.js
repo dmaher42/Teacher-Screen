@@ -1,4 +1,3 @@
-import { appBus } from './utils/app-bus.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 
@@ -7,29 +6,10 @@ const PROJECTOR_APP_MODE = 'projector';
 
 console.log('Projector Mode:', PROJECTOR_APP_MODE);
 
-appBus.init();
-console.log('AppBus initialised');
-
 window.__ProjectorConnection = {
     window: window,
     connected: true
 };
-
-appBus.on('presentation:slideChanged', (payload = {}) => {
-    const { h = 0, v = 0 } = payload;
-    const deck = window.__RevealState && window.__RevealState.deck;
-
-    if (!deck || typeof deck.getIndices !== 'function' || typeof deck.slide !== 'function') {
-        console.warn('[RevealSync] deck not ready yet');
-        return;
-    }
-
-    const current = deck.getIndices();
-    if (current.h === h && current.v === v) return;
-
-    deck.slide(h, v);
-    console.log('[RevealSync] projector updated', h, v);
-});
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -78,6 +58,8 @@ const initializeRevealSyncListener = () => {
         touch: false
     });
 
+    // Teacher -> Projector synchronization
+    // Uses postMessage slideSync events.
     window.addEventListener('message', (event) => {
         const data = event.data;
 
