@@ -56,7 +56,7 @@ class PresentationWidget {
     }
 
     handleResize() {
-        const deck = this.stage.__teacherScreenRevealDeck;
+        const deck = window.__RevealState && window.__RevealState.deck;
         if (deck && typeof deck.layout === 'function') {
             deck.layout();
             return;

@@ -246,6 +246,8 @@ class RevealManagerWidget {
         const deck = this.getActiveRevealApi();
         if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
+        // Teacher -> Projector synchronization
+        // Uses postMessage slideSync events.
         const broadcastSlideSync = (event) => {
             if (!this.isTeacherMode()) return;
 
@@ -256,11 +258,6 @@ class RevealManagerWidget {
             };
 
             window.postMessage(payload, '*');
-
-            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-            if (appBus && typeof appBus.emit === 'function') {
-                appBus.emit('presentation:slideChanged', payload);
-            }
 
             return payload;
         };
@@ -502,7 +499,6 @@ class RevealManagerWidget {
                 controls: false,
                 progress: true
             });
-            window.__teacherScreenRevealDeck = window.Reveal;
             console.log('[Reveal] deck initialized');
             return true;
         }
@@ -511,7 +507,6 @@ class RevealManagerWidget {
             window.Reveal.sync();
         }
         window.__teacherScreenRevealInitialized = true;
-        window.__teacherScreenRevealDeck = window.Reveal;
         console.log('[Reveal] deck initialized');
         return true;
     }
