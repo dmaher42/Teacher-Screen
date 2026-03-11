@@ -25,6 +25,7 @@ class RevealManagerWidget {
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
         this.projectorWindow = null;
+        this.globalSlideSyncAttached = false;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -262,6 +263,10 @@ class RevealManagerWidget {
                 v: event && typeof event.indexv === 'number' ? event.indexv : 0
             };
 
+            if (this.activeDeck && this.activeDeck.type === 'url') {
+                payload.url = this.activeDeck.content;
+            }
+
             if (this.projectorWindow && !this.projectorWindow.closed) {
                 this.projectorWindow.postMessage(payload, '*');
             }
@@ -277,12 +282,14 @@ class RevealManagerWidget {
             console.log('[RevealSync] teacher initial broadcast', payload.h, payload.v);
         });
 
-        deck.on('slidechanged', (event) => {
-            const payload = broadcastSlideSync(event);
-            if (!payload) return;
-            console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
-        });
-
+        if (window.Reveal && typeof Reveal.on === 'function' && !this.globalSlideSyncAttached) {
+            Reveal.on('slidechanged', (event) => {
+                const payload = broadcastSlideSync(event);
+                if (!payload) return;
+                console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
+            });
+            this.globalSlideSyncAttached = true;
+        }
         this.slideChangeHandlerAttached = true;
     }
 
