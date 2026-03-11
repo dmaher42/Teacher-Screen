@@ -64,8 +64,12 @@ class PresentationWidget {
 
         // If Reveal did not initialize previously (e.g. widget restored while hidden),
         // retry loading the selected presentation when the widget is resized/visible.
-        if (this.currentPresentation && !this.stage.querySelector('.reveal')) {
-            this.loadPresentationByName(this.currentPresentation);
+        if (this.currentPresentation) {
+            import('./../utils/reveal-manager.js').then(({ hasMountedReveal }) => {
+                if (!hasMountedReveal(this.stage)) {
+                    this.loadPresentationByName(this.currentPresentation);
+                }
+            });
         }
 
     }
