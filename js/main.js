@@ -1424,6 +1424,23 @@ class ClassroomScreenApp {
         });
     }
 
+    applyProjectorLayoutDelta(delta, source = 'teacher') {
+        if (!delta || delta.type !== 'widget-update') {
+            return;
+        }
+
+        this.layoutManager.applyLayoutDelta(delta);
+        this.saveState(source);
+
+        if (source === 'teacher' && this.projectorChannel) {
+            this.projectorChannel.postMessage({
+                type: 'layout-delta',
+                source: 'teacher',
+                delta
+            });
+        }
+    }
+
 
     applyProjectorLayoutUpdate(layout) {
         if (!layout || !Array.isArray(layout.widgets)) {

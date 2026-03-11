@@ -1,4 +1,4 @@
-import { eventBus } from "../core/event-bus.js";
+const eventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 const revealEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
