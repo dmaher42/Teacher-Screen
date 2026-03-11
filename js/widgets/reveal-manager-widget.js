@@ -274,6 +274,8 @@ class RevealManagerWidget {
     handleRevealSlideEvent(payload) {
         if (!payload) return;
 
+        console.log('[RevealSync] event bus slide', payload.indexh, payload.indexv, payload.indexf || 0, payload.source || 'unknown');
+
         if (payload.source === 'teacher-local' && this.isProjectorView) {
             this.applySlideState(payload);
             return;
@@ -293,8 +295,10 @@ class RevealManagerWidget {
 
     handleSyncChannelMessage(event) {
         const message = event && event.data ? event.data : {};
-        if (!message || message.type !== 'reveal-slide-change') return;
+        if (!message || (message.type !== 'reveal-slide-change' && message.type !== 'reveal-slide')) return;
         if (!this.isProjectorView) return;
+
+        console.log('[RevealSync] projector received broadcast slide', message.h, message.v, message.f || 0);
 
         this.applySlideState({
             indexh: message.h,
@@ -312,7 +316,6 @@ class RevealManagerWidget {
     bindSlideChangeListener() {
         if (this.isProjectorView || !revealWidgetAppBus || !revealWidgetIsTeacherMode() || this.slideChangeHandlerAttached) return;
 
-        const frameWindow = this.iframeRef.current?.contentWindow;
         const reveal = this.getActiveRevealApi();
         if (!reveal || typeof reveal.on !== 'function') return;
 
@@ -321,6 +324,8 @@ class RevealManagerWidget {
                 this.isApplyingRemoteSlide = false;
                 return;
             }
+
+            console.log('[RevealSync] teacher slidechanged', event.indexh, event.indexv, event.indexf || 0);
 
             if (revealEventBus) {
                 try {
@@ -344,8 +349,15 @@ class RevealManagerWidget {
             }
 
             if (this.syncChannel && revealWidgetIsTeacherMode() && !this.isProjectorView) {
+                console.log('[RevealSync] teacher broadcast slide', event.indexh || 0, event.indexv || 0, event.indexf || 0);
                 this.syncChannel.postMessage({
                     type: 'reveal-slide-change',
+                    h: event.indexh || 0,
+                    v: event.indexv || 0,
+                    f: event.indexf || 0
+                });
+                this.syncChannel.postMessage({
+                    type: 'reveal-slide',
                     h: event.indexh || 0,
                     v: event.indexv || 0,
                     f: event.indexf || 0
@@ -389,8 +401,10 @@ class RevealManagerWidget {
     applySlideState(state, fromSyncChannel = false) {
         if (!state) return;
 
+        const reveal = this.getActiveRevealApi();
         const frameWindow = this.iframeRef.current?.contentWindow;
-        const reveal = frameWindow && frameWindow.Reveal;
+
+        console.log('[RevealSync] applySlideState', state.indexh || 0, state.indexv || 0, state.indexf || 0, fromSyncChannel ? '(remote)' : '(local bus)');
 
         if (reveal && typeof reveal.slide === 'function') {
             this.isApplyingRemoteSlide = fromSyncChannel;
@@ -400,7 +414,10 @@ class RevealManagerWidget {
 
         if (frameWindow) {
             frameWindow.postMessage({ type: 'reveal-slide-state', state }, '*');
+            return;
         }
+
+        console.warn('[RevealSync] unable to apply slide state; reveal API not available');
     }
 
     toggleCompact(compact) {
