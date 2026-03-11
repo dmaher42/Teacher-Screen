@@ -24,7 +24,7 @@ class RevealManagerWidget {
         this.isProjectorView = this.isProjectorMode();
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
-        this.syncChannel = null;
+        this.revealChannel = null;
         this.isRemoteUpdate = false;
         this.pendingRemoteSlide = null;
         this.revealReady = false;
@@ -237,8 +237,8 @@ class RevealManagerWidget {
 
     setupRevealSync() {
         if (typeof BroadcastChannel === 'function') {
-            this.syncChannel = new BroadcastChannel(REVEAL_SYNC_CHANNEL_NAME);
-            this.syncChannel.onmessage = this.handleSyncChannelMessage;
+            this.revealChannel = new BroadcastChannel(REVEAL_SYNC_CHANNEL_NAME);
+            this.revealChannel.onmessage = this.handleSyncChannelMessage;
         }
     }
 
@@ -300,12 +300,12 @@ class RevealManagerWidget {
 
             if (!this.isTeacherMode()) return;
 
-            if (this.syncChannel && !this.isProjectorView) {
+            if (this.revealChannel && !this.isProjectorView) {
                 const indexh = event.indexh || 0;
                 const indexv = event.indexv || 0;
                 const indexf = event.indexf || 0;
                 console.log('[RevealSync] teacher broadcast', indexh, indexv);
-                this.syncChannel.postMessage({
+                this.revealChannel.postMessage({
                     type: 'reveal-slide',
                     indexh,
                     indexv,
@@ -315,28 +315,6 @@ class RevealManagerWidget {
         });
 
         this.slideChangeHandlerAttached = true;
-    }
-
-    applySlideState(state, fromSyncChannel = false) {
-        if (!state) return;
-
-        const deck = this.getActiveRevealApi();
-        const frameWindow = this.iframeRef.current?.contentWindow;
-
-        console.log('[RevealSync] applySlideState', state.indexh || 0, state.indexv || 0, state.indexf || 0, fromSyncChannel ? '(remote)' : '(local bus)');
-
-        if (deck && typeof deck.slide === 'function') {
-            this.isRemoteUpdate = fromSyncChannel;
-            deck.slide(state.indexh || 0, state.indexv || 0, state.indexf || 0);
-            return;
-        }
-
-        if (frameWindow) {
-            frameWindow.postMessage({ type: 'reveal-slide-state', state }, '*');
-            return;
-        }
-
-        console.warn('[RevealSync] unable to apply slide state; reveal API not available');
     }
 
     toggleCompact(compact) {
@@ -488,7 +466,7 @@ class RevealManagerWidget {
     }
 
     loadPresentation(container, html) {
-        if (this.revealDeck && this.revealDeckContainer === container) {
+        if (this.revealDeck) {
             return this.revealDeck;
         }
 
@@ -668,22 +646,6 @@ ${revealBootstrapScript}`;
         this.inlineDeckContainer.style.display = 'none';
         this.launchButton.textContent = 'Open';
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
-    }
-
-    applyFragmentState(state) {
-        if (!state) return;
-
-        const frameWindow = this.iframeRef.current?.contentWindow;
-        const reveal = this.getActiveRevealApi();
-
-        if (reveal && typeof reveal.setState === 'function') {
-            reveal.setState(state);
-            return;
-        }
-
-        if (frameWindow) {
-            frameWindow.postMessage({ type: 'reveal-fragment-state', state }, '*');
-        }
     }
 
     sendKeyToIframe(direction) {
@@ -977,13 +939,9 @@ ${revealBootstrapScript}`;
             this.presenterWindowMonitor = null;
         }
 
-        if (this.syncChannel) {
-            this.syncChannel.close();
-            this.syncChannel = null;
-        }
-
-        if (eventBus) {
-            eventBus.off('reveal:navigate', this.handleInternalRevealNavigate);
+        if (this.revealChannel) {
+            this.revealChannel.close();
+            this.revealChannel = null;
         }
 
         if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {
