@@ -1,4 +1,5 @@
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
+import { initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 
 window.APP_MODE = 'projector';
@@ -23,7 +24,6 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
 const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
     await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
     await loadClassicScript('js/utils/layout-manager.js');
     await loadClassicScript('js/utils/background-manager.js');
@@ -54,42 +54,43 @@ async function loadPresentation(url) {
         return;
     }
 
-    root.innerHTML = html;
-
-    initializeReveal();
+    mountPresentationMarkup(root, html);
+    const deck = await initializeReveal(root);
+    if (deck && typeof layoutReveal === 'function') {
+        layoutReveal(root);
+    }
 }
 
-function initializeReveal() {
-    const revealElement = document.querySelector('.reveal');
-
-    if (!revealElement) {
-        console.warn('Reveal container not found');
+const slideRevealWhenReady = async (h = 0, v = 0) => {
+    const revealState = window.__RevealState;
+    const deck = revealState && revealState.deck;
+    if (!deck || typeof deck.slide !== 'function') {
         return;
     }
 
-    if (window.Reveal && Reveal.isReady()) {
-        console.warn('Reveal already initialized');
+    if (revealState.ready || (typeof deck.isReady === 'function' && deck.isReady())) {
+        deck.slide(h, v);
         return;
     }
 
-    if (!window.Reveal || typeof Reveal.initialize !== 'function') {
-        console.warn('Reveal library not available');
-        return;
-    }
+    await new Promise((resolve) => {
+        const onReady = () => {
+            if (typeof deck.off === 'function') {
+                deck.off('ready', onReady);
+            }
+            resolve();
+        };
 
-    if (window.Reveal && Reveal.isReady()) return;
+        if (typeof deck.on === 'function') {
+            deck.on('ready', onReady);
+            return;
+        }
 
-    Reveal.initialize({
-        controls: false,
-        progress: false,
-        history: false,
-        keyboard: false
+        resolve();
     });
-}
 
-const slideRevealWhenReady = (h = 0, v = 0) => {
-    if (window.Reveal && Reveal.isReady()) {
-        Reveal.slide(h, v);
+    if (typeof deck.slide === 'function') {
+        deck.slide(h, v);
     }
 };
 
