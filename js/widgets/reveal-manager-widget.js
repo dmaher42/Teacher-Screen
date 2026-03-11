@@ -552,7 +552,20 @@ class RevealManagerWidget {
         }
 
         const frameWindow = this.iframeRef.current?.contentWindow;
-        return frameWindow && frameWindow.Reveal ? frameWindow.Reveal : null;
+        if (!frameWindow) return null;
+
+        const frameDeck = frameWindow.document
+            && typeof frameWindow.document.querySelector === 'function'
+            ? frameWindow.document.querySelector('.reveal')?.Reveal
+            : null;
+
+        if (frameDeck && typeof frameDeck.on === 'function') {
+            return frameDeck;
+        }
+
+        return frameWindow.Reveal && typeof frameWindow.Reveal.on === 'function'
+            ? frameWindow.Reveal
+            : null;
     }
 
     loadPresentation(container, html) {
