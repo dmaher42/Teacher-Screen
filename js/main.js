@@ -1,5 +1,14 @@
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
+import {
+    saveState,
+    loadSavedState,
+    captureLocalStorageState,
+    restoreLocalStorageState,
+    safeParseLocalStorage,
+    isValidLayout,
+    runMigrations
+} from './services/state-manager.js';
 
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
@@ -30,25 +39,6 @@ function debounce(fn, delay = 250) {
     };
 }
 
-const STATE_MIGRATIONS = [
-    {
-        from: 0,
-        to: 1,
-        migrate(state) {
-            // Ensure state.layout exists and is well-formed.
-            if (!state.layout || typeof state.layout !== 'object' || !Array.isArray(state.layout.widgets)) {
-                state.layout = { widgets: [] };
-            }
-            // Future-proofing: Normalize widget types if they ever change format.
-            // For now, this is a placeholder for more complex migrations.
-
-            state.schemaVersion = 1;
-            console.log('Migrated state from schema v0 to v1');
-            return state;
-        }
-    }
-];
-
 const THEMES = [
     'theme-ocean',
     'theme-professional',
@@ -60,36 +50,6 @@ function applyTheme(themeName) {
     THEMES.forEach(theme => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
     localStorage.setItem('selectedTheme', nextTheme);
-}
-
-function safeParseLocalStorage(key) {
-    try {
-        const value = localStorage.getItem(key);
-        if (!value) return null;
-        return JSON.parse(value);
-    } catch (error) {
-        console.warn('Invalid localStorage data detected for:', key);
-        localStorage.removeItem(key);
-        return null;
-    }
-}
-
-function isValidLayout(layout) {
-    if (!layout || typeof layout !== 'object') return false;
-    if (!['dashboard', 'stage'].includes(layout.mode)) return false;
-    if (!Array.isArray(layout.widgets)) return false;
-
-    for (const widget of layout.widgets) {
-        if (!widget || typeof widget !== 'object') return false;
-        if (typeof widget.id !== 'string') return false;
-        if (typeof widget.type !== 'string') return false;
-        if (typeof widget.x !== 'number') return false;
-        if (typeof widget.y !== 'number') return false;
-        if (typeof widget.width !== 'number') return false;
-        if (typeof widget.height !== 'number') return false;
-    }
-
-    return true;
 }
 
 function resetAppState() {
@@ -1289,24 +1249,6 @@ class ClassroomScreenApp {
         });
     }
 
-    captureLocalStorageState() {
-        const snapshot = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('layouts_')) continue;
-            snapshot[key] = localStorage.getItem(key);
-        }
-        return snapshot;
-    }
-
-    restoreLocalStorageState(snapshot = {}) {
-        Object.entries(snapshot).forEach(([key, value]) => {
-            if (typeof value === 'string') {
-                localStorage.setItem(key, value);
-            }
-        });
-    }
-
     saveLayoutFromModal() {
         const layoutName = this.layoutNameInput ? this.layoutNameInput.value.trim() : '';
         if (!layoutName) {
@@ -1328,7 +1270,7 @@ class ClassroomScreenApp {
             background: this.backgroundManager.serialize(),
             layout: layoutData,
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
-            storage: this.captureLocalStorageState()
+            storage: captureLocalStorageState()
         };
 
         localStorage.setItem(this.getLayoutStorageKey(layoutName), JSON.stringify(payload));
@@ -1350,7 +1292,7 @@ class ClassroomScreenApp {
             const data = JSON.parse(raw);
 
             if (data.storage) {
-                this.restoreLocalStorageState(data.storage);
+                restoreLocalStorageState(data.storage);
             }
 
             if (data.theme) {
@@ -1476,29 +1418,9 @@ class ClassroomScreenApp {
 
     saveState(source = 'teacher') {
         const state = this.buildStateSnapshot();
-        const stateJSON = JSON.stringify(state);
-        localStorage.setItem('classroomScreenState', stateJSON);
-
-        // Rotate backups
-        try {
-            const backup1 = localStorage.getItem('classroomScreenState.backup1');
-            const backup2 = localStorage.getItem('classroomScreenState.backup2');
-
-            if (backup2) {
-                localStorage.setItem('classroomScreenState.backup3', backup2);
-            }
-            if (backup1) {
-                localStorage.setItem('classroomScreenState.backup2', backup1);
-            }
-            localStorage.setItem('classroomScreenState.backup1', stateJSON);
-        } catch (e) {
-            console.error('Backup rotation failed:', e);
-        }
-
-        this.projectorChannel.postMessage({
-            type: 'layout-update',
-            state: state,
-            source
+        saveState(state, {
+            source,
+            projectorChannel: this.projectorChannel
         });
     }
 
@@ -1711,7 +1633,7 @@ class ClassroomScreenApp {
                 throw new Error('Invalid JSON structure.');
             }
 
-            let state = this.runMigrations(parsed.state);
+            let state = runMigrations(parsed.state, this.schemaVersion);
 
             const summary = `
                 Ready to import:
@@ -1845,56 +1767,18 @@ class ClassroomScreenApp {
     }
 
     loadSavedState() {
-        const attemptLoad = (key) => {
-            const parsed = safeParseLocalStorage(key);
-            if (parsed && typeof parsed === 'object') {
-                if (!isValidLayout(parsed.layout)) {
-                    console.warn('Invalid layout detected. Resetting layout state.');
-                    resetAppState();
-                    return null;
-                }
-                return parsed;
-            }
-            return null;
-        };
-
-        // Try loading primary state
-        let state = attemptLoad('classroomScreenState');
-        if (state) {
-            this.applyState(state);
-            return;
-        }
-
-        // If primary failed, try backups
-        const backupKeys = [
-            'classroomScreenState.backup1',
-            'classroomScreenState.backup2',
-            'classroomScreenState.backup3'
-        ];
-
-        for (const key of backupKeys) {
-            state = attemptLoad(key);
-            if (state) {
-                console.log(`Restoring state from ${key}`);
-                this.applyState(state);
-                this.showNotification('Your layout was restored from a backup.');
-                return;
-            }
-        }
-
-        // If all fail, ensure corrupt state is cleared so defaults can load
-        if (localStorage.getItem('classroomScreenState')) {
-            console.warn('Corrupt state detected and no backups available; clearing.');
-            resetAppState();
-        }
-
-        console.log('No saved layout found — loading default layout');
+        loadSavedState({
+            applyState: (state) => this.applyState(state),
+            resetAppState,
+            showNotification: (message) => this.showNotification(message),
+            schemaVersion: this.schemaVersion
+        });
     }
 
     applyState(state) {
         try {
             // Run migration pipeline
-            state = this.runMigrations(state);
+            state = runMigrations(state, this.schemaVersion);
 
             if (!isValidLayout(state.layout)) {
                 console.warn('Invalid layout detected. Resetting layout state.');
@@ -1934,23 +1818,6 @@ class ClassroomScreenApp {
             localStorage.removeItem('classroomScreenState');
             this.showNotification("Your previous layout was corrupted; reset to defaults.", "warning");
         }
-    }
-
-    runMigrations(state) {
-        // Default to schema 0 if it's a legacy state object.
-        state.schemaVersion = state.schemaVersion || 0;
-
-        while (state.schemaVersion < this.schemaVersion) {
-            const migration = STATE_MIGRATIONS.find(m => m.from === state.schemaVersion);
-            if (!migration) {
-                console.warn(`No migration found for schema version ${state.schemaVersion}. Halting migration.`);
-                // Potentially discard incompatible layout, or handle error gracefully.
-                state.layout = { widgets: [] };
-                break;
-            }
-            state = migration.migrate(state);
-        }
-        return state;
     }
 
     resetLayout() {
