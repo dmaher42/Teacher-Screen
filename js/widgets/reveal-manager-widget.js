@@ -1,9 +1,5 @@
 const eventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
-const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-const revealEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
-const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
-const revealWidgetIsProjectorMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isProjectorMode : () => false;
-const REVEAL_SYNC_CHANNEL_NAME = 'teacher-screen-sync';
+const REVEAL_SYNC_CHANNEL_NAME = 'reveal-sync';
 
 /**
  * RevealManagerWidget
@@ -29,10 +25,8 @@ class RevealManagerWidget {
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
         this.syncChannel = null;
-        this.isApplyingRemoteSlide = false;
+        this.isRemoteUpdate = false;
         this.handleSyncChannelMessage = this.handleSyncChannelMessage.bind(this);
-        this.handleRevealSlideEvent = this.handleRevealSlideEvent.bind(this);
-        this.handleRevealFragmentEvent = this.handleRevealFragmentEvent.bind(this);
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -244,67 +238,21 @@ class RevealManagerWidget {
             this.syncChannel = new BroadcastChannel(REVEAL_SYNC_CHANNEL_NAME);
             this.syncChannel.onmessage = this.handleSyncChannelMessage;
         }
-
-        if (revealEventBus) {
-            revealEventBus.on('reveal:slide-changed', this.handleRevealSlideEvent);
-            revealEventBus.on('reveal:fragment-changed', this.handleRevealFragmentEvent);
-        }
-
-        if (!revealWidgetAppBus || !revealWidgetIsProjectorMode()) return;
-
-        revealWidgetAppBus.on('reveal-slide-change', (payload) => {
-            if (!payload || !revealEventBus) return;
-            try {
-                revealEventBus.emit('reveal:slide-changed', { ...payload, source: 'app-bus' });
-            } catch (error) {
-                console.error('[Reveal] failed to forward slide event', error);
-            }
-        });
-
-        revealWidgetAppBus.on('reveal-fragment-change', (state) => {
-            if (!state || !revealEventBus) return;
-            try {
-                revealEventBus.emit('reveal:fragment-changed', { state, source: 'app-bus' });
-            } catch (error) {
-                console.error('[Reveal] failed to forward fragment event', error);
-            }
-        });
-    }
-
-    handleRevealSlideEvent(payload) {
-        if (!payload) return;
-
-        console.log('[RevealSync] event bus slide', payload.indexh, payload.indexv, payload.indexf || 0, payload.source || 'unknown');
-
-        if (payload.source === 'teacher-local' && this.isProjectorView) {
-            this.applySlideState(payload);
-            return;
-        }
-
-        if (payload.source === 'app-bus' && this.isProjectorView) {
-            this.applySlideState(payload);
-        }
-    }
-
-    handleRevealFragmentEvent(payload) {
-        const fragmentState = payload && payload.state ? payload.state : payload;
-        if (!fragmentState || !this.isProjectorView) return;
-
-        this.applyFragmentState(fragmentState);
     }
 
     handleSyncChannelMessage(event) {
         const message = event && event.data ? event.data : {};
-        if (!message || (message.type !== 'reveal-slide-change' && message.type !== 'reveal-slide')) return;
+        if (!message || message.type !== 'reveal-slide') return;
         if (!this.isProjectorView) return;
 
-        console.log('[RevealSync] projector received broadcast slide', message.h, message.v, message.f || 0);
+        const deck = this.getActiveRevealApi();
+        const { indexh = 0, indexv = 0, indexf = 0 } = message;
 
-        this.applySlideState({
-            indexh: message.h,
-            indexv: message.v,
-            indexf: message.f || 0
-        }, true);
+        if (deck && typeof deck.slide === 'function') {
+            this.isRemoteUpdate = true;
+            console.log('[RevealSync] projector apply', indexh, indexv);
+            deck.slide(indexh, indexv, indexf);
+        }
     }
 
     handleIframeLoad() {
@@ -314,84 +262,26 @@ class RevealManagerWidget {
     }
 
     bindSlideChangeListener() {
-        if (this.isProjectorView || !revealWidgetAppBus || !revealWidgetIsTeacherMode() || this.slideChangeHandlerAttached) return;
+        const deck = this.getActiveRevealApi();
+        if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
-        const reveal = this.getActiveRevealApi();
-        if (!reveal || typeof reveal.on !== 'function') return;
-
-        reveal.on('slidechanged', (event) => {
-            if (this.isApplyingRemoteSlide) {
-                this.isApplyingRemoteSlide = false;
+        deck.on('slidechanged', (event) => {
+            if (this.isRemoteUpdate) {
+                this.isRemoteUpdate = false;
                 return;
             }
 
-            console.log('[RevealSync] teacher slidechanged', event.indexh, event.indexv, event.indexf || 0);
-
-            if (revealEventBus) {
-                try {
-                    revealEventBus.emit('reveal:slide-changed', {
-                        indexh: event.indexh,
-                        indexv: event.indexv,
-                        indexf: event.indexf || 0,
-                        source: 'teacher-local'
-                    });
-                } catch (error) {
-                    console.error('[Reveal] failed to emit slide-changed', error);
-                }
-            }
-
-            if (revealWidgetAppBus) {
-                revealWidgetAppBus.emit('reveal-slide-change', {
-                    indexh: event.indexh,
-                    indexv: event.indexv,
-                    indexf: event.indexf || 0
-                });
-            }
-
-            if (this.syncChannel && revealWidgetIsTeacherMode() && !this.isProjectorView) {
-                console.log('[RevealSync] teacher broadcast slide', event.indexh || 0, event.indexv || 0, event.indexf || 0);
-                this.syncChannel.postMessage({
-                    type: 'reveal-slide-change',
-                    h: event.indexh || 0,
-                    v: event.indexv || 0,
-                    f: event.indexf || 0
-                });
+            if (this.syncChannel && !this.isProjectorView) {
+                const indexh = event.indexh || 0;
+                const indexv = event.indexv || 0;
+                const indexf = event.indexf || 0;
+                console.log('[RevealSync] teacher broadcast', indexh, indexv);
                 this.syncChannel.postMessage({
                     type: 'reveal-slide',
-                    h: event.indexh || 0,
-                    v: event.indexv || 0,
-                    f: event.indexf || 0
+                    indexh,
+                    indexv,
+                    indexf
                 });
-            }
-        });
-
-        reveal.on('fragmentshown', () => {
-            if (typeof reveal.getState !== 'function') return;
-            const state = reveal.getState();
-            if (revealEventBus) {
-                try {
-                    revealEventBus.emit('reveal:fragment-changed', { state, source: 'teacher-local' });
-                } catch (error) {
-                    console.error('[Reveal] failed to emit fragment-changed', error);
-                }
-            }
-            if (revealWidgetAppBus) {
-                revealWidgetAppBus.emit('reveal-fragment-change', state);
-            }
-        });
-
-        reveal.on('fragmenthidden', () => {
-            if (typeof reveal.getState !== 'function') return;
-            const state = reveal.getState();
-            if (revealEventBus) {
-                try {
-                    revealEventBus.emit('reveal:fragment-changed', { state, source: 'teacher-local' });
-                } catch (error) {
-                    console.error('[Reveal] failed to emit fragment-changed', error);
-                }
-            }
-            if (revealWidgetAppBus) {
-                revealWidgetAppBus.emit('reveal-fragment-change', state);
             }
         });
 
@@ -401,14 +291,14 @@ class RevealManagerWidget {
     applySlideState(state, fromSyncChannel = false) {
         if (!state) return;
 
-        const reveal = this.getActiveRevealApi();
+        const deck = this.getActiveRevealApi();
         const frameWindow = this.iframeRef.current?.contentWindow;
 
         console.log('[RevealSync] applySlideState', state.indexh || 0, state.indexv || 0, state.indexf || 0, fromSyncChannel ? '(remote)' : '(local bus)');
 
-        if (reveal && typeof reveal.slide === 'function') {
-            this.isApplyingRemoteSlide = fromSyncChannel;
-            reveal.slide(state.indexh || 0, state.indexv || 0, state.indexf || 0);
+        if (deck && typeof deck.slide === 'function') {
+            this.isRemoteUpdate = fromSyncChannel;
+            deck.slide(state.indexh || 0, state.indexv || 0, state.indexf || 0);
             return;
         }
 
@@ -784,40 +674,6 @@ ${revealBootstrapScript}`;
 
         this.sendNavToPresenter(direction);
 
-        if (!this.isProjectorView && revealWidgetIsTeacherMode()) {
-            this.broadcastCurrentSlideState();
-        }
-    }
-
-    broadcastCurrentSlideState() {
-        if (!revealWidgetAppBus || this.isProjectorView || !revealWidgetIsTeacherMode()) return;
-
-        const reveal = this.getActiveRevealApi();
-        if (!reveal || typeof reveal.getIndices !== 'function') return;
-
-        const indices = reveal.getIndices();
-        if (eventBus) {
-            eventBus.emit('reveal:slide-changed', {
-                h: indices.h || 0,
-                v: indices.v || 0,
-                f: indices.f || 0
-            });
-        }
-
-        revealWidgetAppBus.emit('reveal-slide-change', {
-            indexh: indices.h || 0,
-            indexv: indices.v || 0,
-            indexf: indices.f || 0
-        });
-
-        if (this.syncChannel) {
-            this.syncChannel.postMessage({
-                type: 'reveal-slide-change',
-                h: indices.h || 0,
-                v: indices.v || 0,
-                f: indices.f || 0
-            });
-        }
     }
 
     sendNavToPresenter(direction) {
@@ -1041,11 +897,6 @@ ${revealBootstrapScript}`;
     setEditable() {}
 
     remove() {
-        if (revealEventBus) {
-            revealEventBus.off('reveal:slide-changed', this.handleRevealSlideEvent);
-            revealEventBus.off('reveal:fragment-changed', this.handleRevealFragmentEvent);
-        }
-
         document.body.style.overflow = 'auto';
 
         this.modeRadios.forEach((radio) => radio.removeEventListener('change', this.handleModeChange));
