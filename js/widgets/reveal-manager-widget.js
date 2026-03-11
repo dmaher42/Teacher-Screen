@@ -1,5 +1,4 @@
 const eventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
-const REVEAL_SYNC_CHANNEL_NAME = 'reveal-sync';
 
 /**
  * RevealManagerWidget
@@ -8,6 +7,7 @@ const REVEAL_SYNC_CHANNEL_NAME = 'reveal-sync';
 class RevealManagerWidget {
     static activeInstance = null;
     static keyboardHandlerInitialized = false;
+    static projectorSyncForwarderInitialized = false;
 
     constructor() {
         this.layoutType = 'grid';
@@ -24,11 +24,6 @@ class RevealManagerWidget {
         this.isProjectorView = this.isProjectorMode();
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
-        this.revealChannel = null;
-        this.isRemoteUpdate = false;
-        this.pendingRemoteSlide = null;
-        this.revealReady = false;
-        this.handleSyncChannelMessage = this.handleSyncChannelMessage.bind(this);
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -228,35 +223,28 @@ class RevealManagerWidget {
     }
 
     setupRevealSync() {
-        if (typeof BroadcastChannel === 'function') {
-            this.revealChannel = new BroadcastChannel(REVEAL_SYNC_CHANNEL_NAME);
-            this.revealChannel.onmessage = this.handleSyncChannelMessage;
-        }
-    }
+        if (RevealManagerWidget.projectorSyncForwarderInitialized || !this.isTeacherMode()) return;
 
-    handleSyncChannelMessage(event) {
-        const message = event && event.data ? event.data : {};
-        if (!message || message.type !== 'reveal-slide') return;
-        if (!this.isProjectorView) return;
+        const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+        if (!appBus || typeof appBus.on !== 'function') return;
 
-        const { indexh = 0, indexv = 0, indexf = 0 } = message;
-        const deck = this.getActiveRevealApi();
+        appBus.on('presentation:slideChanged', (data = {}) => {
+            const projector = window.projectorWindow;
+            if (!projector || projector.closed) return;
 
-        if (!deck || typeof deck.slide !== 'function' || typeof deck.isReady !== 'function' || !deck.isReady()) {
-            console.log('[RevealSync] deck not ready yet');
-            this.pendingRemoteSlide = { indexh, indexv, indexf };
-            return;
-        }
+            projector.postMessage({
+                type: 'slideSync',
+                h: data.h || 0,
+                v: data.v || 0
+            }, '*');
+        });
 
-        this.isRemoteUpdate = true;
-        console.log('[RevealSync] projector apply', indexh, indexv);
-        deck.slide(indexh, indexv, indexf);
+        RevealManagerWidget.projectorSyncForwarderInitialized = true;
     }
 
     handleIframeLoad() {
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
-        this.revealReady = false;
         this.bindSlideChangeListener();
     }
 
@@ -264,46 +252,28 @@ class RevealManagerWidget {
         const deck = this.getActiveRevealApi();
         if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
-        const applyPendingRemoteSlide = () => {
-            if (!this.pendingRemoteSlide) return;
-            const { indexh = 0, indexv = 0, indexf = 0 } = this.pendingRemoteSlide;
-            this.pendingRemoteSlide = null;
-            this.isRemoteUpdate = true;
-            console.log('[RevealSync] projector apply', indexh, indexv);
-            deck.slide(indexh, indexv, indexf);
-        };
-
-        deck.on('ready', () => {
-            this.revealReady = true;
-            console.log('[Reveal] ready');
-            applyPendingRemoteSlide();
-        });
-
-        if (typeof deck.isReady === 'function' && deck.isReady()) {
-            this.revealReady = true;
-            applyPendingRemoteSlide();
-        }
-
-        deck.on('slidechanged', (event) => {
-            if (this.isRemoteUpdate) {
-                this.isRemoteUpdate = false;
-                return;
-            }
-
+        deck.on('ready', (event) => {
             if (!this.isTeacherMode()) return;
 
-            if (this.revealChannel && !this.isProjectorView) {
-                const indexh = event.indexh || 0;
-                const indexv = event.indexv || 0;
-                const indexf = event.indexf || 0;
-                console.log('[RevealSync] teacher broadcast', indexh, indexv);
-                this.revealChannel.postMessage({
-                    type: 'reveal-slide',
-                    indexh,
-                    indexv,
-                    indexf
-                });
-            }
+            const indexh = event && typeof event.indexh === 'number' ? event.indexh : 0;
+            const indexv = event && typeof event.indexv === 'number' ? event.indexv : 0;
+            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+            if (!appBus || typeof appBus.emit !== 'function') return;
+
+            appBus.emit('presentation:slideChanged', { h: indexh, v: indexv });
+            console.log('[RevealSync] teacher initial broadcast', indexh, indexv);
+        });
+
+        deck.on('slidechanged', (event) => {
+            if (!this.isTeacherMode()) return;
+
+            const indexh = event && typeof event.indexh === 'number' ? event.indexh : 0;
+            const indexv = event && typeof event.indexv === 'number' ? event.indexv : 0;
+            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+            if (!appBus || typeof appBus.emit !== 'function') return;
+
+            appBus.emit('presentation:slideChanged', { h: indexh, v: indexv });
+            console.log('[RevealSync] teacher broadcast', indexh, indexv);
         });
 
         this.slideChangeHandlerAttached = true;
@@ -598,9 +568,6 @@ ${revealBootstrapScript}`;
 
         const content = deck.type === 'html' ? deck.content : deck.content;
 
-        this.pendingRemoteSlide = null;
-        this.revealReady = false;
-
         this.activeDeck = {
             id: deck.id,
             name: deck.name,
@@ -637,8 +604,6 @@ ${revealBootstrapScript}`;
     stopDeck() {
         this.activeDeck = null;
         this.revealDeck = null;
-        this.pendingRemoteSlide = null;
-        this.revealReady = false;
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
@@ -953,11 +918,6 @@ ${revealBootstrapScript}`;
         if (this.presenterWindowMonitor) {
             clearInterval(this.presenterWindowMonitor);
             this.presenterWindowMonitor = null;
-        }
-
-        if (this.revealChannel) {
-            this.revealChannel.close();
-            this.revealChannel = null;
         }
 
         if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {

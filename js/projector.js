@@ -9,6 +9,24 @@ console.log('Projector Mode:', PROJECTOR_APP_MODE);
 appBus.init();
 console.log('AppBus initialised');
 
+window.addEventListener('message', (event) => {
+    if (!event.data || event.data.type !== 'slideSync') return;
+
+    const { h = 0, v = 0 } = event.data;
+    const deck = window.__teacherScreenRevealDeck;
+
+    if (!deck || typeof deck.getIndices !== 'function' || typeof deck.slide !== 'function') {
+        console.warn('[RevealSync] deck not ready yet');
+        return;
+    }
+
+    const current = deck.getIndices();
+    if (current.h === h && current.v === v) return;
+
+    deck.slide(h, v);
+    console.log('[RevealSync] projector updated', h, v);
+});
+
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
