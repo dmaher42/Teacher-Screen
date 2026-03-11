@@ -8,6 +8,10 @@ const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScr
   : widgetInstance);
 const layoutManagerEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 
 function safeParseLocalStorage(key) {
   try {
@@ -97,6 +101,10 @@ class LayoutManager {
 
   init() {
     this.applyGridStyles();
+    window.addEventListener('resize', () => {
+      this.clampAllWidgetsToContainer();
+      this.saveLayout({ emitFull: false });
+    });
   }
 
   applyGridStyles() {
@@ -238,6 +246,38 @@ class LayoutManager {
     return { width: w, height: h };
   }
 
+  normalizeWidgetBounds(x, y, width, height) {
+    const containerWidth = this.container.clientWidth || 1024;
+    const containerHeight = this.container.clientHeight || 768;
+    const safeWidth = Number.isFinite(width) && width > 0 ? width : 320;
+    const safeHeight = Number.isFinite(height) && height > 0 ? height : 240;
+    const maxX = Math.max(0, containerWidth - safeWidth);
+    const maxY = Math.max(0, containerHeight - safeHeight);
+
+    return {
+      x: clamp(Number.isFinite(x) ? x : 0, 0, maxX),
+      y: clamp(Number.isFinite(y) ? y : 0, 0, maxY),
+      width: safeWidth,
+      height: safeHeight
+    };
+  }
+
+  clampWidgetToContainer(widgetInfo) {
+    if (!widgetInfo) return;
+    const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height);
+    widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+  }
+
+  clampAllWidgetsToContainer() {
+    this.widgets.forEach((widgetInfo) => {
+      this.clampWidgetToContainer(widgetInfo);
+      this.mountWidgetElement(widgetInfo);
+    });
+  }
+
   moveWidgetByDelta(widgetElement, dx, dy) {
     const info = this.widgets.find(w => w.element === widgetElement);
     if (!info) return;
@@ -310,6 +350,12 @@ class LayoutManager {
      finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
      finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
      finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
+
+     const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
+     finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+     finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+     finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+     finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
 
     // Create widget container
     const widgetElement = document.createElement('div');
@@ -600,13 +646,14 @@ class LayoutManager {
         const finalLeft = parseInt(widgetElement.style.left, 10) || 0;
         const finalTop = parseInt(widgetElement.style.top, 10) || 0;
 
-        const snappedLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
-        const snappedTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
+        const info = this.widgets.find(w => w.element === widgetElement);
+        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, info?.width, info?.height);
+        const snappedLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+        const snappedTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
 
         widgetElement.style.left = `${snappedLeft}px`;
         widgetElement.style.top = `${snappedTop}px`;
 
-        const info = this.widgets.find(w => w.element === widgetElement);
         if (info) {
           info.x = snappedLeft;
           info.y = snappedTop;
@@ -759,8 +806,8 @@ class LayoutManager {
       finalH *= heightScale;
 
       // Default fallback
-      if (finalW == null) finalW = colW * 3;
-      if (finalH == null) finalH = rowH * 2;
+      if (finalW == null) finalW = 320;
+      if (finalH == null) finalH = 240;
       if (finalX == null) finalX = 0;
       if (finalY == null) finalY = 0;
 
@@ -769,6 +816,12 @@ class LayoutManager {
       finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
       finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
       finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
+
+      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
+      finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+      finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+      finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
 
       const widgetElement = document.createElement('div');
       const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
@@ -821,6 +874,7 @@ class LayoutManager {
     widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
     widget.width = typeof delta.w === 'number' ? delta.w : widget.width;
     widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
+    this.clampWidgetToContainer(widget);
     this.mountWidgetElement(widget);
   }
 

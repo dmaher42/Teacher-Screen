@@ -7,8 +7,7 @@ const STATE_MIGRATIONS = [
             if (!state.layout || typeof state.layout !== 'object' || !Array.isArray(state.layout.widgets)) {
                 state.layout = { widgets: [] };
             }
-            // Future-proofing: Normalize widget types if they ever change format.
-            // For now, this is a placeholder for more complex migrations.
+            state.layout.widgets = state.layout.widgets.map((widget) => normalizeMigratedWidget(widget));
 
             state.schemaVersion = 1;
             console.log('Migrated state from schema v0 to v1');
@@ -16,6 +15,37 @@ const STATE_MIGRATIONS = [
         }
     }
 ];
+
+
+function normalizeMigratedWidget(widget) {
+    if (!widget || typeof widget !== 'object') return widget;
+
+    if (typeof widget.width !== 'number' || widget.width <= 0) {
+        widget.width = 320;
+    }
+
+    if (typeof widget.height !== 'number' || widget.height <= 0) {
+        widget.height = 240;
+    }
+
+    if (typeof widget.x !== 'number') {
+        widget.x = 0;
+    }
+
+    if (typeof widget.y !== 'number') {
+        widget.y = 0;
+    }
+
+    if (widget.x < 0) {
+        widget.x = 0;
+    }
+
+    if (widget.y < 0) {
+        widget.y = 0;
+    }
+
+    return widget;
+}
 
 export function safeParseLocalStorage(key) {
     try {
@@ -68,6 +98,10 @@ export function restoreLocalStorageState(snapshot = {}) {
 export function runMigrations(state, schemaVersion = 1) {
     // Default to schema 0 if it's a legacy state object.
     state.schemaVersion = state.schemaVersion || 0;
+
+    if (state.layout && Array.isArray(state.layout.widgets)) {
+        state.layout.widgets = state.layout.widgets.map((widget) => normalizeMigratedWidget(widget));
+    }
 
     while (state.schemaVersion < schemaVersion) {
         const migration = STATE_MIGRATIONS.find(m => m.from === state.schemaVersion);
