@@ -225,19 +225,13 @@ class RevealManagerWidget {
     setupRevealSync() {
         if (RevealManagerWidget.projectorSyncForwarderInitialized || !this.isTeacherMode()) return;
 
-        const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-        if (!appBus || typeof appBus.on !== 'function') return;
-
-        appBus.on('presentation:slideChanged', (data = {}) => {
-            const projector = window.projectorWindow;
-            if (!projector || projector.closed) return;
-
-            projector.postMessage({
-                type: 'slideSync',
-                h: data.h || 0,
-                v: data.v || 0
-            }, '*');
-        });
+        import('../utils/presentation-controller.js')
+            .then(({ registerPresentationAppBusHandlers }) => {
+                registerPresentationAppBusHandlers();
+            })
+            .catch((error) => {
+                console.warn('[RevealSync] unable to register AppBus handlers', error);
+            });
 
         RevealManagerWidget.projectorSyncForwarderInitialized = true;
     }
@@ -413,15 +407,6 @@ class RevealManagerWidget {
         const frameWindow = this.iframeRef.current?.contentWindow;
         if (!frameWindow) return null;
 
-        const frameDeck = frameWindow.document
-            && typeof frameWindow.document.querySelector === 'function'
-            ? frameWindow.document.querySelector('.reveal')?.Reveal
-            : null;
-
-        if (frameDeck && typeof frameDeck.on === 'function') {
-            return frameDeck;
-        }
-
         return frameWindow.Reveal && typeof frameWindow.Reveal.on === 'function'
             ? frameWindow.Reveal
             : null;
@@ -432,10 +417,11 @@ class RevealManagerWidget {
             return this.revealDeck;
         }
 
-        container.innerHTML = html;
-
         import('../utils/reveal-manager.js')
-            .then(({ initReveal }) => initReveal(container))
+            .then(({ initializeReveal, mountPresentationMarkup }) => {
+                mountPresentationMarkup(container, html);
+                return initializeReveal(container);
+            })
             .then((deck) => {
                 if (!deck) return;
 
@@ -452,8 +438,6 @@ class RevealManagerWidget {
                 }
 
                 this.revealDeckContainer = container;
-                this.nextSlide = () => this.revealDeck && typeof this.revealDeck.next === 'function' ? this.revealDeck.next() : null;
-                this.prevSlide = () => this.revealDeck && typeof this.revealDeck.prev === 'function' ? this.revealDeck.prev() : null;
                 this.bindSlideChangeListener();
             })
             .catch((error) => {
@@ -612,16 +596,25 @@ ${revealBootstrapScript}`;
         this.inlineDeckContainer.style.display = 'none';
         this.launchButton.textContent = 'Open';
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
+        this.emitPresentationNavigation('presentation:stop');
     }
 
     sendKeyToIframe(direction) {
         const reveal = this.getActiveRevealApi();
 
         if (this.activeDeck && this.activeDeck.type === 'html' && reveal) {
-            if (direction === 'next' && typeof reveal.next === 'function') reveal.next();
-            if (direction === 'prev' && typeof reveal.prev === 'function') reveal.prev();
-            if (direction === 'up' && typeof reveal.up === 'function') reveal.up();
-            if (direction === 'down' && typeof reveal.down === 'function') reveal.down();
+            const actionMap = {
+                next: 'nextSlide',
+                prev: 'prevSlide'
+            };
+            const action = actionMap[direction];
+            if (action) {
+                import('../utils/presentation-controller.js').then((controller) => {
+                    if (typeof controller[action] === 'function') {
+                        controller[action]();
+                    }
+                });
+            }
         } else {
             const frame = this.iframeRef.current;
             if (!frame || !frame.contentWindow) return;
@@ -652,15 +645,23 @@ ${revealBootstrapScript}`;
     handlePrevClick(event) {
         event.stopPropagation();
         console.log('[RevealSync] teacher prev slide');
-        this.emitPresentationNavigation('presentation:prev');
-        this.sendKeyToIframe('prev');
+        if (this.activeDeck && this.activeDeck.type === 'html') {
+            import('../utils/presentation-controller.js').then(({ prevSlide }) => prevSlide());
+        } else {
+            this.emitPresentationNavigation('presentation:prev');
+            this.sendKeyToIframe('prev');
+        }
     }
 
     handleNextClick(event) {
         event.stopPropagation();
         console.log('[RevealSync] teacher next slide');
-        this.emitPresentationNavigation('presentation:next');
-        this.sendKeyToIframe('next');
+        if (this.activeDeck && this.activeDeck.type === 'html') {
+            import('../utils/presentation-controller.js').then(({ nextSlide }) => nextSlide());
+        } else {
+            this.emitPresentationNavigation('presentation:next');
+            this.sendKeyToIframe('next');
+        }
     }
 
     sendNavToPresenter(direction) {
@@ -807,6 +808,7 @@ ${revealBootstrapScript}`;
         }
 
         this.setPresenterStatus('Presenter opening...');
+        this.emitPresentationNavigation('presentation:start');
         if (this.presenterWindowMonitor) {
             clearInterval(this.presenterWindowMonitor);
         }

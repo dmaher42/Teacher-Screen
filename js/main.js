@@ -9,6 +9,7 @@ import {
     isValidLayout,
     runMigrations
 } from './services/state-manager.js';
+import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
@@ -19,6 +20,8 @@ if (mainAppBus) {
     mainAppBus.init();
     console.log('AppBus initialised');
 }
+
+startPresentationDiagnostics();
 
 if (mainAppBus && mainIsTeacherMode()) {
     window.testBroadcast = () => {

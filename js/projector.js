@@ -1,4 +1,5 @@
 import { appBus } from './utils/app-bus.js';
+import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 
 window.APP_MODE = 'projector';
@@ -9,11 +10,14 @@ console.log('Projector Mode:', PROJECTOR_APP_MODE);
 appBus.init();
 console.log('AppBus initialised');
 
-window.addEventListener('message', (event) => {
-    if (!event.data || event.data.type !== 'slideSync') return;
+window.__ProjectorConnection = {
+    window: window,
+    connected: true
+};
 
-    const { h = 0, v = 0 } = event.data;
-    const deck = window.__teacherScreenRevealDeck;
+appBus.on('presentation:slideChanged', (payload = {}) => {
+    const { h = 0, v = 0 } = payload;
+    const deck = window.__RevealState && window.__RevealState.deck;
 
     if (!deck || typeof deck.getIndices !== 'function' || typeof deck.slide !== 'function') {
         console.warn('[RevealSync] deck not ready yet');
@@ -305,4 +309,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     await bootstrapProjectorDependencies();
     const app = new ProjectorApp();
     app.init();
+    startPresentationDiagnostics();
 });
