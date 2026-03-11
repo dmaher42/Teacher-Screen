@@ -64,6 +64,33 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('js/widgets/mask-widget.js');
 };
 
+const initializeRevealSyncListener = () => {
+    if (!window.Reveal || typeof Reveal.initialize !== 'function') {
+        return;
+    }
+
+    Reveal.initialize({
+        controls: false,
+        progress: false,
+        history: false,
+        keyboard: false,
+        overview: false,
+        touch: false
+    });
+
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+
+        if (!data || data.type !== 'slideSync') return;
+
+        console.log('Projector received slide:', data.h, data.v);
+
+        if (window.Reveal && Reveal.isReady()) {
+            Reveal.slide(data.h, data.v);
+        }
+    });
+};
+
 /**
  * Projector View Application Script
  * Loads and displays the classroom screen state in a read-only mode.
@@ -307,6 +334,7 @@ class ProjectorApp {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await bootstrapProjectorDependencies();
+    initializeRevealSyncListener();
     const app = new ProjectorApp();
     app.init();
     startPresentationDiagnostics();
