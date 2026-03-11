@@ -1,8 +1,10 @@
 import { appBus } from './utils/app-bus.js';
-import { APP_MODE } from './utils/app-mode.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 
-console.log('Projector Mode:', APP_MODE);
+window.APP_MODE = 'projector';
+const PROJECTOR_APP_MODE = 'projector';
+
+console.log('Projector Mode:', PROJECTOR_APP_MODE);
 
 appBus.init();
 console.log('AppBus initialised');
