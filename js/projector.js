@@ -1,5 +1,6 @@
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
+import { mountPresentationMarkup, initializeReveal, layoutReveal } from './utils/reveal-manager.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
@@ -9,11 +10,6 @@ console.log('Projector Mode:', PROJECTOR_APP_MODE);
 window.__ProjectorConnection = {
     window: window,
     connected: true
-};
-
-window.__ProjectorRevealState = window.__ProjectorRevealState || {
-    initialized: false,
-    rootEl: null
 };
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
@@ -49,54 +45,34 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('js/widgets/mask-widget.js');
 };
 
-const initializeReveal = () => {
-    if (!window.Reveal || typeof Reveal.initialize !== 'function') {
-        return false;
-    }
-
-    if ((typeof Reveal.isReady === 'function' && Reveal.isReady()) || window.__ProjectorRevealState.initialized) {
-        return true;
-    }
-
-    const revealElement = document.querySelector('.reveal');
-    if (!revealElement) {
-        console.warn('Reveal container not found yet');
-        return false;
-    }
-
-    Reveal.initialize({
-        controls: false,
-        progress: false,
-        history: false,
-        keyboard: false
-    });
-
-    window.__ProjectorRevealState.initialized = true;
-    window.__ProjectorRevealState.rootEl = revealElement;
-
-    return true;
-};
-
-const waitForRevealRoot = () => {
-    const revealElement = document.querySelector('.reveal');
-
-    if (revealElement) {
-        initializeReveal();
-    } else {
-        setTimeout(waitForRevealRoot, 100);
-    }
-};
-
-const loadPresentation = (html) => {
-    const root = document.getElementById('presentation-root');
-    if (!root) {
+const loadPresentation = async (html) => {
+    const projectorRoot = document.body;
+    if (!projectorRoot) {
         return;
     }
 
-    root.innerHTML = html;
-    window.__ProjectorRevealState.initialized = false;
-    window.__ProjectorRevealState.rootEl = null;
-    waitForRevealRoot();
+    mountPresentationMarkup(projectorRoot, html);
+    await initializeReveal(projectorRoot);
+    layoutReveal(projectorRoot);
+};
+
+const slideRevealWhenReady = (h = 0, v = 0) => {
+    const revealState = window.__RevealState;
+    const deck = revealState && revealState.deck;
+    const isDeckReady = !!(revealState && revealState.ready);
+
+    if (!deck || typeof deck.slide !== 'function') {
+        return;
+    }
+
+    if (isDeckReady) {
+        deck.slide(h, v);
+        return;
+    }
+
+    if (typeof deck.on === 'function') {
+        deck.on('ready', () => deck.slide(h, v));
+    }
 };
 
 const initializeRevealSyncListener = () => {
@@ -110,13 +86,12 @@ const initializeRevealSyncListener = () => {
         console.log('Projector received slide:', data.h, data.v);
 
         if (data.html) {
-            loadPresentation(data.html);
+            loadPresentation(data.html)
+                .then(() => slideRevealWhenReady(data.h, data.v));
             return;
         }
 
-        if (window.Reveal && typeof Reveal.isReady === 'function' && Reveal.isReady()) {
-            Reveal.slide(data.h, data.v);
-        }
+        slideRevealWhenReady(data.h, data.v);
     });
 };
 
