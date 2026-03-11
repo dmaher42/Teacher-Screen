@@ -246,28 +246,35 @@ class RevealManagerWidget {
         const deck = this.getActiveRevealApi();
         if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
-        deck.on('ready', (event) => {
+        const broadcastSlideSync = (event) => {
             if (!this.isTeacherMode()) return;
 
-            const indexh = event && typeof event.indexh === 'number' ? event.indexh : 0;
-            const indexv = event && typeof event.indexv === 'number' ? event.indexv : 0;
-            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-            if (!appBus || typeof appBus.emit !== 'function') return;
+            const payload = {
+                type: 'slideSync',
+                h: event && typeof event.indexh === 'number' ? event.indexh : 0,
+                v: event && typeof event.indexv === 'number' ? event.indexv : 0
+            };
 
-            appBus.emit('presentation:slideChanged', { h: indexh, v: indexv });
-            console.log('[RevealSync] teacher initial broadcast', indexh, indexv);
+            window.postMessage(payload, '*');
+
+            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+            if (appBus && typeof appBus.emit === 'function') {
+                appBus.emit('presentation:slideChanged', payload);
+            }
+
+            return payload;
+        };
+
+        deck.on('ready', (event) => {
+            const payload = broadcastSlideSync(event);
+            if (!payload) return;
+            console.log('[RevealSync] teacher initial broadcast', payload.h, payload.v);
         });
 
         deck.on('slidechanged', (event) => {
-            if (!this.isTeacherMode()) return;
-
-            const indexh = event && typeof event.indexh === 'number' ? event.indexh : 0;
-            const indexv = event && typeof event.indexv === 'number' ? event.indexv : 0;
-            const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-            if (!appBus || typeof appBus.emit !== 'function') return;
-
-            appBus.emit('presentation:slideChanged', { h: indexh, v: indexv });
-            console.log('[RevealSync] teacher broadcast', indexh, indexv);
+            const payload = broadcastSlideSync(event);
+            if (!payload) return;
+            console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
         });
 
         this.slideChangeHandlerAttached = true;
