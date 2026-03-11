@@ -44,20 +44,48 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('js/widgets/mask-widget.js');
 };
 
-const initializeRevealSyncListener = () => {
+const initializeReveal = () => {
     if (!window.Reveal || typeof Reveal.initialize !== 'function') {
-        return;
+        return false;
+    }
+
+    const revealElement = document.querySelector('.reveal');
+    if (!revealElement) {
+        console.warn('Reveal container not found yet');
+        return false;
     }
 
     Reveal.initialize({
         controls: false,
         progress: false,
         history: false,
-        keyboard: false,
-        overview: false,
-        touch: false
+        keyboard: false
     });
 
+    return true;
+};
+
+const waitForRevealRoot = () => {
+    const revealElement = document.querySelector('.reveal');
+
+    if (revealElement) {
+        initializeReveal();
+    } else {
+        setTimeout(waitForRevealRoot, 100);
+    }
+};
+
+const loadPresentation = (html) => {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        return;
+    }
+
+    root.innerHTML = html;
+    waitForRevealRoot();
+};
+
+const initializeRevealSyncListener = () => {
     // Teacher -> Projector synchronization
     // Uses postMessage slideSync events.
     window.addEventListener('message', (event) => {
@@ -67,7 +95,14 @@ const initializeRevealSyncListener = () => {
 
         console.log('Projector received slide:', data.h, data.v);
 
-        if (window.Reveal && Reveal.isReady()) {
+        if (data.html) {
+            loadPresentation(data.html);
+            return;
+        }
+
+        waitForRevealRoot();
+
+        if (window.Reveal && typeof Reveal.isReady === 'function' && Reveal.isReady()) {
             Reveal.slide(data.h, data.v);
         }
     });
