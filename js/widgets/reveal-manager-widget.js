@@ -36,13 +36,15 @@ class RevealManagerWidget {
 
         const modeGroupName = `reveal-input-mode-${Date.now()}`;
 
-        // DOM structure: flex column manager with compact topbar, collapsible advanced panel, and stage overlay nav.
+        // DOM structure: flex column manager with compact topbar and collapsible advanced panel.
         // toggleCompact(false) shows the full controls panel while preserving deck storage keys.
         this.element.innerHTML = `
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
+                    <button type="button" id="presentation-prev" class="control-button reveal-btn reveal-btn-secondary" title="Previous slide">Prev</button>
+                    <button type="button" id="presentation-next" class="control-button reveal-btn reveal-btn-secondary" title="Next slide">Next</button>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
                 </div>
@@ -91,10 +93,6 @@ class RevealManagerWidget {
             </div>
 
                 <div class="reveal-manager__stage">
-                    <div class="reveal-overlay-nav" aria-label="Deck navigation overlay">
-                        <button type="button" class="control-button reveal-nav-btn" data-nav="prev">‹</button>
-                        <button type="button" class="control-button reveal-nav-btn" data-nav="next">›</button>
-                    </div>
                     <div class="reveal-container">
                     <div class="reveal-manager-frame-wrap"></div>
                     </div>
@@ -115,12 +113,13 @@ class RevealManagerWidget {
         this.renameButton = this.element.querySelector('.reveal-rename-btn');
         this.deleteButton = this.element.querySelector('.reveal-delete-btn');
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
+        this.prevButton = this.element.querySelector('#presentation-prev');
+        this.nextButton = this.element.querySelector('#presentation-next');
         this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
         this.panelContainer = this.element.querySelector('.reveal-manager__panel');
         this.topbar = this.element.querySelector('.reveal-manager__topbar');
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
-        this.navButtons = Array.from(this.element.querySelectorAll('.reveal-nav-btn'));
         this.presenterStatus = this.element.querySelector('.reveal-presenter-status');
 
         // Keep a stable iframe reference for toolbar navigation, similar to React's useRef.
@@ -155,9 +154,10 @@ class RevealManagerWidget {
         this.handlePresentationToggle = this.handlePresentationToggle.bind(this);
         this.handleToggleControls = this.handleToggleControls.bind(this);
         this.handleRootInteraction = this.handleRootInteraction.bind(this);
-        this.handleOverlayNavPointerDown = this.handleOverlayNavPointerDown.bind(this);
         this.handleWindowMessage = this.handleWindowMessage.bind(this);
         this.handleIframeLoad = this.handleIframeLoad.bind(this);
+        this.handlePrevClick = this.handlePrevClick.bind(this);
+        this.handleNextClick = this.handleNextClick.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
@@ -166,18 +166,14 @@ class RevealManagerWidget {
         this.renameButton.addEventListener('click', this.handleRenameDeck);
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.addEventListener('click', this.handlePresentationToggle);
+        this.prevButton.addEventListener('click', this.handlePrevClick);
+        this.nextButton.addEventListener('click', this.handleNextClick);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
         window.addEventListener('message', this.handleWindowMessage);
         this.iframe.addEventListener('load', this.handleIframeLoad);
-        this.navButtons.forEach((button) => {
-            button.addEventListener('click', (event) => this.handleNavButtonClick(event));
-            button.addEventListener('mousedown', this.handleOverlayNavPointerDown);
-            const direction = button.dataset.nav || button.dataset.direction;
-            button.title = `Navigate ${direction}`;
-            button.setAttribute('aria-label', `Navigate ${direction}`);
-        });
+
 
         RevealManagerWidget.initKeyboardHandler();
 
@@ -229,10 +225,6 @@ class RevealManagerWidget {
 
     handleRootInteraction() {
         RevealManagerWidget.activeInstance = this;
-    }
-
-    handleOverlayNavPointerDown(event) {
-        event.stopPropagation();
     }
 
     setupRevealSync() {
@@ -534,15 +526,22 @@ class RevealManagerWidget {
             return false;
         }
 
+        if (window.__teacherScreenRevealInitialized) {
+            console.warn('[Reveal] already initialized — skipping');
+            return true;
+        }
+
         if (typeof window.Reveal.isReady === 'function' && !window.Reveal.isReady()) {
+            window.__teacherScreenRevealInitialized = true;
             window.Reveal.initialize({
                 embedded: true,
-                keyboard: true,
-                hash: true,
-                slideNumber: true,
-                controls: true,
+                keyboard: false,
+                hash: false,
+                slideNumber: false,
+                controls: false,
                 progress: true
             });
+            window.__teacherScreenRevealDeck = window.Reveal;
             console.log('[Reveal] deck initialized');
             return true;
         }
@@ -550,6 +549,8 @@ class RevealManagerWidget {
         if (typeof window.Reveal.sync === 'function') {
             window.Reveal.sync();
         }
+        window.__teacherScreenRevealInitialized = true;
+        window.__teacherScreenRevealDeck = window.Reveal;
         console.log('[Reveal] deck initialized');
         return true;
     }
@@ -676,6 +677,27 @@ ${revealBootstrapScript}`;
 
     }
 
+
+    emitPresentationNavigation(eventName) {
+        const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
+        if (!appBus || typeof appBus.emit !== 'function') return;
+        appBus.emit(eventName);
+    }
+
+    handlePrevClick(event) {
+        event.stopPropagation();
+        console.log('[RevealSync] teacher prev slide');
+        this.emitPresentationNavigation('presentation:prev');
+        this.sendKeyToIframe('prev');
+    }
+
+    handleNextClick(event) {
+        event.stopPropagation();
+        console.log('[RevealSync] teacher next slide');
+        this.emitPresentationNavigation('presentation:next');
+        this.sendKeyToIframe('next');
+    }
+
     sendNavToPresenter(direction) {
         if (!this.presenterWindow) return;
 
@@ -727,13 +749,6 @@ ${revealBootstrapScript}`;
         }
 
         this.setPresenterStatus('Presenter closed');
-    }
-
-    handleNavButtonClick(event) {
-        event.stopPropagation();
-        const direction = event.currentTarget.dataset.nav || event.currentTarget.dataset.direction;
-        if (!direction) return;
-        this.sendKeyToIframe(direction);
     }
 
     handleLaunchFromInputs() {
@@ -906,12 +921,13 @@ ${revealBootstrapScript}`;
         this.renameButton.removeEventListener('click', this.handleRenameDeck);
         this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.removeEventListener('click', this.handlePresentationToggle);
+        this.prevButton.removeEventListener('click', this.handlePrevClick);
+        this.nextButton.removeEventListener('click', this.handleNextClick);
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         window.removeEventListener('message', this.handleWindowMessage);
         this.iframe.removeEventListener('load', this.handleIframeLoad);
-        this.navButtons.forEach((button) => button.removeEventListener('mousedown', this.handleOverlayNavPointerDown));
 
         if (this.layoutObserverInterval) {
             clearInterval(this.layoutObserverInterval);

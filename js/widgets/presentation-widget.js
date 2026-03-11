@@ -68,9 +68,6 @@ class PresentationWidget {
             this.loadPresentationByName(this.currentPresentation);
         }
 
-        if (window.Reveal && typeof window.Reveal.layout === 'function') {
-            window.Reveal.layout();
-        }
     }
 
     serialize() {

@@ -14,15 +14,12 @@ function isProjectorView() {
 }
 
 function getRevealOptions() {
-    const projectorMode = isProjectorView();
-
     return {
-        embedded: true,
-        keyboard: !projectorMode,
-        hash: true,
-        slideNumber: true,
-        controls: !projectorMode,
-        progress: !projectorMode
+        controls: false,
+        progress: true,
+        slideNumber: false,
+        hash: false,
+        keyboard: false
     };
 }
 
@@ -59,6 +56,11 @@ function ensureRevealScript() {
 }
 
 export async function initReveal(container) {
+    if (window.__teacherScreenRevealInitialized) {
+        console.warn('[Reveal] already initialized — skipping');
+        return window.__teacherScreenRevealDeck || null;
+    }
+
     ensureRevealCss();
     await ensureRevealScript();
 
@@ -74,16 +76,20 @@ export async function initReveal(container) {
     }
 
     if (typeof window.Reveal === 'function') {
+        window.__teacherScreenRevealInitialized = true;
         const deck = new window.Reveal(revealElement);
         await deck.initialize(getRevealOptions());
         console.log('[Reveal] deck initialized');
+        window.__teacherScreenRevealDeck = deck;
         container.__teacherScreenRevealDeck = deck;
         return deck;
     }
 
     if (window.Reveal && typeof window.Reveal.initialize === 'function') {
+        window.__teacherScreenRevealInitialized = true;
         await window.Reveal.initialize(getRevealOptions());
         console.log('[Reveal] deck initialized');
+        window.__teacherScreenRevealDeck = window.Reveal;
         container.__teacherScreenRevealDeck = window.Reveal;
         return window.Reveal;
     }
