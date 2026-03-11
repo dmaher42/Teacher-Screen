@@ -1,6 +1,5 @@
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
-import { mountPresentationMarkup, initializeReveal, layoutReveal } from './utils/reveal-manager.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
@@ -45,33 +44,52 @@ const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('js/widgets/mask-widget.js');
 };
 
-const loadPresentation = async (html) => {
-    const projectorRoot = document.body;
-    if (!projectorRoot) {
+async function loadPresentation(url) {
+    const res = await fetch(url);
+    const html = await res.text();
+
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        console.warn('Presentation root not found');
         return;
     }
 
-    mountPresentationMarkup(projectorRoot, html);
-    await initializeReveal(projectorRoot);
-    layoutReveal(projectorRoot);
-};
+    root.innerHTML = html;
+
+    initializeReveal();
+}
+
+function initializeReveal() {
+    const revealElement = document.querySelector('.reveal');
+
+    if (!revealElement) {
+        console.warn('Reveal container not found');
+        return;
+    }
+
+    if (window.Reveal && Reveal.isReady()) {
+        console.warn('Reveal already initialized');
+        return;
+    }
+
+    if (!window.Reveal || typeof Reveal.initialize !== 'function') {
+        console.warn('Reveal library not available');
+        return;
+    }
+
+    if (window.Reveal && Reveal.isReady()) return;
+
+    Reveal.initialize({
+        controls: false,
+        progress: false,
+        history: false,
+        keyboard: false
+    });
+}
 
 const slideRevealWhenReady = (h = 0, v = 0) => {
-    const revealState = window.__RevealState;
-    const deck = revealState && revealState.deck;
-    const isDeckReady = !!(revealState && revealState.ready);
-
-    if (!deck || typeof deck.slide !== 'function') {
-        return;
-    }
-
-    if (isDeckReady) {
-        deck.slide(h, v);
-        return;
-    }
-
-    if (typeof deck.on === 'function') {
-        deck.on('ready', () => deck.slide(h, v));
+    if (window.Reveal && Reveal.isReady()) {
+        Reveal.slide(h, v);
     }
 };
 
@@ -85,9 +103,12 @@ const initializeRevealSyncListener = () => {
 
         console.log('Projector received slide:', data.h, data.v);
 
-        if (data.html) {
-            loadPresentation(data.html)
-                .then(() => slideRevealWhenReady(data.h, data.v));
+        if (data.url) {
+            loadPresentation(data.url)
+                .then(() => slideRevealWhenReady(data.h, data.v))
+                .catch((error) => {
+                    console.warn('Unable to load presentation URL', error);
+                });
             return;
         }
 
