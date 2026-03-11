@@ -11,6 +11,11 @@ window.__ProjectorConnection = {
     connected: true
 };
 
+window.__ProjectorRevealState = window.__ProjectorRevealState || {
+    initialized: false,
+    rootEl: null
+};
+
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
@@ -49,6 +54,10 @@ const initializeReveal = () => {
         return false;
     }
 
+    if ((typeof Reveal.isReady === 'function' && Reveal.isReady()) || window.__ProjectorRevealState.initialized) {
+        return true;
+    }
+
     const revealElement = document.querySelector('.reveal');
     if (!revealElement) {
         console.warn('Reveal container not found yet');
@@ -61,6 +70,9 @@ const initializeReveal = () => {
         history: false,
         keyboard: false
     });
+
+    window.__ProjectorRevealState.initialized = true;
+    window.__ProjectorRevealState.rootEl = revealElement;
 
     return true;
 };
@@ -82,6 +94,8 @@ const loadPresentation = (html) => {
     }
 
     root.innerHTML = html;
+    window.__ProjectorRevealState.initialized = false;
+    window.__ProjectorRevealState.rootEl = null;
     waitForRevealRoot();
 };
 
@@ -99,8 +113,6 @@ const initializeRevealSyncListener = () => {
             loadPresentation(data.html);
             return;
         }
-
-        waitForRevealRoot();
 
         if (window.Reveal && typeof Reveal.isReady === 'function' && Reveal.isReady()) {
             Reveal.slide(data.h, data.v);
