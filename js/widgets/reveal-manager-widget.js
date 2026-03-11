@@ -1,3 +1,4 @@
+import { eventBus } from "../core/event-bus.js";
 const revealWidgetAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 const revealEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
 const revealWidgetIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => true;
@@ -765,8 +766,8 @@ ${revealBootstrapScript}`;
         if (!reveal || typeof reveal.getIndices !== 'function') return;
 
         const indices = reveal.getIndices();
-        if (revealWidgetEventBus) {
-            revealWidgetEventBus.emit('reveal:slide-changed', {
+        if (eventBus) {
+            eventBus.emit('reveal:slide-changed', {
                 h: indices.h || 0,
                 v: indices.v || 0,
                 f: indices.f || 0
@@ -1062,10 +1063,22 @@ ${revealBootstrapScript}`;
             this.syncChannel = null;
         }
 
-        if (revealWidgetEventBus) {
-            revealWidgetEventBus.off('reveal:navigate', this.handleInternalRevealNavigate);
+        if (eventBus) {
+            eventBus.off('reveal:navigate', this.handleInternalRevealNavigate);
         }
 
+        if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {
+            try {
+                this.revealDeck.destroy();
+            } catch (err) {
+                console.warn('Reveal destroy failed', err);
+            }
+        }
+
+        eventBus.emit('widget:removed', {
+            id: this.id,
+            type: 'reveal'
+        });
 
         if (RevealManagerWidget.activeInstance === this) {
             RevealManagerWidget.activeInstance = null;
