@@ -26,6 +26,8 @@ class RevealManagerWidget {
         this.revealDeck = null;
         this.syncChannel = null;
         this.isRemoteUpdate = false;
+        this.pendingRemoteSlide = null;
+        this.revealReady = false;
         this.handleSyncChannelMessage = this.handleSyncChannelMessage.bind(this);
 
         this.element = document.createElement('div');
@@ -245,19 +247,24 @@ class RevealManagerWidget {
         if (!message || message.type !== 'reveal-slide') return;
         if (!this.isProjectorView) return;
 
-        const deck = this.getActiveRevealApi();
         const { indexh = 0, indexv = 0, indexf = 0 } = message;
+        const deck = this.getActiveRevealApi();
 
-        if (deck && typeof deck.slide === 'function') {
-            this.isRemoteUpdate = true;
-            console.log('[RevealSync] projector apply', indexh, indexv);
-            deck.slide(indexh, indexv, indexf);
+        if (!deck || typeof deck.slide !== 'function' || typeof deck.isReady !== 'function' || !deck.isReady()) {
+            console.log('[RevealSync] deck not ready yet');
+            this.pendingRemoteSlide = { indexh, indexv, indexf };
+            return;
         }
+
+        this.isRemoteUpdate = true;
+        console.log('[RevealSync] projector apply', indexh, indexv);
+        deck.slide(indexh, indexv, indexf);
     }
 
     handleIframeLoad() {
         this.slideChangeHandlerAttached = false;
         this.revealDeck = null;
+        this.revealReady = false;
         this.bindSlideChangeListener();
     }
 
@@ -265,11 +272,33 @@ class RevealManagerWidget {
         const deck = this.getActiveRevealApi();
         if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
+        const applyPendingRemoteSlide = () => {
+            if (!this.pendingRemoteSlide) return;
+            const { indexh = 0, indexv = 0, indexf = 0 } = this.pendingRemoteSlide;
+            this.pendingRemoteSlide = null;
+            this.isRemoteUpdate = true;
+            console.log('[RevealSync] projector apply', indexh, indexv);
+            deck.slide(indexh, indexv, indexf);
+        };
+
+        deck.on('ready', () => {
+            this.revealReady = true;
+            console.log('[Reveal] ready');
+            applyPendingRemoteSlide();
+        });
+
+        if (typeof deck.isReady === 'function' && deck.isReady()) {
+            this.revealReady = true;
+            applyPendingRemoteSlide();
+        }
+
         deck.on('slidechanged', (event) => {
             if (this.isRemoteUpdate) {
                 this.isRemoteUpdate = false;
                 return;
             }
+
+            if (!this.isTeacherMode()) return;
 
             if (this.syncChannel && !this.isProjectorView) {
                 const indexh = event.indexh || 0;
@@ -459,6 +488,10 @@ class RevealManagerWidget {
     }
 
     loadPresentation(container, html) {
+        if (this.revealDeck && this.revealDeckContainer === container) {
+            return this.revealDeck;
+        }
+
         container.innerHTML = html;
 
         import('../utils/reveal-manager.js')
@@ -586,6 +619,9 @@ ${revealBootstrapScript}`;
 
         const content = deck.type === 'html' ? deck.content : deck.content;
 
+        this.pendingRemoteSlide = null;
+        this.revealReady = false;
+
         this.activeDeck = {
             id: deck.id,
             name: deck.name,
@@ -622,6 +658,8 @@ ${revealBootstrapScript}`;
     stopDeck() {
         this.activeDeck = null;
         this.revealDeck = null;
+        this.pendingRemoteSlide = null;
+        this.revealReady = false;
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
