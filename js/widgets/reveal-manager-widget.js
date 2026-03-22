@@ -252,39 +252,15 @@ class RevealManagerWidget {
         const deck = this.getActiveRevealApi();
         if (!deck || typeof deck.on !== 'function' || this.slideChangeHandlerAttached) return;
 
-        // Teacher -> Projector synchronization
-        // Uses postMessage slideSync events.
-        const broadcastSlideSync = (event) => {
-            if (!this.isTeacherMode()) return;
-
-            const payload = {
-                type: 'slideSync',
-                h: event && typeof event.indexh === 'number' ? event.indexh : 0,
-                v: event && typeof event.indexv === 'number' ? event.indexv : 0
-            };
-
-            if (this.activeDeck && this.activeDeck.type === 'url') {
-                payload.url = this.activeDeck.content;
-            }
-
-            if (this.projectorWindow && !this.projectorWindow.closed) {
-                this.projectorWindow.postMessage(payload, '*');
-            }
-
-            window.postMessage(payload, '*');
-
-            return payload;
-        };
-
         deck.on('ready', (event) => {
-            const payload = broadcastSlideSync(event);
+            const payload = this.broadcastSlideSync(event);
             if (!payload) return;
             console.log('[RevealSync] teacher initial broadcast', payload.h, payload.v);
         });
 
         if (window.Reveal && typeof Reveal.on === 'function' && !this.globalSlideSyncAttached) {
             Reveal.on('slidechanged', (event) => {
-                const payload = broadcastSlideSync(event);
+                const payload = this.broadcastSlideSync(event);
                 if (!payload) return;
                 console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
             });
@@ -293,12 +269,44 @@ class RevealManagerWidget {
         this.slideChangeHandlerAttached = true;
     }
 
+    broadcastSlideSync(event = null) {
+        if (!this.isTeacherMode()) return null;
+
+        const deck = this.getActiveRevealApi();
+        const indices = !event && deck && typeof deck.getIndices === 'function'
+            ? deck.getIndices()
+            : null;
+
+        const payload = {
+            type: 'slideSync',
+            h: event && typeof event.indexh === 'number' ? event.indexh : (indices?.h || 0),
+            v: event && typeof event.indexv === 'number' ? event.indexv : (indices?.v || 0)
+        };
+
+        if (this.activeDeck && this.activeDeck.type === 'url') {
+            payload.url = this.activeDeck.content;
+        }
+
+        if (this.projectorWindow && !this.projectorWindow.closed) {
+            this.projectorWindow.postMessage(payload, '*');
+        }
+
+        window.postMessage(payload, '*');
+        return payload;
+    }
+
     openProjector() {
+        const projectorUrl = new URL('projector.html', window.location.href);
         this.projectorWindow = window.open(
-            '/Teacher-Screen/projector',
+            projectorUrl.toString(),
             'projector',
             'fullscreen=yes'
         );
+
+        if (this.projectorWindow) {
+            window.setTimeout(() => this.broadcastSlideSync(), 500);
+            window.setTimeout(() => this.broadcastSlideSync(), 1500);
+        }
     }
 
     toggleCompact(compact) {
