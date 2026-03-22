@@ -59,7 +59,7 @@
             frame.removeAttribute('src');
             frame.srcdoc = deck.content;
         } else {
-            frame.srcdoc = '';
+            frame.removeAttribute('srcdoc');
             frame.src = deck.content;
         }
 

@@ -589,7 +589,7 @@ ${revealBootstrapScript}`;
             this.inlineDeckContainer.innerHTML = '';
             this.inlineDeckContainer.style.display = 'none';
             this.iframe.style.display = '';
-            this.iframe.srcdoc = '';
+            this.iframe.removeAttribute('srcdoc');
             this.iframe.src = content;
         } else {
             this.iframe.removeAttribute('src');
