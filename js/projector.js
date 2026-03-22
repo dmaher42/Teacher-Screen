@@ -24,6 +24,7 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
 const bootstrapProjectorDependencies = async () => {
     await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
     await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js');
+    await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
     await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
     await loadClassicScript('js/utils/layout-manager.js');
     await loadClassicScript('js/utils/background-manager.js');

@@ -25,7 +25,10 @@ function getRevealOptions() {
 }
 
 function ensureRevealCss() {
-    if (document.querySelector('link[data-teacher-screen-reveal="base"]')) {
+    if (
+        document.querySelector('link[data-teacher-screen-reveal="base"]') ||
+        document.querySelector('link[href*="reveal.js"][href*="reveal.css"]')
+    ) {
         return;
     }
 
