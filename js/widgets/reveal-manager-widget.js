@@ -475,7 +475,8 @@ class RevealManagerWidget {
 
     buildDeckFromInputs() {
         const type = this.getCurrentMode();
-        const content = type === 'url' ? this.urlInput.value.trim() : this.htmlInput.value;
+        const rawContent = type === 'url' ? this.urlInput.value.trim() : this.htmlInput.value;
+        const content = type === 'html' ? this.normalizeHtmlDeckContent(rawContent) : rawContent;
 
         if (!content.trim()) {
             return null;
@@ -487,6 +488,18 @@ class RevealManagerWidget {
             type,
             content
         };
+    }
+
+    normalizeHtmlDeckContent(content) {
+        if (typeof content !== 'string' || !content) {
+            return '';
+        }
+
+        return content
+            .replace(/\\r\\n/g, '\n')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\\//g, '/');
     }
 
     ensureRevealInitScript(html) {
@@ -576,7 +589,9 @@ ${revealBootstrapScript}`;
     launchDeck(deck) {
         if (!deck) return;
 
-        const content = deck.type === 'html' ? deck.content : deck.content;
+        const content = deck.type === 'html'
+            ? this.normalizeHtmlDeckContent(deck.content)
+            : deck.content;
 
         this.activeDeck = {
             id: deck.id,
@@ -890,7 +905,7 @@ ${revealBootstrapScript}`;
         this.deckNameInput.value = deck.name || '';
 
         if (deck.type === 'html') {
-            this.htmlInput.value = deck.content || '';
+            this.htmlInput.value = this.normalizeHtmlDeckContent(deck.content || '');
         } else {
             this.urlInput.value = deck.content || '';
         }
