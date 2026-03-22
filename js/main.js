@@ -136,7 +136,8 @@ class ClassroomScreenApp {
         // Managers
         this.saveState = debounce(this.saveState.bind(this), 300);
 
-        this.layoutManager = new LayoutManager(this.studentView);
+        const layoutHost = this.widgetsContainer || this.studentView;
+        this.layoutManager = new LayoutManager(layoutHost);
         this.layoutManager.setEditable(true);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
