@@ -55,6 +55,40 @@ async function loadPresentation(url) {
         return;
     }
 
+    const existingDeck = window.__RevealState && window.__RevealState.deck;
+    if (existingDeck && typeof existingDeck.destroy === 'function') {
+        try {
+            existingDeck.destroy();
+        } catch (error) {
+            console.warn('Projector Reveal destroy failed', error);
+        }
+    }
+    window.__RevealState = { initialized: false, ready: false, deck: null };
+
+    mountPresentationMarkup(root, html);
+    const deck = await initializeReveal(root);
+    if (deck && typeof layoutReveal === 'function') {
+        layoutReveal(root);
+    }
+}
+
+async function loadPresentationHtml(html) {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        console.warn('Presentation root not found');
+        return;
+    }
+
+    const existingDeck = window.__RevealState && window.__RevealState.deck;
+    if (existingDeck && typeof existingDeck.destroy === 'function') {
+        try {
+            existingDeck.destroy();
+        } catch (error) {
+            console.warn('Projector Reveal destroy failed', error);
+        }
+    }
+    window.__RevealState = { initialized: false, ready: false, deck: null };
+
     mountPresentationMarkup(root, html);
     const deck = await initializeReveal(root);
     if (deck && typeof layoutReveal === 'function') {
@@ -110,6 +144,15 @@ const initializeRevealSyncListener = () => {
                 .then(() => slideRevealWhenReady(data.h, data.v))
                 .catch((error) => {
                     console.warn('Unable to load presentation URL', error);
+                });
+            return;
+        }
+
+        if (data.html) {
+            loadPresentationHtml(data.html)
+                .then(() => slideRevealWhenReady(data.h, data.v))
+                .catch((error) => {
+                    console.warn('Unable to load presentation HTML', error);
                 });
             return;
         }

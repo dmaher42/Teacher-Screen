@@ -287,6 +287,10 @@ class RevealManagerWidget {
             payload.url = this.activeDeck.content;
         }
 
+        if (this.activeDeck && this.activeDeck.type === 'html') {
+            payload.html = this.activeDeck.content;
+        }
+
         if (this.projectorWindow && !this.projectorWindow.closed) {
             this.projectorWindow.postMessage(payload, '*');
         }
@@ -320,6 +324,7 @@ class RevealManagerWidget {
     handleToggleControls(event) {
         event.stopPropagation();
         this.toggleCompact(!this.isCompact);
+        this.requestRevealLayout();
     }
 
     getCurrentMode() {
@@ -449,9 +454,7 @@ class RevealManagerWidget {
     }
 
     loadPresentation(container, html) {
-        if (this.revealDeck) {
-            return this.revealDeck;
-        }
+        this.resetInlineRevealState();
 
         import('../utils/reveal-manager.js')
             .then(({ initializeReveal, mountPresentationMarkup }) => {
@@ -475,10 +478,41 @@ class RevealManagerWidget {
 
                 this.revealDeckContainer = container;
                 this.bindSlideChangeListener();
+                this.requestRevealLayout();
             })
             .catch((error) => {
                 console.warn('[Reveal] unable to initialize presentation', error);
             });
+    }
+
+    resetInlineRevealState() {
+        if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {
+            try {
+                this.revealDeck.destroy();
+            } catch (error) {
+                console.warn('Reveal destroy failed', error);
+            }
+        }
+
+        this.revealDeck = null;
+        this.slideChangeHandlerAttached = false;
+
+        if (window.__RevealState) {
+            window.__RevealState.initialized = false;
+            window.__RevealState.ready = false;
+            window.__RevealState.deck = null;
+        }
+    }
+
+    persistActiveDeckState() {
+        if (!eventBus || typeof eventBus.emit !== 'function') {
+            return;
+        }
+
+        eventBus.emit('layout:updated', {
+            source: this.isProjectorMode() ? 'projector' : 'teacher',
+            payload: { type: 'widget-config', widget: 'reveal-manager' }
+        });
     }
 
     buildDeckFromInputs() {
@@ -632,11 +666,12 @@ ${revealBootstrapScript}`;
         this.launchButton.textContent = 'Stop';
         this.sendDeckToPresenter();
         this.bindSlideChangeListener();
+        this.persistActiveDeckState();
     }
 
     stopDeck() {
         this.activeDeck = null;
-        this.revealDeck = null;
+        this.resetInlineRevealState();
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
         this.iframe.srcdoc = '';
@@ -646,6 +681,7 @@ ${revealBootstrapScript}`;
         this.launchButton.textContent = 'Open';
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
         this.emitPresentationNavigation('presentation:stop');
+        this.persistActiveDeckState();
     }
 
     sendKeyToIframe(direction) {
