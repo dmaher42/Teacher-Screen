@@ -577,6 +577,8 @@ dialog {
     border-radius: var(--border-radius-large, 12px);
     padding: 0;
     width: min(520px, 92vw);
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
     box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
     background: var(--card-background, #ffffff);
     transition: transform calc(240ms * (1 - var(--reduce-motion, 0))) ease,
@@ -635,6 +637,8 @@ dialog::backdrop {
 /* Widget Modal */
 #widget-modal .modal-body {
     padding: 0;
+    max-height: min(70vh, 640px);
+    overflow-y: auto;
 }
 
 .widget-categories {
