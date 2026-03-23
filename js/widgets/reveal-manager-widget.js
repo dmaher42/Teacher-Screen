@@ -226,6 +226,12 @@ class RevealManagerWidget {
 
     handleRootInteraction() {
         RevealManagerWidget.activeInstance = this;
+
+        if (this.activeDeck && this.activeDeck.type === 'html') {
+            import('../utils/reveal-manager.js').then(({ activateReveal }) => {
+                activateReveal(this.inlineDeckContainer);
+            });
+        }
     }
 
     setupRevealSync() {
@@ -745,7 +751,8 @@ ${revealBootstrapScript}`;
         console.log('[RevealSync] teacher prev slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
             this.emitPresentationNavigation('presentation:prev');
-            import('../utils/reveal-manager.js').then(({ getRevealDeck }) => {
+            import('../utils/reveal-manager.js').then(({ activateReveal, getRevealDeck }) => {
+                activateReveal(this.inlineDeckContainer);
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
                 if (deck && typeof deck.prev === 'function') {
                     deck.prev();
@@ -762,7 +769,8 @@ ${revealBootstrapScript}`;
         console.log('[RevealSync] teacher next slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
             this.emitPresentationNavigation('presentation:next');
-            import('../utils/reveal-manager.js').then(({ getRevealDeck }) => {
+            import('../utils/reveal-manager.js').then(({ activateReveal, getRevealDeck }) => {
+                activateReveal(this.inlineDeckContainer);
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
                 if (deck && typeof deck.next === 'function') {
                     deck.next();

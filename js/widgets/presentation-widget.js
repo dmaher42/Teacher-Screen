@@ -31,8 +31,11 @@ class PresentationWidget {
 
         this.handleLoadClick = this.handleLoadClick.bind(this);
         this.handleResize = this.handleResize.bind(this);
+        this.handleStageInteraction = this.handleStageInteraction.bind(this);
 
         this.loadButton.addEventListener('click', this.handleLoadClick);
+        this.element.addEventListener('click', this.handleStageInteraction);
+        this.element.addEventListener('focusin', this.handleStageInteraction);
 
         this.resizeObserver = new ResizeObserver(this.handleResize);
         this.resizeObserver.observe(this.element);
@@ -50,9 +53,19 @@ class PresentationWidget {
 
         console.log('[presentation-widget] loading presentation');
 
-        const { loadPresentation } = await import('./../utils/presentation-loader.js');
+        const [{ loadPresentation }, { activateReveal }] = await Promise.all([
+            import('./../utils/presentation-loader.js'),
+            import('./../utils/reveal-manager.js')
+        ]);
         await loadPresentation(this.stage, name);
+        activateReveal(this.stage);
         this.currentPresentation = name;
+    }
+
+    handleStageInteraction() {
+        import('./../utils/reveal-manager.js').then(({ activateReveal }) => {
+            activateReveal(this.stage);
+        });
     }
 
     handleResize() {
@@ -90,6 +103,8 @@ class PresentationWidget {
 
     remove() {
         this.loadButton.removeEventListener('click', this.handleLoadClick);
+        this.element.removeEventListener('click', this.handleStageInteraction);
+        this.element.removeEventListener('focusin', this.handleStageInteraction);
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
         }

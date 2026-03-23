@@ -1,3 +1,5 @@
+import { getRevealDeck } from './reveal-manager.js';
+
 const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 let listenersRegistered = false;
 
@@ -6,7 +8,7 @@ function resolveDeck(deckOverride = null) {
         return deckOverride;
     }
 
-    return window.__RevealState ? window.__RevealState.deck : null;
+    return getRevealDeck();
 }
 
 export function enterPresentationMode() {

@@ -142,6 +142,21 @@ export function getRevealDeck(container = null) {
     return state && state.deck ? state.deck : null;
 }
 
+export function activateReveal(container = null) {
+    if (!container) {
+        return getRevealState();
+    }
+
+    const root = resolvePresentationRoot(container, false);
+    const state = getStoredRevealState(root, false);
+
+    if (!state) {
+        return null;
+    }
+
+    return setActiveRevealState(state);
+}
+
 export function destroyReveal(container) {
     const root = resolvePresentationRoot(container, false);
     const state = getStoredRevealState(root, false);
