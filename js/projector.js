@@ -12,6 +12,8 @@ window.__ProjectorConnection = {
     connected: true
 };
 
+let activePresentationSourceKey = null;
+
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
@@ -84,28 +86,41 @@ function showProjectorStartupMessage(message) {
 }
 
 async function loadPresentation(url) {
+    const sourceKey = `url:${url}`;
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        console.warn('Presentation root not found');
+        return;
+    }
+
+    if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
+        return getRevealDeck(root);
+    }
+
     const res = await fetch(url);
     const html = await res.text();
 
-    const root = document.getElementById('presentation-root');
-    if (!root) {
-        console.warn('Presentation root not found');
-        return;
-    }
-
     destroyReveal(root);
     mountPresentationMarkup(root, html);
     const deck = await initializeReveal(root);
     if (deck && typeof layoutReveal === 'function') {
         layoutReveal(root);
     }
+    activePresentationSourceKey = sourceKey;
+
+    return deck;
 }
 
 async function loadPresentationHtml(html) {
+    const sourceKey = `html:${html}`;
     const root = document.getElementById('presentation-root');
     if (!root) {
         console.warn('Presentation root not found');
         return;
+    }
+
+    if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
+        return getRevealDeck(root);
     }
 
     destroyReveal(root);
@@ -114,6 +129,9 @@ async function loadPresentationHtml(html) {
     if (deck && typeof layoutReveal === 'function') {
         layoutReveal(root);
     }
+    activePresentationSourceKey = sourceKey;
+
+    return deck;
 }
 
 const slideRevealWhenReady = async (h = 0, v = 0) => {

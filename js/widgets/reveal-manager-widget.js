@@ -692,6 +692,8 @@ ${revealBootstrapScript}`;
 
     stopDeck() {
         this.activeDeck = null;
+        this.presentationMode = false;
+        this.updatePresentationUI();
         this.resetInlineRevealState();
         this.savedSelect.value = '';
         this.iframe.removeAttribute('src');
@@ -832,6 +834,8 @@ ${revealBootstrapScript}`;
             this.presenterWindowMonitor = null;
         }
 
+        this.presentationMode = false;
+        this.updatePresentationUI();
         this.setPresenterStatus('Presenter closed');
     }
 
@@ -917,6 +921,15 @@ ${revealBootstrapScript}`;
             return;
         }
 
+        if (this.presentationMode) {
+            if (this.presenterWindow && !this.presenterWindow.closed) {
+                this.presenterWindow.close();
+            }
+            this.markPresenterClosed();
+            this.emitPresentationNavigation('presentation:stop');
+            return;
+        }
+
         const presenterUrl = new URL('reveal-presenter.html', window.location.href);
         this.presenterWindow = window.open(presenterUrl.toString(), 'reveal-presenter-window');
 
@@ -925,6 +938,8 @@ ${revealBootstrapScript}`;
             return;
         }
 
+        this.presentationMode = true;
+        this.updatePresentationUI();
         this.setPresenterStatus('Presenter opening...');
         this.emitPresentationNavigation('presentation:start');
         if (this.presenterWindowMonitor) {
@@ -932,6 +947,8 @@ ${revealBootstrapScript}`;
         }
         this.presenterWindowMonitor = window.setInterval(() => {
             if (this.presenterWindow && this.presenterWindow.closed) {
+                this.presentationMode = false;
+                this.updatePresentationUI();
                 this.markPresenterClosed();
             }
         }, 1000);
@@ -950,7 +967,9 @@ ${revealBootstrapScript}`;
             document.body.style.overflow = 'auto';
         }
 
-        this.presentationToggleButton.textContent = 'Enter Presentation Mode';
+        this.presentationToggleButton.textContent = this.presentationMode
+            ? 'Exit Presentation Mode'
+            : 'Enter Presentation Mode';
     }
 
     handleWindowMessage(event) {
