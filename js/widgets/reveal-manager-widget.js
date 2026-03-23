@@ -307,6 +307,17 @@ class RevealManagerWidget {
 
     openProjector() {
         const projectorUrl = new URL('projector.html', window.location.href);
+        try {
+            const syncToken = sessionStorage.getItem('teacher-screen-projector-sync-token')
+                || window.__TeacherProjectorSyncToken
+                || null;
+            if (syncToken) {
+                projectorUrl.searchParams.set('syncToken', syncToken);
+            }
+        } catch (error) {
+            console.warn('[RevealSync] unable to attach projector sync token', error);
+        }
+
         this.projectorWindow = window.open(
             projectorUrl.toString(),
             'projector',

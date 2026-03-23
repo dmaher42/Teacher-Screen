@@ -62,6 +62,31 @@ function resetAppState() {
     localStorage.removeItem('selectedTheme');
 }
 
+const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
+
+function createProjectorSyncToken() {
+    const makeToken = () => {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    };
+
+    try {
+        const stored = sessionStorage.getItem(PROJECTOR_SYNC_TOKEN_KEY);
+        if (stored) {
+            return stored;
+        }
+
+        const token = makeToken();
+        sessionStorage.setItem(PROJECTOR_SYNC_TOKEN_KEY, token);
+        return token;
+    } catch (error) {
+        console.warn('Unable to persist projector sync token', error);
+        return makeToken();
+    }
+}
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -123,6 +148,8 @@ class ClassroomScreenApp {
         this.savedNotes = [];
         this.scheduleStorageKey = 'teacherScreenSchedule';
         this.noteIdToLink = null;
+        this.projectorSyncToken = createProjectorSyncToken();
+        window.__TeacherProjectorSyncToken = this.projectorSyncToken;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
         this.eventBusSubscriptions = [];
@@ -293,13 +320,17 @@ class ClassroomScreenApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
+            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
+                return;
+            }
 
             if (message.type === 'request-sync') {
                 const state = this.buildStateSnapshot();
                 this.projectorChannel.postMessage({
                     type: 'layout-update',
                     state,
-                    source: 'teacher'
+                    source: 'teacher',
+                    syncToken: this.projectorSyncToken
                 });
                 return;
             }
@@ -1421,7 +1452,8 @@ class ClassroomScreenApp {
         const state = this.buildStateSnapshot();
         saveState(state, {
             source,
-            projectorChannel: this.projectorChannel
+            projectorChannel: this.projectorChannel,
+            syncToken: this.projectorSyncToken
         });
     }
 
@@ -1437,7 +1469,8 @@ class ClassroomScreenApp {
             this.projectorChannel.postMessage({
                 type: 'layout-delta',
                 source: 'teacher',
-                delta
+                delta,
+                syncToken: this.projectorSyncToken
             });
         }
     }

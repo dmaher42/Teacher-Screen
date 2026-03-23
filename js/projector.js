@@ -4,6 +4,7 @@ import { createWidgetByType } from './widgets/widget-registry.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
+const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 
 console.log('Projector Mode:', PROJECTOR_APP_MODE);
 
@@ -14,6 +15,22 @@ window.__ProjectorConnection = {
 
 let activePresentationSourceKey = null;
 let activePresentationLoadPromise = null;
+
+function getProjectorSyncToken() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('syncToken');
+        if (token) {
+            sessionStorage.setItem(PROJECTOR_SYNC_TOKEN_KEY, token);
+            return token;
+        }
+
+        return sessionStorage.getItem(PROJECTOR_SYNC_TOKEN_KEY) || null;
+    } catch (error) {
+        console.warn('Unable to read projector sync token', error);
+        return null;
+    }
+}
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -263,6 +280,7 @@ class ProjectorApp {
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.projectorSyncToken = getProjectorSyncToken();
     }
 
     init() {
@@ -271,7 +289,7 @@ class ProjectorApp {
         this.setupEditModeControls();
 
         // Ask the teacher window for the latest state as soon as the projector starts.
-        this.projectorChannel.postMessage({ type: 'request-sync' });
+        this.projectorChannel.postMessage({ type: 'request-sync', syncToken: this.projectorSyncToken });
 
         // Listen for storage events to update in real-time
         window.addEventListener('storage', (event) => {
@@ -285,6 +303,9 @@ class ProjectorApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
+            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
+                return;
+            }
 
             if (message.type === 'layout-update') {
                 if (message.source === 'projector') {
@@ -371,7 +392,8 @@ class ProjectorApp {
             this.projectorChannel.postMessage({
                 type: 'layout-delta-from-projector',
                 source: 'projector',
-                delta: payload
+                delta: payload,
+                syncToken: this.projectorSyncToken
             });
         };
 
@@ -422,7 +444,8 @@ class ProjectorApp {
             this.projectorChannel.postMessage({
                 type: 'layout-update-from-projector',
                 source: 'projector',
-                layout: this.layoutManager.serialize()
+                layout: this.layoutManager.serialize(),
+                syncToken: this.projectorSyncToken
             });
         }
     }

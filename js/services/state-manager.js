@@ -140,6 +140,7 @@ export function runMigrations(state, schemaVersion = 1) {
 export function saveState(layout, options = {}) {
     const source = options.source || 'teacher';
     const projectorChannel = options.projectorChannel;
+    const syncToken = options.syncToken || null;
 
     const stateJSON = JSON.stringify(layout);
     localStorage.setItem('classroomScreenState', stateJSON);
@@ -164,7 +165,8 @@ export function saveState(layout, options = {}) {
         projectorChannel.postMessage({
             type: 'layout-update',
             state: layout,
-            source
+            source,
+            syncToken
         });
     }
 }
