@@ -5,8 +5,9 @@ const STATE_MIGRATIONS = [
         migrate(state) {
             // Ensure state.layout exists and is well-formed.
             if (!state.layout || typeof state.layout !== 'object' || !Array.isArray(state.layout.widgets)) {
-                state.layout = { widgets: [] };
+                state.layout = { mode: 'dashboard', widgets: [] };
             }
+            state.layout = normalizeMigratedLayout(state.layout);
             state.layout.widgets = state.layout.widgets.map((widget) => normalizeMigratedWidget(widget));
 
             state.schemaVersion = 1;
@@ -45,6 +46,22 @@ function normalizeMigratedWidget(widget) {
     }
 
     return widget;
+}
+
+function normalizeMigratedLayout(layout) {
+    if (!layout || typeof layout !== 'object') {
+        return { mode: 'dashboard', widgets: [] };
+    }
+
+    if (!Array.isArray(layout.widgets)) {
+        layout.widgets = [];
+    }
+
+    if (!['dashboard', 'stage'].includes(layout.mode)) {
+        layout.mode = 'dashboard';
+    }
+
+    return layout;
 }
 
 export function safeParseLocalStorage(key) {
@@ -98,6 +115,10 @@ export function restoreLocalStorageState(snapshot = {}) {
 export function runMigrations(state, schemaVersion = 1) {
     // Default to schema 0 if it's a legacy state object.
     state.schemaVersion = state.schemaVersion || 0;
+
+    if (state.layout && typeof state.layout === 'object') {
+        state.layout = normalizeMigratedLayout(state.layout);
+    }
 
     if (state.layout && Array.isArray(state.layout.widgets)) {
         state.layout.widgets = state.layout.widgets.map((widget) => normalizeMigratedWidget(widget));
