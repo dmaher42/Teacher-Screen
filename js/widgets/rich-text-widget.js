@@ -12,6 +12,7 @@ if (window.Quill && !window.Quill.imports['formats/displayCallout']) {
 
 class RichTextWidget {
   constructor() {
+    this.pendingContent = '';
     this.element = document.createElement('div');
     this.element.className = 'rich-text-widget-inner';
 
@@ -64,8 +65,13 @@ class RichTextWidget {
         }
       });
 
-      this.load();
-      this.quill.on('text-change', () => this.save());
+      if (this.pendingContent) {
+        this.quill.root.innerHTML = this.pendingContent;
+      }
+
+      this.quill.on('text-change', () => {
+        this.pendingContent = this.quill.root.innerHTML;
+      });
     }, 0);
   }
 
@@ -82,26 +88,15 @@ class RichTextWidget {
 
   serialize() {
     return {
-      content: this.quill ? this.quill.root.innerHTML : ''
+      content: this.quill ? this.quill.root.innerHTML : this.pendingContent
     };
   }
 
   deserialize(data) {
-    if (this.quill && data?.content) {
-      this.quill.root.innerHTML = data.content;
-    }
-  }
+    this.pendingContent = data?.content || '';
 
-  save() {
     if (this.quill) {
-      localStorage.setItem('richTextWidgetContent', this.quill.root.innerHTML);
-    }
-  }
-
-  load() {
-    const saved = localStorage.getItem('richTextWidgetContent');
-    if (saved && this.quill) {
-      this.quill.root.innerHTML = saved;
+      this.quill.root.innerHTML = this.pendingContent;
     }
   }
 }

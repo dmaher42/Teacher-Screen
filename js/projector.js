@@ -1,5 +1,5 @@
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
-import { initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
+import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 
 window.APP_MODE = 'projector';
@@ -55,16 +55,7 @@ async function loadPresentation(url) {
         return;
     }
 
-    const existingDeck = window.__RevealState && window.__RevealState.deck;
-    if (existingDeck && typeof existingDeck.destroy === 'function') {
-        try {
-            existingDeck.destroy();
-        } catch (error) {
-            console.warn('Projector Reveal destroy failed', error);
-        }
-    }
-    window.__RevealState = { initialized: false, ready: false, deck: null };
-
+    destroyReveal(root);
     mountPresentationMarkup(root, html);
     const deck = await initializeReveal(root);
     if (deck && typeof layoutReveal === 'function') {
@@ -79,16 +70,7 @@ async function loadPresentationHtml(html) {
         return;
     }
 
-    const existingDeck = window.__RevealState && window.__RevealState.deck;
-    if (existingDeck && typeof existingDeck.destroy === 'function') {
-        try {
-            existingDeck.destroy();
-        } catch (error) {
-            console.warn('Projector Reveal destroy failed', error);
-        }
-    }
-    window.__RevealState = { initialized: false, ready: false, deck: null };
-
+    destroyReveal(root);
     mountPresentationMarkup(root, html);
     const deck = await initializeReveal(root);
     if (deck && typeof layoutReveal === 'function') {
@@ -97,8 +79,9 @@ async function loadPresentationHtml(html) {
 }
 
 const slideRevealWhenReady = async (h = 0, v = 0) => {
-    const revealState = window.__RevealState;
-    const deck = revealState && revealState.deck;
+    const root = document.getElementById('presentation-root');
+    const revealState = getRevealState(root);
+    const deck = getRevealDeck(root);
     if (!deck || typeof deck.slide !== 'function') {
         return;
     }

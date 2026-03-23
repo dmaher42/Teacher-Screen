@@ -1456,6 +1456,7 @@ class ClassroomScreenApp {
         const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
         mergedState.layout = layout;
 
+        this.widgets = [];
         this.layoutManager.deserialize(layout, (widgetData) => {
                     const widget = createWidgetByType(widgetData.type);
                     if (widget) {

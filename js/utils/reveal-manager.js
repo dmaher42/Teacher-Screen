@@ -1,16 +1,52 @@
 const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js';
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
+const revealStateStore = new WeakMap();
 
-function ensureRevealState() {
-    if (!window.__RevealState) {
-        window.__RevealState = {
-            initialized: false,
-            ready: false,
-            deck: null
-        };
+function createRevealState(root = null) {
+    return {
+        initialized: false,
+        ready: false,
+        deck: null,
+        root
+    };
+}
+
+function setActiveRevealState(state) {
+    if (typeof window !== 'undefined') {
+        window.__RevealState = state || createRevealState();
+    }
+    return state;
+}
+
+function resolvePresentationRoot(container, createIfMissing = false) {
+    if (!container || typeof container.querySelector !== 'function') {
+        return null;
     }
 
-    return window.__RevealState;
+    if (container.id === 'presentation-root') {
+        return container;
+    }
+
+    let root = container.querySelector('#presentation-root');
+    if (!root && createIfMissing) {
+        root = ensurePresentationRoot(container);
+    }
+
+    return root;
+}
+
+function getStoredRevealState(root, createIfMissing = false) {
+    if (!root) {
+        return null;
+    }
+
+    let state = revealStateStore.get(root);
+    if (!state && createIfMissing) {
+        state = createRevealState(root);
+        revealStateStore.set(root, state);
+    }
+
+    return state || null;
 }
 
 function getRevealOptions() {
@@ -92,6 +128,52 @@ function ensurePresentationRoot(container) {
     return root;
 }
 
+export function getRevealState(container = null) {
+    if (!container) {
+        return window.__RevealState || createRevealState();
+    }
+
+    const root = resolvePresentationRoot(container, false);
+    return getStoredRevealState(root, false) || createRevealState(root);
+}
+
+export function getRevealDeck(container = null) {
+    const state = getRevealState(container);
+    return state && state.deck ? state.deck : null;
+}
+
+export function destroyReveal(container) {
+    const root = resolvePresentationRoot(container, false);
+    const state = getStoredRevealState(root, false);
+
+    if (!state) {
+        return null;
+    }
+
+    if (state.deck && typeof state.deck.destroy === 'function') {
+        try {
+            state.deck.destroy();
+        } catch (error) {
+            console.warn('Reveal destroy failed', error);
+        }
+    }
+
+    state.initialized = false;
+    state.ready = false;
+    state.deck = null;
+
+    const revealElement = root && root.querySelector('.reveal');
+    if (revealElement) {
+        revealElement.className = 'reveal';
+    }
+
+    if (window.__RevealState === state) {
+        setActiveRevealState(state);
+    }
+
+    return state;
+}
+
 export function mountPresentationMarkup(container, html) {
     const root = ensurePresentationRoot(container);
     if (!root) return null;
@@ -119,13 +201,6 @@ export function hasMountedReveal(container) {
 }
 
 export async function initializeReveal(container) {
-    const revealState = ensureRevealState();
-
-    if (revealState.initialized) {
-        console.warn('[Reveal] initialization blocked (already initialized)');
-        return revealState.deck;
-    }
-
     ensureRevealCss();
     await ensureRevealScript();
 
@@ -133,6 +208,13 @@ export async function initializeReveal(container) {
     if (!root) {
         console.warn('[Reveal] presentation root not available');
         return null;
+    }
+
+    const revealState = getStoredRevealState(root, true);
+
+    if (revealState.initialized && revealState.deck) {
+        setActiveRevealState(revealState);
+        return revealState.deck;
     }
 
     if (typeof window.Reveal !== 'function') {
@@ -143,11 +225,14 @@ export async function initializeReveal(container) {
     const deck = new window.Reveal(root.querySelector('.reveal'), getRevealOptions());
     revealState.deck = deck;
     revealState.initialized = true;
+    revealState.ready = false;
+    setActiveRevealState(revealState);
 
     deck.initialize();
 
     deck.on('ready', () => {
         revealState.ready = true;
+        setActiveRevealState(revealState);
         console.log('[Reveal] ready');
     });
 
@@ -160,12 +245,18 @@ export async function initReveal(container) {
 }
 
 export function layoutReveal(container) {
-    const deck = window.__RevealState && window.__RevealState.deck;
+    const root = resolvePresentationRoot(container, false);
+    if (!root) {
+        return;
+    }
+
+    const revealState = getStoredRevealState(root, false);
+    const deck = revealState && revealState.deck;
     if (!deck || typeof deck.layout !== 'function') {
         return;
     }
 
-    if (container && !hasMountedReveal(container)) {
+    if (!hasMountedReveal(container)) {
         return;
     }
 

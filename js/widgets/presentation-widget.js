@@ -56,22 +56,19 @@ class PresentationWidget {
     }
 
     handleResize() {
-        const deck = window.__RevealState && window.__RevealState.deck;
-        if (deck && typeof deck.layout === 'function') {
-            deck.layout();
-            return;
-        }
+        import('./../utils/reveal-manager.js').then(({ getRevealDeck, hasMountedReveal, layoutReveal }) => {
+            const deck = getRevealDeck(this.stage);
+            if (deck && typeof deck.layout === 'function') {
+                layoutReveal(this.stage);
+                return;
+            }
 
-        // If Reveal did not initialize previously (e.g. widget restored while hidden),
-        // retry loading the selected presentation when the widget is resized/visible.
-        if (this.currentPresentation) {
-            import('./../utils/reveal-manager.js').then(({ hasMountedReveal }) => {
-                if (!hasMountedReveal(this.stage)) {
-                    this.loadPresentationByName(this.currentPresentation);
-                }
-            });
-        }
-
+            // If Reveal did not initialize previously (e.g. widget restored while hidden),
+            // retry loading the selected presentation when the widget is resized/visible.
+            if (this.currentPresentation && !hasMountedReveal(this.stage)) {
+                this.loadPresentationByName(this.currentPresentation);
+            }
+        });
     }
 
     serialize() {

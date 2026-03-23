@@ -454,10 +454,11 @@ class RevealManagerWidget {
     }
 
     loadPresentation(container, html) {
-        this.resetInlineRevealState();
-
         import('../utils/reveal-manager.js')
-            .then(({ initializeReveal, mountPresentationMarkup }) => {
+            .then(({ destroyReveal, initializeReveal, mountPresentationMarkup }) => {
+                destroyReveal(container);
+                this.revealDeck = null;
+                this.slideChangeHandlerAttached = false;
                 mountPresentationMarkup(container, html);
                 return initializeReveal(container);
             })
@@ -486,22 +487,17 @@ class RevealManagerWidget {
     }
 
     resetInlineRevealState() {
-        if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {
-            try {
-                this.revealDeck.destroy();
-            } catch (error) {
-                console.warn('Reveal destroy failed', error);
-            }
-        }
-
         this.revealDeck = null;
+        this.revealDeckContainer = null;
         this.slideChangeHandlerAttached = false;
 
-        if (window.__RevealState) {
-            window.__RevealState.initialized = false;
-            window.__RevealState.ready = false;
-            window.__RevealState.deck = null;
-        }
+        import('../utils/reveal-manager.js')
+            .then(({ destroyReveal }) => {
+                destroyReveal(this.inlineDeckContainer);
+            })
+            .catch((error) => {
+                console.warn('[Reveal] unable to reset presentation', error);
+            });
     }
 
     persistActiveDeckState() {

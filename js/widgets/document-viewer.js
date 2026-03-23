@@ -337,6 +337,15 @@ class DocumentViewerWidget {
         };
     }
 
+    deserialize(data = {}) {
+        if (!data.url) {
+            return;
+        }
+
+        this.urlInput.value = data.url;
+        this.embedUrl(data.url);
+    }
+
     setEditable() {}
 
     // Optional: Call this if your larger system supports destroying widgets
