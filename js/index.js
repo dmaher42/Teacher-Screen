@@ -11,45 +11,68 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
     document.head.appendChild(script);
 });
 
-const loadOptionalClassicScript = async (src, label = src) => {
-    try {
-        await loadClassicScript(src);
-    } catch (error) {
-        console.warn(`[bootstrap] Optional script failed: ${label} (${src})`);
-        console.warn(error);
-    }
-};
+const TEACHER_DEPENDENCIES = [
+    { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
+    { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: './js/utils/layout-manager.js', required: true },
+    { src: './js/utils/background-manager.js', required: true },
+    { src: './assets/sounds/sound-data.js', required: false },
+    { src: './js/widgets/timer.js', required: false },
+    { src: './js/widgets/noise-meter.js', required: false },
+    { src: './js/widgets/noise-meter-widget.js', required: false },
+    { src: './js/widgets/name-picker.js', required: false },
+    { src: './js/widgets/qr-code-widget.js', required: false },
+    { src: './js/widgets/drawing-tool.js', required: false },
+    { src: './js/widgets/document-viewer.js', required: false },
+    { src: './js/widgets/url-viewer.js', required: false },
+    { src: './js/widgets/reveal-manager-widget.js', required: false },
+    { src: './js/widgets/presentation-widget.js', required: false },
+    { src: './js/widgets/mask-widget.js', required: false },
+    { src: './js/widgets/notes-widget.js', required: false },
+    { src: './js/widgets/wellbeing-widget.js', required: false },
+    { src: './js/widgets/rich-text-widget.js', required: false }
+];
 
 const bootstrapTeacherDependencies = async () => {
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
-    await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
-    await loadClassicScript('./js/utils/layout-manager.js');
-    await loadClassicScript('./js/utils/background-manager.js');
-    await loadOptionalClassicScript('./assets/sounds/sound-data.js', 'sound-data');
-    await loadOptionalClassicScript('./js/widgets/timer.js', 'timer');
-    await loadOptionalClassicScript('./js/widgets/noise-meter.js', 'noise-meter');
-    await loadOptionalClassicScript('./js/widgets/noise-meter-widget.js', 'noise-meter-widget');
-    await loadOptionalClassicScript('./js/widgets/name-picker.js', 'name-picker');
-    await loadOptionalClassicScript('./js/widgets/qr-code-widget.js', 'qr-code-widget');
-    await loadOptionalClassicScript('./js/widgets/drawing-tool.js', 'drawing-tool');
-    await loadOptionalClassicScript('./js/widgets/document-viewer.js', 'document-viewer');
-    await loadOptionalClassicScript('./js/widgets/url-viewer.js', 'url-viewer');
-    await loadOptionalClassicScript('./js/widgets/reveal-manager-widget.js', 'reveal-manager-widget');
-    await loadOptionalClassicScript('./js/widgets/presentation-widget.js', 'presentation-widget');
-    await loadOptionalClassicScript('./js/widgets/mask-widget.js', 'mask-widget');
-    await loadOptionalClassicScript('./js/widgets/notes-widget.js', 'notes-widget');
-    await loadOptionalClassicScript('./js/widgets/wellbeing-widget.js', 'wellbeing-widget');
-    await loadOptionalClassicScript('./js/widgets/rich-text-widget.js', 'rich-text-widget');
+    const failures = [];
+
+    for (const dependency of TEACHER_DEPENDENCIES) {
+        try {
+            await loadClassicScript(dependency.src);
+        } catch (error) {
+            failures.push({
+                src: dependency.src,
+                required: dependency.required,
+                error: error.message
+            });
+
+            const logMethod = dependency.required ? 'error' : 'warn';
+            console[logMethod](`[bootstrap] dependency load failed: ${dependency.src}`, error);
+
+            if (dependency.required) {
+                throw Object.assign(new Error(`Critical teacher dependency failed: ${dependency.src}`), {
+                    cause: error,
+                    failures
+                });
+            }
+        }
+    }
+
+    window.__TeacherDependencyFailures = failures;
+    return failures;
 };
 
 const init = async () => {
     console.log('[bootstrap] Starting app initialization');
 
     try {
-        await bootstrapTeacherDependencies();
+        const failures = await bootstrapTeacherDependencies();
+        if (failures.length > 0) {
+            console.warn('[bootstrap] continuing with optional dependency failures', failures);
+        }
     } catch (error) {
         console.error(`[bootstrap] Required dependency failed: ${error?.message || 'Unknown error'}`);
         throw error;
