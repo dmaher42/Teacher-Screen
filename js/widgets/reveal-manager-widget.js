@@ -537,10 +537,25 @@ class RevealManagerWidget {
             return '';
         }
 
-        return content
+        let normalized = content.trim();
+
+        if (normalized.startsWith('"') && normalized.endsWith('"')) {
+            try {
+                const parsed = JSON.parse(normalized);
+                if (typeof parsed === 'string') {
+                    normalized = parsed;
+                }
+            } catch (error) {
+                // Fall back to manual unescaping below.
+            }
+        }
+
+        return normalized
             .replace(/\\r\\n/g, '\n')
             .replace(/\\n/g, '\n')
             .replace(/\\t/g, '\t')
+            .replace(/\\"/g, '"')
+            .replace(/\\'/g, '\'')
             .replace(/\\\//g, '/');
     }
 
