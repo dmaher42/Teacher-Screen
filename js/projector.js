@@ -200,6 +200,7 @@ const initializeRevealSyncListener = () => {
         const data = event.data;
 
         if (!data || data.type !== 'slideSync') return;
+        if (event.origin !== window.location.origin) return;
 
         console.log('Projector received slide:', data.h, data.v);
 
@@ -409,6 +410,7 @@ class ProjectorApp {
             return;
         }
 
+        this.widgets = [];
         this.layoutManager.deserialize(resetSnapshot, (widgetData) => {
             if (widgetData.visibleOnProjector === false) {
                 return null;

@@ -1817,6 +1817,7 @@ class ClassroomScreenApp {
 
             // Restore layout and widgets
             if (state.layout && state.layout.widgets) {
+                this.widgets = [];
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
                     // This factory function recreates widgets from saved data
                     const widget = createWidgetByType(widgetData.type);
