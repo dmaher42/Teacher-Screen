@@ -21,29 +21,67 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
     document.head.appendChild(script);
 });
 
+const PROJECTOR_DEPENDENCIES = [
+    { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
+    { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: 'js/utils/layout-manager.js', required: true },
+    { src: 'js/utils/background-manager.js', required: true },
+    { src: 'assets/sounds/sound-data.js', required: false },
+    { src: 'js/widgets/timer.js', required: false },
+    { src: 'js/widgets/noise-meter.js', required: false },
+    { src: 'js/widgets/noise-meter-widget.js', required: false },
+    { src: 'js/widgets/name-picker.js', required: false },
+    { src: 'js/widgets/qr-code-widget.js', required: false },
+    { src: 'js/widgets/drawing-tool.js', required: false },
+    { src: 'js/widgets/document-viewer.js', required: false },
+    { src: 'js/widgets/url-viewer.js', required: false },
+    { src: 'js/widgets/reveal-manager-widget.js', required: false },
+    { src: 'js/widgets/presentation-widget.js', required: false },
+    { src: 'js/widgets/notes-widget.js', required: false },
+    { src: 'js/widgets/wellbeing-widget.js', required: false },
+    { src: 'js/widgets/rich-text-widget.js', required: false },
+    { src: 'js/widgets/mask-widget.js', required: false }
+];
+
 const bootstrapProjectorDependencies = async () => {
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
-    await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
-    await loadClassicScript('js/utils/layout-manager.js');
-    await loadClassicScript('js/utils/background-manager.js');
-    await loadClassicScript('assets/sounds/sound-data.js');
-    await loadClassicScript('js/widgets/timer.js');
-    await loadClassicScript('js/widgets/noise-meter.js');
-    await loadClassicScript('js/widgets/noise-meter-widget.js');
-    await loadClassicScript('js/widgets/name-picker.js');
-    await loadClassicScript('js/widgets/qr-code-widget.js');
-    await loadClassicScript('js/widgets/drawing-tool.js');
-    await loadClassicScript('js/widgets/document-viewer.js');
-    await loadClassicScript('js/widgets/url-viewer.js');
-    await loadClassicScript('js/widgets/reveal-manager-widget.js');
-    await loadClassicScript('js/widgets/presentation-widget.js');
-    await loadClassicScript('js/widgets/notes-widget.js');
-    await loadClassicScript('js/widgets/wellbeing-widget.js');
-    await loadClassicScript('js/widgets/rich-text-widget.js');
-    await loadClassicScript('js/widgets/mask-widget.js');
+    const failures = [];
+
+    for (const dependency of PROJECTOR_DEPENDENCIES) {
+        try {
+            await loadClassicScript(dependency.src);
+        } catch (error) {
+            failures.push({
+                src: dependency.src,
+                required: dependency.required,
+                error: error.message
+            });
+
+            const logMethod = dependency.required ? 'error' : 'warn';
+            console[logMethod](`[projector] dependency load failed: ${dependency.src}`, error);
+
+            if (dependency.required) {
+                throw Object.assign(new Error(`Critical projector dependency failed: ${dependency.src}`), {
+                    cause: error,
+                    failures
+                });
+            }
+        }
+    }
+
+    window.__ProjectorDependencyFailures = failures;
+    return failures;
 };
+
+function showProjectorStartupMessage(message) {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        return;
+    }
+
+    root.innerHTML = `<div style="padding:16px;color:#fff;background:#7f1d1d;font:600 16px/1.4 Poppins,sans-serif;">${message}</div>`;
+}
 
 async function loadPresentation(url) {
     const res = await fetch(url);
@@ -386,9 +424,25 @@ class ProjectorApp {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await bootstrapProjectorDependencies();
-    initializeRevealSyncListener();
-    const app = new ProjectorApp();
-    app.init();
-    startPresentationDiagnostics();
+    try {
+        const failures = await bootstrapProjectorDependencies();
+
+        if (failures.length > 0) {
+            console.warn('[projector] continuing with optional dependency failures', failures);
+        }
+
+        initializeRevealSyncListener();
+
+        if (typeof LayoutManager !== 'function' || typeof BackgroundManager !== 'function') {
+            showProjectorStartupMessage('Projector failed to start because core layout files did not load.');
+            return;
+        }
+
+        const app = new ProjectorApp();
+        app.init();
+        startPresentationDiagnostics();
+    } catch (error) {
+        console.error('[projector] startup failed', error);
+        showProjectorStartupMessage('Projector startup failed. Check the browser console for dependency errors.');
+    }
 });

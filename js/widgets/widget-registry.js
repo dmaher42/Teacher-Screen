@@ -171,7 +171,13 @@ export function createWidgetInstance(type) {
         console.warn(`Unknown widget type: ${type}`);
         return null;
     }
-    return config.create();
+
+    try {
+        return config.create();
+    } catch (error) {
+        console.warn(`Unable to create widget type: ${type}`, error);
+        return null;
+    }
 }
 
 export const createWidgetByType = createWidgetInstance;
