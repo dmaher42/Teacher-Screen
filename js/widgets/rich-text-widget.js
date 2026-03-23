@@ -13,8 +13,12 @@ if (window.Quill && !window.Quill.imports['formats/displayCallout']) {
 class RichTextWidget {
   constructor() {
     this.pendingContent = '';
+    this.isDisplayMode = false;
     this.element = document.createElement('div');
     this.element.className = 'rich-text-widget-inner';
+
+    this.handleDisplayModeClick = this.handleDisplayModeClick.bind(this);
+    this.handleTextChange = this.handleTextChange.bind(this);
 
     this.controls = document.createElement('div');
     this.controls.className = 'rich-text-controls';
@@ -24,9 +28,8 @@ class RichTextWidget {
     this.displayModeButton.className = 'control-button';
     this.displayModeButton.type = 'button';
     this.displayModeButton.textContent = '⚡ Display Mode';
-    this.displayModeButton.addEventListener('click', () => {
-      this.element.classList.toggle('display-mode');
-    });
+    this.displayModeButton.setAttribute('aria-pressed', 'false');
+    this.displayModeButton.addEventListener('click', this.handleDisplayModeClick);
 
     this.controls.appendChild(this.displayModeButton);
 
@@ -38,7 +41,7 @@ class RichTextWidget {
 
     this.element.appendChild(this.editorContainer);
 
-    setTimeout(() => {
+    this.initTimer = setTimeout(() => {
       const SizeStyle = Quill.import('attributors/style/size');
       SizeStyle.whitelist = ['small', 'large', 'huge'];
       Quill.register(SizeStyle, true);
@@ -69,10 +72,22 @@ class RichTextWidget {
         this.quill.root.innerHTML = this.pendingContent;
       }
 
-      this.quill.on('text-change', () => {
-        this.pendingContent = this.quill.root.innerHTML;
-      });
+      this.quill.on('text-change', this.handleTextChange);
     }, 0);
+  }
+
+  handleDisplayModeClick() {
+    this.isDisplayMode = !this.isDisplayMode;
+    this.element.classList.toggle('display-mode', this.isDisplayMode);
+    this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
+  }
+
+  handleTextChange() {
+    if (!this.quill) {
+      return;
+    }
+
+    this.pendingContent = this.quill.root.innerHTML;
   }
 
   insertHtml(html) {
@@ -88,15 +103,38 @@ class RichTextWidget {
 
   serialize() {
     return {
-      content: this.quill ? this.quill.root.innerHTML : this.pendingContent
+      content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
+      displayMode: this.isDisplayMode
     };
   }
 
   deserialize(data) {
     this.pendingContent = data?.content || '';
+    this.isDisplayMode = data?.displayMode === true;
+    this.element.classList.toggle('display-mode', this.isDisplayMode);
+    this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
 
     if (this.quill) {
       this.quill.root.innerHTML = this.pendingContent;
     }
+  }
+
+  remove() {
+    this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
+
+    if (this.initTimer) {
+      clearTimeout(this.initTimer);
+      this.initTimer = null;
+    }
+
+    if (this.quill && typeof this.quill.off === 'function') {
+      this.quill.off('text-change', this.handleTextChange);
+    }
+
+    this.quill = null;
+    this.element.remove();
+
+    const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
+    document.dispatchEvent(event);
   }
 }

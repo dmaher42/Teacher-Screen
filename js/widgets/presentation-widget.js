@@ -108,6 +108,15 @@ class PresentationWidget {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
         }
+
+        import('./../utils/reveal-manager.js')
+            .then(({ destroyReveal }) => {
+                destroyReveal(this.stage);
+            })
+            .catch((error) => {
+                console.warn('[presentation-widget] failed to destroy reveal instance', error);
+            });
+
         this.element.remove();
     }
 }
