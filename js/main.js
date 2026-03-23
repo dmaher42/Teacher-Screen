@@ -256,32 +256,19 @@ class ClassroomScreenApp {
         });
 
         this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true } = {}) => {
-            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-            if (!timerWidget) {
-                this.showNotification('No timer widget found. Add one first!', 'error');
-                return;
-            }
-
             if (!Number.isFinite(minutes) || minutes <= 0) {
-                this.showNotification('Please set a timer duration.', 'warning');
                 return;
             }
 
-            timerWidget.start(minutes);
             if (showNotification) {
                 this.showNotification(`Timer started for ${Math.round(minutes * 100) / 100} minutes.`);
             }
         });
 
-        this.subscribeToEventBus('timer:stopped', () => {
-            const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
-            if (!timerWidget) {
-                this.showNotification('No timer widget found.', 'error');
-                return;
+        this.subscribeToEventBus('timer:stopped', ({ showNotification = true } = {}) => {
+            if (showNotification) {
+                this.showNotification('Timer stopped.');
             }
-
-            timerWidget.stop();
-            this.showNotification('Timer stopped.');
         });
 
         this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
@@ -1261,11 +1248,6 @@ class ClassroomScreenApp {
         }
 
         const layoutData = this.layoutManager.serialize();
-        layoutData.widgets = layoutData.widgets.map((widget, index) => {
-            const info = this.layoutManager.widgets[index];
-            const isVisible = info ? getComputedStyle(info.element).display !== 'none' : true;
-            return { ...widget, isVisible };
-        });
 
         const payload = {
             name: layoutName,
@@ -1307,23 +1289,38 @@ class ClassroomScreenApp {
                 this.backgroundManager.deserialize(data.background);
             }
 
+            const normalizedLayout = data.layout && Array.isArray(data.layout.widgets)
+                ? {
+                    ...data.layout,
+                    widgets: data.layout.widgets.map((widgetData) => {
+                        if (!widgetData || typeof widgetData !== 'object') {
+                            return widgetData;
+                        }
+
+                        if (typeof widgetData.visibleOnProjector === 'boolean') {
+                            return widgetData;
+                        }
+
+                        if (typeof widgetData.isVisible === 'boolean') {
+                            return {
+                                ...widgetData,
+                                visibleOnProjector: widgetData.isVisible
+                            };
+                        }
+
+                        return widgetData;
+                    })
+                }
+                : data.layout;
+
             this.widgets = [];
-            if (data.layout && data.layout.widgets) {
-                this.layoutManager.deserialize(data.layout, (widgetData) => {
+            if (normalizedLayout && normalizedLayout.widgets) {
+                this.layoutManager.deserialize(normalizedLayout, (widgetData) => {
                     const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }
                     return widget;
-                });
-            }
-
-            if (Array.isArray(data.layout?.widgets)) {
-                data.layout.widgets.forEach((widgetData, index) => {
-                    const info = this.layoutManager.widgets[index];
-                    if (info && widgetData) {
-                        info.element.style.display = widgetData.isVisible === false ? 'none' : 'block';
-                    }
                 });
             }
 
@@ -1897,7 +1894,6 @@ class ClassroomScreenApp {
             const totalMinutes = (hours * 60) + minutes + (seconds / 60);
             if (totalMinutes > 0) {
                 eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes });
-                this.showNotification('Timer started!');
             } else {
                 this.showNotification('Please set a timer duration.', 'warning');
             }
@@ -1917,14 +1913,12 @@ class ClassroomScreenApp {
         }
 
         eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes });
-        this.showNotification(`Timer started for ${minutes} minutes.`);
     }
 
     stopTimerFromControls() {
         const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
         if (timerWidget) {
             eventBus.emit('timer:stop', { widgetId: timerWidget.widgetId });
-            this.showNotification('Timer stopped.');
         } else {
             this.showNotification('No timer widget found.', 'error');
         }

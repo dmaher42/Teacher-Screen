@@ -457,7 +457,7 @@ class TimerWidget {
             this.flashDisplay();
             this.interval = setInterval(() => this.tick(), 1000);
             this.running = true;
-            this.emitTimerEvent('timer:start', { widgetId: this.widgetId, minutes: this.totalTime / 60 });
+            this.emitTimerEvent('timer:started', { widgetId: this.widgetId, minutes: this.totalTime / 60 });
         }
     }
 
@@ -509,7 +509,7 @@ class TimerWidget {
         this.flashDisplay();
 
         if (emitEvent) {
-            this.emitTimerEvent('timer:stop', { widgetId: this.widgetId });
+            this.emitTimerEvent('timer:stopped', { widgetId: this.widgetId });
         }
     }
 
