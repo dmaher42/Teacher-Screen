@@ -442,7 +442,7 @@ class RevealManagerWidget {
 
     getActiveRevealApi() {
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            return this.revealDeck || null;
+            return this.revealDeck || this.inlineDeckContainer.__teacherScreenRevealDeck || null;
         }
 
         const frameWindow = this.iframeRef.current?.contentWindow;
@@ -466,6 +466,7 @@ class RevealManagerWidget {
                 if (!deck) return;
 
                 this.revealDeck = deck;
+                container.__teacherScreenRevealDeck = deck;
 
                 if (this.revealResizeObserver) {
                     this.revealResizeObserver.disconnect();
@@ -490,6 +491,9 @@ class RevealManagerWidget {
         this.revealDeck = null;
         this.revealDeckContainer = null;
         this.slideChangeHandlerAttached = false;
+        if (this.inlineDeckContainer) {
+            this.inlineDeckContainer.__teacherScreenRevealDeck = null;
+        }
 
         import('../utils/reveal-manager.js')
             .then(({ destroyReveal }) => {
@@ -700,16 +704,14 @@ ${revealBootstrapScript}`;
 
         if (this.activeDeck && this.activeDeck.type === 'html' && reveal) {
             const actionMap = {
-                next: 'nextSlide',
-                prev: 'prevSlide'
+                next: 'next',
+                prev: 'prev',
+                up: 'up',
+                down: 'down'
             };
             const action = actionMap[direction];
-            if (action) {
-                import('../utils/presentation-controller.js').then((controller) => {
-                    if (typeof controller[action] === 'function') {
-                        controller[action]();
-                    }
-                });
+            if (action && typeof reveal[action] === 'function') {
+                reveal[action]();
             }
         } else {
             const frame = this.iframeRef.current;
@@ -742,7 +744,13 @@ ${revealBootstrapScript}`;
         event.stopPropagation();
         console.log('[RevealSync] teacher prev slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            import('../utils/presentation-controller.js').then(({ prevSlide }) => prevSlide());
+            this.emitPresentationNavigation('presentation:prev');
+            import('../utils/reveal-manager.js').then(({ getRevealDeck }) => {
+                const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
+                if (deck && typeof deck.prev === 'function') {
+                    deck.prev();
+                }
+            });
         } else {
             this.emitPresentationNavigation('presentation:prev');
             this.sendKeyToIframe('prev');
@@ -753,7 +761,13 @@ ${revealBootstrapScript}`;
         event.stopPropagation();
         console.log('[RevealSync] teacher next slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            import('../utils/presentation-controller.js').then(({ nextSlide }) => nextSlide());
+            this.emitPresentationNavigation('presentation:next');
+            import('../utils/reveal-manager.js').then(({ getRevealDeck }) => {
+                const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
+                if (deck && typeof deck.next === 'function') {
+                    deck.next();
+                }
+            });
         } else {
             this.emitPresentationNavigation('presentation:next');
             this.sendKeyToIframe('next');

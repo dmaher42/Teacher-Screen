@@ -1,7 +1,11 @@
 const appBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
 let listenersRegistered = false;
 
-function getDeck() {
+function resolveDeck(deckOverride = null) {
+    if (deckOverride && typeof deckOverride === 'object') {
+        return deckOverride;
+    }
+
     return window.__RevealState ? window.__RevealState.deck : null;
 }
 
@@ -13,16 +17,16 @@ export function exitPresentationMode() {
     appBus && appBus.emit && appBus.emit('presentation:stop');
 }
 
-export function nextSlide() {
+export function nextSlide(deckOverride = null) {
     appBus && appBus.emit && appBus.emit('presentation:next');
-    const deck = getDeck();
+    const deck = resolveDeck(deckOverride);
     if (!deck || typeof deck.next !== 'function') return;
     deck.next();
 }
 
-export function prevSlide() {
+export function prevSlide(deckOverride = null) {
     appBus && appBus.emit && appBus.emit('presentation:prev');
-    const deck = getDeck();
+    const deck = resolveDeck(deckOverride);
     if (!deck || typeof deck.prev !== 'function') return;
     deck.prev();
 }
@@ -31,14 +35,14 @@ export function registerPresentationAppBusHandlers() {
     if (!appBus || typeof appBus.on !== 'function' || listenersRegistered) return;
 
     appBus.on('presentation:next', () => {
-        const deck = getDeck();
+        const deck = resolveDeck();
         if (deck && typeof deck.next === 'function') {
             deck.next();
         }
     });
 
     appBus.on('presentation:prev', () => {
-        const deck = getDeck();
+        const deck = resolveDeck();
         if (deck && typeof deck.prev === 'function') {
             deck.prev();
         }
