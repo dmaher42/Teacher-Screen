@@ -13,6 +13,7 @@ window.__ProjectorConnection = {
 };
 
 let activePresentationSourceKey = null;
+let activePresentationLoadPromise = null;
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -93,22 +94,34 @@ async function loadPresentation(url) {
         return;
     }
 
+    if (activePresentationLoadPromise && activePresentationSourceKey === sourceKey) {
+        return activePresentationLoadPromise;
+    }
+
     if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
         return getRevealDeck(root);
     }
 
-    const res = await fetch(url);
-    const html = await res.text();
-
-    destroyReveal(root);
-    mountPresentationMarkup(root, html);
-    const deck = await initializeReveal(root);
-    if (deck && typeof layoutReveal === 'function') {
-        layoutReveal(root);
-    }
     activePresentationSourceKey = sourceKey;
+    activePresentationLoadPromise = (async () => {
+        const res = await fetch(url);
+        const html = await res.text();
 
-    return deck;
+        destroyReveal(root);
+        mountPresentationMarkup(root, html);
+        const deck = await initializeReveal(root);
+        if (deck && typeof layoutReveal === 'function') {
+            layoutReveal(root);
+        }
+
+        return deck;
+    })();
+
+    try {
+        return await activePresentationLoadPromise;
+    } finally {
+        activePresentationLoadPromise = null;
+    }
 }
 
 async function loadPresentationHtml(html) {
@@ -119,19 +132,31 @@ async function loadPresentationHtml(html) {
         return;
     }
 
+    if (activePresentationLoadPromise && activePresentationSourceKey === sourceKey) {
+        return activePresentationLoadPromise;
+    }
+
     if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
         return getRevealDeck(root);
     }
 
-    destroyReveal(root);
-    mountPresentationMarkup(root, html);
-    const deck = await initializeReveal(root);
-    if (deck && typeof layoutReveal === 'function') {
-        layoutReveal(root);
-    }
     activePresentationSourceKey = sourceKey;
+    activePresentationLoadPromise = (async () => {
+        destroyReveal(root);
+        mountPresentationMarkup(root, html);
+        const deck = await initializeReveal(root);
+        if (deck && typeof layoutReveal === 'function') {
+            layoutReveal(root);
+        }
 
-    return deck;
+        return deck;
+    })();
+
+    try {
+        return await activePresentationLoadPromise;
+    } finally {
+        activePresentationLoadPromise = null;
+    }
 }
 
 const slideRevealWhenReady = async (h = 0, v = 0) => {
