@@ -442,6 +442,8 @@ class LayoutManager {
 
       if (widget && typeof widget.remove === 'function') {
         widget.remove();
+      } else if (widget && typeof widget.destroy === 'function') {
+        widget.destroy();
       }
 
       document.removeEventListener('widgetRemoved', trackWidgetRemoved);
