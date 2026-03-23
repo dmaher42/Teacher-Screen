@@ -232,24 +232,29 @@ export async function initializeReveal(container) {
         return revealState.deck;
     }
 
-    if (typeof window.Reveal !== 'function') {
+    if (!window.Reveal || typeof window.Reveal.initialize !== 'function') {
         console.warn('[Reveal] library not available');
         return null;
     }
 
-    const deck = new window.Reveal(root.querySelector('.reveal'), getRevealOptions());
+    const deck = window.Reveal;
     revealState.deck = deck;
     revealState.initialized = true;
     revealState.ready = false;
     setActiveRevealState(revealState);
 
-    deck.initialize();
+    if (typeof deck.on === 'function') {
+        deck.on('ready', () => {
+            revealState.ready = true;
+            setActiveRevealState(revealState);
+            console.log('[Reveal] ready');
+        });
+    }
 
-    deck.on('ready', () => {
-        revealState.ready = true;
-        setActiveRevealState(revealState);
-        console.log('[Reveal] ready');
-    });
+    await deck.initialize(getRevealOptions());
+
+    revealState.ready = true;
+    setActiveRevealState(revealState);
 
     console.log('[Reveal] initialized');
     return deck;
