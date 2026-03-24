@@ -109,6 +109,10 @@ function ensurePresentationRoot(container) {
         root.dataset.locked = 'true';
     }
 
+    root.style.width = '100%';
+    root.style.height = '100%';
+    root.style.position = 'relative';
+
     let revealElement = root.querySelector('.reveal');
     if (!revealElement) {
         revealElement = document.createElement('div');
@@ -118,6 +122,17 @@ function ensurePresentationRoot(container) {
         slidesElement.className = 'slides';
         revealElement.appendChild(slidesElement);
         root.appendChild(revealElement);
+    }
+
+    revealElement.style.width = '100%';
+    revealElement.style.height = '100%';
+    revealElement.style.minHeight = '0';
+
+    const slidesElement = revealElement.querySelector('.slides');
+    if (slidesElement) {
+        slidesElement.style.width = '100%';
+        slidesElement.style.height = '100%';
+        slidesElement.style.minHeight = '0';
     }
 
     if (!revealElement.dataset.frozen) {
