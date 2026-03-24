@@ -10,6 +10,7 @@ class TimerWidget {
      */
     constructor() {
         this.layoutType = 'grid';
+        this.soundGroupName = `timer-sound-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         // Create the main widget element
         this.element = document.createElement('div');
         this.element.className = 'timer-widget-content';
@@ -40,10 +41,8 @@ class TimerWidget {
 
         const presetLabel = document.createElement('label');
         presetLabel.textContent = 'Quick Select: ';
-        presetLabel.htmlFor = 'timer-preset-select';
 
         this.presetSelect = document.createElement('select');
-        this.presetSelect.id = 'timer-preset-select';
         [1, 5, 10, 15].forEach(minutes => {
             const option = document.createElement('option');
             option.value = minutes;
@@ -129,7 +128,6 @@ class TimerWidget {
 
         this.intervalCheckbox = document.createElement('input');
         this.intervalCheckbox.type = 'checkbox';
-        this.intervalCheckbox.id = 'timer-interval-toggle';
         this.intervalCheckbox.addEventListener('change', () => {
             this.isIntervalMode = this.intervalCheckbox.checked;
             this.intervalOptions.style.display = this.isIntervalMode ? 'block' : 'none';
@@ -140,7 +138,6 @@ class TimerWidget {
         });
 
         intervalLabel.prepend(this.intervalCheckbox);
-        intervalLabel.htmlFor = 'timer-interval-toggle';
         this.intervalContainer.appendChild(intervalLabel);
 
         this.intervalOptions = document.createElement('div');
@@ -151,22 +148,18 @@ class TimerWidget {
         this.workInput.type = 'number';
         this.workInput.min = '1';
         this.workInput.value = '5';
-        this.workInput.id = 'timer-work-duration';
 
         this.breakInput = document.createElement('input');
         this.breakInput.type = 'number';
         this.breakInput.min = '1';
         this.breakInput.value = '2';
-        this.breakInput.id = 'timer-break-duration';
 
         const workLabel = document.createElement('label');
         workLabel.textContent = 'Work Duration (min): ';
-        workLabel.htmlFor = 'timer-work-duration';
         workLabel.appendChild(this.workInput);
 
         const breakLabel = document.createElement('label');
         breakLabel.textContent = ' Break Duration (min): ';
-        breakLabel.htmlFor = 'timer-break-duration';
         breakLabel.appendChild(this.breakInput);
 
         this.intervalOptions.appendChild(workLabel);
@@ -204,7 +197,7 @@ class TimerWidget {
             wrapper.className = 'sound-option';
             const radio = document.createElement('input');
             radio.type = 'radio';
-            radio.name = 'timer-sound';
+            radio.name = this.soundGroupName;
             radio.value = option.url;
             radio.checked = index === 0;
             radio.addEventListener('change', () => {

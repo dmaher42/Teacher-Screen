@@ -24,7 +24,6 @@ class RichTextWidget {
     this.controls.className = 'rich-text-controls';
 
     this.displayModeButton = document.createElement('button');
-    this.displayModeButton.id = 'toggle-display-mode';
     this.displayModeButton.className = 'control-button';
     this.displayModeButton.type = 'button';
     this.displayModeButton.textContent = '⚡ Display Mode';
