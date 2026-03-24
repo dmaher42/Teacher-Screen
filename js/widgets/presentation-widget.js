@@ -22,7 +22,7 @@ class PresentationWidget {
                 </select>
                 <button type="button" class="control-button presentation-load-button">Load</button>
             </div>
-            <div class="presentation-widget-stage" style="height: calc(100% - 3rem); overflow: hidden;"></div>
+            <div class="presentation-widget-stage"></div>
         `;
 
         this.select = this.element.querySelector('.presentation-select');

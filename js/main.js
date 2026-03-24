@@ -110,7 +110,6 @@ class ClassroomScreenApp {
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
-        this.widgetSelectorButtons = [];
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
@@ -429,8 +428,6 @@ class ClassroomScreenApp {
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
 
-        this.initializeWidgetSelector();
-
         // Accordion Cards
         const detailsElements = document.querySelectorAll('.control-card details');
         detailsElements.forEach(details => {
@@ -600,56 +597,6 @@ class ClassroomScreenApp {
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
     }
 
-    initializeWidgetSelector() {
-        const selector = document.getElementById('widget-selector');
-        if (!selector) return;
-
-        selector.innerHTML = '';
-        Object.entries(WidgetRegistry).forEach(([key, widget]) => {
-            this.createToolbarButton(widget.icon, widget.label, key, selector);
-        });
-
-        this.widgetSelectorButtons = Array.from(selector.querySelectorAll('.widget-selector-btn'));
-
-        document.addEventListener('click', (event) => {
-            const widgetButton = event.target.closest('.widget-selector-btn');
-            if (!widgetButton || !this.widgetSelectorButtons.includes(widgetButton)) return;
-
-            const widgetType = widgetButton.dataset.widget;
-            if (!widgetType) return;
-
-            this.openWidgetPicker(widgetType);
-        });
-    }
-
-    createToolbarButton(icon, name, key, container) {
-        const button = document.createElement('button');
-        button.className = 'widget-selector-btn';
-        button.dataset.widget = key;
-        button.type = 'button';
-        button.setAttribute('aria-label', name);
-
-        const iconSpan = document.createElement('span');
-        iconSpan.setAttribute('aria-hidden', 'true');
-        iconSpan.textContent = icon;
-
-        const label = document.createElement('span');
-        label.className = 'visually-hidden';
-        label.textContent = name;
-
-        button.appendChild(iconSpan);
-        button.appendChild(label);
-        container.appendChild(button);
-    }
-
-    setActiveWidgetButton(type) {
-        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
-        const targetButton = this.widgetSelectorButtons.find((btn) => btn.dataset.widget === type);
-        this.widgetSelectorButtons.forEach((btn) => {
-            btn.classList.toggle('active', btn === targetButton);
-        });
-    }
-
     renderSavedNotesList() {
         if (!this.savedNotesListElement) return;
 
@@ -785,7 +732,6 @@ class ClassroomScreenApp {
 
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
-            this.setActiveWidgetButton(type);
             eventBus.emit('widget:created', { type, widget, element: widgetElement });
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
