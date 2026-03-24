@@ -533,9 +533,16 @@ class RevealManagerWidget {
     }
 
     buildDeckFromInputs() {
-        const type = this.getCurrentMode();
+        let type = this.getCurrentMode();
         const rawContent = type === 'url' ? this.urlInput.value.trim() : this.htmlInput.value;
-        const content = type === 'html' ? this.normalizeHtmlDeckContent(rawContent) : rawContent;
+        let content = type === 'html' ? this.normalizeHtmlDeckContent(rawContent) : rawContent;
+
+        if (type === 'url' && this.looksLikeHtmlDeck(rawContent)) {
+            type = 'html';
+            content = this.normalizeHtmlDeckContent(rawContent);
+            this.setMode('html');
+            this.htmlInput.value = content;
+        }
 
         if (!content.trim()) {
             return null;
@@ -547,6 +554,15 @@ class RevealManagerWidget {
             type,
             content
         };
+    }
+
+    looksLikeHtmlDeck(content) {
+        if (typeof content !== 'string') {
+            return false;
+        }
+
+        const trimmed = content.trim();
+        return /<\s*(?:!doctype\s+html|html|head|body|div|section|script|meta|title)\b/i.test(trimmed);
     }
 
     normalizeHtmlDeckContent(content) {
@@ -875,15 +891,24 @@ ${revealBootstrapScript}`;
         const deck = this.getSavedDecks().find((item) => item.id === selectedId);
         if (!deck) return;
 
-        this.setMode(deck.type);
-        this.deckNameInput.value = deck.name;
-        if (deck.type === 'url') {
-            this.urlInput.value = deck.content;
+        const isHtmlDeck = deck.type === 'html' || this.looksLikeHtmlDeck(deck.content);
+        const launchDeck = isHtmlDeck
+            ? {
+                ...deck,
+                type: 'html',
+                content: this.normalizeHtmlDeckContent(deck.content)
+            }
+            : deck;
+
+        this.setMode(launchDeck.type);
+        this.deckNameInput.value = launchDeck.name;
+        if (launchDeck.type === 'url') {
+            this.urlInput.value = launchDeck.content;
         } else {
-            this.htmlInput.value = deck.content;
+            this.htmlInput.value = launchDeck.content;
         }
 
-        this.launchDeck(deck);
+        this.launchDeck(launchDeck);
     }
 
     handleRenameDeck() {
