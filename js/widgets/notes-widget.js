@@ -76,7 +76,6 @@ class NotesWidget {
 
         // Create the notes display preview
         this.display = document.createElement('div');
-        this.display.id = 'notes-display-preview';
         this.display.className = 'notes-display';
         // Apply tidy preview styles as requested
         this.display.style.fontSize = '0.8em';
@@ -96,7 +95,6 @@ class NotesWidget {
 
         // Link to Planner Button
         const linkBtn = document.createElement('button');
-        linkBtn.id = 'link-to-planner-btn';
         linkBtn.textContent = 'Link to Planner';
         linkBtn.className = 'control-button';
         linkBtn.addEventListener('click', () => {

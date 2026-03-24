@@ -11,6 +11,7 @@ class TimerWidget {
     constructor() {
         this.layoutType = 'grid';
         this.soundGroupName = `timer-sound-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        this.presetSelectId = `timer-preset-select-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         // Create the main widget element
         this.element = document.createElement('div');
         this.element.className = 'timer-widget-content';
@@ -41,8 +42,10 @@ class TimerWidget {
 
         const presetLabel = document.createElement('label');
         presetLabel.textContent = 'Quick Select: ';
+        presetLabel.htmlFor = this.presetSelectId;
 
         this.presetSelect = document.createElement('select');
+        this.presetSelect.id = this.presetSelectId;
         [1, 5, 10, 15].forEach(minutes => {
             const option = document.createElement('option');
             option.value = minutes;
