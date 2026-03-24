@@ -20,15 +20,35 @@ export function exitPresentationMode() {
 }
 
 export function nextSlide(deckOverride = null) {
-    appBus && appBus.emit && appBus.emit('presentation:next');
     const deck = resolveDeck(deckOverride);
+
+    if (deckOverride && deck && typeof deck.next === 'function') {
+        deck.next();
+        return;
+    }
+
+    if (appBus && typeof appBus.emit === 'function') {
+        appBus.emit('presentation:next');
+        return;
+    }
+
     if (!deck || typeof deck.next !== 'function') return;
     deck.next();
 }
 
 export function prevSlide(deckOverride = null) {
-    appBus && appBus.emit && appBus.emit('presentation:prev');
     const deck = resolveDeck(deckOverride);
+
+    if (deckOverride && deck && typeof deck.prev === 'function') {
+        deck.prev();
+        return;
+    }
+
+    if (appBus && typeof appBus.emit === 'function') {
+        appBus.emit('presentation:prev');
+        return;
+    }
+
     if (!deck || typeof deck.prev !== 'function') return;
     deck.prev();
 }

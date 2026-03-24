@@ -763,7 +763,6 @@ ${revealBootstrapScript}`;
         event.stopPropagation();
         console.log('[RevealSync] teacher prev slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            this.emitPresentationNavigation('presentation:prev');
             import('../utils/reveal-manager.js').then(({ activateReveal, getRevealDeck }) => {
                 activateReveal(this.inlineDeckContainer);
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
@@ -772,7 +771,6 @@ ${revealBootstrapScript}`;
                 }
             });
         } else {
-            this.emitPresentationNavigation('presentation:prev');
             this.sendKeyToIframe('prev');
         }
     }
@@ -781,7 +779,6 @@ ${revealBootstrapScript}`;
         event.stopPropagation();
         console.log('[RevealSync] teacher next slide');
         if (this.activeDeck && this.activeDeck.type === 'html') {
-            this.emitPresentationNavigation('presentation:next');
             import('../utils/reveal-manager.js').then(({ activateReveal, getRevealDeck }) => {
                 activateReveal(this.inlineDeckContainer);
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
@@ -790,7 +787,6 @@ ${revealBootstrapScript}`;
                 }
             });
         } else {
-            this.emitPresentationNavigation('presentation:next');
             this.sendKeyToIframe('next');
         }
     }
