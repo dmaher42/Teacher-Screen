@@ -217,12 +217,13 @@ class TimerWidget {
             this.soundButton.setAttribute('aria-expanded', this.soundMenu.style.display === 'block');
         });
 
-        document.addEventListener('click', (event) => {
+        this.handleDocumentClick = (event) => {
             if (!this.soundMenu.contains(event.target) && event.target !== this.soundButton) {
                 this.soundMenu.style.display = 'none';
                 this.soundButton.setAttribute('aria-expanded', 'false');
             }
-        });
+        };
+        document.addEventListener('click', this.handleDocumentClick);
 
         // Create the timer controls
         this.controls = document.createElement('div');
@@ -586,6 +587,7 @@ class TimerWidget {
      */
     remove() {
         this.unsubscribeFromTimerEvents();
+        document.removeEventListener('click', this.handleDocumentClick);
 
         if (this.interval) {
             this.stop();
