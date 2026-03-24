@@ -985,6 +985,7 @@ ${revealBootstrapScript}`;
 
     handleWindowMessage(event) {
         if (event.origin !== window.location.origin || !event.data) return;
+        if (!this.presenterWindow || event.source !== this.presenterWindow) return;
 
         if (event.data.type === 'reveal-presenter-ready') {
             this.setPresenterStatus('Presenter connected');
