@@ -618,8 +618,7 @@ class ClassroomScreenApp {
             const widgetType = widgetButton.dataset.widget;
             if (!widgetType) return;
 
-            this.setActiveWidgetButton(widgetType);
-            this.addWidget(widgetType);
+            this.openWidgetPicker(widgetType);
         });
     }
 
@@ -806,7 +805,7 @@ class ClassroomScreenApp {
         return WidgetRegistry[key]?.label || 'Widget';
     }
 
-    renderWidgetModal() {
+    renderWidgetModal(focusWidgetType = null) {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
 
@@ -831,6 +830,10 @@ class ClassroomScreenApp {
             widgets.forEach((widget) => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
+                button.dataset.widget = widget.key;
+                if (focusWidgetType && widget.key === focusWidgetType) {
+                    button.classList.add('is-target');
+                }
                 button.innerHTML = `
                     <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
                     <span>${widget.label}</span>
@@ -2066,8 +2069,19 @@ class ClassroomScreenApp {
         }
     }
 
-    openWidgetPicker() {
+    openWidgetPicker(focusWidgetType = null) {
+        this.renderWidgetModal(focusWidgetType);
         this.openDialog(this.widgetModal);
+
+        if (!focusWidgetType) return;
+
+        window.requestAnimationFrame(() => {
+            const target = this.widgetModal.querySelector(`.widget-category-btn[data-widget="${focusWidgetType}"]`);
+            if (target && typeof target.focus === 'function') {
+                target.focus({ preventScroll: true });
+                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        });
     }
 
     closeDialog(dialog) {

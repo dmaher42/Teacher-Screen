@@ -677,6 +677,11 @@ dialog::backdrop {
     box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
 }
 
+.widget-category-btn.is-target {
+    outline: 3px solid var(--primary-color, #6b7cff);
+    outline-offset: 2px;
+}
+
 .widget-category-btn .category-icon {
     width: 48px;
     height: 48px;
