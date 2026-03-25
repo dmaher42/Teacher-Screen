@@ -32,7 +32,13 @@ class RichTextWidget {
 
     this.controls.appendChild(this.displayModeButton);
 
+    this.modeHint = document.createElement('p');
+    this.modeHint.className = 'rich-text-mode-hint';
+    this.modeHint.textContent = 'Use display mode for a cleaner classroom view.';
+    this.controls.appendChild(this.modeHint);
+
     this.element.appendChild(this.controls);
+    this.updateDisplayModeUI();
 
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
@@ -72,13 +78,14 @@ class RichTextWidget {
       }
 
       this.quill.on('text-change', this.handleTextChange);
+      this.updateDisplayModeUI();
     }, 0);
   }
 
   handleDisplayModeClick() {
     this.isDisplayMode = !this.isDisplayMode;
     this.element.classList.toggle('display-mode', this.isDisplayMode);
-    this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
+    this.updateDisplayModeUI();
   }
 
   handleTextChange() {
@@ -111,10 +118,21 @@ class RichTextWidget {
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
     this.element.classList.toggle('display-mode', this.isDisplayMode);
-    this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
+    this.updateDisplayModeUI();
 
     if (this.quill) {
       this.quill.root.innerHTML = this.pendingContent;
+    }
+  }
+
+  updateDisplayModeUI() {
+    this.displayModeButton.textContent = this.isDisplayMode ? 'Exit Display Mode' : 'Enter Display Mode';
+    this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
+
+    if (this.modeHint) {
+      this.modeHint.textContent = this.isDisplayMode
+        ? 'Display mode is on, ready for the classroom view.'
+        : 'Use display mode for a cleaner classroom view.';
     }
   }
 

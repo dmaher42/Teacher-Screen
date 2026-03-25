@@ -64,23 +64,39 @@ class NotesWidget {
 
         // --- Create Display Section (Preview) ---
         this.mainDisplay = document.createElement('div');
-        this.mainDisplay.className = 'widget-display';
-        this.mainDisplay.style.overflowY = 'auto';
-        this.mainDisplay.style.padding = '10px';
-        this.mainDisplay.style.backgroundColor = '#fff';
-        this.mainDisplay.style.color = '#333';
-        this.mainDisplay.style.height = '100%';
-        this.mainDisplay.style.width = '100%';
-        this.mainDisplay.style.textAlign = 'left';
-        this.mainDisplay.style.cursor = 'pointer'; // Indicate clickability
+        this.mainDisplay.className = 'widget-display notes-main-display';
+        this.mainDisplay.title = 'Open the quick note editor';
 
         // Create the notes display preview
         this.display = document.createElement('div');
         this.display.className = 'notes-display';
-        // Apply tidy preview styles as requested
-        this.display.style.fontSize = '0.8em';
-        this.display.style.minHeight = '50px';
-        this.display.style.width = '100%';
+
+        this.previewCard = document.createElement('div');
+        this.previewCard.className = 'notes-preview-card';
+
+        this.previewHeader = document.createElement('div');
+        this.previewHeader.className = 'notes-preview-header';
+
+        this.previewLabel = document.createElement('span');
+        this.previewLabel.className = 'notes-preview-label';
+        this.previewLabel.textContent = 'Quick Note';
+
+        this.previewMeta = document.createElement('span');
+        this.previewMeta.className = 'notes-preview-meta';
+
+        this.previewHeader.appendChild(this.previewLabel);
+        this.previewHeader.appendChild(this.previewMeta);
+
+        this.previewTitle = document.createElement('div');
+        this.previewTitle.className = 'notes-preview-title';
+
+        this.previewSnippet = document.createElement('div');
+        this.previewSnippet.className = 'notes-preview-snippet';
+
+        this.previewCard.appendChild(this.previewHeader);
+        this.previewCard.appendChild(this.previewTitle);
+        this.previewCard.appendChild(this.previewSnippet);
+        this.display.appendChild(this.previewCard);
 
         this.mainDisplay.appendChild(this.display);
 
@@ -90,7 +106,7 @@ class NotesWidget {
 
         // Header for settings
         const header = document.createElement('h3');
-        header.textContent = 'Note Settings';
+        header.textContent = 'Quick Note Settings';
         this.controlsOverlay.appendChild(header);
 
         // Link to Planner Button
@@ -179,32 +195,32 @@ class NotesWidget {
         // Create Header
         this.expandedHeader = document.createElement('div');
         this.expandedHeader.className = 'notes-expanded-header';
-        this.expandedHeader.style.display = 'flex';
-        this.expandedHeader.style.justifyContent = 'space-between';
-        this.expandedHeader.style.alignItems = 'center';
-        this.expandedHeader.style.padding = '8px';
-        this.expandedHeader.style.background = '#f4f4f4';
-        this.expandedHeader.style.borderBottom = '1px solid #ddd';
+
+        const titleBlock = document.createElement('div');
+        titleBlock.className = 'notes-expanded-copy';
 
         const titleSpan = document.createElement('span');
-        titleSpan.textContent = 'Editing Note';
-        titleSpan.style.fontWeight = 'bold';
+        titleSpan.className = 'notes-expanded-title';
+        titleSpan.textContent = this.title || 'Editing note';
+
+        const subtitleSpan = document.createElement('span');
+        subtitleSpan.className = 'notes-expanded-subtitle';
+        subtitleSpan.textContent = 'Write something useful, then save to keep it on the card.';
+
+        titleBlock.appendChild(titleSpan);
+        titleBlock.appendChild(subtitleSpan);
 
         const minimizeBtn = document.createElement('button');
         minimizeBtn.innerHTML = '&times;';
         minimizeBtn.title = 'Save and Minimize';
-        minimizeBtn.style.background = 'none';
-        minimizeBtn.style.border = 'none';
-        minimizeBtn.style.fontSize = '1.5rem';
-        minimizeBtn.style.cursor = 'pointer';
-        minimizeBtn.style.padding = '0 5px';
+        minimizeBtn.className = 'notes-close-button';
 
         minimizeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapse();
         });
 
-        this.expandedHeader.appendChild(titleSpan);
+        this.expandedHeader.appendChild(titleBlock);
         this.expandedHeader.appendChild(minimizeBtn);
 
         this.editorContainerWrapper.appendChild(this.expandedHeader);
@@ -222,7 +238,7 @@ class NotesWidget {
         const primaryActions = document.createElement('div');
         primaryActions.className = 'primary-actions';
         const saveButton = document.createElement('button');
-        saveButton.textContent = 'Save & Close';
+        saveButton.textContent = 'Save Note';
         saveButton.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapse();
@@ -324,14 +340,19 @@ class NotesWidget {
     }
 
     updateDisplay() {
-        if (this.display) {
-            // Strip HTML for preview or keep simple formatting?
-            // Requirement: "shows a compact preview (e.g., the note's title and first few characters)"
-            // We'll use the HTML content but truncated, or text content.
-            // Using innerHTML allows some formatting to show through which is nice.
-            // But let's limit the height via CSS.
-            this.display.innerHTML = this.savedContent || '<em style="color:#888;">Click to add a note...</em>';
-        }
+        if (!this.display) return;
+
+        const hasContent = !!(this.savedContent && this.savedContent.trim());
+        const previewTitle = this.title || this.getTitleFromContent();
+        const previewSnippet = hasContent ? this.getPreviewSnippet(this.savedContent, 150) : 'Click to add a note.';
+
+        this.previewTitle.textContent = previewTitle || 'Quick note';
+        this.previewSnippet.textContent = previewSnippet;
+        this.previewSnippet.classList.toggle('is-empty', !hasContent);
+        this.previewMeta.textContent = hasContent ? `Updated ${this.formatUpdatedAt(this.updatedAt)}` : 'Tap to open';
+        this.mainDisplay.title = hasContent
+            ? `Open "${previewTitle}"`
+            : 'Open the quick note editor';
     }
 
     persistNote() {
@@ -344,6 +365,7 @@ class NotesWidget {
         });
         this.title = saved.title;
         this.updatedAt = saved.updatedAt;
+        this.updateDisplay();
     }
 
     getTitleFromContent() {
@@ -354,10 +376,42 @@ class NotesWidget {
         return text.split('\n')[0].slice(0, 80);
     }
 
+    getPreviewSnippet(html, limit = 140) {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) {
+            return 'Click to add a note.';
+        }
+
+        if (text.length <= limit) {
+            return text;
+        }
+
+        return `${text.slice(0, limit).trimEnd()}…`;
+    }
+
+    formatUpdatedAt(value) {
+        if (!value) {
+            return 'just now';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return 'just now';
+        }
+
+        return date.toLocaleString([], {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    }
+
     /**
      * Remove the widget from the DOM.
      */
     remove() {
+        this.quillEditor = null;
         this.element.remove();
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
         document.dispatchEvent(event);

@@ -82,7 +82,7 @@ export const WidgetRegistry = {
     notes: {
         key: 'notes',
         className: 'NotesWidget',
-        label: 'Notes',
+        label: 'Quick Notes',
         icon: '📝',
         category: 'Secondary',
         create: () => new NotesWidget()
