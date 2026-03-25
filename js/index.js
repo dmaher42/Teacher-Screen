@@ -11,6 +11,31 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
     document.head.appendChild(script);
 });
 
+const loadDependency = async (dependency) => {
+    try {
+        await loadClassicScript(dependency.src);
+        return null;
+    } catch (error) {
+        const failure = {
+            src: dependency.src,
+            required: dependency.required,
+            error: error.message
+        };
+
+        const logMethod = dependency.required ? 'error' : 'warn';
+        console[logMethod](`[bootstrap] dependency load failed: ${dependency.src}`, error);
+
+        if (dependency.required) {
+            throw Object.assign(new Error(`Critical teacher dependency failed: ${dependency.src}`), {
+                cause: error,
+                failures: [failure]
+            });
+        }
+
+        return failure;
+    }
+};
+
 const TEACHER_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
@@ -39,25 +64,22 @@ const TEACHER_DEPENDENCIES = [
 const bootstrapTeacherDependencies = async () => {
     const failures = [];
 
-    for (const dependency of TEACHER_DEPENDENCIES) {
-        try {
-            await loadClassicScript(dependency.src);
-        } catch (error) {
-            failures.push({
-                src: dependency.src,
-                required: dependency.required,
-                error: error.message
-            });
+    const requiredDependencies = TEACHER_DEPENDENCIES.filter((dependency) => dependency.required);
+    const optionalDependencies = TEACHER_DEPENDENCIES.filter((dependency) => !dependency.required);
+    const richTextDependency = optionalDependencies.find((dependency) => dependency.src === './js/widgets/rich-text-widget.js');
+    const parallelDependencies = optionalDependencies.filter((dependency) => dependency !== richTextDependency);
 
-            const logMethod = dependency.required ? 'error' : 'warn';
-            console[logMethod](`[bootstrap] dependency load failed: ${dependency.src}`, error);
+    for (const dependency of requiredDependencies) {
+        await loadDependency(dependency);
+    }
 
-            if (dependency.required) {
-                throw Object.assign(new Error(`Critical teacher dependency failed: ${dependency.src}`), {
-                    cause: error,
-                    failures
-                });
-            }
+    const parallelFailures = await Promise.all(parallelDependencies.map((dependency) => loadDependency(dependency)));
+    failures.push(...parallelFailures.filter(Boolean));
+
+    if (richTextDependency) {
+        const failure = await loadDependency(richTextDependency);
+        if (failure) {
+            failures.push(failure);
         }
     }
 
