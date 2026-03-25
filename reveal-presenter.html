@@ -48,23 +48,35 @@
 </div>
 
 <script>
-(function () {
-    const frame = document.querySelector('.presenter-frame');
-    const emptyState = document.querySelector('.presenter-empty');
+    (function () {
+        const frame = document.querySelector('.presenter-frame');
+        const emptyState = document.querySelector('.presenter-empty');
+        let loadedDeckKey = null;
+        let loadingDeckKey = null;
 
-    function loadDeck(deck) {
-        if (!deck || !deck.content) return;
+        function loadDeck(deck) {
+            if (!deck || !deck.content) return;
 
-        if (deck.type === 'html') {
-            frame.removeAttribute('src');
-            frame.srcdoc = deck.content;
-        } else {
-            frame.removeAttribute('srcdoc');
-            frame.src = deck.content;
+            const deckKey = `${deck.type || 'url'}::${deck.content}`;
+            if (deckKey === loadedDeckKey || deckKey === loadingDeckKey) {
+                return;
+            }
+
+            loadingDeckKey = deckKey;
+            frame.onload = () => {
+                loadedDeckKey = deckKey;
+                loadingDeckKey = null;
+                emptyState.style.display = 'none';
+            };
+
+            if (deck.type === 'html') {
+                frame.removeAttribute('src');
+                frame.srcdoc = deck.content;
+            } else {
+                frame.removeAttribute('srcdoc');
+                frame.src = deck.content;
+            }
         }
-
-        emptyState.style.display = 'none';
-    }
 
     function parseDeckFromQuery() {
         const params = new URLSearchParams(window.location.search);
