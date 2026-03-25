@@ -498,6 +498,11 @@ class RevealManagerWidget {
                 this.revealDeckContainer = container;
                 this.bindSlideChangeListener();
                 this.requestRevealLayout();
+                if (!this.presentationMode && this.inlineDeckContainer && typeof this.inlineDeckContainer.scrollIntoView === 'function') {
+                    window.requestAnimationFrame(() => {
+                        this.inlineDeckContainer.scrollIntoView({ block: 'start', inline: 'nearest' });
+                    });
+                }
             })
             .catch((error) => {
                 console.warn('[Reveal] unable to initialize presentation', error);
