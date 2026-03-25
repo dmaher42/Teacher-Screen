@@ -876,9 +876,6 @@ ${revealBootstrapScript}`;
         const deck = this.buildDeckFromInputs();
         if (!deck) return;
         this.launchDeck(deck);
-        if (deck.type === 'html' && !this.presentationMode) {
-            this.handlePresentationToggle();
-        }
     }
 
     handleSaveDeck() {
@@ -917,9 +914,6 @@ ${revealBootstrapScript}`;
         }
 
         this.launchDeck(launchDeck);
-        if (launchDeck.type === 'html' && !this.presentationMode) {
-            this.handlePresentationToggle();
-        }
     }
 
     handleRenameDeck() {
