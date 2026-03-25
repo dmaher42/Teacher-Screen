@@ -60,6 +60,7 @@ function resetAppState() {
     localStorage.removeItem('widgetLayout');
     localStorage.removeItem('background');
     localStorage.removeItem('selectedTheme');
+    localStorage.removeItem('drawingBoardVisible');
 }
 
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';

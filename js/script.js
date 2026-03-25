@@ -21,6 +21,7 @@ const setupWidgetToolbar = () => {
 
 const setupDrawingBoard = () => {
     const canvas = document.getElementById('drawing-canvas');
+    const drawingBoard = document.querySelector('.drawing-board');
     const colorButtons = document.querySelectorAll('.color-btn');
     const sizeButtons = document.querySelectorAll('.size-btn');
     const clearButton = document.getElementById('clear-drawing-btn');
@@ -122,6 +123,30 @@ const setupDrawingBoard = () => {
     });
 };
 
+const setupDrawingBoardToggle = () => {
+    const drawingBoard = document.querySelector('.drawing-board');
+    const toggleButton = document.getElementById('toggle-drawing-board-btn');
+
+    if (!drawingBoard || !toggleButton) return;
+
+    const storageKey = 'drawingBoardVisible';
+
+    const applyState = (isVisible) => {
+        drawingBoard.classList.toggle('is-hidden', !isVisible);
+        toggleButton.textContent = isVisible ? 'Hide Drawing Board' : 'Show Drawing Board';
+        toggleButton.setAttribute('aria-pressed', String(!isVisible));
+        localStorage.setItem(storageKey, isVisible ? 'true' : 'false');
+    };
+
+    const storedValue = localStorage.getItem(storageKey);
+    applyState(storedValue !== 'false');
+
+    toggleButton.addEventListener('click', () => {
+        const nextVisible = drawingBoard.classList.contains('is-hidden');
+        applyState(nextVisible);
+    });
+};
+
 const displayStudents = () => {
     const listDisplay = document.getElementById('student-list-display');
     if (!listDisplay) return;
@@ -203,6 +228,7 @@ const setupStudentListControls = () => {
 const init = () => {
     setupWidgetToolbar();
     setupDrawingBoard();
+    setupDrawingBoardToggle();
     setupStudentListControls();
 };
 

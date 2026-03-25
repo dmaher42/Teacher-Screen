@@ -377,6 +377,10 @@ details:focus-visible,
     background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 90%, #f5f7fb 10%), var(--card-background, #ffffff));
 }
 
+.drawing-board.is-hidden {
+    display: none;
+}
+
 .drawing-controls {
     display: flex;
     flex-wrap: wrap;
