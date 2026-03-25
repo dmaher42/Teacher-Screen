@@ -971,7 +971,7 @@ dialog::backdrop {
     justify-content: space-between;
     gap: 16px;
     padding: 12px 16px;
-    background: var(--bg-elevated);
+    background: var(--card-background, #ffffff);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1004,6 +1004,24 @@ dialog::backdrop {
 .notes-editor-wrapper .widget-control-bar {
     position: static;
     margin-top: auto;
+}
+
+.notes-editor-wrapper .ql-toolbar,
+.notes-editor-wrapper .ql-container,
+.notes-editor-wrapper .ql-editor {
+    background: var(--card-background, #ffffff);
+}
+
+.notes-editor-wrapper .ql-toolbar {
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 0;
+}
+
+.notes-editor-wrapper .ql-container {
+    border: 1px solid var(--border-color);
+    border-top: 0;
 }
 
 .resize-handle.top,
@@ -1136,6 +1154,7 @@ dialog::backdrop {
     flex-direction: column;
     height: 100%;
     color: var(--text-primary);
+    background: var(--card-background, #ffffff);
 }
 
 .rich-text-controls {
@@ -1144,6 +1163,7 @@ dialog::backdrop {
     gap: 8px;
     margin-bottom: 10px;
     align-items: center;
+    padding: 2px 0 0;
 }
 
 .rich-text-mode-hint {
@@ -1165,14 +1185,14 @@ dialog::backdrop {
 .rich-text-widget-inner .ql-toolbar {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-medium, 12px) var(--border-radius-medium, 12px) 0 0;
-    background: var(--bg-elevated);
+    background: var(--card-background, #ffffff);
 }
 
 .rich-text-widget-inner .ql-container {
     border: 1px solid var(--border-color);
     border-top: 0;
     border-radius: 0 0 var(--border-radius-medium, 12px) var(--border-radius-medium, 12px);
-    background: var(--bg-primary);
+    background: var(--card-background, #ffffff);
     min-height: 220px;
 }
 
@@ -1183,6 +1203,7 @@ dialog::backdrop {
     letter-spacing: 0.3px;
     padding: 2rem;
     color: var(--text-primary);
+    background: var(--card-background, #ffffff);
 }
 
 .rich-text-widget-inner .ql-editor .ql-size-small {
