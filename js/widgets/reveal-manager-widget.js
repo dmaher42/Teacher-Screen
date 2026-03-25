@@ -789,6 +789,8 @@ ${revealBootstrapScript}`;
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
                 if (deck && typeof deck.prev === 'function') {
                     deck.prev();
+                    this.sendNavToPresenter('prev');
+                    this.broadcastSlideSync();
                 }
             });
         } else {
@@ -805,6 +807,8 @@ ${revealBootstrapScript}`;
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
                 if (deck && typeof deck.next === 'function') {
                     deck.next();
+                    this.sendNavToPresenter('next');
+                    this.broadcastSlideSync();
                 }
             });
         } else {
