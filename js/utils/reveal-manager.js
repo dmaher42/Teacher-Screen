@@ -51,6 +51,7 @@ function getStoredRevealState(root, createIfMissing = false) {
 
 function getRevealOptions() {
     return {
+        embedded: true,
         controls: false,
         progress: true,
         slideNumber: false,
