@@ -607,9 +607,15 @@ class LayoutManager {
           e.target.tagName === 'SELECT' ||
           e.target.tagName === 'TEXTAREA' ||
           e.target.tagName === 'A' ||
+          e.target.isContentEditable ||
           e.target.closest('button') ||
           e.target.closest('input') ||
-          e.target.closest('select')) {
+          e.target.closest('select') ||
+          e.target.closest('textarea') ||
+          e.target.closest('[contenteditable="true"]') ||
+          e.target.closest('.ql-toolbar') ||
+          e.target.closest('.ql-editor') ||
+          e.target.closest('.ql-tooltip')) {
         return;
       }
 
