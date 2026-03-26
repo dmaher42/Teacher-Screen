@@ -2,6 +2,8 @@ class PresentationWidget {
     constructor() {
         this.layoutType = 'grid';
         this.currentPresentation = '';
+        const appModeUtils = window.TeacherScreenAppMode || {};
+        this.isProjectorMode = appModeUtils.isProjectorMode || (() => window.APP_MODE === 'projector');
         this.presentations = [
             { value: 'cyber-safety', label: 'Cyber Safety' },
             { value: 'roman-empire', label: 'Roman Empire' },
@@ -10,6 +12,7 @@ class PresentationWidget {
 
         this.element = document.createElement('div');
         this.element.className = 'presentation-widget-content';
+        this.element.classList.toggle('presentation-widget--projector', this.isProjectorMode());
 
         const options = this.presentations
             .map((presentation) => `<option value="${presentation.value}">${presentation.label}</option>`)
@@ -23,15 +26,22 @@ class PresentationWidget {
                 <button type="button" class="control-button presentation-load-button">Load</button>
             </div>
             <div class="presentation-widget-stage"></div>
+            <div class="presentation-widget-preview" hidden>
+                <span class="presentation-widget-preview__label">Up next</span>
+                <span class="presentation-widget-preview__text"></span>
+            </div>
         `;
 
         this.select = this.element.querySelector('.presentation-select');
         this.loadButton = this.element.querySelector('.presentation-load-button');
         this.stage = this.element.querySelector('.presentation-widget-stage');
+        this.previewSection = this.element.querySelector('.presentation-widget-preview');
+        this.previewText = this.element.querySelector('.presentation-widget-preview__text');
 
         this.handleLoadClick = this.handleLoadClick.bind(this);
         this.handleResize = this.handleResize.bind(this);
         this.handleStageInteraction = this.handleStageInteraction.bind(this);
+        this.updateSlidePreview = this.updateSlidePreview.bind(this);
 
         this.loadButton.addEventListener('click', this.handleLoadClick);
         this.element.addEventListener('click', this.handleStageInteraction);
@@ -39,6 +49,18 @@ class PresentationWidget {
 
         this.resizeObserver = new ResizeObserver(this.handleResize);
         this.resizeObserver.observe(this.element);
+
+        this.slidePreviewObserver = new MutationObserver(this.updateSlidePreview);
+        this.slidePreviewObserver.observe(this.stage, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+            attributeFilter: ['class', 'style']
+        });
+
+        if (this.isProjectorMode()) {
+            this.previewSection.hidden = true;
+        }
     }
 
     async handleLoadClick() {
@@ -60,12 +82,14 @@ class PresentationWidget {
         await loadPresentation(this.stage, name);
         activateReveal(this.stage);
         this.currentPresentation = name;
+        this.updateSlidePreview();
     }
 
     handleStageInteraction() {
         import('./../utils/reveal-manager.js').then(({ activateReveal }) => {
             activateReveal(this.stage);
         });
+        this.updateSlidePreview();
     }
 
     handleResize() {
@@ -82,6 +106,51 @@ class PresentationWidget {
                 this.loadPresentationByName(this.currentPresentation);
             }
         });
+        this.updateSlidePreview();
+    }
+
+    summarizeSlideText(slide) {
+        if (!slide) return '';
+
+        const text = (slide.innerText || slide.textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!text) {
+            return '';
+        }
+
+        return text.length > 120 ? `${text.slice(0, 117).trimEnd()}...` : text;
+    }
+
+    updateSlidePreview() {
+        if (!this.previewSection || this.isProjectorMode()) {
+            return;
+        }
+
+        const slides = Array.from(this.stage.querySelectorAll('.slides > section'));
+        if (!slides.length || !this.currentPresentation) {
+            this.previewSection.hidden = true;
+            this.previewText.textContent = '';
+            return;
+        }
+
+        let currentIndex = slides.findIndex((slide) => slide.classList.contains('present'));
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        const nextSlide = slides[currentIndex + 1] || null;
+        const nextText = this.summarizeSlideText(nextSlide);
+
+        if (!nextText) {
+            this.previewSection.hidden = false;
+            this.previewText.textContent = 'No upcoming slide';
+            return;
+        }
+
+        this.previewSection.hidden = false;
+        this.previewText.textContent = nextText;
     }
 
     serialize() {
@@ -107,6 +176,9 @@ class PresentationWidget {
         this.element.removeEventListener('focusin', this.handleStageInteraction);
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
+        }
+        if (this.slidePreviewObserver) {
+            this.slidePreviewObserver.disconnect();
         }
 
         import('./../utils/reveal-manager.js')

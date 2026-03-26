@@ -41,8 +41,6 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-btn" title="Open projector window">Start Projector</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
-                    <button type="button" id="presentation-prev" class="control-button reveal-btn reveal-btn-secondary" title="Previous slide">Prev</button>
-                    <button type="button" id="presentation-next" class="control-button reveal-btn reveal-btn-secondary" title="Next slide">Next</button>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
                 </div>
@@ -112,8 +110,6 @@ class RevealManagerWidget {
         this.deleteButton = this.element.querySelector('.reveal-delete-btn');
         this.presentationToggleButton = this.element.querySelector('.reveal-presentation-toggle-btn');
         this.projectorButton = this.element.querySelector('.reveal-projector-btn');
-        this.prevButton = this.element.querySelector('#presentation-prev');
-        this.nextButton = this.element.querySelector('#presentation-next');
         this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
         this.panelContainer = this.element.querySelector('.reveal-manager__panel');
         this.topbar = this.element.querySelector('.reveal-manager__topbar');
@@ -167,8 +163,6 @@ class RevealManagerWidget {
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.addEventListener('click', this.handlePresentationToggle);
         this.projectorButton.addEventListener('click', this.openProjector);
-        this.prevButton.addEventListener('click', this.handlePrevClick);
-        this.nextButton.addEventListener('click', this.handleNextClick);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
@@ -1068,8 +1062,6 @@ ${revealBootstrapScript}`;
         this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
         this.presentationToggleButton.removeEventListener('click', this.handlePresentationToggle);
         this.projectorButton.removeEventListener('click', this.openProjector);
-        this.prevButton.removeEventListener('click', this.handlePrevClick);
-        this.nextButton.removeEventListener('click', this.handleNextClick);
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);

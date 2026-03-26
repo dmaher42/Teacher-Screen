@@ -1188,7 +1188,7 @@ dialog::backdrop {
     top: 16px;
     right: 16px;
     z-index: 1000;
-    display: flex;
+    display: none !important;
     align-items: center;
     gap: 8px;
     padding: 10px;
@@ -2422,6 +2422,11 @@ dialog::backdrop {
     gap: 0.5rem;
 }
 
+.presentation-widget-content.presentation-widget--projector .presentation-widget-controls,
+.presentation-widget-content.presentation-widget--projector .presentation-widget-preview {
+    display: none;
+}
+
 .presentation-widget-controls .presentation-select {
     flex: 1;
 }
@@ -2436,4 +2441,32 @@ dialog::backdrop {
 
 .presentation-widget-stage .reveal {
     height: 100%;
+}
+
+.presentation-widget-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-surface) 92%, var(--accent) 8%);
+    min-height: 0;
+}
+
+.presentation-widget-preview__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.presentation-widget-preview__text {
+    font-size: 0.9rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

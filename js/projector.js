@@ -418,7 +418,7 @@ class ProjectorApp {
         document.body.classList.toggle('edit-mode', this.isEditMode);
 
         if (this.editControls) {
-            this.editControls.hidden = !this.isEditMode;
+            this.editControls.hidden = true;
         }
 
         if (this.editStatus) {
