@@ -1593,21 +1593,24 @@ dialog::backdrop {
 
 .widget-settings-btn {
     position: absolute;
-    top: -26px;
-    right: 8px;
-    background-color: var(--overlay-backdrop); /* Semi-transparent black */
+    top: 10px;
+    right: 10px;
+    background-color: color-mix(in srgb, var(--card-background, #ffffff) 82%, var(--overlay-backdrop) 18%);
     color: var(--text-on-accent);
-    border: none;
-    border-radius: 50%; /* Make it a circle */
-    width: 24px;
-    height: 24px;
+    border: 1px solid var(--border-soft-2, rgba(0, 0, 0, 0.08));
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     opacity: 0; /* Hidden by default */
     transition: opacity 0.2s ease-in-out;
-    z-index: 30;
+    z-index: 40;
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    padding: 0;
+    line-height: 1;
 }
 
 .widget:hover .widget-settings-btn,
@@ -1616,7 +1619,7 @@ dialog::backdrop {
 }
 
 .widget-settings-btn:hover {
-    background-color: color-mix(in srgb, var(--overlay-backdrop) 85%, var(--bg-inverse) 15%);
+    background-color: color-mix(in srgb, var(--card-background, #ffffff) 72%, var(--primary-color, #8e82ff) 28%);
 }
 
 /* Notes View */
