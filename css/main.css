@@ -840,9 +840,13 @@ dialog::backdrop {
       position: relative;
   }
 
-.widget.rich-text-widget .widget-content {
+  .widget.rich-text-widget .widget-content {
       padding: 0;
       overflow: hidden;
+  }
+
+.widget-content:has(.timer-widget-content) {
+      padding-bottom: var(--spacing-lg, 16px);
   }
 
 .rich-text-settings-controls {
@@ -1472,25 +1476,103 @@ dialog::backdrop {
 }
 
 /* Refactored Widget Styles (Timer Proof of Concept) */
+.timer-widget-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    min-height: 0;
+}
+
 .widget-display {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 80px;
-    padding: 10px;
+    min-height: 150px;
+    padding: 18px;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 18px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--primary-color, #8e82ff) 12%),
+        var(--card-background, #ffffff));
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
 }
 
 .timer-display {
-    font-size: 3.5rem;
+    font-size: clamp(3rem, 6vw, 4.5rem);
     font-weight: 700;
     text-align: center;
-    color: var(--primary-color, #8e82ff);
+    color: color-mix(in srgb, var(--primary-color, #8e82ff) 90%, #111 10%);
+    letter-spacing: -0.05em;
+    line-height: 1;
 }
 
 .widget-content-controls {
     /* Controls are now shown in the modal, but might still be used for layout/styling within the modal */
     display: block;
     padding: 10px;
+}
+
+.timer-widget-content .widget-status {
+    margin-top: -4px;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+}
+
+.timer-widget-content .widget-control-bar {
+    position: static;
+    margin-top: auto;
+    padding: 12px 0 0;
+    background: transparent;
+    border-top: 1px solid var(--border-soft-2);
+    box-shadow: none;
+    border-radius: 0;
+    gap: 12px;
+}
+
+.timer-widget-content .widget-control-bar .primary-actions,
+.timer-widget-content .widget-control-bar .secondary-actions {
+    gap: 8px;
+}
+
+.timer-widget-content .widget-control-bar .primary-actions button,
+.timer-widget-content .widget-control-bar .secondary-actions button {
+    min-height: 40px;
+    padding: 10px 14px;
+    border-radius: 999px;
+}
+
+.timer-widget-content .sound-button {
+    min-width: 40px;
+    padding-inline: 12px;
+}
+
+.widget .control-button,
+.widget .widget-content-controls .control-button,
+.widget .widget-content-controls button,
+.widget .widget-content-controls select,
+.widget .widget-content-controls input[type="text"],
+.widget .widget-content-controls textarea {
+    font-size: 0.92rem;
+}
+
+.widget .control-button,
+.widget .widget-content-controls .control-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.widget .widget-content-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.widget .widget-content-controls h3 {
+    font-size: 1rem;
+    margin-bottom: 0.15rem;
 }
 
 /* Modal Overlay Styles */
