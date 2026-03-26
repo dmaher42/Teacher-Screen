@@ -1045,15 +1045,12 @@ dialog::backdrop {
 }
 
 .notes-editor-wrapper .ql-toolbar {
-    border-top: 1px solid var(--border-color);
-    border-left: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-    border-bottom: 0;
-}
+      border: 0;
+      border-radius: 0;
+  }
 
 .notes-editor-wrapper .ql-container {
-        border: 1px solid var(--border-color);
-        border-top: 0;
+        border: 0;
         min-height: 0;
         flex: 1;
         overflow-y: auto;
@@ -1224,15 +1221,14 @@ dialog::backdrop {
 }
 
 .rich-text-widget-inner .ql-toolbar {
-      border: 1px solid var(--border-color);
-      border-radius: 8px 8px 0 0;
-      background: var(--card-background, #ffffff);
-  }
+        border: 0;
+        border-radius: 0;
+        background: var(--card-background, #ffffff);
+    }
 
 .rich-text-widget-inner .ql-container {
-        border: 1px solid var(--border-color);
-        border-top: 0;
-        border-radius: 0 0 8px 8px;
+        border: 0;
+        border-radius: 0;
         background: var(--card-background, #ffffff);
         min-height: 0;
         flex: 1;
