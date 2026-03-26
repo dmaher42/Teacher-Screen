@@ -139,11 +139,11 @@ details:focus-visible,
 
 #app-container {
     width: 100vw;
-    height: calc(100vh - 50px);
+    height: calc(100vh - 64px);
     position: relative;
     display: flex;
     flex-direction: column;
-    margin-top: 50px;
+    margin-top: 64px;
 }
 
 /* Top Navigation Bar */
@@ -152,13 +152,14 @@ details:focus-visible,
     top: 0;
     left: 0;
     width: 100%;
-    height: 50px;
-    background: var(--card-background, #ffffff);
-    box-shadow: var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
+    height: 64px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 96%, var(--accent) 4%);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
     display: flex;
     align-items: center;
-    padding: 0 var(--spacing-xl, 32px);
+    padding: 0 clamp(16px, 3vw, 32px);
     z-index: 1100;
+    border-bottom: 1px solid var(--border-soft-2);
 }
 
 #widget-toolbar-wrapper {
@@ -222,18 +223,29 @@ details:focus-visible,
 
 .nav-tabs {
     display: flex;
-    gap: var(--spacing-md, 10px);
+    align-items: center;
+    gap: var(--spacing-sm, 10px);
+    width: 100%;
 }
 
 .nav-tab {
-    background: none;
-    border: none;
-    padding: var(--spacing-md, 10px) var(--spacing-lg, 15px);
-    font-size: 1rem;
-    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0.6rem 1.15rem;
+    font-size: 0.95rem;
+    color: color-mix(in srgb, var(--text-color, #333) 82%, var(--a11y-min-contrast-text, #000));
     cursor: pointer;
-    border-radius: var(--border-radius, 12px);
-    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                border-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease,
+                transform calc(150ms * (1 - var(--reduce-motion, 0))) ease;
+    box-shadow: none;
+    white-space: nowrap;
 }
 
 .button-group {
@@ -271,21 +283,31 @@ details:focus-visible,
     background-color: var(--primary-color, #8e82ff);
     color: var(--text-on-accent);
     font-weight: 600;
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+}
+
+.nav-tab.active:hover {
+    background-color: var(--primary-color, #8e82ff);
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    transform: none;
 }
 
 .nav-tab:hover:not(.active) {
     background-color: var(--hover-bg-color, #f5f5f5);
+    box-shadow: none;
+    transform: none;
 }
 
 .nav-item-with-dropdown {
     position: relative;
     display: flex;
     align-items: center;
+    align-self: stretch;
 }
 
 .nav-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     display: none;
     background-color: var(--card-background, #ffffff);
