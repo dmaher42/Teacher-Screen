@@ -1965,6 +1965,12 @@ dialog::backdrop {
 .reveal-manager__topbar {
     flex: 0 0 auto;
     align-items: center;
+    flex-wrap: wrap;
+    padding: 0.75rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--bg-elevated) 96%, var(--accent) 4%);
+    box-shadow: var(--shadow-soft);
 }
 
 .reveal-presenter-status {
@@ -1978,12 +1984,45 @@ dialog::backdrop {
     white-space: nowrap;
 }
 
+.reveal-manager__topbar .reveal-btn {
+    min-height: 40px;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border-color: var(--border-soft-2);
+    box-shadow: none;
+    font-size: 0.92rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.reveal-manager__topbar .reveal-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
 .reveal-manager__topbar .reveal-launch-btn {
-    min-width: 72px;
+    min-width: 88px;
+}
+
+.reveal-manager__topbar .reveal-projector-btn,
+.reveal-manager__topbar .reveal-presentation-toggle-btn,
+.reveal-manager__topbar .reveal-prev-btn,
+.reveal-manager__topbar .reveal-next-btn {
+    background: var(--bg-surface);
+}
+
+.reveal-manager__topbar .reveal-launch-btn {
+    border-color: transparent;
 }
 
 .reveal-manager__panel {
     flex-direction: column;
+}
+
+.reveal-manager__topbar .reveal-toggle-controls-btn {
+    min-width: 40px;
+    padding-inline: 0;
 }
 
 .reveal-manager__section {
