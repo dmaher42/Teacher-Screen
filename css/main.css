@@ -1235,6 +1235,7 @@ dialog::backdrop {
 .rich-text-widget-inner .ql-toolbar {
         border: 0;
         border-radius: 0;
+        padding: 0.25rem 0.5rem;
         background: var(--card-background, #ffffff);
     }
 
@@ -1252,7 +1253,7 @@ dialog::backdrop {
       font-size: 1.8rem;
       line-height: 1.9;
       letter-spacing: 0.3px;
-      padding: 1rem;
+      padding: 0;
       color: var(--text-primary);
       background: var(--card-background, #ffffff);
       overflow-y: auto;
@@ -1528,21 +1529,21 @@ dialog::backdrop {
 
 .widget-settings-btn {
     position: absolute;
-    top: 8px;
+    top: -26px;
     right: 8px;
     background-color: var(--overlay-backdrop); /* Semi-transparent black */
     color: var(--text-on-accent);
     border: none;
     border-radius: 50%; /* Make it a circle */
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     opacity: 0; /* Hidden by default */
     transition: opacity 0.2s ease-in-out;
-    z-index: 5;
+    z-index: 30;
 }
 
 .widget:hover .widget-settings-btn,

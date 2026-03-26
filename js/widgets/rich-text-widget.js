@@ -26,9 +26,9 @@ class RichTextWidget {
     this.displayModeButton = document.createElement('button');
     this.displayModeButton.className = 'control-button';
     this.displayModeButton.type = 'button';
-    this.displayModeButton.textContent = 'Display Mode';
+    this.displayModeButton.textContent = 'Display';
     this.displayModeButton.setAttribute('aria-pressed', 'false');
-    this.displayModeButton.title = 'Switch the board into display mode';
+    this.displayModeButton.title = 'Toggle display mode';
     this.displayModeButton.addEventListener('click', this.handleDisplayModeClick);
 
     this.controlsOverlay.appendChild(this.displayModeButton);
@@ -45,15 +45,17 @@ class RichTextWidget {
       SizeStyle.whitelist = ['small', 'large', 'huge'];
       Quill.register(SizeStyle, true);
 
+      const ColorStyle = Quill.import('attributors/style/color');
+      Quill.register(ColorStyle, true);
+
       const BackgroundStyle = Quill.import('attributors/style/background');
-      BackgroundStyle.whitelist = ['#fff3bf', '#c8f7c5', '#bee3f8', '#ffd6e7'];
       Quill.register(BackgroundStyle, true);
 
       const toolbarOptions = [
         [{ header: [2, 3, false] }],
         [{ size: ['small', false, 'large', 'huge'] }],
-        ['bold'],
-        [{ background: [] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ color: [] }, { background: [] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['clean']
       ];
@@ -124,7 +126,7 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
-    this.displayModeButton.textContent = this.isDisplayMode ? 'Exit Display Mode' : 'Enter Display Mode';
+    this.displayModeButton.textContent = this.isDisplayMode ? 'Edit' : 'Display';
     this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
   }
 
