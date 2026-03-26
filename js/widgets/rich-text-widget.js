@@ -94,6 +94,7 @@ class RichTextWidget {
     }
 
     this.pendingContent = this.quill.root.innerHTML;
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
   }
 
   insertHtml(html) {

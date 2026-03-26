@@ -496,6 +496,7 @@ class ClassroomScreenApp {
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
         eventBus.on('widget:removed', this.handleWidgetRemovedEvent);
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
+        document.addEventListener('widgetChanged', () => this.saveState());
 
         // Request Open Planner
         document.addEventListener('requestOpenPlanner', () => {

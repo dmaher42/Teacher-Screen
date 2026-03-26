@@ -330,6 +330,15 @@ class NotesWidget {
             }
         });
 
+        this.quillEditor.on('text-change', () => {
+            if (!this.quillEditor) return;
+            this.savedContent = this.quillEditor.root.innerHTML;
+            this.title = this.getTitleFromContent();
+            this.updatedAt = new Date().toISOString();
+            this.updateDisplay();
+            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+        });
+
         // Load content
         if (this.savedContent) {
             this.quillEditor.root.innerHTML = this.savedContent;
