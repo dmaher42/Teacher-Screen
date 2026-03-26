@@ -53,6 +53,7 @@ class NotesWidget {
     constructor(noteData = {}) {
         this.layoutType = 'overlay';
         this.isExpanded = false;
+        this.quillTextChangeHandler = null;
 
         // Create the main widget element
         this.element = document.createElement('div');
@@ -66,6 +67,11 @@ class NotesWidget {
         this.mainDisplay = document.createElement('div');
         this.mainDisplay.className = 'widget-display notes-main-display';
         this.mainDisplay.title = 'Open the quick note editor';
+        this.mainDisplay.addEventListener('click', () => {
+            if (!this.isExpanded) {
+                this.expand();
+            }
+        });
 
         // Create the notes display preview
         this.display = document.createElement('div');
@@ -114,8 +120,8 @@ class NotesWidget {
         linkBtn.textContent = 'Link to Planner';
         linkBtn.className = 'control-button';
         linkBtn.addEventListener('click', () => {
-             localStorage.setItem('noteToLink', this.noteId);
-             document.dispatchEvent(new CustomEvent('requestOpenPlanner'));
+            localStorage.setItem('noteToLink', this.noteId);
+            document.dispatchEvent(new CustomEvent('requestOpenPlanner'));
         });
         this.controlsOverlay.appendChild(linkBtn);
 
@@ -146,24 +152,6 @@ class NotesWidget {
         this.editorContainerWrapper.style.height = '100%';
 
         this.element.appendChild(this.editorContainerWrapper);
-
-        // Click listener for expansion
-        this.element.addEventListener('click', (e) => {
-            // Prevent expansion if clicking buttons or specific interactive elements
-            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-                return;
-            }
-            // If expanded, only collapse if clicking outside the editor (e.g. on the close button we might add, or if we want toggle behavior)
-            // The requirement says: "Click it to type, click it again to save and minimize."
-            // But if I am typing in the editor, I don't want to collapse.
-            // So we toggle ONLY if not clicking inside the editor content area when expanded?
-            // Actually, Quill intercepts clicks.
-            // Let's implement a distinct expand/collapse logic.
-
-            if (!this.isExpanded) {
-                this.expand();
-            }
-        });
 
         // State
         this.quillEditor = null;
@@ -272,20 +260,11 @@ class NotesWidget {
             this.persistNote();
         }
 
-        this.isExpanded = false;
-        this.element.classList.remove('expanded');
-
-        // Destroy Quill and clear DOM
-        this.quillEditor = null;
-        this.editorContainer = null;
-        this.editorContainerWrapper.innerHTML = '';
-
-        // Hide editor wrapper
-        this.editorContainerWrapper.style.display = 'none';
+        this.destroyEditor();
+        this.resetEditorShell();
 
         // Show preview
         this.updateDisplay();
-        this.mainDisplay.style.display = 'block';
     }
 
     /**
@@ -330,14 +309,15 @@ class NotesWidget {
             }
         });
 
-        this.quillEditor.on('text-change', () => {
+        this.quillTextChangeHandler = () => {
             if (!this.quillEditor) return;
             this.savedContent = this.quillEditor.root.innerHTML;
             this.title = this.getTitleFromContent();
             this.updatedAt = new Date().toISOString();
             this.updateDisplay();
             document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
-        });
+        };
+        this.quillEditor.on('text-change', this.quillTextChangeHandler);
 
         // Load content
         if (this.savedContent) {
@@ -420,10 +400,29 @@ class NotesWidget {
      * Remove the widget from the DOM.
      */
     remove() {
-        this.quillEditor = null;
+        this.destroyEditor();
+        this.resetEditorShell();
         this.element.remove();
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
         document.dispatchEvent(event);
+    }
+
+    destroyEditor() {
+        if (this.quillEditor && this.quillTextChangeHandler) {
+            this.quillEditor.off('text-change', this.quillTextChangeHandler);
+        }
+
+        this.quillTextChangeHandler = null;
+        this.quillEditor = null;
+        this.editorContainer = null;
+    }
+
+    resetEditorShell() {
+        this.isExpanded = false;
+        this.element.classList.remove('expanded');
+        this.editorContainerWrapper.innerHTML = '';
+        this.editorContainerWrapper.style.display = 'none';
+        this.mainDisplay.style.display = 'block';
     }
 
     /**
