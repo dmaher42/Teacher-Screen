@@ -20,24 +20,18 @@ class RichTextWidget {
     this.handleDisplayModeClick = this.handleDisplayModeClick.bind(this);
     this.handleTextChange = this.handleTextChange.bind(this);
 
-    this.controls = document.createElement('div');
-    this.controls.className = 'rich-text-controls';
+    this.controlsOverlay = document.createElement('div');
+    this.controlsOverlay.className = 'widget-content-controls rich-text-settings-controls';
 
     this.displayModeButton = document.createElement('button');
     this.displayModeButton.className = 'control-button';
     this.displayModeButton.type = 'button';
-    this.displayModeButton.textContent = '⚡ Display Mode';
+    this.displayModeButton.textContent = 'Display Mode';
     this.displayModeButton.setAttribute('aria-pressed', 'false');
+    this.displayModeButton.title = 'Switch the board into display mode';
     this.displayModeButton.addEventListener('click', this.handleDisplayModeClick);
 
-    this.controls.appendChild(this.displayModeButton);
-
-    this.modeHint = document.createElement('p');
-    this.modeHint.className = 'rich-text-mode-hint';
-    this.modeHint.textContent = 'Use display mode for a cleaner classroom view.';
-    this.controls.appendChild(this.modeHint);
-
-    this.element.appendChild(this.controls);
+    this.controlsOverlay.appendChild(this.displayModeButton);
     this.updateDisplayModeUI();
 
     this.editorContainer = document.createElement('div');
@@ -80,6 +74,10 @@ class RichTextWidget {
       this.quill.on('text-change', this.handleTextChange);
       this.updateDisplayModeUI();
     }, 0);
+  }
+
+  getControls() {
+    return this.controlsOverlay;
   }
 
   handleDisplayModeClick() {
@@ -128,12 +126,6 @@ class RichTextWidget {
   updateDisplayModeUI() {
     this.displayModeButton.textContent = this.isDisplayMode ? 'Exit Display Mode' : 'Enter Display Mode';
     this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
-
-    if (this.modeHint) {
-      this.modeHint.textContent = this.isDisplayMode
-        ? 'Display mode is on, ready for the classroom view.'
-        : 'Use display mode for a cleaner classroom view.';
-    }
   }
 
   remove() {

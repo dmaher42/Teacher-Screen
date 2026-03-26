@@ -795,13 +795,25 @@ dialog::backdrop {
 /* .widget-header removed */
 
 .widget-content {
-    padding: var(--spacing-lg, 16px);
-    padding-top: 30px; /* Space for the floating settings button */
-    padding-bottom: 64px; /* Room for the unified control bar */
-    flex-grow: 1;
-    overflow-y: auto;
-    position: relative;
-}
+      padding: var(--spacing-lg, 16px);
+      padding-top: 30px; /* Space for the floating settings button */
+      padding-bottom: 64px; /* Room for the unified control bar */
+      flex-grow: 1;
+      overflow-y: auto;
+      position: relative;
+  }
+
+.widget.rich-text-widget .widget-content {
+      padding: 0;
+      overflow: hidden;
+  }
+
+.rich-text-settings-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0;
+  }
 
 .widget-control-bar {
     position: absolute;
