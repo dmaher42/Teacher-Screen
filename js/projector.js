@@ -16,6 +16,11 @@ window.__ProjectorConnection = {
 let activePresentationSourceKey = null;
 let activePresentationLoadPromise = null;
 
+function isDedicatedRevealProjectorWidget(widgetData = {}) {
+    const type = widgetData.type;
+    return type === 'RevealManagerWidget' || type === 'reveal-manager';
+}
+
 function getProjectorSyncToken() {
     try {
         const params = new URLSearchParams(window.location.search);
@@ -402,6 +407,9 @@ class ProjectorApp {
             if (widgetData.visibleOnProjector === false) {
                 return null;
             }
+            if (isDedicatedRevealProjectorWidget(widgetData)) {
+                return null;
+            }
             return createWidgetByType(widgetData.type);
         });
 
@@ -437,6 +445,11 @@ class ProjectorApp {
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
                     // Filter out widgets not meant for the projector
                     if (widgetData.visibleOnProjector === false) {
+                        return null;
+                    }
+
+                    // Reveal decks are rendered through the dedicated projector stage.
+                    if (isDedicatedRevealProjectorWidget(widgetData)) {
                         return null;
                     }
 
