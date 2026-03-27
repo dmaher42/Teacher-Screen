@@ -224,6 +224,81 @@ class DrawingToolWidget {
         this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls drawing-tool-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Adjust the drawing color and brush size here, then use Clear when you want a fresh board.';
+        controls.appendChild(helpText);
+
+        const drawSection = document.createElement('div');
+        drawSection.className = 'widget-settings-section';
+
+        const drawHeading = document.createElement('h3');
+        drawHeading.textContent = 'Drawing Tools';
+        drawSection.appendChild(drawHeading);
+
+        const colorLabel = document.createElement('label');
+        colorLabel.textContent = 'Brush color';
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = this.currentColor;
+        colorLabel.appendChild(colorInput);
+        drawSection.appendChild(colorLabel);
+
+        const sizeLabel = document.createElement('label');
+        sizeLabel.textContent = 'Brush size';
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'range';
+        sizeInput.min = '1';
+        sizeInput.max = '20';
+        sizeInput.value = String(this.currentLineWidth);
+        sizeLabel.appendChild(sizeInput);
+        drawSection.appendChild(sizeLabel);
+
+        const sizeMeta = document.createElement('div');
+        sizeMeta.className = 'widget-settings-meta';
+        const sizeMetaLabel = document.createElement('strong');
+        sizeMetaLabel.textContent = 'Current Brush';
+        const sizeMetaText = document.createElement('span');
+        sizeMeta.append(sizeMetaLabel, sizeMetaText);
+        drawSection.appendChild(sizeMeta);
+
+        const actions = document.createElement('div');
+        actions.className = 'widget-settings-actions';
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'control-button';
+        clearButton.textContent = 'Clear Canvas';
+        actions.appendChild(clearButton);
+        drawSection.appendChild(actions);
+
+        controls.appendChild(drawSection);
+
+        const syncStatus = () => {
+            sizeMetaText.textContent = `${this.currentLineWidth}px brush in ${this.currentColor}.`;
+        };
+
+        colorInput.addEventListener('input', (event) => {
+            this.colorPicker.value = event.target.value;
+            this.setColor(event.target.value);
+            syncStatus();
+        });
+
+        sizeInput.addEventListener('input', (event) => {
+            this.lineWidthSelector.value = event.target.value;
+            this.setLineWidth(event.target.value);
+            syncStatus();
+        });
+
+        clearButton.addEventListener('click', () => this.clear());
+
+        syncStatus();
+        return controls;
+    }
+
     /**
      * Serialize the widget's state for saving to localStorage.
      * @returns {object} The serialized state.

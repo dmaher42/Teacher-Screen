@@ -153,6 +153,67 @@ class PresentationWidget {
         this.previewText.textContent = nextText;
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls presentation-widget-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Choose one of the built-in presentations and load it into the widget.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Presentation Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const selectLabel = document.createElement('label');
+        selectLabel.textContent = 'Presentation';
+        const selectClone = this.select.cloneNode(true);
+        selectClone.value = this.select.value;
+        selectLabel.appendChild(selectClone);
+        sourceSection.appendChild(selectLabel);
+
+        const sourceActions = document.createElement('div');
+        sourceActions.className = 'widget-settings-actions';
+        const loadButton = document.createElement('button');
+        loadButton.type = 'button';
+        loadButton.className = 'control-button';
+        loadButton.textContent = 'Load Presentation';
+        sourceActions.appendChild(loadButton);
+        sourceSection.appendChild(sourceActions);
+        controls.appendChild(sourceSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Current Presentation';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncStatus = () => {
+            statusText.textContent = this.currentPresentation
+                ? this.presentations.find((item) => item.value === this.currentPresentation)?.label || this.currentPresentation
+                : 'No presentation loaded yet.';
+        };
+
+        loadButton.addEventListener('click', async () => {
+            this.select.value = selectClone.value;
+            await this.handleLoadClick();
+            syncStatus();
+        });
+
+        selectClone.addEventListener('change', () => {
+            this.select.value = selectClone.value;
+            syncStatus();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
     serialize() {
         return {
             type: 'PresentationWidget',

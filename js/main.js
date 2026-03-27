@@ -125,9 +125,14 @@ class ClassroomScreenApp {
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
         this.savedNotesListElement = document.getElementById('saved-notes-list');
         this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
-        this.layoutNameInput = document.getElementById('layout-name-input');
-        this.saveLayoutButton = document.getElementById('save-layout-btn');
+        this.exportAllNotesButton = document.getElementById('export-all-notes-memory-cue');
+        this.layoutNameInput = document.getElementById('planner-layout-name-input');
+        this.saveLayoutButton = document.getElementById('planner-save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
+        this.addLayoutShortcutButton = document.getElementById('add-layout-btn');
+        this.saveLayoutShortcutButton = document.getElementById('save-layout-btn');
+        this.openWeeklyPlannerButton = document.getElementById('open-weekly-planner-btn');
+        this.openAgendaButton = document.getElementById('open-agenda-btn');
         this.plannerModal = document.getElementById('planner-modal');
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
@@ -384,6 +389,14 @@ class ClassroomScreenApp {
             this.saveLayoutButton.addEventListener('click', () => this.saveLayoutFromModal());
         }
 
+        if (this.layoutNameInput) {
+            this.layoutNameInput.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                this.saveLayoutFromModal();
+            });
+        }
+
         if (this.savedLayoutsList) {
             this.savedLayoutsList.addEventListener('click', (event) => {
                 const targetButton = event.target.closest('button');
@@ -411,6 +424,30 @@ class ClassroomScreenApp {
         this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
+
+        if (this.addLayoutShortcutButton) {
+            this.addLayoutShortcutButton.addEventListener('click', () => {
+                this.handleNavClick('classroom');
+                this.openWidgetPicker();
+            });
+        }
+
+        if (this.saveLayoutShortcutButton) {
+            this.saveLayoutShortcutButton.addEventListener('click', () => {
+                this.handleNavClick('planner');
+                if (this.layoutNameInput && typeof this.layoutNameInput.focus === 'function') {
+                    window.requestAnimationFrame(() => this.layoutNameInput.focus());
+                }
+            });
+        }
+
+        if (this.openWeeklyPlannerButton) {
+            this.openWeeklyPlannerButton.addEventListener('click', () => this.openPlannerModal());
+        }
+
+        if (this.openAgendaButton) {
+            this.openAgendaButton.addEventListener('click', () => this.openAgendaModal());
+        }
 
         // FAB and Modals
         const addBtn = document.getElementById('add-widget-btn');
@@ -541,6 +578,14 @@ class ClassroomScreenApp {
             this.renderSavedNotesList();
         }
 
+        if (tab === 'planner') {
+            this.displaySavedLayouts();
+        }
+
+        if (tab !== 'planner' && this.plannerModal?.classList.contains('visible')) {
+            this.closePlannerModal();
+        }
+
         // Teacher Panel Logic
         if (tab === 'classroom') {
             // Ensure student view is ready
@@ -577,7 +622,12 @@ class ClassroomScreenApp {
 
                 if (action === 'open') this.openSavedNote(noteId);
                 if (action === 'delete') this.deleteSavedNote(noteId);
+                if (action === 'memory-cue') this.exportSavedNoteToMemoryCue(noteId);
             });
+        }
+
+        if (this.exportAllNotesButton) {
+            this.exportAllNotesButton.addEventListener('click', () => this.exportAllSavedNotesToMemoryCue());
         }
 
         document.addEventListener('savedNotesUpdated', (event) => {
@@ -657,7 +707,15 @@ class ClassroomScreenApp {
                 deleteBtn.dataset.noteId = note.id;
                 deleteBtn.textContent = 'Delete';
 
+                const memoryCueBtn = document.createElement('button');
+                memoryCueBtn.type = 'button';
+                memoryCueBtn.className = 'control-button';
+                memoryCueBtn.dataset.noteAction = 'memory-cue';
+                memoryCueBtn.dataset.noteId = note.id;
+                memoryCueBtn.textContent = 'Export';
+
                 actions.appendChild(openBtn);
+                actions.appendChild(memoryCueBtn);
                 actions.appendChild(deleteBtn);
 
                 card.appendChild(meta);
@@ -705,12 +763,85 @@ class ClassroomScreenApp {
         this.showNotification('Note deleted.');
     }
 
+    async exportSavedNoteToMemoryCue(noteId) {
+        if (!window.SavedNotesStore) return;
+
+        const note = window.SavedNotesStore.get(noteId);
+        if (!note) {
+            this.showNotification('Note could not be found.', 'error');
+            return;
+        }
+
+        const payload = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            sourceApp: 'teach-screen',
+            targetApp: 'memory-cue',
+            note: this.buildMemoryCueNotePayload(note)
+        };
+
+        const jsonString = JSON.stringify(payload, null, 2);
+        const copied = await this.copyTextToClipboard(jsonString);
+        const filename = `memory-cue-note-${this.slugifyFilename(note.title || 'note')}.json`;
+
+        this.downloadJsonFile(filename, payload);
+        this.showNotification(copied ? 'Memory Cue export copied and downloaded. Import it in Memory Cue.' : 'Memory Cue export downloaded. Import it in Memory Cue.');
+    }
+
+    async exportAllSavedNotesToMemoryCue() {
+        const notes = Array.isArray(this.savedNotes) ? [...this.savedNotes] : [];
+        if (!notes.length) {
+            this.showNotification('No saved notes available to export yet.', 'warning');
+            return;
+        }
+
+        const payload = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            sourceApp: 'teach-screen',
+            targetApp: 'memory-cue',
+            notes: notes.map((note) => this.buildMemoryCueNotePayload(note))
+        };
+
+        const jsonString = JSON.stringify(payload, null, 2);
+        const copied = await this.copyTextToClipboard(jsonString);
+
+        this.downloadJsonFile('memory-cue-notes-export.json', payload);
+        this.showNotification(copied ? 'Memory Cue export copied and downloaded. Import it in Memory Cue.' : 'Memory Cue export downloaded. Import it in Memory Cue.');
+    }
+
+    buildMemoryCueNotePayload(note = {}) {
+        const html = typeof note.content === 'string' ? note.content : '';
+        const text = this.getNotePlainText(html);
+
+        return {
+            title: note.title || 'Untitled note',
+            text: text || 'Untitled note',
+            bodyHtml: html,
+            folderId: 'school',
+            source: 'teach-screen',
+            tags: ['teaching', 'teacher-screen'],
+            metadata: {
+                source: 'teach-screen',
+                teaching: true,
+                noteType: 'lesson-note',
+                sourceNoteId: note.id || null
+            }
+        };
+    }
+
     getNotePreviewText(content = '') {
         const temp = document.createElement('div');
         temp.innerHTML = content || '';
         const text = (temp.textContent || '').trim();
         if (!text) return 'No content saved yet.';
         return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+    }
+
+    getNotePlainText(content = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = content || '';
+        return (temp.textContent || '').trim();
     }
 
     formatNoteDate(dateValue) {
@@ -1382,6 +1513,43 @@ class ClassroomScreenApp {
 
         this.savedLayoutsList.innerHTML = '';
         this.savedLayoutsList.appendChild(fragment);
+    }
+
+    downloadJsonFile(filename, payload) {
+        const jsonString = JSON.stringify(payload, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    }
+
+    async copyTextToClipboard(value) {
+        if (!value || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            return false;
+        }
+
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch (error) {
+            console.warn('Unable to copy export payload to clipboard.', error);
+            return false;
+        }
+    }
+
+    slugifyFilename(value = '') {
+        const slug = String(value)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        return slug || 'note';
     }
 
     buildStateSnapshot() {
@@ -2137,21 +2305,8 @@ class ClassroomScreenApp {
             });
         }
 
-        // Help Button
-        const helpBtn = document.createElement('button');
-        helpBtn.className = 'control-button modal-secondary-btn';
-        helpBtn.textContent = 'Help / Info';
-        helpBtn.addEventListener('click', () => {
-             if (typeof widget.toggleHelp === 'function') {
-                 widget.toggleHelp();
-             } else {
-                 alert('No help available for this widget.');
-             }
-        });
-
         const rightGroup = document.createElement('div');
         rightGroup.className = 'modal-common-controls__actions';
-        rightGroup.appendChild(helpBtn);
         rightGroup.appendChild(projectorToggle);
 
         commonControls.appendChild(removeBtn);

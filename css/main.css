@@ -824,14 +824,14 @@ dialog::backdrop {
     border-radius: 16px;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
     border: 1px solid var(--border-soft-2);
-    color: #334155;
+    color: rgba(241, 245, 249, 0.92);
 }
 
 #widget-settings-modal .widget-settings-meta strong {
     font-size: 0.78rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: rgba(226, 232, 240, 0.78);
 }
 
 .widget-settings-empty {

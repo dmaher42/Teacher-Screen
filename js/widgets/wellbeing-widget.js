@@ -350,6 +350,84 @@ class WellbeingWidget {
         this.renderChart();
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls wellbeing-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Switch between student check-in mode and the teacher dashboard, save the current results, or open the history list.';
+        controls.appendChild(helpText);
+
+        const modeSection = document.createElement('div');
+        modeSection.className = 'widget-settings-section';
+        const modeHeading = document.createElement('h3');
+        modeHeading.textContent = 'Mode';
+        modeSection.appendChild(modeHeading);
+
+        const modeActions = document.createElement('div');
+        modeActions.className = 'widget-settings-actions';
+        const toggleModeButton = document.createElement('button');
+        toggleModeButton.type = 'button';
+        toggleModeButton.className = 'control-button';
+        modeActions.appendChild(toggleModeButton);
+        modeSection.appendChild(modeActions);
+        controls.appendChild(modeSection);
+
+        const dataSection = document.createElement('div');
+        dataSection.className = 'widget-settings-section';
+        const dataHeading = document.createElement('h3');
+        dataHeading.textContent = 'Results';
+        dataSection.appendChild(dataHeading);
+
+        const dataActions = document.createElement('div');
+        dataActions.className = 'widget-settings-actions';
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'control-button';
+        saveButton.textContent = "Save Today's Check-in";
+        const historyButton = document.createElement('button');
+        historyButton.type = 'button';
+        historyButton.className = 'control-button';
+        historyButton.textContent = 'View History';
+        dataActions.append(saveButton, historyButton);
+        dataSection.appendChild(dataActions);
+        controls.appendChild(dataSection);
+
+        const summaryCard = document.createElement('div');
+        summaryCard.className = 'widget-settings-meta';
+        const summaryLabel = document.createElement('strong');
+        summaryLabel.textContent = 'Current Totals';
+        const summaryText = document.createElement('span');
+        summaryCard.append(summaryLabel, summaryText);
+        controls.appendChild(summaryCard);
+
+        const syncStatus = () => {
+            toggleModeButton.textContent = this.currentMode === 'student'
+                ? 'Switch to Teacher Dashboard'
+                : 'Switch to Student Input';
+            summaryText.textContent = `Great ${this.counts.great}, Good ${this.counts.good}, Meh ${this.counts.meh}, Worried ${this.counts.worried}, Sad ${this.counts.sad}`;
+        };
+
+        toggleModeButton.addEventListener('click', () => {
+            this.toggleMode();
+            syncStatus();
+        });
+
+        saveButton.addEventListener('click', () => {
+            this.saveCurrentCounts();
+            syncStatus();
+        });
+
+        historyButton.addEventListener('click', () => {
+            this.showHistory();
+            syncStatus();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
     remove() {
         this.toggleBtn.removeEventListener('click', this.handleToggleMode);
         this.saveBtn.removeEventListener('click', this.handleSaveCurrentCounts);
