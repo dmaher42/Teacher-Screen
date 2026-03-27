@@ -45,14 +45,16 @@ function isValidLayout(layout) {
 
 const WIDGET_SIZE_RULES = {
   TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
-  NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
+  QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 4 },
+  DrawingToolWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 6, defaultH: 6 },
   UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
   // Reveal manager uses standard grid sizing.
   RevealManagerWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
   PresentationWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
-  WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  WellbeingWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 4 },
   RichTextWidget: { minW: 4, minH: 3 }
 };
 
@@ -180,6 +182,85 @@ class LayoutManager {
       layoutManagerEventBus.emit(eventName, payload);
     } catch (error) {
       console.error(`[LayoutManager] Failed to emit ${eventName}`, error);
+    }
+  }
+
+  runWidgetLayoutHook(widgetInfo, options = {}) {
+    if (!widgetInfo || !widgetInfo.widget || typeof widgetInfo.widget.onWidgetLayout !== 'function') {
+      return;
+    }
+
+    const widgetBounds = widgetInfo.element && typeof widgetInfo.element.getBoundingClientRect === 'function'
+      ? widgetInfo.element.getBoundingClientRect()
+      : { width: widgetInfo.width || 0, height: widgetInfo.height || 0 };
+
+    try {
+      widgetInfo.widget.onWidgetLayout({
+        initial: !!options.initial,
+        width: Math.max(0, Math.round(widgetBounds.width || 0)),
+        height: Math.max(0, Math.round(widgetBounds.height || 0)),
+        container: widgetInfo.element
+      });
+    } catch (error) {
+      console.warn(`[LayoutManager] Widget layout hook failed for ${widgetInfo.widget.constructor?.name || 'unknown widget'}`, error);
+    }
+  }
+
+  scheduleWidgetLayoutHook(widgetInfo, options = {}) {
+    if (!widgetInfo || !widgetInfo.widget) {
+      return;
+    }
+
+    if (widgetInfo.layoutFrame) {
+      cancelAnimationFrame(widgetInfo.layoutFrame);
+    }
+    if (widgetInfo.layoutTimeout) {
+      clearTimeout(widgetInfo.layoutTimeout);
+    }
+
+    widgetInfo.layoutFrame = requestAnimationFrame(() => {
+      widgetInfo.layoutFrame = null;
+      this.runWidgetLayoutHook(widgetInfo, options);
+    });
+
+    widgetInfo.layoutTimeout = setTimeout(() => {
+      widgetInfo.layoutTimeout = null;
+      this.runWidgetLayoutHook(widgetInfo, options);
+    }, options.initial ? 120 : 0);
+  }
+
+  observeWidgetLayout(widgetInfo) {
+    if (!widgetInfo || !widgetInfo.element || typeof ResizeObserver !== 'function') {
+      this.scheduleWidgetLayoutHook(widgetInfo, { initial: true });
+      return;
+    }
+
+    if (!widgetInfo.layoutObserver) {
+      widgetInfo.layoutObserver = new ResizeObserver(() => {
+        this.scheduleWidgetLayoutHook(widgetInfo);
+      });
+      widgetInfo.layoutObserver.observe(widgetInfo.element);
+    }
+
+    this.scheduleWidgetLayoutHook(widgetInfo, { initial: true });
+  }
+
+  teardownWidgetLayout(widgetInfo) {
+    if (!widgetInfo) {
+      return;
+    }
+
+    if (widgetInfo.layoutObserver) {
+      widgetInfo.layoutObserver.disconnect();
+      widgetInfo.layoutObserver = null;
+    }
+    if (widgetInfo.layoutFrame) {
+      cancelAnimationFrame(widgetInfo.layoutFrame);
+      widgetInfo.layoutFrame = null;
+    }
+    if (widgetInfo.layoutTimeout) {
+      clearTimeout(widgetInfo.layoutTimeout);
+      widgetInfo.layoutTimeout = null;
     }
   }
 
@@ -392,7 +473,10 @@ class LayoutManager {
     this.widgets.push(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
-    this.widgets.forEach((info) => this.mountWidgetElement(info));
+    this.widgets.forEach((info) => {
+      this.mountWidgetElement(info);
+      this.observeWidgetLayout(info);
+    });
 
     if (typeof widget.setEditable === 'function') {
       widget.setEditable(this.editable);
@@ -430,6 +514,7 @@ class LayoutManager {
   removeWidget(widget) {
     const widgetInfo = this.widgets.find(info => info.widget === widget);
     if (widgetInfo) {
+      this.teardownWidgetLayout(widgetInfo);
       let widgetRemovedEventDispatched = false;
 
       const trackWidgetRemoved = (event) => {
@@ -750,6 +835,7 @@ class LayoutManager {
 
     this.mode = layoutData.mode || (layoutManagerIsTeacherMode() && layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
     this.setupModeStructure();
+    this.widgets.forEach((widgetInfo) => this.teardownWidgetLayout(widgetInfo));
     this.widgets = [];
 
     const containerW = this.container.clientWidth || 1024;
@@ -870,7 +956,10 @@ class LayoutManager {
       }
     });
 
-    this.widgets.forEach((widgetInfo) => this.mountWidgetElement(widgetInfo));
+    this.widgets.forEach((widgetInfo) => {
+      this.mountWidgetElement(widgetInfo);
+      this.observeWidgetLayout(widgetInfo);
+    });
   }
 
   applyLayoutDelta(delta) {
@@ -884,6 +973,7 @@ class LayoutManager {
     widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
     this.clampWidgetToContainer(widget);
     this.mountWidgetElement(widget);
+    this.scheduleWidgetLayoutHook(widget);
   }
 
   createWidgetFromType(type) {

@@ -56,13 +56,21 @@ class QRCodeWidget {
      */
     generate() {
         const text = this.input.value.trim() || ' ';
+        const size = this.getCanvasSize();
         if (typeof QRCode !== 'undefined') {
-            QRCode.toCanvas(this.canvas, text, { width: 200 }).catch((error) => {
+            QRCode.toCanvas(this.canvas, text, { width: size, margin: 1 }).catch((error) => {
                 console.error('QR generation failed:', error);
             });
         } else {
             console.error('QRCode library is not loaded.');
         }
+    }
+
+    getCanvasSize() {
+        const bounds = this.element.getBoundingClientRect();
+        const usableWidth = Math.max(120, Math.floor(bounds.width - 32));
+        const usableHeight = Math.max(120, Math.floor(bounds.height - 132));
+        return Math.max(120, Math.min(280, usableWidth, usableHeight));
     }
 
     /**
@@ -91,6 +99,10 @@ class QRCodeWidget {
      */
     deserialize(data) {
         this.input.value = data.text || '';
+        this.generate();
+    }
+
+    onWidgetLayout() {
         this.generate();
     }
 

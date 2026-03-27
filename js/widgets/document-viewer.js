@@ -346,6 +346,18 @@ class DocumentViewerWidget {
         this.embedUrl(data.url);
     }
 
+    onWidgetLayout() {
+        if (!this.pdfDoc || this.isRenderingPage) {
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            if (this.pdfDoc && !this.isRenderingPage) {
+                this.goToPage(this.currentPage);
+            }
+        });
+    }
+
     setEditable() {}
 
     // Optional: Call this if your larger system supports destroying widgets

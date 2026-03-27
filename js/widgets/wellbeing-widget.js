@@ -337,6 +337,19 @@ class WellbeingWidget {
         }
     }
 
+    onWidgetLayout() {
+        if (this.currentMode !== 'dashboard') {
+            return;
+        }
+
+        if (this.chart && typeof this.chart.resize === 'function') {
+            this.chart.resize();
+            return;
+        }
+
+        this.renderChart();
+    }
+
     remove() {
         this.toggleBtn.removeEventListener('click', this.handleToggleMode);
         this.saveBtn.removeEventListener('click', this.handleSaveCurrentCounts);

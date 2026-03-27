@@ -68,6 +68,8 @@ class DrawingToolWidget {
         this.isDrawing = false;
         this.currentColor = '#000000';
         this.currentLineWidth = 2;
+        this.canvasListenersBound = false;
+        this.pendingImageData = null;
 
         // Set up event listeners after the element is in the DOM
         setTimeout(() => this.setupCanvas(), 0);
@@ -78,22 +80,45 @@ class DrawingToolWidget {
      * This is called after the widget is added to the DOM.
      */
     setupCanvas() {
-        // Set canvas size based on its container's dimensions
         const rect = this.element.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height - this.controls.offsetHeight; // Adjust for controls
+        const nextWidth = Math.max(1, Math.floor(rect.width));
+        const nextHeight = Math.max(1, Math.floor(rect.height - this.controls.offsetHeight));
+        if (!nextWidth || !nextHeight) {
+            return;
+        }
+
+        let previousSnapshot = null;
+        if (this.canvas.width > 0 && this.canvas.height > 0) {
+            previousSnapshot = document.createElement('canvas');
+            previousSnapshot.width = this.canvas.width;
+            previousSnapshot.height = this.canvas.height;
+            previousSnapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+        }
+
+        this.canvas.width = nextWidth;
+        this.canvas.height = nextHeight;
 
         // Set initial drawing styles
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
 
         this.setupEventListeners();
+
+        if (previousSnapshot) {
+            this.ctx.drawImage(previousSnapshot, 0, 0, nextWidth, nextHeight);
+        } else {
+            this.restorePendingImage();
+        }
     }
 
     /**
      * Set up mouse/touch event listeners for drawing.
      */
     setupEventListeners() {
+        if (this.canvasListenersBound) {
+            return;
+        }
+
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('mousemove', (e) => this.draw(e));
         this.canvas.addEventListener('mouseup', () => this.stopDrawing());
@@ -125,6 +150,8 @@ class DrawingToolWidget {
             const mouseEvent = new MouseEvent('mouseup', {});
             this.canvas.dispatchEvent(mouseEvent);
         });
+
+        this.canvasListenersBound = true;
     }
 
     /**
@@ -216,12 +243,32 @@ class DrawingToolWidget {
      */
     deserialize(data) {
         if (data.imageData) {
-            const img = new Image();
-            img.onload = () => {
-                // Redraw the saved image onto the canvas
-                this.ctx.drawImage(img, 0, 0);
-            };
-            img.src = data.imageData;
+            this.pendingImageData = data.imageData;
+            this.restorePendingImage();
         }
+    }
+
+    restorePendingImage() {
+        if (!this.pendingImageData || !this.canvas.width || !this.canvas.height) {
+            return;
+        }
+
+        const img = new Image();
+        const imageData = this.pendingImageData;
+        img.onload = () => {
+            if (!this.ctx) {
+                return;
+            }
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            if (this.pendingImageData === imageData) {
+                this.pendingImageData = null;
+            }
+        };
+        img.src = imageData;
+    }
+
+    onWidgetLayout() {
+        this.setupCanvas();
     }
 }
