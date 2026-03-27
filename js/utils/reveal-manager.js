@@ -99,7 +99,9 @@ function ensureRevealScript() {
 function ensurePresentationRoot(container) {
     if (!container) return null;
 
-    let root = container.querySelector('#presentation-root');
+    let root = container.id === 'presentation-root'
+        ? container
+        : container.querySelector('#presentation-root');
     if (!root) {
         root = document.createElement('div');
         root.id = 'presentation-root';
@@ -227,8 +229,9 @@ export function mountPresentationMarkup(container, html) {
 }
 
 export function hasMountedReveal(container) {
-    if (!container || typeof container.querySelector !== 'function') return false;
-    return !!container.querySelector('#presentation-root .reveal .slides');
+    const root = resolvePresentationRoot(container, false);
+    if (!root || typeof root.querySelector !== 'function') return false;
+    return !!root.querySelector('.reveal .slides');
 }
 
 export async function initializeReveal(container) {
