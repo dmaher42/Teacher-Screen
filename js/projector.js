@@ -138,13 +138,17 @@ function getDedicatedRevealDeckState(layout = null) {
         return null;
     }
 
-    return layout.widgets.find((widgetData) => (
+    return layout.widgets.find((widgetData) => {
+        const revealData = widgetData && typeof widgetData.data === 'object' ? widgetData.data : null;
+        return (
         isDedicatedRevealProjectorWidget(widgetData)
         && widgetData.visibleOnProjector !== false
-        && widgetData.activeDeck
-        && typeof widgetData.activeDeck.content === 'string'
-        && widgetData.activeDeck.content.trim()
-    )) || null;
+        && revealData
+        && revealData.activeDeck
+        && typeof revealData.activeDeck.content === 'string'
+        && revealData.activeDeck.content.trim()
+        );
+    }) || null;
 }
 
 function syncRevealDeckFromLayout(layout = null) {
@@ -154,11 +158,12 @@ function syncRevealDeckFromLayout(layout = null) {
         return;
     }
 
-    const indices = revealWidget.currentIndices && typeof revealWidget.currentIndices === 'object'
-        ? revealWidget.currentIndices
+    const revealData = revealWidget && typeof revealWidget.data === 'object' ? revealWidget.data : {};
+    const indices = revealData.currentIndices && typeof revealData.currentIndices === 'object'
+        ? revealData.currentIndices
         : { h: 0, v: 0 };
 
-    loadPresentationHtml(revealWidget.activeDeck.content)
+    loadPresentationHtml(revealData.activeDeck.content)
         .then(() => slideRevealWhenReady(indices.h || 0, indices.v || 0))
         .catch((error) => {
             console.warn('Unable to restore Reveal deck from saved layout', error);

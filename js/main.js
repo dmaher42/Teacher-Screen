@@ -321,7 +321,8 @@ class ClassroomScreenApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
-            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
+            const isUntokenedSyncRequest = message.type === 'request-sync' && !message.syncToken;
+            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken && !isUntokenedSyncRequest) {
                 return;
             }
 
