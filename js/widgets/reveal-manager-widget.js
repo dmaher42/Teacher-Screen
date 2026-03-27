@@ -254,7 +254,8 @@ class RevealManagerWidget {
         }
 
         const normalizedContent = this.normalizeHtmlDeckContent(deck.content);
-        if (deck.type === 'html' || this.looksLikeHtmlDeck(normalizedContent)) {
+        if ((deck.type === 'html' || this.looksLikeHtmlDeck(normalizedContent))
+            && this.hasRenderableSlideMarkup(normalizedContent)) {
             return {
                 id: deck.id || Date.now(),
                 name: (deck.name || 'Untitled Deck').trim(),
@@ -296,6 +297,18 @@ class RevealManagerWidget {
         return /<\s*(?:!doctype\s+html|html|head|body|div|section|script|style|meta|title)\b/i.test(trimmed);
     }
 
+    hasRenderableSlideMarkup(content) {
+        if (typeof content !== 'string') {
+            return false;
+        }
+
+        const normalized = content.trim();
+        const hasRevealStructure = /class=["'][^"']*\breveal\b[^"']*["']/i.test(normalized)
+            && /class=["'][^"']*\bslides\b[^"']*["']/i.test(normalized);
+
+        return hasRevealStructure || /<\s*section\b/i.test(normalized);
+    }
+
     normalizeHtmlDeckContent(content) {
         if (typeof content !== 'string' || !content) {
             return '';
@@ -335,6 +348,11 @@ class RevealManagerWidget {
             return null;
         }
 
+        if (!this.hasRenderableSlideMarkup(content)) {
+            this.setStatus('Add at least one slide section before opening.');
+            return null;
+        }
+
         return {
             id: Date.now(),
             name: (this.deckNameInput.value || 'Untitled Deck').trim(),
@@ -350,6 +368,10 @@ class RevealManagerWidget {
 
         if (hasRevealStructure) {
             return normalized;
+        }
+
+        if (!this.hasRenderableSlideMarkup(normalized)) {
+            return '<div class="reveal"><div class="slides"><section><h2>Invalid Reveal deck</h2><p>Add at least one slide section to this deck.</p></section></div></div>';
         }
 
         const innerContent = /<\s*section\b/i.test(normalized)
