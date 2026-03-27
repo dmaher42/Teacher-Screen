@@ -39,8 +39,6 @@ class RevealManagerWidget {
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-btn" title="Open projector window">Start Projector</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn" title="Toggle presentation mode">Enter Presentation Mode</button>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
                 </div>
@@ -83,6 +81,10 @@ class RevealManagerWidget {
                     <div class="reveal-manager-row reveal-manager-actions">
                         <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
                         <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
+                    </div>
+                    <div class="reveal-manager-row reveal-manager-actions">
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-btn">Start Projector</button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-presentation-toggle-btn">Enter Presentation Mode</button>
                     </div>
                 </details>
 
