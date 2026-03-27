@@ -146,6 +146,8 @@ class RevealManagerWidget {
         this.positionObserver = null;
         this.layoutObserverInterval = null;
         this.layoutTimeout = null;
+        this.sceneChangeUnsubscribe = null;
+        this.reactivateTimeout = null;
 
         this.handleModeChange = this.handleModeChange.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
@@ -161,6 +163,8 @@ class RevealManagerWidget {
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
         this.openProjector = this.openProjector.bind(this);
+        this.handleDocumentVisibilityChange = this.handleDocumentVisibilityChange.bind(this);
+        this.handleSceneChanged = this.handleSceneChanged.bind(this);
 
         this.modeRadios.forEach((radio) => radio.addEventListener('change', this.handleModeChange));
         this.saveButton.addEventListener('click', this.handleSaveDeck);
@@ -175,7 +179,11 @@ class RevealManagerWidget {
         this.element.addEventListener('focusin', this.handleRootInteraction);
         window.addEventListener('message', this.handleWindowMessage);
         this.iframe.addEventListener('load', this.handleIframeLoad);
+        document.addEventListener('visibilitychange', this.handleDocumentVisibilityChange);
 
+        if (eventBus && typeof eventBus.on === 'function') {
+            this.sceneChangeUnsubscribe = eventBus.on('scene:changed', this.handleSceneChanged);
+        }
 
         RevealManagerWidget.initKeyboardHandler();
 
@@ -249,6 +257,49 @@ class RevealManagerWidget {
                 activateReveal(this.inlineDeckContainer);
             });
         }
+    }
+
+    reactivatePresentationView() {
+        if (!this.activeDeck) return;
+
+        if (this.reactivateTimeout) {
+            clearTimeout(this.reactivateTimeout);
+            this.reactivateTimeout = null;
+        }
+
+        if (this.activeDeck.type === 'html') {
+            import('../utils/reveal-manager.js').then(({ activateReveal }) => {
+                activateReveal(this.inlineDeckContainer);
+                this.requestRevealLayout();
+                window.requestAnimationFrame(() => this.requestRevealLayout());
+                this.reactivateTimeout = window.setTimeout(() => {
+                    this.requestRevealLayout();
+                    this.reactivateTimeout = null;
+                }, 180);
+            }).catch((error) => {
+                console.warn('[Reveal] unable to reactivate presentation', error);
+            });
+            return;
+        }
+
+        this.reactivateTimeout = window.setTimeout(() => {
+            const frameWindow = this.iframeRef.current?.contentWindow;
+            const reveal = frameWindow && frameWindow.Reveal;
+            if (reveal && typeof reveal.layout === 'function') {
+                reveal.layout();
+            }
+            this.reactivateTimeout = null;
+        }, 180);
+    }
+
+    handleDocumentVisibilityChange() {
+        if (document.visibilityState !== 'visible') return;
+        this.reactivatePresentationView();
+    }
+
+    handleSceneChanged(payload = {}) {
+        if (payload.tab !== 'classroom') return;
+        this.reactivatePresentationView();
     }
 
     setupRevealSync() {
@@ -1106,9 +1157,14 @@ ${revealBootstrapScript}`;
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         window.removeEventListener('message', this.handleWindowMessage);
         this.iframe.removeEventListener('load', this.handleIframeLoad);
+        document.removeEventListener('visibilitychange', this.handleDocumentVisibilityChange);
         if (this.projectorChannel) {
             this.projectorChannel.close();
             this.projectorChannel = null;
+        }
+        if (this.sceneChangeUnsubscribe) {
+            this.sceneChangeUnsubscribe();
+            this.sceneChangeUnsubscribe = null;
         }
 
         if (this.layoutObserverInterval) {
@@ -1130,6 +1186,10 @@ ${revealBootstrapScript}`;
         if (this.layoutTimeout) {
             clearTimeout(this.layoutTimeout);
             this.layoutTimeout = null;
+        }
+        if (this.reactivateTimeout) {
+            clearTimeout(this.reactivateTimeout);
+            this.reactivateTimeout = null;
         }
 
         if (this.presenterWindowMonitor) {
