@@ -2284,23 +2284,6 @@ dialog::backdrop {
     display: flex;
 }
 
-.reveal-overlay-nav {
-    position: absolute;
-    bottom: 16px;
-    right: 16px;
-    z-index: 5;
-    display: flex;
-    gap: 8px;
-}
-
-.reveal-overlay-nav button {
-    background: rgba(0, 0, 0, 0.5);
-    border: none;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-}
-
 .reveal-manager--compact .advanced-controls {
     display: none;
 }
@@ -2378,10 +2361,6 @@ dialog::backdrop {
     background-color: var(--bg-danger-hover);
 }
 
-.reveal-presentation-row {
-    justify-content: flex-start;
-}
-
 .reveal-container {
     position: relative;
     flex: 1;
@@ -2420,38 +2399,6 @@ dialog::backdrop {
     color: var(--text-secondary);
     font-weight: 600;
     pointer-events: none;
-}
-
-.reveal-manager-widget-content.presentation-mode .reveal-manager__topbar,
-.reveal-manager-widget-content.presentation-mode .reveal-manager__panel {
-    display: none;
-}
-
-.reveal-container.presentation {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 9999;
-    background: var(--bg-inverse);
-}
-
-.reveal-container.presentation .reveal-manager-frame-wrap {
-    width: 100%;
-    height: 100%;
-}
-
-.reveal-frame {
-    width: 100%;
-    height: 100%;
-    border: none;
-}
-
-.reveal-manager__stage iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
 }
 
 .widget-settings-toggle {
