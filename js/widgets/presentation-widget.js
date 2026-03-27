@@ -165,7 +165,7 @@ class PresentationWidget {
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
         const sourceHeading = document.createElement('h3');
-        sourceHeading.textContent = 'Presentation Source';
+        sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
         const selectLabel = document.createElement('label');
@@ -188,7 +188,7 @@ class PresentationWidget {
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
-        statusLabel.textContent = 'Current Presentation';
+        statusLabel.textContent = 'Status';
         const statusText = document.createElement('span');
         statusCard.append(statusLabel, statusText);
         controls.appendChild(statusCard);

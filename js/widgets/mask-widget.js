@@ -18,7 +18,7 @@ class MaskWidget {
         const infoSection = document.createElement('div');
         infoSection.className = 'widget-settings-section';
         const heading = document.createElement('h3');
-        heading.textContent = 'How to Use';
+        heading.textContent = 'Usage';
         infoSection.appendChild(heading);
 
         const note = document.createElement('div');

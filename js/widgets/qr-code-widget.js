@@ -119,7 +119,7 @@ class QRCodeWidget {
         sourceSection.className = 'widget-settings-section';
 
         const sourceHeading = document.createElement('h3');
-        sourceHeading.textContent = 'QR Content';
+        sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
         const contentLabel = document.createElement('label');
@@ -136,7 +136,7 @@ class QRCodeWidget {
         const generateButton = document.createElement('button');
         generateButton.type = 'button';
         generateButton.className = 'control-button';
-        generateButton.textContent = 'Generate QR';
+        generateButton.textContent = 'Generate QR Code';
         actions.appendChild(generateButton);
         sourceSection.appendChild(actions);
         controls.appendChild(sourceSection);
@@ -144,7 +144,7 @@ class QRCodeWidget {
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
-        statusLabel.textContent = 'Current Content';
+        statusLabel.textContent = 'Status';
         const statusText = document.createElement('span');
         statusCard.append(statusLabel, statusText);
         controls.appendChild(statusCard);

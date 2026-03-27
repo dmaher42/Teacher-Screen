@@ -183,7 +183,7 @@ class DocumentViewerWidget {
         sourceSection.className = 'widget-settings-section';
 
         const sourceHeading = document.createElement('h3');
-        sourceHeading.textContent = 'Document Source';
+        sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
         const sourceLabel = document.createElement('label');
@@ -206,7 +206,7 @@ class DocumentViewerWidget {
         const embedButton = document.createElement('button');
         embedButton.type = 'button';
         embedButton.className = 'control-button';
-        embedButton.textContent = 'Embed URL';
+        embedButton.textContent = 'Load URL';
 
         sourceActions.append(uploadButton, embedButton);
         sourceSection.appendChild(sourceActions);
@@ -216,7 +216,7 @@ class DocumentViewerWidget {
         navigationSection.className = 'widget-settings-section';
 
         const navigationHeading = document.createElement('h3');
-        navigationHeading.textContent = 'Viewer Controls';
+        navigationHeading.textContent = 'Actions';
         navigationSection.appendChild(navigationHeading);
 
         const navActions = document.createElement('div');
@@ -243,7 +243,7 @@ class DocumentViewerWidget {
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
-        statusLabel.textContent = 'Current Document';
+        statusLabel.textContent = 'Status';
         const statusText = document.createElement('span');
         statusCard.append(statusLabel, statusText);
         controls.appendChild(statusCard);
@@ -257,8 +257,8 @@ class DocumentViewerWidget {
             prevButton.disabled = !hasPdf || this.currentPage <= 1;
             nextButton.disabled = !hasPdf || this.currentPage >= this.totalPages;
             presentButton.textContent = this.element.classList.contains('presentation-mode')
-                ? 'Exit Display Mode'
-                : 'Enter Display Mode';
+                ? 'Exit Presentation Mode'
+                : 'Enter Presentation Mode';
 
             if (hasPdf) {
                 statusText.textContent = `PDF loaded. Page ${this.currentPage} of ${this.totalPages}.`;

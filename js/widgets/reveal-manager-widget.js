@@ -209,7 +209,7 @@ class RevealManagerWidget {
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
         const sourceHeading = document.createElement('h3');
-        sourceHeading.textContent = 'Deck Source';
+        sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
         const deckNameLabel = document.createElement('label');
@@ -256,7 +256,7 @@ class RevealManagerWidget {
         const launchSavedButton = document.createElement('button');
         launchSavedButton.type = 'button';
         launchSavedButton.className = 'control-button';
-        launchSavedButton.textContent = 'Launch Saved';
+        launchSavedButton.textContent = 'Load Saved Deck';
         const renameButton = document.createElement('button');
         renameButton.type = 'button';
         renameButton.className = 'control-button';
@@ -272,7 +272,7 @@ class RevealManagerWidget {
         const liveSection = document.createElement('div');
         liveSection.className = 'widget-settings-section';
         const liveHeading = document.createElement('h3');
-        liveHeading.textContent = 'Live Controls';
+        liveHeading.textContent = 'Actions';
         liveSection.appendChild(liveHeading);
 
         const liveActions = document.createElement('div');
@@ -296,7 +296,7 @@ class RevealManagerWidget {
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
-        statusLabel.textContent = 'Current Deck';
+        statusLabel.textContent = 'Status';
         const statusText = document.createElement('span');
         statusCard.append(statusLabel, statusText);
         controls.appendChild(statusCard);
@@ -314,7 +314,7 @@ class RevealManagerWidget {
             this.updateCurrentIndices();
             settingsDeckNameInput.value = this.deckNameInput.value;
             settingsHtmlInput.value = this.htmlInput.value;
-            openButton.textContent = this.activeDeck ? 'Stop Deck' : 'Open Deck';
+            openButton.textContent = this.activeDeck ? 'Stop Deck' : 'Load Deck';
             prevButton.disabled = !this.activeDeck;
             nextButton.disabled = !this.activeDeck;
             projectorButton.disabled = !this.activeDeck;

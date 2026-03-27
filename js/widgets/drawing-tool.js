@@ -237,7 +237,7 @@ class DrawingToolWidget {
         drawSection.className = 'widget-settings-section';
 
         const drawHeading = document.createElement('h3');
-        drawHeading.textContent = 'Drawing Tools';
+        drawHeading.textContent = 'Actions';
         drawSection.appendChild(drawHeading);
 
         const colorLabel = document.createElement('label');
@@ -261,7 +261,7 @@ class DrawingToolWidget {
         const sizeMeta = document.createElement('div');
         sizeMeta.className = 'widget-settings-meta';
         const sizeMetaLabel = document.createElement('strong');
-        sizeMetaLabel.textContent = 'Current Brush';
+        sizeMetaLabel.textContent = 'Status';
         const sizeMetaText = document.createElement('span');
         sizeMeta.append(sizeMetaLabel, sizeMetaText);
         drawSection.appendChild(sizeMeta);
@@ -271,7 +271,7 @@ class DrawingToolWidget {
         const clearButton = document.createElement('button');
         clearButton.type = 'button';
         clearButton.className = 'control-button';
-        clearButton.textContent = 'Clear Canvas';
+        clearButton.textContent = 'Clear Drawing';
         actions.appendChild(clearButton);
         drawSection.appendChild(actions);
 

@@ -156,7 +156,7 @@ class UrlViewerWidget {
         sourceSection.className = 'widget-settings-section';
 
         const sourceHeading = document.createElement('h3');
-        sourceHeading.textContent = 'Page Source';
+        sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
         const sourceLabel = document.createElement('label');
@@ -174,12 +174,12 @@ class UrlViewerWidget {
         const loadButton = document.createElement('button');
         loadButton.type = 'button';
         loadButton.className = 'control-button';
-        loadButton.textContent = 'Load Page';
+        loadButton.textContent = 'Load URL';
 
         const reloadButton = document.createElement('button');
         reloadButton.type = 'button';
         reloadButton.className = 'control-button';
-        reloadButton.textContent = 'Reload';
+        reloadButton.textContent = 'Reload URL';
         reloadButton.disabled = !this.currentUrl;
 
         sourceActions.append(loadButton, reloadButton);
@@ -190,7 +190,7 @@ class UrlViewerWidget {
         viewSection.className = 'widget-settings-section';
 
         const viewHeading = document.createElement('h3');
-        viewHeading.textContent = 'Viewing Options';
+        viewHeading.textContent = 'Actions';
         viewSection.appendChild(viewHeading);
 
         const viewActions = document.createElement('div');
@@ -206,8 +206,8 @@ class UrlViewerWidget {
         presentToggleButton.type = 'button';
         presentToggleButton.className = 'control-button';
         presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
-            ? 'Exit Display Mode'
-            : 'Enter Display Mode';
+            ? 'Exit Presentation Mode'
+            : 'Enter Presentation Mode';
 
         viewActions.append(openNewTabButton, presentToggleButton);
         viewSection.appendChild(viewActions);
@@ -216,7 +216,7 @@ class UrlViewerWidget {
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
-        statusLabel.textContent = 'Current Page';
+        statusLabel.textContent = 'Status';
         const statusText = document.createElement('span');
         statusCard.append(statusLabel, statusText);
         controls.appendChild(statusCard);
@@ -227,8 +227,8 @@ class UrlViewerWidget {
             reloadButton.disabled = !activeUrl;
             openNewTabButton.disabled = !activeUrl;
             presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
-                ? 'Exit Display Mode'
-                : 'Enter Display Mode';
+                ? 'Exit Presentation Mode'
+                : 'Enter Presentation Mode';
             statusText.textContent = activeUrl || 'No page loaded yet.';
         };
 

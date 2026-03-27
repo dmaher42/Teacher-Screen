@@ -377,7 +377,7 @@ class WellbeingWidget {
         const dataSection = document.createElement('div');
         dataSection.className = 'widget-settings-section';
         const dataHeading = document.createElement('h3');
-        dataHeading.textContent = 'Results';
+        dataHeading.textContent = 'Actions';
         dataSection.appendChild(dataHeading);
 
         const dataActions = document.createElement('div');
@@ -385,7 +385,7 @@ class WellbeingWidget {
         const saveButton = document.createElement('button');
         saveButton.type = 'button';
         saveButton.className = 'control-button';
-        saveButton.textContent = "Save Today's Check-in";
+        saveButton.textContent = 'Save Check-in';
         const historyButton = document.createElement('button');
         historyButton.type = 'button';
         historyButton.className = 'control-button';
@@ -397,15 +397,15 @@ class WellbeingWidget {
         const summaryCard = document.createElement('div');
         summaryCard.className = 'widget-settings-meta';
         const summaryLabel = document.createElement('strong');
-        summaryLabel.textContent = 'Current Totals';
+        summaryLabel.textContent = 'Status';
         const summaryText = document.createElement('span');
         summaryCard.append(summaryLabel, summaryText);
         controls.appendChild(summaryCard);
 
         const syncStatus = () => {
             toggleModeButton.textContent = this.currentMode === 'student'
-                ? 'Switch to Teacher Dashboard'
-                : 'Switch to Student Input';
+                ? 'Open Teacher Dashboard'
+                : 'Open Student View';
             summaryText.textContent = `Great ${this.counts.great}, Good ${this.counts.good}, Meh ${this.counts.meh}, Worried ${this.counts.worried}, Sad ${this.counts.sad}`;
         };
 
