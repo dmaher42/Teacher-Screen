@@ -21,6 +21,7 @@ class RevealManagerWidget {
         this.deckReadyHandler = null;
         this.deckSlideChangedHandler = null;
         this.renderVersion = 0;
+        this.renderPromise = null;
 
         const appModeUtils = window.TeacherScreenAppMode || {};
         this.appMode = appModeUtils.APP_MODE || 'teacher';
@@ -501,6 +502,10 @@ class RevealManagerWidget {
     ensureDeckVisible() {
         if (!this.activeDeck) return;
 
+        if (this.renderPromise) {
+            return;
+        }
+
         if (this.reactivateTimeout) {
             clearTimeout(this.reactivateTimeout);
             this.reactivateTimeout = null;
@@ -532,54 +537,63 @@ class RevealManagerWidget {
 
     async renderActiveDeck({ preserveIndices = true } = {}) {
         if (!this.activeDeck) return null;
+        if (this.renderPromise) {
+            return this.renderPromise;
+        }
 
-        try {
-            const renderVersion = ++this.renderVersion;
-            const {
-                activateReveal,
-                destroyReveal,
-                initializeReveal,
-                layoutReveal,
-                mountPresentationMarkup
-            } = await import('../utils/reveal-manager.js');
+        this.renderPromise = (async () => {
+            try {
+                const renderVersion = ++this.renderVersion;
+                const {
+                    activateReveal,
+                    destroyReveal,
+                    initializeReveal,
+                    layoutReveal,
+                    mountPresentationMarkup
+                } = await import('../utils/reveal-manager.js');
 
-            const targetIndices = preserveIndices
-                ? { ...this.currentIndices }
-                : { h: 0, v: 0 };
+                const targetIndices = preserveIndices
+                    ? { ...this.currentIndices }
+                    : { h: 0, v: 0 };
 
-            destroyReveal(this.inlineDeckContainer);
-            this.inlineDeckContainer.innerHTML = '';
+                destroyReveal(this.inlineDeckContainer);
+                this.inlineDeckContainer.innerHTML = '';
 
-            mountPresentationMarkup(this.inlineDeckContainer, this.wrapDeckMarkup(this.activeDeck.content));
+                mountPresentationMarkup(this.inlineDeckContainer, this.wrapDeckMarkup(this.activeDeck.content));
 
-            const deck = await initializeReveal(this.inlineDeckContainer);
-            if (renderVersion !== this.renderVersion || !this.activeDeck) {
-                if (deck && typeof deck.destroy === 'function') {
-                    deck.destroy();
+                const deck = await initializeReveal(this.inlineDeckContainer);
+                if (renderVersion !== this.renderVersion || !this.activeDeck) {
+                    if (deck && typeof deck.destroy === 'function') {
+                        deck.destroy();
+                    }
+                    return null;
                 }
-                return null;
-            }
 
-            if (!deck) {
+                if (!deck) {
+                    this.setStatus('Unable to load Reveal deck.');
+                    return null;
+                }
+
+                this.revealDeck = deck;
+                this.inlineDeckContainer.__teacherScreenRevealDeck = deck;
+                this.attachDeckListeners(deck);
+                activateReveal(this.inlineDeckContainer);
+                this.currentIndices = targetIndices;
+                await this.moveDeckToStoredSlide(deck);
+                layoutReveal(this.inlineDeckContainer);
+                window.requestAnimationFrame(() => layoutReveal(this.inlineDeckContainer));
+                this.setStatus('');
+                return deck;
+            } catch (error) {
+                console.warn('[Reveal] unable to initialize presentation', error);
                 this.setStatus('Unable to load Reveal deck.');
                 return null;
+            } finally {
+                this.renderPromise = null;
             }
+        })();
 
-            this.revealDeck = deck;
-            this.inlineDeckContainer.__teacherScreenRevealDeck = deck;
-            this.attachDeckListeners(deck);
-            activateReveal(this.inlineDeckContainer);
-            this.currentIndices = targetIndices;
-            await this.moveDeckToStoredSlide(deck);
-            layoutReveal(this.inlineDeckContainer);
-            window.requestAnimationFrame(() => layoutReveal(this.inlineDeckContainer));
-            this.setStatus('');
-            return deck;
-        } catch (error) {
-            console.warn('[Reveal] unable to initialize presentation', error);
-            this.setStatus('Unable to load Reveal deck.');
-            return null;
-        }
+        return this.renderPromise;
     }
 
     async launchDeck(deck, { preserveIndices = false } = {}) {
@@ -610,6 +624,7 @@ class RevealManagerWidget {
 
     async stopDeck() {
         this.renderVersion += 1;
+        this.renderPromise = null;
         this.detachDeckListeners();
 
         try {
