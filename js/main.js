@@ -2076,7 +2076,8 @@ class ClassroomScreenApp {
         modalBody.innerHTML = '';
 
         // Set Title
-        modalTitle.textContent = `${widget.constructor.name.replace('Widget', '')} Settings`;
+        const rawName = widget.constructor.name.replace('Widget', '');
+        modalTitle.textContent = `${rawName.replace(/([a-z])([A-Z])/g, '$1 $2')} Settings`;
 
         // Get controls from the widget
         // We assume widgets have a 'controlsOverlay' property or a 'getControls' method
@@ -2090,6 +2091,7 @@ class ClassroomScreenApp {
         } else {
             // Fallback for widgets that haven't been refactored yet
             const p = document.createElement('p');
+            p.className = 'widget-settings-empty';
             p.textContent = 'Settings not available for this widget yet.';
             controlsNode = p;
         }
@@ -2106,19 +2108,11 @@ class ClassroomScreenApp {
 
         const commonControls = document.createElement('div');
         commonControls.className = 'modal-common-controls';
-        commonControls.style.marginTop = '20px';
-        commonControls.style.paddingTop = '15px';
-        commonControls.style.borderTop = '1px solid #ddd';
-        commonControls.style.display = 'flex';
-        commonControls.style.justifyContent = 'space-between';
-        commonControls.style.alignItems = 'center';
 
         // Remove Widget Button
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'control-button';
+        removeBtn.className = 'control-button modal-danger-btn';
         removeBtn.textContent = 'Remove Widget';
-        removeBtn.style.backgroundColor = '#e74c3c'; // Red-ish
-        removeBtn.style.color = 'white';
         removeBtn.addEventListener('click', () => {
              this.layoutManager.removeWidget(widget);
              this.closeWidgetSettings();
@@ -2145,7 +2139,7 @@ class ClassroomScreenApp {
 
         // Help Button
         const helpBtn = document.createElement('button');
-        helpBtn.className = 'control-button';
+        helpBtn.className = 'control-button modal-secondary-btn';
         helpBtn.textContent = 'Help / Info';
         helpBtn.addEventListener('click', () => {
              if (typeof widget.toggleHelp === 'function') {
@@ -2156,8 +2150,7 @@ class ClassroomScreenApp {
         });
 
         const rightGroup = document.createElement('div');
-        rightGroup.style.display = 'flex';
-        rightGroup.style.gap = '10px';
+        rightGroup.className = 'modal-common-controls__actions';
         rightGroup.appendChild(helpBtn);
         rightGroup.appendChild(projectorToggle);
 
