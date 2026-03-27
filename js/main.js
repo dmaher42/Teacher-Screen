@@ -2245,7 +2245,20 @@ class ClassroomScreenApp {
 
         // Set Title
         const rawName = widget.constructor.name.replace('Widget', '');
-        modalTitle.textContent = `${rawName.replace(/([a-z])([A-Z])/g, '$1 $2')} Settings`;
+        const widgetTitleMap = {
+            NamePicker: 'Random Name Picker',
+            Notes: 'Quick Notes',
+            Presentation: 'Presentation Loader',
+            QRCode: 'QR Code',
+            RichText: 'Rich Text Board',
+            UrlViewer: 'URL Viewer',
+            Wellbeing: 'Well-being'
+        };
+        const formattedName = widgetTitleMap[rawName]
+            || rawName
+                .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+        modalTitle.textContent = `${formattedName} Settings`;
 
         // Get controls from the widget
         // We assume widgets have a 'controlsOverlay' property or a 'getControls' method
