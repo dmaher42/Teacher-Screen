@@ -42,6 +42,7 @@ class RevealManagerWidget {
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Launch current deck">Open</button>
+                    <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle full controls" title="Show full controls">⋯</button>
                 </div>
@@ -120,6 +121,7 @@ class RevealManagerWidget {
         this.topbar = this.element.querySelector('.reveal-manager__topbar');
         this.revealContainer = this.element.querySelector('.reveal-container');
         this.frameWrap = this.element.querySelector('.reveal-manager-frame-wrap');
+        this.deckIndicator = this.element.querySelector('.reveal-deck-indicator');
         this.presenterStatus = this.element.querySelector('.reveal-presenter-status');
 
         // Keep a stable iframe reference for toolbar navigation, similar to React's useRef.
@@ -181,6 +183,7 @@ class RevealManagerWidget {
         this.updateModeUI();
         this.toggleCompact(true);
         this.updatePresentationUI();
+        this.updateDeckIndicator();
         this.initLayoutObservers();
 
         this.setupRevealSync();
@@ -198,6 +201,21 @@ class RevealManagerWidget {
 
         this.topbar.style.display = hidden ? 'none' : '';
         this.panelContainer.style.display = hidden ? 'none' : '';
+    }
+
+    updateDeckIndicator() {
+        if (!this.deckIndicator) return;
+
+        if (!this.activeDeck) {
+            this.deckIndicator.textContent = '';
+            this.deckIndicator.hidden = true;
+            return;
+        }
+
+        const deckType = this.activeDeck.type === 'html' ? 'HTML' : 'URL';
+        const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
+        this.deckIndicator.textContent = `${deckName} · ${deckType}`;
+        this.deckIndicator.hidden = false;
     }
 
     static initKeyboardHandler() {
@@ -263,14 +281,11 @@ class RevealManagerWidget {
             console.log('[RevealSync] teacher initial broadcast', payload.h, payload.v);
         });
 
-        if (window.Reveal && typeof Reveal.on === 'function' && !this.globalSlideSyncAttached) {
-            Reveal.on('slidechanged', (event) => {
-                const payload = this.broadcastSlideSync(event);
-                if (!payload) return;
-                console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
-            });
-            this.globalSlideSyncAttached = true;
-        }
+        deck.on('slidechanged', (event) => {
+            const payload = this.broadcastSlideSync(event);
+            if (!payload) return;
+            console.log('[RevealSync] teacher broadcast', payload.h, payload.v);
+        });
         this.slideChangeHandlerAttached = true;
     }
 
@@ -733,6 +748,7 @@ ${revealBootstrapScript}`;
         this.savedSelect.value = String(deck.id);
         this.launchButton.textContent = 'Stop';
         this.toggleCompact(true);
+        this.updateDeckIndicator();
         this.sendDeckToPresenter();
         this.bindSlideChangeListener();
         this.persistActiveDeckState();
@@ -750,6 +766,7 @@ ${revealBootstrapScript}`;
         this.inlineDeckContainer.innerHTML = '';
         this.inlineDeckContainer.style.display = 'none';
         this.launchButton.textContent = 'Open';
+        this.updateDeckIndicator();
         this.setPresenterStatus(this.presenterWindow ? 'Presenter connected' : '');
         this.emitPresentationNavigation('presentation:stop');
         this.persistActiveDeckState();
