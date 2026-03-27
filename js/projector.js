@@ -108,6 +108,19 @@ function showProjectorStartupMessage(message) {
     root.innerHTML = `<div style="padding:16px;color:#fff;background:#7f1d1d;font:600 16px/1.4 Poppins,sans-serif;">${message}</div>`;
 }
 
+function prepareProjectorPresentationRoot(root) {
+    if (!root) {
+        return;
+    }
+
+    root.style.position = 'fixed';
+    root.style.inset = '0';
+    root.style.width = '100vw';
+    root.style.height = '100vh';
+    root.style.zIndex = '10';
+    root.style.pointerEvents = 'none';
+}
+
 async function loadPresentationHtml(html) {
     const sourceKey = `html:${html}`;
     const root = document.getElementById('presentation-root');
@@ -129,6 +142,7 @@ async function loadPresentationHtml(html) {
         destroyReveal(root);
         mountPresentationMarkup(root, html);
         const deck = await initializeReveal(root);
+        prepareProjectorPresentationRoot(root);
         if (deck && typeof layoutReveal === 'function') {
             layoutReveal(root);
         }
