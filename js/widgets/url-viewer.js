@@ -143,6 +143,137 @@ class UrlViewerWidget {
         this.exitPresentBtn.style.display = 'none';
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls url-viewer-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Load a website into the widget, reload the current page, or open it in a separate tab.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Page Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const sourceLabel = document.createElement('label');
+        sourceLabel.textContent = 'Web address';
+        const sourceInput = document.createElement('input');
+        sourceInput.type = 'text';
+        sourceInput.value = this.input.value || this.currentUrl || '';
+        sourceInput.placeholder = 'https://example.com';
+        sourceLabel.appendChild(sourceInput);
+        sourceSection.appendChild(sourceLabel);
+
+        const sourceActions = document.createElement('div');
+        sourceActions.className = 'widget-settings-actions';
+
+        const loadButton = document.createElement('button');
+        loadButton.type = 'button';
+        loadButton.className = 'control-button';
+        loadButton.textContent = 'Load Page';
+
+        const reloadButton = document.createElement('button');
+        reloadButton.type = 'button';
+        reloadButton.className = 'control-button';
+        reloadButton.textContent = 'Reload';
+        reloadButton.disabled = !this.currentUrl;
+
+        sourceActions.append(loadButton, reloadButton);
+        sourceSection.appendChild(sourceActions);
+        controls.appendChild(sourceSection);
+
+        const viewSection = document.createElement('div');
+        viewSection.className = 'widget-settings-section';
+
+        const viewHeading = document.createElement('h3');
+        viewHeading.textContent = 'Viewing Options';
+        viewSection.appendChild(viewHeading);
+
+        const viewActions = document.createElement('div');
+        viewActions.className = 'widget-settings-actions';
+
+        const openNewTabButton = document.createElement('button');
+        openNewTabButton.type = 'button';
+        openNewTabButton.className = 'control-button';
+        openNewTabButton.textContent = 'Open in New Tab';
+        openNewTabButton.disabled = !this.currentUrl;
+
+        const presentToggleButton = document.createElement('button');
+        presentToggleButton.type = 'button';
+        presentToggleButton.className = 'control-button';
+        presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
+            ? 'Exit Display Mode'
+            : 'Enter Display Mode';
+
+        viewActions.append(openNewTabButton, presentToggleButton);
+        viewSection.appendChild(viewActions);
+        controls.appendChild(viewSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Current Page';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncStatus = () => {
+            const activeUrl = this.currentUrl || this.input.value.trim();
+            sourceInput.value = this.input.value || activeUrl;
+            reloadButton.disabled = !activeUrl;
+            openNewTabButton.disabled = !activeUrl;
+            presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
+                ? 'Exit Display Mode'
+                : 'Enter Display Mode';
+            statusText.textContent = activeUrl || 'No page loaded yet.';
+        };
+
+        loadButton.addEventListener('click', () => {
+            const raw = sourceInput.value.trim();
+            if (!raw) {
+                syncStatus();
+                return;
+            }
+
+            const normalized = this.normalizeUrl(raw);
+            this.input.value = normalized;
+            this.loadUrl(normalized);
+            syncStatus();
+        });
+
+        reloadButton.addEventListener('click', () => {
+            this.handleReloadClick();
+            syncStatus();
+        });
+
+        openNewTabButton.addEventListener('click', () => {
+            this.handleOpenNewTabClick();
+            syncStatus();
+        });
+
+        presentToggleButton.addEventListener('click', () => {
+            if (this.element.classList.contains('presentation-mode')) {
+                this.exitPresentationMode();
+            } else {
+                this.enterPresentationMode();
+            }
+            syncStatus();
+        });
+
+        sourceInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            loadButton.click();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
     // ---- Widget integration ----
 
     toggleHelp() {

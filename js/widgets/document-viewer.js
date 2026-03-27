@@ -170,6 +170,145 @@ class DocumentViewerWidget {
         // No help text defined for this widget yet.
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls document-viewer-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Upload a PDF for page-by-page navigation or embed a web page directly into the viewer.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Document Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const sourceLabel = document.createElement('label');
+        sourceLabel.textContent = 'Embed URL';
+        const sourceInput = document.createElement('input');
+        sourceInput.type = 'text';
+        sourceInput.value = this.urlInput.value || '';
+        sourceInput.placeholder = 'https://example.com/document';
+        sourceLabel.appendChild(sourceInput);
+        sourceSection.appendChild(sourceLabel);
+
+        const sourceActions = document.createElement('div');
+        sourceActions.className = 'widget-settings-actions';
+
+        const uploadButton = document.createElement('button');
+        uploadButton.type = 'button';
+        uploadButton.className = 'control-button';
+        uploadButton.textContent = 'Upload PDF';
+
+        const embedButton = document.createElement('button');
+        embedButton.type = 'button';
+        embedButton.className = 'control-button';
+        embedButton.textContent = 'Embed URL';
+
+        sourceActions.append(uploadButton, embedButton);
+        sourceSection.appendChild(sourceActions);
+        controls.appendChild(sourceSection);
+
+        const navigationSection = document.createElement('div');
+        navigationSection.className = 'widget-settings-section';
+
+        const navigationHeading = document.createElement('h3');
+        navigationHeading.textContent = 'Viewer Controls';
+        navigationSection.appendChild(navigationHeading);
+
+        const navActions = document.createElement('div');
+        navActions.className = 'widget-settings-actions';
+
+        const prevButton = document.createElement('button');
+        prevButton.type = 'button';
+        prevButton.className = 'control-button';
+        prevButton.textContent = 'Previous Page';
+
+        const nextButton = document.createElement('button');
+        nextButton.type = 'button';
+        nextButton.className = 'control-button';
+        nextButton.textContent = 'Next Page';
+
+        const presentButton = document.createElement('button');
+        presentButton.type = 'button';
+        presentButton.className = 'control-button';
+
+        navActions.append(prevButton, nextButton, presentButton);
+        navigationSection.appendChild(navActions);
+        controls.appendChild(navigationSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Current Document';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncStatus = () => {
+            const iframe = this.contentArea.querySelector('iframe');
+            const embeddedUrl = iframe ? iframe.src : '';
+            const hasPdf = !!this.pdfDoc;
+
+            sourceInput.value = this.urlInput.value || embeddedUrl || '';
+            prevButton.disabled = !hasPdf || this.currentPage <= 1;
+            nextButton.disabled = !hasPdf || this.currentPage >= this.totalPages;
+            presentButton.textContent = this.element.classList.contains('presentation-mode')
+                ? 'Exit Display Mode'
+                : 'Enter Display Mode';
+
+            if (hasPdf) {
+                statusText.textContent = `PDF loaded. Page ${this.currentPage} of ${this.totalPages}.`;
+            } else if (embeddedUrl) {
+                statusText.textContent = embeddedUrl;
+            } else {
+                statusText.textContent = 'No document loaded yet.';
+            }
+        };
+
+        uploadButton.addEventListener('click', () => {
+            this.handleUploadClick();
+            window.setTimeout(syncStatus, 250);
+        });
+
+        embedButton.addEventListener('click', () => {
+            this.urlInput.value = sourceInput.value.trim();
+            this.handleEmbedClick();
+            syncStatus();
+        });
+
+        prevButton.addEventListener('click', () => {
+            this.handlePrevClick();
+            window.setTimeout(syncStatus, 0);
+        });
+
+        nextButton.addEventListener('click', () => {
+            this.handleNextClick();
+            window.setTimeout(syncStatus, 0);
+        });
+
+        presentButton.addEventListener('click', () => {
+            if (this.element.classList.contains('presentation-mode')) {
+                this.exitPresentationMode();
+            } else {
+                this.enterPresentationMode();
+            }
+            syncStatus();
+        });
+
+        sourceInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            embedButton.click();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
     resetPdfState() {
         this.pdfDoc = null;
         this.totalPages = 0;

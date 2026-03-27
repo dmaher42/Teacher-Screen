@@ -798,6 +798,42 @@ dialog::backdrop {
     color: var(--text-primary);
 }
 
+#widget-settings-modal .widget-settings-section {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+}
+
+#widget-settings-modal .widget-settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+#widget-settings-modal .widget-settings-actions > * {
+    flex: 1 1 160px;
+}
+
+#widget-settings-modal .widget-settings-meta {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
+    border: 1px solid var(--border-soft-2);
+    color: #334155;
+}
+
+#widget-settings-modal .widget-settings-meta strong {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
 .widget-settings-empty {
     min-height: 160px;
     display: flex;
@@ -2161,6 +2197,14 @@ dialog::backdrop {
     margin-bottom: 16px;
 }
 
+.notes-panel__header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+}
+
 .notes-panel__hint {
     font-size: 0.95rem;
     color: color-mix(in srgb, var(--text-color, #333) 70%, #000);
@@ -2219,6 +2263,7 @@ dialog::backdrop {
 
 .saved-note-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     flex-shrink: 0;
 }
@@ -2229,6 +2274,106 @@ dialog::backdrop {
     color: color-mix(in srgb, var(--text-color, #333) 70%, #000);
     border: 1px dashed var(--border-color, #dfe4e2);
     border-radius: var(--border-radius-medium, 10px);
+}
+
+.planner-panel__header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.planner-panel__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+}
+
+.planner-panel__card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 10px);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, var(--primary-color, #8e82ff) 6%);
+}
+
+.planner-panel__card h3 {
+    margin: 0;
+}
+
+.planner-panel__card p {
+    margin: 0;
+    color: color-mix(in srgb, var(--text-color, #333) 78%, #000);
+}
+
+.planner-panel__card label {
+    font-weight: 600;
+}
+
+.planner-panel__input {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 10px);
+    background: var(--card-background, #ffffff);
+    color: var(--text-color, #333);
+}
+
+.planner-panel__input:focus {
+    outline: 2px solid color-mix(in srgb, var(--primary-color, #8e82ff) 55%, #ffffff);
+    outline-offset: 1px;
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 55%, var(--border-color, #dfe4e2));
+}
+
+.saved-layouts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.saved-layout-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 10px);
+    background: var(--card-background, #ffffff);
+}
+
+.saved-layout-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.saved-layout-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+    .notes-panel__header,
+    .planner-panel__header {
+        flex-direction: column;
+    }
+
+    .notes-panel__header-actions,
+    .planner-panel__header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .saved-note-card,
+    .saved-layout-item {
+        flex-direction: column;
+    }
 }
 
 /* Agenda View */

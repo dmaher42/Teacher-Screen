@@ -197,6 +197,196 @@ class RevealManagerWidget {
         this.emptyState.hidden = hasDeck;
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls reveal-manager-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Paste Reveal HTML, save decks for reuse, and control the live presentation from one place.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Deck Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const deckNameLabel = document.createElement('label');
+        deckNameLabel.textContent = 'Deck name';
+        const settingsDeckNameInput = document.createElement('input');
+        settingsDeckNameInput.type = 'text';
+        deckNameLabel.appendChild(settingsDeckNameInput);
+        sourceSection.appendChild(deckNameLabel);
+
+        const htmlLabel = document.createElement('label');
+        htmlLabel.textContent = 'Reveal HTML';
+        const settingsHtmlInput = document.createElement('textarea');
+        settingsHtmlInput.placeholder = 'Paste full Reveal HTML here';
+        htmlLabel.appendChild(settingsHtmlInput);
+        sourceSection.appendChild(htmlLabel);
+
+        const sourceActions = document.createElement('div');
+        sourceActions.className = 'widget-settings-actions';
+        const openButton = document.createElement('button');
+        openButton.type = 'button';
+        openButton.className = 'control-button';
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'control-button';
+        saveButton.textContent = 'Save Deck';
+        sourceActions.append(openButton, saveButton);
+        sourceSection.appendChild(sourceActions);
+        controls.appendChild(sourceSection);
+
+        const savedSection = document.createElement('div');
+        savedSection.className = 'widget-settings-section';
+        const savedHeading = document.createElement('h3');
+        savedHeading.textContent = 'Saved Decks';
+        savedSection.appendChild(savedHeading);
+
+        const savedLabel = document.createElement('label');
+        savedLabel.textContent = 'Saved deck';
+        const settingsSavedSelect = document.createElement('select');
+        savedLabel.appendChild(settingsSavedSelect);
+        savedSection.appendChild(savedLabel);
+
+        const savedActions = document.createElement('div');
+        savedActions.className = 'widget-settings-actions';
+        const launchSavedButton = document.createElement('button');
+        launchSavedButton.type = 'button';
+        launchSavedButton.className = 'control-button';
+        launchSavedButton.textContent = 'Launch Saved';
+        const renameButton = document.createElement('button');
+        renameButton.type = 'button';
+        renameButton.className = 'control-button';
+        renameButton.textContent = 'Rename Deck';
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'control-button modal-danger-btn';
+        deleteButton.textContent = 'Delete Deck';
+        savedActions.append(launchSavedButton, renameButton, deleteButton);
+        savedSection.appendChild(savedActions);
+        controls.appendChild(savedSection);
+
+        const liveSection = document.createElement('div');
+        liveSection.className = 'widget-settings-section';
+        const liveHeading = document.createElement('h3');
+        liveHeading.textContent = 'Live Controls';
+        liveSection.appendChild(liveHeading);
+
+        const liveActions = document.createElement('div');
+        liveActions.className = 'widget-settings-actions';
+        const prevButton = document.createElement('button');
+        prevButton.type = 'button';
+        prevButton.className = 'control-button';
+        prevButton.textContent = 'Previous Slide';
+        const nextButton = document.createElement('button');
+        nextButton.type = 'button';
+        nextButton.className = 'control-button';
+        nextButton.textContent = 'Next Slide';
+        const projectorButton = document.createElement('button');
+        projectorButton.type = 'button';
+        projectorButton.className = 'control-button';
+        projectorButton.textContent = 'Open Projector';
+        liveActions.append(prevButton, nextButton, projectorButton);
+        liveSection.appendChild(liveActions);
+        controls.appendChild(liveSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Current Deck';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncSavedOptions = () => {
+            const selectedValue = this.savedSelect.value;
+            settingsSavedSelect.innerHTML = '';
+            Array.from(this.savedSelect.options).forEach((option) => {
+                settingsSavedSelect.appendChild(option.cloneNode(true));
+            });
+            settingsSavedSelect.value = selectedValue;
+        };
+
+        const syncFromWidget = () => {
+            this.updateCurrentIndices();
+            settingsDeckNameInput.value = this.deckNameInput.value;
+            settingsHtmlInput.value = this.htmlInput.value;
+            openButton.textContent = this.activeDeck ? 'Stop Deck' : 'Open Deck';
+            prevButton.disabled = !this.activeDeck;
+            nextButton.disabled = !this.activeDeck;
+            projectorButton.disabled = !this.activeDeck;
+            syncSavedOptions();
+
+            if (this.activeDeck) {
+                const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
+                statusText.textContent = `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`;
+            } else {
+                statusText.textContent = 'No deck currently open.';
+            }
+        };
+
+        const syncInputsToWidget = () => {
+            this.deckNameInput.value = settingsDeckNameInput.value;
+            this.htmlInput.value = settingsHtmlInput.value;
+            this.savedSelect.value = settingsSavedSelect.value;
+        };
+
+        openButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleLaunchFromInputs();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        saveButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleSaveDeck();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        launchSavedButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleLaunchSaved();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        renameButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleRenameDeck();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        deleteButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleDeleteDeck();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        prevButton.addEventListener('click', () => {
+            this.navigate('prev');
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        nextButton.addEventListener('click', () => {
+            this.navigate('next');
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        projectorButton.addEventListener('click', () => {
+            this.openProjector();
+            syncFromWidget();
+        });
+
+        settingsSavedSelect.addEventListener('change', () => {
+            this.savedSelect.value = settingsSavedSelect.value;
+        });
+
+        syncFromWidget();
+        return controls;
+    }
+
     toggleCompact(compact) {
         this.isCompact = compact;
         this.element.classList.toggle('reveal-manager--compact', compact);
