@@ -1590,6 +1590,41 @@ dialog::backdrop {
     padding-inline: 12px;
 }
 
+.timer-controls-modal {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.timer-sound-settings {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 94%, #ffffff 6%);
+}
+
+.timer-sound-settings__label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.timer-sound-settings__list {
+    display: grid;
+    gap: 6px;
+}
+
+.timer-sound-settings .sound-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.92rem;
+}
+
 .widget .control-button,
 .widget .widget-content-controls .control-button,
 .widget .widget-content-controls button,

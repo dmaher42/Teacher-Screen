@@ -30,6 +30,7 @@ class TimerWidget {
         // --- Create Controls Section ---
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls';
+        this.statusElements = [];
 
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
@@ -211,6 +212,39 @@ class TimerWidget {
             this.soundMenu.appendChild(wrapper);
         });
 
+        this.soundSettingsGroup = document.createElement('div');
+        this.soundSettingsGroup.className = 'timer-sound-settings';
+
+        const soundSettingsLabel = document.createElement('div');
+        soundSettingsLabel.className = 'timer-sound-settings__label';
+        soundSettingsLabel.textContent = 'Notification Sound';
+        this.soundSettingsGroup.appendChild(soundSettingsLabel);
+
+        this.soundSettingsList = document.createElement('div');
+        this.soundSettingsList.className = 'timer-sound-settings__list';
+        this.soundSettingsGroup.appendChild(this.soundSettingsList);
+
+        this.soundSettingsRadios = [];
+        this.soundOptions.forEach((option, index) => {
+            const wrapper = document.createElement('label');
+            wrapper.className = 'sound-option';
+
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = `${this.soundGroupName}-settings`;
+            radio.value = option.url;
+            radio.checked = index === 0;
+            radio.addEventListener('change', () => {
+                this.selectedSound = option.url;
+                this.syncSoundInputs();
+            });
+
+            wrapper.appendChild(radio);
+            wrapper.appendChild(document.createTextNode(` ${option.label}`));
+            this.soundSettingsList.appendChild(wrapper);
+            this.soundSettingsRadios.push(radio);
+        });
+
         this.soundButton.addEventListener('click', (event) => {
             event.stopPropagation();
             this.soundMenu.style.display = this.soundMenu.style.display === 'block' ? 'none' : 'block';
@@ -229,20 +263,43 @@ class TimerWidget {
         this.controls = document.createElement('div');
         this.controls.className = 'timer-controls';
 
+        this.handleStartClick = () => this.start();
+        this.handleStopClick = () => this.stop();
+
         this.startButton = document.createElement('button');
         this.startButton.textContent = 'Start';
-        this.startButton.addEventListener('click', () => this.start());
+        this.startButton.addEventListener('click', this.handleStartClick);
 
         this.stopButton = document.createElement('button');
         this.stopButton.textContent = 'Stop';
-        this.stopButton.addEventListener('click', () => this.stop());
+        this.stopButton.addEventListener('click', this.handleStopClick);
 
         this.controls.appendChild(this.startButton);
         this.controls.appendChild(this.stopButton);
 
+        this.modalTimerControls = document.createElement('div');
+        this.modalTimerControls.className = 'timer-controls timer-controls-modal';
+
+        this.modalStartButton = document.createElement('button');
+        this.modalStartButton.textContent = 'Start';
+        this.modalStartButton.addEventListener('click', this.handleStartClick);
+
+        this.modalStopButton = document.createElement('button');
+        this.modalStopButton.textContent = 'Stop';
+        this.modalStopButton.addEventListener('click', this.handleStopClick);
+
+        this.modalTimerControls.appendChild(this.modalStartButton);
+        this.modalTimerControls.appendChild(this.modalStopButton);
+
         this.status = document.createElement('div');
         this.status.className = 'widget-status';
         this.status.textContent = 'Ready to start a timer.';
+        this.statusElements.push(this.status);
+
+        this.modalStatus = document.createElement('div');
+        this.modalStatus.className = 'widget-status';
+        this.modalStatus.textContent = this.status.textContent;
+        this.statusElements.push(this.modalStatus);
 
         // Assemble the widget
         this.controlsOverlay.appendChild(this.helpText);
@@ -250,10 +307,9 @@ class TimerWidget {
         this.controlsOverlay.appendChild(this.namedPresetSection);
         this.controlsOverlay.appendChild(this.autoRestartContainer);
         this.controlsOverlay.appendChild(this.intervalContainer);
-        this.controlsOverlay.appendChild(this.soundButton);
-        this.controlsOverlay.appendChild(this.soundMenu);
-        this.controlsOverlay.appendChild(this.controls);
-        this.controlsOverlay.appendChild(this.status);
+        this.controlsOverlay.appendChild(this.soundSettingsGroup);
+        this.controlsOverlay.appendChild(this.modalTimerControls);
+        this.controlsOverlay.appendChild(this.modalStatus);
 
         this.element.appendChild(this.mainDisplay);
         this.element.appendChild(this.status);
@@ -284,6 +340,7 @@ class TimerWidget {
         this.handleTimerStopEvent = this.handleTimerStopEvent.bind(this);
         this.handleTimerResetEvent = this.handleTimerResetEvent.bind(this);
         this.subscribeToTimerEvents();
+        this.syncSoundInputs();
     }
 
     subscribeToTimerEvents() {
@@ -335,6 +392,22 @@ class TimerWidget {
     }
 
     setEditable() {}
+
+    getControls() {
+        return this.controlsOverlay;
+    }
+
+    syncSoundInputs() {
+        const selectedSound = this.selectedSound;
+
+        Array.from(this.soundMenu.querySelectorAll('input[type="radio"]')).forEach((radio) => {
+            radio.checked = radio.value === selectedSound;
+        });
+
+        this.soundSettingsRadios.forEach((radio) => {
+            radio.checked = radio.value === selectedSound;
+        });
+    }
 
     addNamedPreset(name, minutes) {
         const presetName = name || this.newPresetName.value.trim();
@@ -588,6 +661,10 @@ class TimerWidget {
     remove() {
         this.unsubscribeFromTimerEvents();
         document.removeEventListener('click', this.handleDocumentClick);
+        this.startButton?.removeEventListener('click', this.handleStartClick);
+        this.stopButton?.removeEventListener('click', this.handleStopClick);
+        this.modalStartButton?.removeEventListener('click', this.handleStartClick);
+        this.modalStopButton?.removeEventListener('click', this.handleStopClick);
 
         if (this.interval) {
             this.stop();
@@ -604,11 +681,13 @@ class TimerWidget {
      * @param {string} tone
      */
     setStatus(message, tone = 'success') {
-        if (!this.status) return;
-        this.status.textContent = message;
-        this.status.classList.toggle('warning', tone === 'warning');
-        this.status.classList.add('action-flash');
-        setTimeout(() => this.status.classList.remove('action-flash'), 800);
+        this.statusElements.forEach((statusEl) => {
+            if (!statusEl) return;
+            statusEl.textContent = message;
+            statusEl.classList.toggle('warning', tone === 'warning');
+            statusEl.classList.add('action-flash');
+            setTimeout(() => statusEl.classList.remove('action-flash'), 800);
+        });
     }
 
     /**
@@ -685,10 +764,7 @@ class TimerWidget {
         }
         if (data.selectedSound) {
             this.selectedSound = data.selectedSound;
-            const matchingOption = Array.from(this.soundMenu.querySelectorAll('input[type="radio"]')).find((radio) => radio.value === data.selectedSound);
-            if (matchingOption) {
-                matchingOption.checked = true;
-            }
+            this.syncSoundInputs();
         }
         this.currentPhase = data.currentPhase || null;
         this.updateDisplay();
