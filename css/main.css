@@ -846,7 +846,12 @@ dialog::backdrop {
       position: relative;
   }
 
-  .widget.rich-text-widget .widget-content {
+.widget.rich-text-widget .widget-content {
+      padding: 0;
+      overflow: hidden;
+  }
+
+.widget.reveal-manager-widget .widget-content {
       padding: 0;
       overflow: hidden;
   }
