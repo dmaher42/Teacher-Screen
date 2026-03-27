@@ -121,6 +121,50 @@ function prepareProjectorPresentationRoot(root) {
     root.style.pointerEvents = 'none';
 }
 
+function clearProjectorPresentationRoot() {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        return;
+    }
+
+    destroyReveal(root);
+    root.innerHTML = '';
+    activePresentationSourceKey = null;
+    activePresentationLoadPromise = null;
+}
+
+function getDedicatedRevealDeckState(layout = null) {
+    if (!layout || !Array.isArray(layout.widgets)) {
+        return null;
+    }
+
+    return layout.widgets.find((widgetData) => (
+        isDedicatedRevealProjectorWidget(widgetData)
+        && widgetData.visibleOnProjector !== false
+        && widgetData.activeDeck
+        && typeof widgetData.activeDeck.content === 'string'
+        && widgetData.activeDeck.content.trim()
+    )) || null;
+}
+
+function syncRevealDeckFromLayout(layout = null) {
+    const revealWidget = getDedicatedRevealDeckState(layout);
+    if (!revealWidget) {
+        clearProjectorPresentationRoot();
+        return;
+    }
+
+    const indices = revealWidget.currentIndices && typeof revealWidget.currentIndices === 'object'
+        ? revealWidget.currentIndices
+        : { h: 0, v: 0 };
+
+    loadPresentationHtml(revealWidget.activeDeck.content)
+        .then(() => slideRevealWhenReady(indices.h || 0, indices.v || 0))
+        .catch((error) => {
+            console.warn('Unable to restore Reveal deck from saved layout', error);
+        });
+}
+
 async function loadPresentationHtml(html) {
     const sourceKey = `html:${html}`;
     const root = document.getElementById('presentation-root');
@@ -140,6 +184,7 @@ async function loadPresentationHtml(html) {
     activePresentationSourceKey = sourceKey;
     activePresentationLoadPromise = (async () => {
         destroyReveal(root);
+        root.innerHTML = '';
         mountPresentationMarkup(root, html);
         const deck = await initializeReveal(root);
         prepareProjectorPresentationRoot(root);
@@ -314,6 +359,11 @@ class ProjectorApp {
 
         this.loadTheme();
         this.loadSavedState();
+
+        const root = document.getElementById('presentation-root');
+        if (root && !root.innerHTML.trim()) {
+            showProjectorStartupMessage('Projector ready. Open it from the teacher screen or load a saved Reveal layout.');
+        }
     }
 
     loadTheme() {
@@ -451,6 +501,8 @@ class ProjectorApp {
 
             // Restore layout and widgets
             if (state.layout && state.layout.widgets) {
+                syncRevealDeckFromLayout(state.layout);
+
                 // Clear existing widgets before reloading to avoid duplicates/stale state
                 this.widgets = [];
                 // We need to clear the container or let LayoutManager handle it.
@@ -473,6 +525,8 @@ class ProjectorApp {
                     }
                     return widget;
                 });
+            } else {
+                clearProjectorPresentationRoot();
             }
         } catch (err) {
             console.error('Projector layout rebuild failed:', err);
