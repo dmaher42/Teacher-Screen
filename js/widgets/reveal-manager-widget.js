@@ -713,6 +713,7 @@ ${revealBootstrapScript}`;
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.launchButton.textContent = 'Stop';
+        this.toggleCompact(true);
         this.sendDeckToPresenter();
         this.bindSlideChangeListener();
         this.persistActiveDeckState();
