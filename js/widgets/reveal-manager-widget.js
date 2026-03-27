@@ -26,6 +26,9 @@ class RevealManagerWidget {
         this.revealDeck = null;
         this.projectorWindow = null;
         this.globalSlideSyncAttached = false;
+        this.projectorChannel = typeof BroadcastChannel === 'function'
+            ? new BroadcastChannel('teacher-screen-sync')
+            : null;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -295,6 +298,22 @@ class RevealManagerWidget {
 
         if (this.projectorWindow && !this.projectorWindow.closed) {
             this.projectorWindow.postMessage(payload, '*');
+        }
+
+        if (this.projectorChannel) {
+            let syncToken = null;
+            try {
+                syncToken = sessionStorage.getItem('teacher-screen-projector-sync-token')
+                    || window.__TeacherProjectorSyncToken
+                    || null;
+            } catch (error) {
+                console.warn('[RevealSync] unable to read projector sync token', error);
+            }
+
+            this.projectorChannel.postMessage({
+                ...payload,
+                syncToken
+            });
         }
 
         window.postMessage(payload, '*');
@@ -1070,6 +1089,10 @@ ${revealBootstrapScript}`;
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         window.removeEventListener('message', this.handleWindowMessage);
         this.iframe.removeEventListener('load', this.handleIframeLoad);
+        if (this.projectorChannel) {
+            this.projectorChannel.close();
+            this.projectorChannel = null;
+        }
 
         if (this.layoutObserverInterval) {
             clearInterval(this.layoutObserverInterval);

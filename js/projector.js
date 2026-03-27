@@ -210,6 +210,34 @@ const slideRevealWhenReady = async (h = 0, v = 0) => {
     }
 };
 
+const handleSlideSyncPayload = (data = {}) => {
+    if (!data || data.type !== 'slideSync') {
+        return;
+    }
+
+    console.log('Projector received slide:', data.h, data.v);
+
+    if (data.url) {
+        loadPresentation(data.url)
+            .then(() => slideRevealWhenReady(data.h, data.v))
+            .catch((error) => {
+                console.warn('Unable to load presentation URL', error);
+            });
+        return;
+    }
+
+    if (data.html) {
+        loadPresentationHtml(data.html)
+            .then(() => slideRevealWhenReady(data.h, data.v))
+            .catch((error) => {
+                console.warn('Unable to load presentation HTML', error);
+            });
+        return;
+    }
+
+    slideRevealWhenReady(data.h, data.v);
+};
+
 const initializeRevealSyncListener = () => {
     // Teacher -> Projector synchronization
     // Uses postMessage slideSync events.
@@ -218,28 +246,7 @@ const initializeRevealSyncListener = () => {
 
         if (!data || data.type !== 'slideSync') return;
         if (event.origin !== window.location.origin) return;
-
-        console.log('Projector received slide:', data.h, data.v);
-
-        if (data.url) {
-            loadPresentation(data.url)
-                .then(() => slideRevealWhenReady(data.h, data.v))
-                .catch((error) => {
-                    console.warn('Unable to load presentation URL', error);
-                });
-            return;
-        }
-
-        if (data.html) {
-            loadPresentationHtml(data.html)
-                .then(() => slideRevealWhenReady(data.h, data.v))
-                .catch((error) => {
-                    console.warn('Unable to load presentation HTML', error);
-                });
-            return;
-        }
-
-        slideRevealWhenReady(data.h, data.v);
+        handleSlideSyncPayload(data);
     });
 };
 
@@ -325,6 +332,11 @@ class ProjectorApp {
                     return;
                 }
                 this.layoutManager.applyLayoutDelta(message.delta);
+                return;
+            }
+
+            if (message.type === 'slideSync') {
+                handleSlideSyncPayload(message);
             }
         };
 
