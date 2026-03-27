@@ -103,44 +103,6 @@ function showProjectorStartupMessage(message) {
     root.innerHTML = `<div style="padding:16px;color:#fff;background:#7f1d1d;font:600 16px/1.4 Poppins,sans-serif;">${message}</div>`;
 }
 
-async function loadPresentation(url) {
-    const sourceKey = `url:${url}`;
-    const root = document.getElementById('presentation-root');
-    if (!root) {
-        console.warn('Presentation root not found');
-        return;
-    }
-
-    if (activePresentationLoadPromise && activePresentationSourceKey === sourceKey) {
-        return activePresentationLoadPromise;
-    }
-
-    if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
-        return getRevealDeck(root);
-    }
-
-    activePresentationSourceKey = sourceKey;
-    activePresentationLoadPromise = (async () => {
-        const res = await fetch(url);
-        const html = await res.text();
-
-        destroyReveal(root);
-        mountPresentationMarkup(root, html);
-        const deck = await initializeReveal(root);
-        if (deck && typeof layoutReveal === 'function') {
-            layoutReveal(root);
-        }
-
-        return deck;
-    })();
-
-    try {
-        return await activePresentationLoadPromise;
-    } finally {
-        activePresentationLoadPromise = null;
-    }
-}
-
 async function loadPresentationHtml(html) {
     const sourceKey = `html:${html}`;
     const root = document.getElementById('presentation-root');
@@ -216,15 +178,6 @@ const handleSlideSyncPayload = (data = {}) => {
     }
 
     console.log('Projector received slide:', data.h, data.v);
-
-    if (data.url) {
-        loadPresentation(data.url)
-            .then(() => slideRevealWhenReady(data.h, data.v))
-            .catch((error) => {
-                console.warn('Unable to load presentation URL', error);
-            });
-        return;
-    }
 
     if (data.html) {
         loadPresentationHtml(data.html)
