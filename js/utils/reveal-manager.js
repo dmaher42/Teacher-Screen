@@ -248,12 +248,31 @@ export async function initializeReveal(container) {
         return revealState.deck;
     }
 
-    if (!window.Reveal || typeof window.Reveal.initialize !== 'function') {
+    if (!window.Reveal) {
         console.warn('[Reveal] library not available');
         return null;
     }
 
-    const deck = window.Reveal;
+    const revealElement = root.querySelector('.reveal');
+    if (!revealElement) {
+        console.warn('[Reveal] container not available');
+        return null;
+    }
+
+    const RevealCtor = window.Reveal;
+    let deck = null;
+
+    if (typeof RevealCtor === 'function') {
+        deck = new RevealCtor(revealElement, getRevealOptions());
+    } else if (typeof RevealCtor.initialize === 'function') {
+        deck = RevealCtor;
+    }
+
+    if (!deck || typeof deck.initialize !== 'function') {
+        console.warn('[Reveal] library not available');
+        return null;
+    }
+
     revealState.deck = deck;
     revealState.initialized = true;
     revealState.ready = false;
@@ -267,7 +286,11 @@ export async function initializeReveal(container) {
         });
     }
 
-    await deck.initialize(getRevealOptions());
+    if (deck === RevealCtor) {
+        await deck.initialize(getRevealOptions());
+    } else {
+        await deck.initialize();
+    }
 
     revealState.ready = true;
     setActiveRevealState(revealState);
