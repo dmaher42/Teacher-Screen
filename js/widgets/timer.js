@@ -66,27 +66,21 @@ class TimerWidget {
 
         this.namedPresetSection = document.createElement('div');
         this.namedPresetSection.className = 'named-preset-section';
-        this.namedPresetSection.style.marginBottom = '10px';
-        this.namedPresetSection.style.borderTop = '1px solid #eee';
-        this.namedPresetSection.style.paddingTop = '5px';
 
         // Add Preset Form
         const addPresetForm = document.createElement('div');
         addPresetForm.className = 'add-preset-form';
-        addPresetForm.style.display = 'flex';
-        addPresetForm.style.gap = '5px';
-        addPresetForm.style.marginBottom = '5px';
 
         this.newPresetName = document.createElement('input');
         this.newPresetName.type = 'text';
         this.newPresetName.placeholder = 'Name';
-        this.newPresetName.style.width = '80px';
+        this.newPresetName.className = 'timer-preset-name-input';
 
         this.newPresetTime = document.createElement('input');
         this.newPresetTime.type = 'number';
         this.newPresetTime.placeholder = 'Min';
         this.newPresetTime.min = '1';
-        this.newPresetTime.style.width = '50px';
+        this.newPresetTime.className = 'timer-preset-time-input';
 
         const addPresetBtn = document.createElement('button');
         addPresetBtn.textContent = 'Add';
@@ -99,11 +93,6 @@ class TimerWidget {
         // List of presets
         this.namedPresetList = document.createElement('ul');
         this.namedPresetList.className = 'named-preset-list';
-        this.namedPresetList.style.listStyle = 'none';
-        this.namedPresetList.style.padding = '0';
-        this.namedPresetList.style.margin = '0';
-        this.namedPresetList.style.maxHeight = '100px';
-        this.namedPresetList.style.overflowY = 'auto';
 
         this.namedPresetSection.appendChild(document.createTextNode('Custom Presets:'));
         this.namedPresetSection.appendChild(addPresetForm);

@@ -712,6 +712,92 @@ dialog::backdrop {
     gap: 0.9rem;
 }
 
+#widget-settings-modal .widget-content-controls > * {
+    margin: 0;
+}
+
+#widget-settings-modal .widget-content-controls h3 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+#widget-settings-modal .widget-content-controls hr {
+    width: 100%;
+    margin: 0.2rem 0;
+    border: 0;
+    border-top: 1px solid var(--border-soft-2);
+}
+
+#widget-settings-modal .widget-content-controls label {
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+#widget-settings-modal .widget-content-controls input[type="text"],
+#widget-settings-modal .widget-content-controls input[type="number"],
+#widget-settings-modal .widget-content-controls select,
+#widget-settings-modal .widget-content-controls textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    color: #1e293b;
+    font: inherit;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#widget-settings-modal .widget-content-controls textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+#widget-settings-modal .widget-content-controls input[type="checkbox"],
+#widget-settings-modal .widget-content-controls input[type="radio"] {
+    accent-color: var(--accent);
+}
+
+#widget-settings-modal .widget-content-controls .control-button,
+#widget-settings-modal .widget-content-controls button {
+    min-height: 42px;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+}
+
+#widget-settings-modal .widget-content-controls .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+#widget-settings-modal .widget-content-controls .button-group > * {
+    flex: 1 1 180px;
+}
+
+#widget-settings-modal .widget-content-controls .widget-help-text,
+#widget-settings-modal .widget-content-controls .widget-status {
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%);
+}
+
+#widget-settings-modal .widget-content-controls .widget-help-text {
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-soft-2) 82%);
+    color: var(--text-secondary);
+}
+
+#widget-settings-modal .widget-content-controls .widget-status {
+    border: 1px solid var(--border-soft-2);
+    color: var(--text-primary);
+}
+
 .widget-settings-empty {
     min-height: 160px;
     display: flex;
@@ -779,6 +865,87 @@ dialog::backdrop {
     accent-color: var(--accent);
 }
 
+#widget-settings-modal .timer-presets,
+#widget-settings-modal .named-preset-section,
+#widget-settings-modal .auto-restart-container,
+#widget-settings-modal .timer-interval,
+#widget-settings-modal .name-picker-group-controls,
+#widget-settings-modal .name-picker-import-export,
+#widget-settings-modal .rich-text-settings-controls,
+#widget-settings-modal .notes-settings-controls {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+    color: #334155;
+}
+
+#widget-settings-modal .timer-presets label,
+#widget-settings-modal .auto-restart-container label,
+#widget-settings-modal .timer-interval > label,
+#widget-settings-modal .name-picker-group-controls > label {
+    display: grid;
+    gap: 0.5rem;
+}
+
+#widget-settings-modal .add-preset-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(92px, 0.8fr) auto;
+    gap: 0.65rem;
+    align-items: end;
+}
+
+#widget-settings-modal .named-preset-list {
+    display: grid;
+    gap: 0.55rem;
+    max-height: 160px;
+    padding-right: 0.25rem;
+    overflow-y: auto;
+}
+
+#widget-settings-modal .named-preset-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
+}
+
+#widget-settings-modal .interval-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+#widget-settings-modal .timer-controls-modal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+#widget-settings-modal .timer-controls-modal > button {
+    flex: 1 1 160px;
+}
+
+#widget-settings-modal .pick-button {
+    width: 100%;
+}
+
+#widget-settings-modal .timer-sound-settings,
+#widget-settings-modal .timer-sound-settings label,
+#widget-settings-modal .timer-sound-settings .sound-option {
+    color: rgba(248, 250, 252, 0.96);
+}
+
+#widget-settings-modal .timer-sound-settings__label {
+    color: rgba(226, 232, 240, 0.82);
+}
+
 @media (max-width: 640px) {
     .modal-common-controls {
         flex-direction: column;
@@ -791,6 +958,10 @@ dialog::backdrop {
 
     .modal-common-controls__actions > * {
         width: 100%;
+    }
+
+    #widget-settings-modal .add-preset-form {
+        grid-template-columns: 1fr;
     }
 }
 

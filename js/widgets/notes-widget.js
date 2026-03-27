@@ -108,7 +108,7 @@ class NotesWidget {
 
         // --- Create Controls Section (Only for Settings Modal) ---
         this.controlsOverlay = document.createElement('div');
-        this.controlsOverlay.className = 'widget-content-controls';
+        this.controlsOverlay.className = 'widget-content-controls notes-settings-controls';
 
         // Header for settings
         const header = document.createElement('h3');
@@ -128,10 +128,7 @@ class NotesWidget {
         // Delete Note Button (Added for better management)
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete Note';
-        deleteBtn.className = 'control-button';
-        deleteBtn.style.marginTop = '10px';
-        deleteBtn.style.backgroundColor = '#ff6b6b';
-        deleteBtn.style.color = 'white';
+        deleteBtn.className = 'control-button modal-danger-btn';
         deleteBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to delete this note?')) {
                 SavedNotesStore.delete(this.noteId);
