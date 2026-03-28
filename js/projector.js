@@ -170,6 +170,61 @@ function syncRevealDeckFromLayout(layout = null) {
         });
 }
 
+function getProjectorRevealWidgets() {
+    const app = window.__TeacherScreenProjectorApp;
+    if (!app || typeof app.getRevealWidgets !== 'function') {
+        return [];
+    }
+
+    return app.getRevealWidgets();
+}
+
+async function syncRevealWidgetsOnProjector(data = {}) {
+    const widgets = getProjectorRevealWidgets();
+    if (!widgets.length) {
+        return false;
+    }
+
+    const nextIndices = {
+        h: Number.isFinite(data.h) ? data.h : 0,
+        v: Number.isFinite(data.v) ? data.v : 0
+    };
+
+    await Promise.all(widgets.map(async (widget) => {
+        if (!widget) {
+            return;
+        }
+
+        widget.currentIndices = nextIndices;
+
+        if (data.html && typeof widget.launchDeck === 'function') {
+            const nextContent = String(data.html || '');
+            const needsReload = !widget.activeDeck || widget.activeDeck.content !== nextContent;
+
+            if (needsReload) {
+                await widget.launchDeck({
+                    id: widget.activeDeck && widget.activeDeck.id ? widget.activeDeck.id : Date.now(),
+                    name: widget.activeDeck && widget.activeDeck.name ? widget.activeDeck.name : 'Projector Deck',
+                    type: 'html',
+                    content: nextContent
+                }, { preserveIndices: true });
+                return;
+            }
+        }
+
+        if (typeof widget.moveDeckToStoredSlide === 'function') {
+            await widget.moveDeckToStoredSlide(widget.revealDeck);
+        }
+
+        if (typeof widget.requestRevealLayout === 'function') {
+            await widget.requestRevealLayout();
+        }
+    }));
+
+    clearProjectorPresentationRoot();
+    return true;
+}
+
 function wrapRevealPresentationHtml(html = '') {
     const normalized = String(html || '').trim();
     if (!normalized) {
@@ -262,12 +317,17 @@ const slideRevealWhenReady = async (h = 0, v = 0) => {
     }
 };
 
-const handleSlideSyncPayload = (data = {}) => {
+const handleSlideSyncPayload = async (data = {}) => {
     if (!data || data.type !== 'slideSync') {
         return;
     }
 
     console.log('Projector received slide:', data.h, data.v);
+
+    const syncedRevealWidgets = await syncRevealWidgetsOnProjector(data);
+    if (syncedRevealWidgets) {
+        return;
+    }
 
     if (data.html) {
         loadPresentationHtml(data.html)
@@ -331,6 +391,7 @@ class ProjectorApp {
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
         this.projectorSyncToken = getProjectorSyncToken();
+        window.__TeacherScreenProjectorApp = this;
     }
 
     init() {
@@ -492,15 +553,18 @@ class ProjectorApp {
             return;
         }
 
+        clearProjectorPresentationRoot();
         this.widgets = [];
         this.layoutManager.deserialize(resetSnapshot, (widgetData) => {
             if (widgetData.visibleOnProjector === false) {
                 return null;
             }
-            if (isDedicatedRevealProjectorWidget(widgetData)) {
-                return null;
+
+            const widget = createWidgetByType(widgetData.type);
+            if (widget) {
+                this.widgets.push(widget);
             }
-            return createWidgetByType(widgetData.type);
+            return widget;
         });
 
         if (this.isEditMode) {
@@ -527,7 +591,7 @@ class ProjectorApp {
 
             // Restore layout and widgets
             if (state.layout && state.layout.widgets) {
-                syncRevealDeckFromLayout(state.layout);
+                clearProjectorPresentationRoot();
 
                 // Clear existing widgets before reloading to avoid duplicates/stale state
                 this.widgets = [];
@@ -537,11 +601,6 @@ class ProjectorApp {
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
                     // Filter out widgets not meant for the projector
                     if (widgetData.visibleOnProjector === false) {
-                        return null;
-                    }
-
-                    // Reveal decks are rendered through the dedicated projector stage.
-                    if (isDedicatedRevealProjectorWidget(widgetData)) {
                         return null;
                     }
 
@@ -557,6 +616,10 @@ class ProjectorApp {
         } catch (err) {
             console.error('Projector layout rebuild failed:', err);
         }
+    }
+
+    getRevealWidgets() {
+        return this.widgets.filter((widget) => widget && widget.constructor && widget.constructor.name === 'RevealManagerWidget');
     }
 
     destroy() {}
