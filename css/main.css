@@ -983,6 +983,89 @@ dialog::backdrop {
 }
 
 @media (max-width: 640px) {
+    #widget-settings-modal .modal-content {
+        width: min(96vw, 420px);
+        border-radius: 20px;
+    }
+
+    #widget-settings-modal .modal-header {
+        padding: 1rem 1rem 0.75rem;
+    }
+
+    #widget-settings-modal .modal-title {
+        font-size: 1.05rem;
+    }
+
+    #widget-settings-modal .modal-close-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 1.2rem;
+    }
+
+    #widget-settings-modal .modal-body {
+        gap: 0.85rem;
+        padding: 1rem;
+        max-height: min(82vh, calc(100dvh - 72px));
+    }
+
+    #widget-settings-modal .widget-content-controls {
+        gap: 0.75rem;
+    }
+
+    #widget-settings-modal .widget-content-controls h3 {
+        font-size: 0.76rem;
+    }
+
+    #widget-settings-modal .widget-content-controls label {
+        gap: 0.35rem;
+        font-size: 0.9rem;
+    }
+
+    #widget-settings-modal .widget-content-controls input[type="text"],
+    #widget-settings-modal .widget-content-controls input[type="number"],
+    #widget-settings-modal .widget-content-controls select,
+    #widget-settings-modal .widget-content-controls textarea {
+        min-height: 40px;
+        padding: 0.72rem 0.82rem;
+        border-radius: 12px;
+    }
+
+    #widget-settings-modal .widget-content-controls .control-button,
+    #widget-settings-modal .widget-content-controls button {
+        min-height: 40px;
+        padding: 0.72rem 0.9rem;
+        border-radius: 12px;
+    }
+
+    #widget-settings-modal .widget-settings-section,
+    #widget-settings-modal .timer-presets,
+    #widget-settings-modal .named-preset-section,
+    #widget-settings-modal .auto-restart-container,
+    #widget-settings-modal .timer-interval,
+    #widget-settings-modal .name-picker-group-controls,
+    #widget-settings-modal .name-picker-import-export,
+    #widget-settings-modal .rich-text-settings-controls,
+    #widget-settings-modal .notes-settings-controls {
+        gap: 0.65rem;
+        padding: 0.85rem;
+        border-radius: 16px;
+    }
+
+    #widget-settings-modal .widget-content-controls .widget-help-text,
+    #widget-settings-modal .widget-content-controls .widget-status,
+    #widget-settings-modal .widget-settings-meta {
+        padding: 0.8rem 0.9rem;
+        border-radius: 14px;
+    }
+
+    #widget-settings-modal .widget-settings-actions {
+        gap: 0.65rem;
+    }
+
+    #widget-settings-modal .widget-settings-actions > * {
+        flex-basis: 100%;
+    }
+
     .modal-common-controls {
         flex-direction: column;
         align-items: stretch;
