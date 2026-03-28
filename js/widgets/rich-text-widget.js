@@ -14,8 +14,11 @@ class RichTextWidget {
   constructor() {
     this.pendingContent = '';
     this.isDisplayMode = false;
+    const appModeUtils = window.TeacherScreenAppMode || {};
+    this.isProjectorMode = appModeUtils.isProjectorMode || (() => window.APP_MODE === 'projector');
     this.element = document.createElement('div');
     this.element.className = 'rich-text-widget-inner';
+    this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
 
     this.handleDisplayModeClick = this.handleDisplayModeClick.bind(this);
     this.handleTextChange = this.handleTextChange.bind(this);
@@ -119,6 +122,7 @@ class RichTextWidget {
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
     this.element.classList.toggle('display-mode', this.isDisplayMode);
+    this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.updateDisplayModeUI();
 
     if (this.quill) {
@@ -127,8 +131,13 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
+    this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.displayModeButton.textContent = this.isDisplayMode ? 'Edit' : 'Display';
     this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
+
+    if (this.quill) {
+      this.quill.enable(!this.isProjectorMode());
+    }
   }
 
   remove() {

@@ -1747,34 +1747,34 @@ dialog::backdrop {
 .rich-text-widget-inner .ql-toolbar {
         border: 0;
         border-radius: 0;
-        padding: 0.2rem 0.35rem;
+        padding: 0.15rem 0.3rem;
         background: var(--card-background, #ffffff);
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 0.2rem;
+        gap: 0.15rem;
     }
 
 .rich-text-widget-inner .ql-toolbar.ql-snow .ql-formats {
-    margin-right: 0.35rem;
-    margin-bottom: 0.15rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.1rem;
 }
 
 .rich-text-widget-inner .ql-toolbar button,
 .rich-text-widget-inner .ql-toolbar .ql-picker-label {
-    min-height: 28px;
+    min-height: 24px;
 }
 
 .rich-text-widget-inner .ql-toolbar button {
-    padding: 2px 4px;
+    padding: 1px 3px;
 }
 
 .rich-text-widget-inner .ql-toolbar .ql-picker-label {
-    padding: 2px 8px;
+    padding: 1px 6px;
 }
 
 .rich-text-widget-inner .ql-toolbar .ql-picker {
-    font-size: 0.88rem;
+    font-size: 0.8rem;
 }
 
 .rich-text-widget-inner .ql-container {
@@ -1846,6 +1846,10 @@ dialog::backdrop {
 }
 
 .rich-text-widget-inner.display-mode .ql-toolbar {
+    display: none;
+}
+
+.rich-text-widget-inner.is-projector-mode .ql-toolbar {
     display: none;
 }
 
