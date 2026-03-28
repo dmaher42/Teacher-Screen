@@ -1066,6 +1066,43 @@ dialog::backdrop {
         flex-basis: 100%;
     }
 
+    #widget-settings-modal .auto-restart-container label,
+    #widget-settings-modal .timer-interval > label {
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    #widget-settings-modal .auto-restart-container input[type="checkbox"],
+    #widget-settings-modal .timer-interval > label input[type="checkbox"] {
+        margin: 0;
+    }
+
+    #widget-settings-modal .timer-sound-settings {
+        gap: 0.55rem;
+        padding: 0.8rem;
+    }
+
+    #widget-settings-modal .timer-sound-settings__list {
+        gap: 0.4rem;
+    }
+
+    #widget-settings-modal .timer-sound-settings .sound-option {
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        justify-content: start;
+        gap: 0.55rem;
+        font-size: 0.88rem;
+    }
+
+    #widget-settings-modal .timer-controls-modal {
+        gap: 0.55rem;
+    }
+
+    #widget-settings-modal .timer-controls-modal > button {
+        flex: 1 1 calc(50% - 0.3rem);
+    }
+
     .modal-common-controls {
         flex-direction: column;
         align-items: stretch;
