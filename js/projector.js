@@ -170,8 +170,29 @@ function syncRevealDeckFromLayout(layout = null) {
         });
 }
 
+function wrapRevealPresentationHtml(html = '') {
+    const normalized = String(html || '').trim();
+    if (!normalized) {
+        return '';
+    }
+
+    const hasRevealStructure = /class=["'][^"']*\breveal\b[^"']*["']/i.test(normalized)
+        && /class=["'][^"']*\bslides\b[^"']*["']/i.test(normalized);
+
+    if (hasRevealStructure) {
+        return normalized;
+    }
+
+    const innerContent = /<\s*section\b/i.test(normalized)
+        ? normalized
+        : `<section>${normalized}</section>`;
+
+    return `<div class="reveal"><div class="slides">${innerContent}</div></div>`;
+}
+
 async function loadPresentationHtml(html) {
-    const sourceKey = `html:${html}`;
+    const wrappedHtml = wrapRevealPresentationHtml(html);
+    const sourceKey = `html:${wrappedHtml}`;
     const root = document.getElementById('presentation-root');
     if (!root) {
         console.warn('Presentation root not found');
@@ -190,7 +211,7 @@ async function loadPresentationHtml(html) {
     activePresentationLoadPromise = (async () => {
         destroyReveal(root);
         root.innerHTML = '';
-        mountPresentationMarkup(root, html);
+        mountPresentationMarkup(root, wrappedHtml);
         const deck = await initializeReveal(root);
         prepareProjectorPresentationRoot(root);
         if (deck && typeof layoutReveal === 'function') {
