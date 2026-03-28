@@ -60,11 +60,9 @@ class RichTextWidget {
       const toolbarOptions = [
         [{ header: [2, 3, false] }],
         [{ size: ['small', false, 'large', 'huge'] }],
-        ['bold', 'italic', 'underline', 'strike'],
+        ['bold', 'italic', 'underline'],
         ['link'],
-        [{ color: [] }, { background: [] }],
-        [{ align: [] }],
-        [{ indent: '-1' }, { indent: '+1' }],
+        [{ color: [] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['clean']
       ];
