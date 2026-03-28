@@ -1860,6 +1860,10 @@ dialog::backdrop {
     display: none;
 }
 
+body.projector-view .rich-text-widget-inner .ql-toolbar {
+    display: none !important;
+}
+
 .rich-text-widget-inner.display-mode .ql-editor {
     font-size: 1.3rem;
     transition: font-size 0.3s ease;

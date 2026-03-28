@@ -15,7 +15,10 @@ class RichTextWidget {
     this.pendingContent = '';
     this.isDisplayMode = false;
     const appModeUtils = window.TeacherScreenAppMode || {};
-    this.isProjectorMode = appModeUtils.isProjectorMode || (() => window.APP_MODE === 'projector');
+    this.isProjectorMode = appModeUtils.isProjectorMode || (() => (
+      window.APP_MODE === 'projector'
+      || document.body?.classList.contains('projector-view')
+    ));
     this.element = document.createElement('div');
     this.element.className = 'rich-text-widget-inner';
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
