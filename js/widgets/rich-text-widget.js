@@ -61,7 +61,10 @@ class RichTextWidget {
         [{ header: [2, 3, false] }],
         [{ size: ['small', false, 'large', 'huge'] }],
         ['bold', 'italic', 'underline', 'strike'],
+        ['link'],
         [{ color: [] }, { background: [] }],
+        [{ align: [] }],
+        [{ indent: '-1' }, { indent: '+1' }],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['clean']
       ];
