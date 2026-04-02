@@ -32,8 +32,16 @@ class RichTextWidget {
     this.controlsOverlay = document.createElement('div');
     this.controlsOverlay.className = 'widget-content-controls rich-text-settings-controls';
 
+    this.templateLabel = document.createElement('p');
+    this.templateLabel.className = 'rich-text-controls-label';
+    this.templateLabel.textContent = 'Quick Blocks';
+
     this.templateControls = document.createElement('div');
     this.templateControls.className = 'rich-text-controls';
+
+    this.modeLabel = document.createElement('p');
+    this.modeLabel.className = 'rich-text-controls-label';
+    this.modeLabel.textContent = 'Presentation';
 
     this.modeControls = document.createElement('div');
     this.modeControls.className = 'rich-text-controls rich-text-controls--modes';
@@ -85,7 +93,9 @@ class RichTextWidget {
     this.modeHint = document.createElement('p');
     this.modeHint.className = 'rich-text-mode-hint';
 
+    this.controlsOverlay.appendChild(this.templateLabel);
     this.controlsOverlay.appendChild(this.templateControls);
+    this.controlsOverlay.appendChild(this.modeLabel);
     this.controlsOverlay.appendChild(this.modeControls);
     this.controlsOverlay.appendChild(this.modeHint);
     this.updateDisplayModeUI();
@@ -95,11 +105,26 @@ class RichTextWidget {
     this.dragHandle.textContent = 'Drag to move';
     this.dragHandle.setAttribute('role', 'presentation');
 
+    this.editorHeader = document.createElement('div');
+    this.editorHeader.className = 'rich-text-editor-header';
+
+    this.editorTitle = document.createElement('div');
+    this.editorTitle.className = 'rich-text-editor-title';
+    this.editorTitle.textContent = 'Rich Text Board';
+
+    this.editorStatus = document.createElement('span');
+    this.editorStatus.className = 'rich-text-editor-status';
+    this.editorStatus.textContent = 'Editing';
+
+    this.editorHeader.appendChild(this.editorTitle);
+    this.editorHeader.appendChild(this.editorStatus);
+
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
     this.editorContainer.style.height = '100%';
 
     this.element.appendChild(this.dragHandle);
+    this.element.appendChild(this.editorHeader);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {
@@ -125,6 +150,7 @@ class RichTextWidget {
 
       this.quill = new Quill(this.editorContainer, {
         theme: 'snow',
+        placeholder: 'Write instructions, examples, or a lesson outline...',
         modules: {
           toolbar: {
             container: toolbarOptions
@@ -263,6 +289,14 @@ class RichTextWidget {
       this.modeHint.textContent = this.isDisplayMode
         ? modeLabels[this.presentationMode] || modeLabels.normal
         : 'Choose a format, then switch to Display when you are ready to present.';
+    }
+
+    if (this.editorStatus) {
+      this.editorStatus.textContent = this.isProjectorMode()
+        ? 'Projector View'
+        : this.isDisplayMode
+          ? modeLabels[this.presentationMode] || modeLabels.normal
+          : 'Editing';
     }
 
     if (this.quill) {
