@@ -16,7 +16,13 @@ class BackgroundManager {
       ],
       image: [
         'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600',
-        'https://images.unsplash.com/photo-1493514789931-586cb221d7a7?w=1600'
+        'https://images.unsplash.com/photo-1493514789931-586cb221d7a7?w=1600',
+        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1600',
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600',
+        'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=1600',
+        'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=1600',
+        'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1600',
+        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600'
       ]
     };
     this.currentBackground = { ...this.defaultBackground };
