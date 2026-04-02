@@ -778,12 +778,17 @@ class ClassroomScreenApp {
     }
 
     updateCurrentSectionLabel(tab) {
-        if (!this.currentSectionName) {
-            return;
+        const selectedTab = Array.from(this.navTabs).find((navTab) => navTab.dataset.tab === tab);
+        const sectionLabel = selectedTab?.textContent?.trim() || 'Classroom';
+
+        if (this.currentSectionName) {
+            this.currentSectionName.textContent = sectionLabel;
         }
 
-        const selectedTab = Array.from(this.navTabs).find((navTab) => navTab.dataset.tab === tab);
-        this.currentSectionName.textContent = selectedTab?.textContent?.trim() || 'Classroom';
+        if (this.sectionsToggleButton) {
+            this.sectionsToggleButton.setAttribute('aria-label', `Sections menu, current section ${sectionLabel}`);
+            this.sectionsToggleButton.title = `Current section: ${sectionLabel}`;
+        }
     }
 
     toggleSectionsMenu(forceOpen = null) {

@@ -139,60 +139,32 @@ details:focus-visible,
 
 #app-container {
     width: 100vw;
-    height: calc(100vh - var(--top-nav-height, 48px));
+    height: 100vh;
     position: relative;
     display: flex;
     flex-direction: column;
-    margin-top: var(--top-nav-height, 48px);
+    margin-top: 0;
 }
 
 /* Top Navigation Bar */
 #top-nav {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: var(--top-nav-height, 48px);
-    background: color-mix(in srgb, var(--card-background, #ffffff) 96%, var(--accent) 4%);
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08), var(--shadow-soft, 0 2px 5px rgba(0,0,0,0.1));
-    display: flex;
-    align-items: center;
-    padding: 0 clamp(14px, 3vw, 24px);
+    top: 12px;
+    left: 12px;
+    width: auto;
+    height: auto;
+    background: transparent;
+    box-shadow: none;
+    display: block;
+    padding: 0;
     z-index: 1100;
-    border-bottom: 1px solid var(--border-soft-2);
+    border: 0;
+    pointer-events: none;
 }
 
 .top-nav-shell {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    width: 100%;
-}
-
-.top-nav-current {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-}
-
-.top-nav-current__label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-secondary, #64748b);
-    white-space: nowrap;
-}
-
-.top-nav-current__value {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-primary, #0f172a);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: block;
+    pointer-events: auto;
 }
 
 .sections-menu-wrap {
@@ -213,6 +185,7 @@ details:focus-visible,
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.1));
     transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
                 border-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
                 box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
@@ -228,7 +201,7 @@ details:focus-visible,
 .sections-menu {
     position: absolute;
     top: calc(100% + 8px);
-    right: 0;
+    left: 0;
     width: min(280px, calc(100vw - 24px));
     padding: 10px;
     border: 1px solid var(--border-soft-2);
@@ -539,11 +512,11 @@ details:focus-visible,
 /* Teacher Panel */
 .teacher-panel {
     position: fixed;
-    top: var(--top-nav-height, 48px);
+    top: 0;
     right: 0;
     width: 35%;
     max-width: 450px;
-    height: calc(100dvh - var(--top-nav-height, 48px));
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg,
@@ -562,10 +535,10 @@ details:focus-visible,
 
 .panel-backdrop {
     position: fixed;
-    top: var(--top-nav-height, 48px);
+    top: 0;
     left: 0;
     width: 100%;
-    height: calc(100dvh - var(--top-nav-height, 48px));
+    height: 100dvh;
     background: rgba(0,0,0,0.5);
     z-index: 1040;
     opacity: 0;
@@ -2556,7 +2529,7 @@ body.projector-view .rich-text-widget-inner[data-presentation-mode="focus"] .ql-
 
 .rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode {
     position: fixed;
-    inset: var(--top-nav-height, 48px) 0 0;
+    inset: 0;
     z-index: 1200;
     border-radius: 0;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, var(--card-background, #ffffff) 8%);
