@@ -89,10 +89,18 @@ class BackgroundManager {
     this.applyBackground();
   }
   
-  setBackground(type, value) {
-    this.currentBackground = { type, value, source: 'custom' };
+  setBackground(type, value, options = {}) {
+    this.currentBackground = {
+      type,
+      value,
+      source: options.source || 'custom'
+    };
     this.applyBackground();
     this.saveBackground();
+  }
+
+  setCustomImage(value) {
+    this.setBackground('image', value, { source: 'custom-upload' });
   }
   
   applyBackground() {
@@ -166,7 +174,21 @@ class BackgroundManager {
   }
 
   getAvailableBackgrounds() {
-    return this.backgrounds;
+    const backgrounds = {
+      solid: [...this.backgrounds.solid],
+      gradient: [...this.backgrounds.gradient],
+      image: [...this.backgrounds.image]
+    };
+
+    if (this.currentBackground?.type === 'image'
+      && this.currentBackground?.source === 'custom-upload'
+      && typeof this.currentBackground.value === 'string'
+      && this.currentBackground.value
+      && !backgrounds.image.includes(this.currentBackground.value)) {
+      backgrounds.image.unshift(this.currentBackground.value);
+    }
+
+    return backgrounds;
   }
 
   reset(themeName = this.currentTheme) {

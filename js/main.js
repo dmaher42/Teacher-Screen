@@ -2543,6 +2543,28 @@ class ClassroomScreenApp {
         if (!this.backgroundSelector) return;
         this.backgroundSelector.innerHTML = '';
         const backgrounds = this.backgroundManager.getAvailableBackgrounds();
+        const currentBackground = this.backgroundManager.serialize();
+
+        const uploadInput = document.createElement('input');
+        uploadInput.type = 'file';
+        uploadInput.accept = 'image/*';
+        uploadInput.hidden = true;
+
+        uploadInput.addEventListener('change', (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            this.handleCustomBackgroundUpload(file);
+            event.target.value = '';
+        });
+
+        const uploadButton = document.createElement('button');
+        uploadButton.type = 'button';
+        uploadButton.className = 'background-upload-button';
+        uploadButton.textContent = 'Upload';
+        uploadButton.addEventListener('click', () => uploadInput.click());
+
+        this.backgroundSelector.appendChild(uploadInput);
+        this.backgroundSelector.appendChild(uploadButton);
 
         for (const type in backgrounds) {
             backgrounds[type].forEach((value, index) => {
@@ -2558,6 +2580,10 @@ class ClassroomScreenApp {
                             ? `Gradient background ${index + 1}`
                             : `Image background ${index + 1}`
                 );
+
+                if (currentBackground?.type === type && currentBackground?.value === value) {
+                    swatch.classList.add('is-selected');
+                }
 
                 if (type === 'solid') {
                     swatch.style.backgroundColor = value;
@@ -2585,6 +2611,37 @@ class ClassroomScreenApp {
                 this.backgroundSelector.appendChild(swatch);
             });
         }
+    }
+
+    handleCustomBackgroundUpload(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            this.showNotification('Choose an image file for the classroom background.', 'warning');
+            return;
+        }
+
+        const maxBytes = 2 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            this.showNotification('Please choose an image under 2 MB.', 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = typeof reader.result === 'string' ? reader.result : '';
+            if (!result) {
+                this.showNotification('That image could not be loaded.', 'error');
+                return;
+            }
+
+            this.backgroundManager.setCustomImage(result);
+            this.renderBackgroundSelector();
+            this.saveState();
+            this.showNotification('Custom background added.', 'success');
+        };
+        reader.onerror = () => {
+            this.showNotification('That image could not be loaded.', 'error');
+        };
+        reader.readAsDataURL(file);
     }
 
     showNotification(message, type = 'success') {
