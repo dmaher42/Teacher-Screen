@@ -214,7 +214,7 @@ class NotesWidget {
         this.editorContainer = document.createElement('div');
         this.editorContainer.id = 'editor-container-' + Math.random().toString(36).substr(2, 9);
         this.editorContainer.style.flex = '1';
-        this.editorContainer.style.backgroundColor = '#fff';
+        this.editorContainer.style.backgroundColor = 'var(--card-background, #ffffff)';
         this.editorContainerWrapper.appendChild(this.editorContainer);
 
         const controlBar = document.createElement('div');

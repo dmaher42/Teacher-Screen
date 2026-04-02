@@ -48,10 +48,25 @@ const THEMES = [
     'theme-light'
 ];
 
+const THEME_META_COLORS = {
+    'theme-light': '#ffffff',
+    'theme-ocean': '#0f172a',
+    'theme-professional': '#111827'
+};
+
+function syncDocumentThemeColor(themeName) {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+        metaTheme.setAttribute('content', THEME_META_COLORS[themeName] || THEME_META_COLORS['theme-professional']);
+    }
+}
+
 function applyTheme(themeName) {
     const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
     THEMES.forEach(theme => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
+    document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';
+    syncDocumentThemeColor(nextTheme);
     localStorage.setItem('selectedTheme', nextTheme);
 }
 
@@ -266,14 +281,13 @@ class ClassroomScreenApp {
             console.error('State restore failed. Resetting application state.', error);
             resetAppState();
         }
-        this.backgroundManager.init();
+        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
+        this.switchTheme(savedTheme);
+        this.backgroundManager.init(savedTheme);
         this.layoutManager.init();
         this.updateProjectorVisibility();
         this.setupPresetControls();
         this.renderBackgroundSelector();
-
-        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
-        this.switchTheme(savedTheme);
 
         this.renderThemeSelector();
         this.renderWidgetModal();
@@ -1016,6 +1030,10 @@ class ClassroomScreenApp {
     }
 
     renderThemeSelector() {
+        if (!this.themeSelector) {
+            return;
+        }
+
         this.themeSelector.innerHTML = '';
         this.themes.forEach(theme => {
             const label = document.createElement('label');
@@ -1035,8 +1053,22 @@ class ClassroomScreenApp {
         });
     }
 
+    syncThemeSelectorSelection(themeName) {
+        if (!this.themeSelector) {
+            return;
+        }
+
+        this.themeSelector.querySelectorAll('input[name="theme"]').forEach((input) => {
+            input.checked = input.value === themeName;
+        });
+    }
+
     switchTheme(themeName) {
         applyTheme(themeName);
+        this.syncThemeSelectorSelection(themeName);
+        if (this.backgroundManager && typeof this.backgroundManager.syncTheme === 'function') {
+            this.backgroundManager.syncTheme(themeName);
+        }
     }
 
     getLayoutStorageKey(name) {

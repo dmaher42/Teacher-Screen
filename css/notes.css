@@ -1,6 +1,6 @@
 #link-to-planner-btn {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color, #8e82ff), var(--secondary-color, #6b7280));
+    color: var(--text-on-accent, #ffffff);
     border: none;
     padding: 8px 16px;
     border-radius: 8px;
@@ -25,9 +25,10 @@
     width: 600px !important;
     height: 400px !important;
     z-index: 2000 !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-elevated, 0 10px 40px rgba(0, 0, 0, 0.3));
     border-radius: 12px;
-    background: #fff;
+    background: var(--card-background, #ffffff);
+    color: var(--text-color, #333);
     overflow: hidden;
     /* Reset any inherited grid placement if possible, though 'fixed' handles it */
 }
@@ -40,7 +41,7 @@
     left: -50vw;
     width: 200vw;
     height: 200vh;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--overlay-backdrop, rgba(0, 0, 0, 0.4));
     z-index: -1;
     pointer-events: all; /* Catch clicks? */
 }
@@ -66,7 +67,7 @@
 }
 
 .notes-expanded-header button:hover {
-    color: #e74c3c;
-    background-color: rgba(0,0,0,0.05);
+    color: var(--text-danger, #991b1b);
+    background-color: var(--surface-subtle, rgba(0,0,0,0.05));
     border-radius: 50%;
 }

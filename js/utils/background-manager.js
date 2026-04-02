@@ -1,7 +1,13 @@
 class BackgroundManager {
   constructor(containerElement) {
     this.container = containerElement;
-    this.defaultBackground = { type: 'color', value: '#1f2937' };
+    this.currentTheme = 'theme-professional';
+    this.themeDefaults = {
+      'theme-light': { type: 'solid', value: '#ffffff', source: 'theme-default' },
+      'theme-ocean': { type: 'solid', value: '#0f172a', source: 'theme-default' },
+      'theme-professional': { type: 'solid', value: '#111827', source: 'theme-default' }
+    };
+    this.defaultBackground = this.getThemeDefaultBackground(this.currentTheme);
     this.backgrounds = {
       solid: ['#ffffff', '#f0f0f0', '#e6f3f7'],
       gradient: [
@@ -14,6 +20,21 @@ class BackgroundManager {
       ]
     };
     this.currentBackground = { ...this.defaultBackground };
+  }
+
+  getThemeDefaultBackground(themeName = 'theme-professional') {
+    const defaultBackground = this.themeDefaults[themeName] || this.themeDefaults['theme-professional'];
+    return {
+      ...defaultBackground,
+      theme: themeName
+    };
+  }
+
+  isLegacyDefaultBackground(data) {
+    if (!data || typeof data !== 'object') return false;
+    const type = data.type || '';
+    const value = String(data.value || '').trim().toLowerCase();
+    return (type === 'color' || type === 'solid') && value === '#1f2937' && !data.source;
   }
 
   safeParseLocalStorage(key) {
@@ -34,7 +55,10 @@ class BackgroundManager {
     return ['color', 'solid', 'gradient', 'image'].includes(data.type);
   }
   
-  init() {
+  init(themeName = this.currentTheme) {
+    this.currentTheme = themeName;
+    this.defaultBackground = this.getThemeDefaultBackground(themeName);
+
     // Load saved background if available
     const savedBackground = this.safeParseLocalStorage('background');
     if (!savedBackground || !this.isValidBackground(savedBackground)) {
@@ -45,12 +69,22 @@ class BackgroundManager {
       return;
     }
 
-    this.currentBackground = savedBackground;
+    if (savedBackground.source === 'theme-default' || this.isLegacyDefaultBackground(savedBackground)) {
+      this.currentBackground = { ...this.defaultBackground };
+      this.saveBackground();
+      this.applyBackground();
+      return;
+    }
+
+    this.currentBackground = {
+      ...savedBackground,
+      source: savedBackground.source || 'custom'
+    };
     this.applyBackground();
   }
   
   setBackground(type, value) {
-    this.currentBackground = { type, value };
+    this.currentBackground = { type, value, source: 'custom' };
     this.applyBackground();
     this.saveBackground();
   }
@@ -78,6 +112,17 @@ class BackgroundManager {
   saveBackground() {
     localStorage.setItem('background', JSON.stringify(this.currentBackground));
   }
+
+  syncTheme(themeName) {
+    this.currentTheme = themeName || this.currentTheme;
+    this.defaultBackground = this.getThemeDefaultBackground(this.currentTheme);
+
+    if (this.currentBackground?.source === 'theme-default' || this.isLegacyDefaultBackground(this.currentBackground)) {
+      this.currentBackground = { ...this.defaultBackground };
+      this.applyBackground();
+      this.saveBackground();
+    }
+  }
   
   serialize() {
     return this.currentBackground;
@@ -89,18 +134,22 @@ class BackgroundManager {
     // Support older shape: { type, settings: { ... } }
     if (data.settings) {
       if (data.type === 'solid') {
-        this.currentBackground = { type: 'solid', value: data.settings.color || '#ffffff' };
+        this.currentBackground = { type: 'solid', value: data.settings.color || '#ffffff', source: 'custom' };
       } else if (data.type === 'gradient') {
         const { start, end } = data.settings;
         this.currentBackground = {
           type: 'gradient',
-          value: `linear-gradient(120deg, ${start} 0%, ${end} 100%)`
+          value: `linear-gradient(120deg, ${start} 0%, ${end} 100%)`,
+          source: 'custom'
         };
       } else {
-        this.currentBackground = { type: data.type, value: data.settings.url || '' };
+        this.currentBackground = { type: data.type, value: data.settings.url || '', source: 'custom' };
       }
     } else if (this.isValidBackground(data)) {
-      this.currentBackground = data;
+      this.currentBackground = {
+        ...data,
+        source: data.source || 'custom'
+      };
     } else {
       this.currentBackground = { ...this.defaultBackground };
       localStorage.removeItem('background');
@@ -114,7 +163,9 @@ class BackgroundManager {
     return this.backgrounds;
   }
 
-  reset() {
+  reset(themeName = this.currentTheme) {
+    this.currentTheme = themeName;
+    this.defaultBackground = this.getThemeDefaultBackground(themeName);
     this.currentBackground = { ...this.defaultBackground };
     this.applyBackground();
     this.saveBackground();

@@ -359,11 +359,21 @@ const initializeRevealSyncListener = () => {
  */
 
 const THEMES = ['theme-ocean', 'theme-professional', 'theme-light'];
+const THEME_META_COLORS = {
+    'theme-light': '#ffffff',
+    'theme-ocean': '#0f172a',
+    'theme-professional': '#111827'
+};
 
 function applyTheme(themeName) {
     const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
     THEMES.forEach(theme => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
+    document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+        metaTheme.setAttribute('content', THEME_META_COLORS[nextTheme] || THEME_META_COLORS['theme-professional']);
+    }
 }
 
 class ProjectorApp {
