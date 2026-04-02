@@ -107,7 +107,6 @@ class RichTextWidget {
 
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
-    this.editorContainer.style.height = '100%';
 
     this.element.appendChild(this.dragHandle);
     this.element.appendChild(this.editorContainer);
