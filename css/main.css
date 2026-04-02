@@ -895,9 +895,24 @@ details:focus-visible,
     background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
 }
 
+.presentation-saved-panel {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+}
+
 .presentation-link-row {
     display: grid;
     grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+    gap: 10px;
+}
+
+.presentation-saved-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
 }
 

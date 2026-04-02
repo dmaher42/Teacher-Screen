@@ -166,6 +166,10 @@ class ClassroomScreenApp {
         this.presentationLinkHint = document.getElementById('presentation-link-hint');
         this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
         this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
+        this.presentationSavedSelect = document.getElementById('presentation-saved-select');
+        this.presentationSavedHint = document.getElementById('presentation-saved-hint');
+        this.presentationOpenSavedButton = document.getElementById('presentation-open-saved-btn');
+        this.presentationOpenSavedProjectorButton = document.getElementById('presentation-open-saved-projector-btn');
         this.presentationManageButton = document.getElementById('presentation-manage-btn');
         this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
         this.presentationPrevButton = document.getElementById('presentation-prev-btn');
@@ -301,6 +305,7 @@ class ClassroomScreenApp {
         this.initializeSavedNotes();
         this.syncTimerControlsFromWidget();
         this.syncPresentationControlsFromWidget();
+        this.renderPresentationSavedDeckOptions();
 
         this.showWelcomeTourIfNeeded();
 
@@ -350,6 +355,10 @@ class ClassroomScreenApp {
 
         this.subscribeToEventBus('presentation:state-changed', (payload = {}) => {
             this.syncPresentationControlsFromPayload(payload);
+        });
+
+        this.subscribeToEventBus('presentation:saved-decks-changed', ({ decks = null } = {}) => {
+            this.renderPresentationSavedDeckOptions(decks);
         });
 
         this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
@@ -572,6 +581,22 @@ class ClassroomScreenApp {
         if (this.presentationOpenProjectorLinkButton) {
             this.presentationOpenProjectorLinkButton.addEventListener('click', () => {
                 void this.openPresentationLinkFromPanel({ openProjector: true });
+            });
+        }
+
+        if (this.presentationSavedSelect) {
+            this.presentationSavedSelect.addEventListener('change', () => this.updatePresentationSavedActions());
+        }
+
+        if (this.presentationOpenSavedButton) {
+            this.presentationOpenSavedButton.addEventListener('click', () => {
+                void this.openSavedPresentationFromPanel();
+            });
+        }
+
+        if (this.presentationOpenSavedProjectorButton) {
+            this.presentationOpenSavedProjectorButton.addEventListener('click', () => {
+                void this.openSavedPresentationFromPanel({ openProjector: true });
             });
         }
 
@@ -2377,6 +2402,82 @@ class ClassroomScreenApp {
         return this.widgets.find(widget => this.isRevealManagerWidget(widget)) || null;
     }
 
+    getSavedPresentationDecks(rawDecks = null) {
+        let decks = rawDecks;
+        if (!Array.isArray(decks)) {
+            try {
+                const parsed = JSON.parse(localStorage.getItem('revealDecks') || '[]');
+                decks = Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                decks = [];
+            }
+        }
+
+        return decks
+            .filter((deck) => deck && typeof deck === 'object' && deck.id)
+            .map((deck) => {
+                const type = deck.type === 'google-slides' || deck.type === 'powerpoint' ? deck.type : 'html';
+                const label = type === 'google-slides'
+                    ? 'Google Slides'
+                    : type === 'powerpoint'
+                        ? 'PowerPoint'
+                        : 'Reveal HTML';
+                const name = typeof deck.name === 'string' && deck.name.trim()
+                    ? deck.name.trim()
+                    : label;
+
+                return {
+                    id: Number(deck.id),
+                    type,
+                    label,
+                    name
+                };
+            })
+            .filter((deck) => Number.isFinite(deck.id) && deck.id > 0);
+    }
+
+    renderPresentationSavedDeckOptions(rawDecks = null) {
+        if (!this.presentationSavedSelect) {
+            return;
+        }
+
+        const savedDecks = this.getSavedPresentationDecks(rawDecks);
+        const selectedValue = this.presentationSavedSelect.value;
+        this.presentationSavedSelect.innerHTML = '<option value="">Select saved presentation</option>';
+
+        savedDecks.forEach((deck) => {
+            const option = document.createElement('option');
+            option.value = String(deck.id);
+            option.textContent = `${deck.name} - ${deck.label}`;
+            this.presentationSavedSelect.appendChild(option);
+        });
+
+        if (selectedValue && savedDecks.some((deck) => String(deck.id) === selectedValue)) {
+            this.presentationSavedSelect.value = selectedValue;
+        }
+
+        const hasSavedDecks = savedDecks.length > 0;
+        if (this.presentationSavedHint) {
+            this.presentationSavedHint.textContent = hasSavedDecks
+                ? 'Saved decks from Reveal Manager appear here so you can reopen them from Teacher Controls.'
+                : 'Save a deck in Reveal Manager and it will appear here for quick reopening.';
+        }
+
+        this.updatePresentationSavedActions(hasSavedDecks);
+    }
+
+    updatePresentationSavedActions(hasSavedDecks = this.presentationSavedSelect?.options?.length > 1) {
+        const hasSelection = !!this.presentationSavedSelect?.value;
+
+        if (this.presentationOpenSavedButton) {
+            this.presentationOpenSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+
+        if (this.presentationOpenSavedProjectorButton) {
+            this.presentationOpenSavedProjectorButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+    }
+
     detectPresentationSourceTypeFromUrl(url = '') {
         const raw = String(url || '').trim();
         if (!raw) {
@@ -2604,6 +2705,7 @@ class ClassroomScreenApp {
     }
 
     syncPresentationControlsFromWidget(widget = this.getPrimaryRevealManagerWidget()) {
+        this.renderPresentationSavedDeckOptions();
         this.renderPresentationControlState(this.buildPresentationControlState(widget));
     }
 
@@ -2640,6 +2742,16 @@ class ClassroomScreenApp {
         }));
     }
 
+    async ensureRevealManagerWidget() {
+        let presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.addWidget('reveal-manager');
+            presentationWidget = this.getPrimaryRevealManagerWidget();
+        }
+
+        return presentationWidget;
+    }
+
     async openPresentationLinkFromPanel({ openProjector = false } = {}) {
         const sourceType = this.presentationSourceTypeSelect?.value || 'google-slides';
         const sourceUrl = this.presentationSourceUrlInput?.value?.trim() || '';
@@ -2651,11 +2763,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        let presentationWidget = this.getPrimaryRevealManagerWidget();
-        if (!presentationWidget) {
-            this.addWidget('reveal-manager');
-            presentationWidget = this.getPrimaryRevealManagerWidget();
-        }
+        const presentationWidget = await this.ensureRevealManagerWidget();
 
         if (!presentationWidget) {
             this.showNotification('Unable to create a Reveal Manager widget.', 'error');
@@ -2693,6 +2801,47 @@ class ClassroomScreenApp {
         }
 
         this.showNotification(`${sourceLabel} link loaded in Reveal Manager.`, 'success');
+    }
+
+    async openSavedPresentationFromPanel({ openProjector = false } = {}) {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation launch yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadSavedDeckById(selectedId);
+        if (!loaded) {
+            this.showNotification('Unable to load that saved presentation.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (openProjector && typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+            this.showNotification('Saved presentation opened on the projector.', 'success');
+            return;
+        }
+
+        this.showNotification('Saved presentation loaded in Reveal Manager.', 'success');
     }
 
     openPresentationProjectorFromPanel() {

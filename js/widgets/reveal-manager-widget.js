@@ -233,6 +233,16 @@ class RevealManagerWidget {
         eventBus.emit('presentation:state-changed', this.getPresentationStateSnapshot());
     }
 
+    emitSavedDecksChanged() {
+        if (!eventBus || typeof eventBus.emit !== 'function') {
+            return;
+        }
+
+        eventBus.emit('presentation:saved-decks-changed', {
+            decks: this.getSavedDecks()
+        });
+    }
+
     getSourceTypeLabel(type = 'html') {
         return this.sourceTypes.find((item) => item.value === type)?.label || 'Reveal HTML';
     }
@@ -596,6 +606,7 @@ class RevealManagerWidget {
 
     saveDecks(decks) {
         localStorage.setItem(this.storageKey, JSON.stringify(decks));
+        this.emitSavedDecksChanged();
     }
 
     normalizeStoredDeck(deck) {
@@ -656,6 +667,15 @@ class RevealManagerWidget {
         if (selectedValue) {
             this.savedSelect.value = selectedValue;
         }
+    }
+
+    getSavedDeckById(deckId) {
+        const normalizedId = Number(deckId);
+        if (!normalizedId) {
+            return null;
+        }
+
+        return this.getSavedDecks().find((item) => Number(item?.id) === normalizedId) || null;
     }
 
     updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalHint) {
@@ -1202,7 +1222,7 @@ class RevealManagerWidget {
             return;
         }
 
-        const deck = this.getSavedDecks().find((item) => item.id === selectedId);
+        const deck = this.getSavedDeckById(selectedId);
         const normalized = this.normalizeStoredDeck(deck);
 
         if (!normalized) {
@@ -1216,6 +1236,24 @@ class RevealManagerWidget {
         this.htmlInput.value = normalized.content || '';
         this.updateSourceFields();
         this.launchDeck(normalized, { preserveIndices: false });
+    }
+
+    async loadSavedDeckById(deckId) {
+        const deck = this.getSavedDeckById(deckId);
+        const normalized = this.normalizeStoredDeck(deck);
+
+        if (!normalized) {
+            this.setStatus('That saved deck is not supported in the rebuilt widget.');
+            return false;
+        }
+
+        this.deckNameInput.value = normalized.name;
+        this.sourceTypeSelect.value = normalized.type || 'html';
+        this.externalUrlInput.value = normalized.sourceUrl || '';
+        this.htmlInput.value = normalized.content || '';
+        this.updateSourceFields();
+        await this.launchDeck(normalized, { preserveIndices: false });
+        return !!this.activeDeck;
     }
 
     handleRenameDeck() {
