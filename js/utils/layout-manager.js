@@ -751,6 +751,7 @@ class LayoutManager {
       if (!this.editable) return;
 
       if (e.target.classList.contains('resize-handle') ||
+          e.target.tagName === 'CANVAS' ||
           e.target.tagName === 'INPUT' ||
           e.target.tagName === 'BUTTON' ||
           e.target.tagName === 'SELECT' ||
