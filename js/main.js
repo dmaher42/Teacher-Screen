@@ -165,6 +165,7 @@ class ClassroomScreenApp {
         this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
         this.presentationLinkHint = document.getElementById('presentation-link-hint');
         this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
+        this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
         this.presentationManageButton = document.getElementById('presentation-manage-btn');
         this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
         this.presentationPrevButton = document.getElementById('presentation-prev-btn');
@@ -557,9 +558,20 @@ class ClassroomScreenApp {
             this.presentationSourceTypeSelect.addEventListener('change', () => this.updatePresentationLinkInputs());
         }
 
+        if (this.presentationSourceUrlInput) {
+            this.presentationSourceUrlInput.addEventListener('input', () => this.syncPresentationSourceTypeFromUrl());
+            this.presentationSourceUrlInput.addEventListener('blur', () => this.syncPresentationSourceTypeFromUrl());
+        }
+
         if (this.presentationOpenLinkButton) {
             this.presentationOpenLinkButton.addEventListener('click', () => {
                 void this.openPresentationLinkFromPanel();
+            });
+        }
+
+        if (this.presentationOpenProjectorLinkButton) {
+            this.presentationOpenProjectorLinkButton.addEventListener('click', () => {
+                void this.openPresentationLinkFromPanel({ openProjector: true });
             });
         }
 
@@ -2365,6 +2377,57 @@ class ClassroomScreenApp {
         return this.widgets.find(widget => this.isRevealManagerWidget(widget)) || null;
     }
 
+    detectPresentationSourceTypeFromUrl(url = '') {
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return null;
+        }
+
+        let normalizedUrl = raw;
+        if (!/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = `https://${normalizedUrl}`;
+        }
+
+        try {
+            const parsed = new URL(normalizedUrl);
+            const hostname = parsed.hostname.toLowerCase();
+            const pathname = parsed.pathname.toLowerCase();
+
+            if (hostname.includes('docs.google.com') && pathname.includes('/presentation')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('slides.google.com')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('sharepoint.com')
+                || pathname.includes('.ppt')
+                || pathname.includes('.pptx')) {
+                return 'powerpoint';
+            }
+        } catch (error) {
+            return null;
+        }
+
+        return null;
+    }
+
+    syncPresentationSourceTypeFromUrl() {
+        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(this.presentationSourceUrlInput?.value || '');
+        if (!detectedSourceType || !this.presentationSourceTypeSelect) {
+            return;
+        }
+
+        if (this.presentationSourceTypeSelect.value !== detectedSourceType) {
+            this.updatePresentationLinkInputs(detectedSourceType);
+        }
+    }
+
     updatePresentationLinkInputs(sourceType = this.presentationSourceTypeSelect?.value || 'google-slides') {
         const normalizedSourceType = sourceType === 'powerpoint' ? 'powerpoint' : 'google-slides';
         const sourceLabel = normalizedSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
@@ -2396,6 +2459,10 @@ class ClassroomScreenApp {
 
         if (this.presentationOpenLinkButton) {
             this.presentationOpenLinkButton.textContent = `Open ${sourceLabel} Link`;
+        }
+
+        if (this.presentationOpenProjectorLinkButton) {
+            this.presentationOpenProjectorLinkButton.textContent = `Open ${sourceLabel} And Project`;
         }
     }
 
@@ -2573,7 +2640,7 @@ class ClassroomScreenApp {
         }));
     }
 
-    async openPresentationLinkFromPanel() {
+    async openPresentationLinkFromPanel({ openProjector = false } = {}) {
         const sourceType = this.presentationSourceTypeSelect?.value || 'google-slides';
         const sourceUrl = this.presentationSourceUrlInput?.value?.trim() || '';
         const deckName = this.presentationSourceNameInput?.value?.trim() || '';
@@ -2613,6 +2680,18 @@ class ClassroomScreenApp {
 
         this.handleNavClick('classroom');
         this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (openProjector && typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+            this.showNotification(`${sourceLabel} link loaded and opened on the projector.`, 'success');
+            return;
+        }
+
         this.showNotification(`${sourceLabel} link loaded in Reveal Manager.`, 'success');
     }
 

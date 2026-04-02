@@ -908,6 +908,10 @@ details:focus-visible,
     color: color-mix(in srgb, var(--text-color, #333) 66%, #64748b 34%);
 }
 
+.presentation-link-actions {
+    margin-top: 2px;
+}
+
 @media (max-width: 720px) {
     .presentation-link-row {
         grid-template-columns: 1fr;

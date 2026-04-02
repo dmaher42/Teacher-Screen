@@ -1254,12 +1254,11 @@ class RevealManagerWidget {
     openProjector() {
         if (!this.activeDeck) {
             this.setStatus('Load a deck before opening the projector.');
-            return;
+            return false;
         }
 
         if (this.activeDeck.type !== 'html') {
-            this.openExternalSourceWindow(this.activeDeck);
-            return;
+            return this.openExternalSourceWindow(this.activeDeck);
         }
 
         const projectorUrl = new URL('projector.html', window.location.href);
@@ -1282,29 +1281,31 @@ class RevealManagerWidget {
 
         if (!this.projectorWindow) {
             this.setStatus('Projector popup blocked.');
-            return;
+            return false;
         }
 
         this.setStatus('Projector opening...');
         window.setTimeout(() => this.broadcastSlideSync(), 500);
         window.setTimeout(() => this.broadcastSlideSync(), 1500);
+        return true;
     }
 
     openExternalSourceWindow(deck) {
         const sourceUrl = this.normalizeExternalUrl(deck?.sourceUrl || '');
         if (!sourceUrl) {
             this.setStatus('This external source does not have a usable URL yet.');
-            return;
+            return false;
         }
 
         const externalWindow = window.open(sourceUrl, 'projector', 'fullscreen=yes');
         if (!externalWindow) {
             this.setStatus('Projector popup blocked.');
-            return;
+            return false;
         }
 
         this.projectorWindow = externalWindow;
         this.setStatus(`${this.getSourceTypeLabel(deck.type)} opening in a projector window...`);
+        return true;
     }
 
     serialize() {
