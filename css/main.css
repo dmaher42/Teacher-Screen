@@ -1872,6 +1872,36 @@ body.widget-resize-active {
     gap: 6px;
 }
 
+.drawing-tool-controls .primary-actions {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.drawing-tool-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.drawing-tool-tool {
+    min-height: 26px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
+    background: transparent;
+    color: var(--text-color, #333);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.drawing-tool-tool.is-active {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
+    color: var(--primary-color, #2d81ff);
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 32%, #ffffff 68%);
+}
+
 .widget-control-bar .primary-actions button,
 .widget-control-bar .secondary-actions button {
     min-height: 26px;
