@@ -812,6 +812,49 @@ class RevealManagerWidget {
         return !!this.activeDeck;
     }
 
+    saveExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
+        const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
+        const normalizedUrl = this.normalizeExternalUrl(sourceUrl);
+        if (!normalizedUrl) {
+            this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+            return null;
+        }
+
+        const deckName = (name || this.getSourceTypeLabel(sourceType)).trim();
+        const decks = this.getSavedDecks();
+        const existingIndex = decks.findIndex((deck) => {
+            const normalizedDeck = this.normalizeStoredDeck(deck);
+            return normalizedDeck
+                && normalizedDeck.type === sourceType
+                && normalizedDeck.sourceUrl === normalizedUrl;
+        });
+
+        const nextDeck = {
+            id: existingIndex >= 0 ? Number(decks[existingIndex].id) || Date.now() : Date.now(),
+            name: deckName,
+            type: sourceType,
+            sourceUrl: normalizedUrl,
+            content: ''
+        };
+
+        if (existingIndex >= 0) {
+            decks[existingIndex] = nextDeck;
+        } else {
+            decks.push(nextDeck);
+        }
+
+        this.sourceTypeSelect.value = sourceType;
+        this.deckNameInput.value = deckName;
+        this.externalUrlInput.value = normalizedUrl;
+        this.htmlInput.value = '';
+        this.updateSourceFields();
+        this.saveDecks(decks);
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(nextDeck.id);
+        this.setStatus(existingIndex >= 0 ? 'Saved link updated.' : 'Saved link added.');
+        return nextDeck;
+    }
+
     wrapDeckMarkup(content) {
         const normalized = this.normalizeHtmlDeckContent(content);
         const hasRevealStructure = /class=["'][^"']*\breveal\b[^"']*["']/i.test(normalized)

@@ -164,6 +164,7 @@ class ClassroomScreenApp {
         this.presentationSourceNameInput = document.getElementById('presentation-source-name');
         this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
         this.presentationLinkHint = document.getElementById('presentation-link-hint');
+        this.presentationSaveLinkButton = document.getElementById('presentation-save-link-btn');
         this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
         this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
         this.presentationSavedSelect = document.getElementById('presentation-saved-select');
@@ -570,6 +571,12 @@ class ClassroomScreenApp {
         if (this.presentationSourceUrlInput) {
             this.presentationSourceUrlInput.addEventListener('input', () => this.syncPresentationSourceTypeFromUrl());
             this.presentationSourceUrlInput.addEventListener('blur', () => this.syncPresentationSourceTypeFromUrl());
+        }
+
+        if (this.presentationSaveLinkButton) {
+            this.presentationSaveLinkButton.addEventListener('click', () => {
+                void this.savePresentationLinkFromPanel();
+            });
         }
 
         if (this.presentationOpenLinkButton) {
@@ -2567,6 +2574,14 @@ class ClassroomScreenApp {
         }
     }
 
+    getPresentationLinkDraft() {
+        return {
+            sourceType: this.presentationSourceTypeSelect?.value || 'google-slides',
+            sourceUrl: this.presentationSourceUrlInput?.value?.trim() || '',
+            deckName: this.presentationSourceNameInput?.value?.trim() || ''
+        };
+    }
+
     formatPresentationSourceContext(sourceType = 'html', currentIndices = {}, sourceUrl = '') {
         if (sourceType === 'html') {
             const horizontalIndex = Number.isFinite(currentIndices?.h) ? currentIndices.h + 1 : 1;
@@ -2753,9 +2768,7 @@ class ClassroomScreenApp {
     }
 
     async openPresentationLinkFromPanel({ openProjector = false } = {}) {
-        const sourceType = this.presentationSourceTypeSelect?.value || 'google-slides';
-        const sourceUrl = this.presentationSourceUrlInput?.value?.trim() || '';
-        const deckName = this.presentationSourceNameInput?.value?.trim() || '';
+        const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
         const sourceLabel = sourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
 
         if (!sourceUrl) {
@@ -2801,6 +2814,45 @@ class ClassroomScreenApp {
         }
 
         this.showNotification(`${sourceLabel} link loaded in Reveal Manager.`, 'success');
+    }
+
+    async savePresentationLinkFromPanel() {
+        const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
+        const sourceLabel = sourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+
+        if (!sourceUrl) {
+            this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.saveExternalSource !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saving direct links yet.', 'error');
+            return;
+        }
+
+        const savedDeck = presentationWidget.saveExternalSource({
+            type: sourceType,
+            sourceUrl,
+            name: deckName
+        });
+
+        if (!savedDeck) {
+            this.showNotification(`Unable to save that ${sourceLabel} link.`, 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        if (this.presentationSavedSelect) {
+            this.presentationSavedSelect.value = String(savedDeck.id);
+        }
+        this.updatePresentationSavedActions();
+        this.showNotification(`${sourceLabel} link saved for quick access.`, 'success');
     }
 
     async openSavedPresentationFromPanel({ openProjector = false } = {}) {
