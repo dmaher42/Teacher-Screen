@@ -105,26 +105,11 @@ class RichTextWidget {
     this.dragHandle.textContent = 'Move';
     this.dragHandle.setAttribute('role', 'presentation');
 
-    this.editorHeader = document.createElement('div');
-    this.editorHeader.className = 'rich-text-editor-header';
-
-    this.editorTitle = document.createElement('div');
-    this.editorTitle.className = 'rich-text-editor-title';
-    this.editorTitle.textContent = 'Rich Text';
-
-    this.editorStatus = document.createElement('span');
-    this.editorStatus.className = 'rich-text-editor-status';
-    this.editorStatus.textContent = 'Edit';
-
-    this.editorHeader.appendChild(this.editorTitle);
-    this.editorHeader.appendChild(this.editorStatus);
-
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
     this.editorContainer.style.height = '100%';
 
     this.element.appendChild(this.dragHandle);
-    this.element.appendChild(this.editorHeader);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {
