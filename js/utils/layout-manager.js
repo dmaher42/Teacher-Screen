@@ -44,18 +44,20 @@ function isValidLayout(layout) {
 }
 
 const WIDGET_SIZE_RULES = {
-  TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
-  NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
-  QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 4 },
-  DrawingToolWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
-  DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 6, defaultH: 6 },
-  UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  TimerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
+  NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
+  QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
+  DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
+  DocumentViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
+  UrlViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   // Reveal manager uses standard grid sizing.
-  RevealManagerWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
-  PresentationWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
-  NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
-  WellbeingWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 4 },
-  RichTextWidget: { minW: 4, minH: 3 }
+  RevealManagerWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
+  PresentationWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
+  NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
+  WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
+  RichTextWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 5 },
+  MaskWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
+  NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
 
 class LayoutManager {
@@ -400,7 +402,7 @@ class LayoutManager {
      const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
      const defaultW = rules.defaultW || 3;
      const defaultH = rules.defaultH || 2;
-     const maxCols = 3;
+     const maxCols = Math.max(1, Math.floor((containerW + GRID_SIZE) / Math.max((colW * defaultW) + GRID_SIZE, GRID_SIZE)));
 
      // Default size uses widget-specific grid unit defaults when not provided.
      let finalW = width !== null ? width : colW * defaultW;
