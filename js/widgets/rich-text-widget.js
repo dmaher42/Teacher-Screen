@@ -28,6 +28,7 @@ class RichTextWidget {
     this.handleTextChange = this.handleTextChange.bind(this);
     this.handleTemplateButtonClick = this.handleTemplateButtonClick.bind(this);
     this.handleModeButtonClick = this.handleModeButtonClick.bind(this);
+    this.syncEditorLayout = this.syncEditorLayout.bind(this);
 
     this.controlsOverlay = document.createElement('div');
     this.controlsOverlay.className = 'widget-content-controls rich-text-settings-controls';
@@ -148,6 +149,7 @@ class RichTextWidget {
 
       this.quill.on('text-change', this.handleTextChange);
       this.updateDisplayModeUI();
+      requestAnimationFrame(this.syncEditorLayout);
     }, 0);
   }
 
@@ -246,7 +248,36 @@ class RichTextWidget {
 
     if (this.quill) {
       this.quill.root.innerHTML = this.pendingContent;
+      this.syncEditorLayout();
     }
+  }
+
+  onWidgetLayout() {
+    this.syncEditorLayout();
+  }
+
+  syncEditorLayout() {
+    if (!this.editorContainer) {
+      return;
+    }
+
+    const toolbar = this.editorContainer.querySelector('.ql-toolbar');
+    const editorShell = this.editorContainer.querySelector('.ql-container');
+    const editor = this.editorContainer.querySelector('.ql-editor');
+
+    if (!editorShell || !editor) {
+      return;
+    }
+
+    const toolbarHeight = toolbar?.offsetHeight || 0;
+    const availableHeight = this.editorContainer.clientHeight - toolbarHeight;
+
+    if (availableHeight <= 0) {
+      return;
+    }
+
+    editorShell.style.height = `${availableHeight}px`;
+    editor.style.minHeight = `${availableHeight}px`;
   }
 
   updateDisplayModeUI() {
@@ -285,6 +316,7 @@ class RichTextWidget {
 
     if (this.quill) {
       this.quill.enable(!this.isProjectorMode() && !this.isDisplayMode);
+      this.syncEditorLayout();
     }
   }
 
