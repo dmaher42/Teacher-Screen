@@ -126,6 +126,9 @@ class ClassroomScreenApp {
         this.widgetModal = document.getElementById('widget-modal');
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
+        this.currentSectionName = document.getElementById('current-section-name');
+        this.sectionsToggleButton = document.getElementById('sections-toggle');
+        this.sectionsMenu = document.getElementById('sections-menu');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
@@ -491,11 +494,29 @@ class ClassroomScreenApp {
 
         // Navigation and Panel
         this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
+        if (this.sectionsToggleButton) {
+            this.sectionsToggleButton.addEventListener('click', () => this.toggleSectionsMenu());
+        }
+        document.addEventListener('click', (event) => {
+            if (!this.sectionsMenu || this.sectionsMenu.hidden) return;
+
+            const clickedInsideMenu = this.sectionsMenu.contains(event.target);
+            const clickedToggle = this.sectionsToggleButton?.contains(event.target);
+            if (!clickedInsideMenu && !clickedToggle) {
+                this.closeSectionsMenu();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeSectionsMenu();
+            }
+        });
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
 
         if (this.addLayoutShortcutButton) {
             this.addLayoutShortcutButton.addEventListener('click', () => {
+                this.closeSectionsMenu();
                 this.handleNavClick('classroom');
                 this.openWidgetPicker();
             });
@@ -503,6 +524,7 @@ class ClassroomScreenApp {
 
         if (this.saveLayoutShortcutButton) {
             this.saveLayoutShortcutButton.addEventListener('click', () => {
+                this.closeSectionsMenu();
                 this.handleNavClick('planner');
                 if (this.layoutNameInput && typeof this.layoutNameInput.focus === 'function') {
                     window.requestAnimationFrame(() => this.layoutNameInput.focus());
@@ -709,6 +731,8 @@ class ClassroomScreenApp {
             if (isSelected) t.classList.add('active');
             else t.classList.remove('active');
         });
+        this.updateCurrentSectionLabel(tab);
+        this.closeSectionsMenu();
 
         // Show corresponding panel, hide others
         // We use the ID convention: {tab}-view
@@ -751,6 +775,29 @@ class ClassroomScreenApp {
                  // this.showNotification(`${tab.charAt(0).toUpperCase() + tab.slice(1)} view active`);
             }
         }
+    }
+
+    updateCurrentSectionLabel(tab) {
+        if (!this.currentSectionName) {
+            return;
+        }
+
+        const selectedTab = Array.from(this.navTabs).find((navTab) => navTab.dataset.tab === tab);
+        this.currentSectionName.textContent = selectedTab?.textContent?.trim() || 'Classroom';
+    }
+
+    toggleSectionsMenu(forceOpen = null) {
+        if (!this.sectionsMenu || !this.sectionsToggleButton) {
+            return;
+        }
+
+        const shouldOpen = forceOpen === null ? this.sectionsMenu.hidden : forceOpen;
+        this.sectionsMenu.hidden = !shouldOpen;
+        this.sectionsToggleButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
+    closeSectionsMenu() {
+        this.toggleSectionsMenu(false);
     }
 
     initializeSavedNotes() {

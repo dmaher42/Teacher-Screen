@@ -43,22 +43,29 @@
 
     <header>
         <nav id="top-nav" aria-label="Main sections">
-        <div class="nav-tabs" role="tablist">
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
-            <div class="nav-item-with-dropdown">
-                <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
-                <div id="planner-dropdown" class="nav-dropdown">
-                    <ul>
-                        <li><button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button></li>
-                        <li><button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button></li>
-                    </ul>
+            <div class="top-nav-shell">
+                <div class="top-nav-current" aria-live="polite">
+                    <span class="top-nav-current__label">Current Section</span>
+                    <span id="current-section-name" class="top-nav-current__value">Classroom</span>
+                </div>
+                <div class="sections-menu-wrap">
+                    <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu">Sections</button>
+                    <div id="sections-menu" class="sections-menu" hidden>
+                        <div class="nav-tabs" role="tablist" aria-orientation="vertical">
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
+                            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+                            <div class="sections-menu__actions" aria-label="Planner shortcuts">
+                                <button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button>
+                                <button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button>
+                            </div>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
-        </div>
         </nav>
     </header>
 
