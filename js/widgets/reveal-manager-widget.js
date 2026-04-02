@@ -7,6 +7,7 @@ class RevealManagerWidget {
     constructor() {
         this.layoutType = 'grid';
         this.storageKey = 'revealDecks';
+        this.lastDeckStorageKey = 'revealLastDeck';
         this.activeDeck = null;
         this.revealDeck = null;
         this.sourceTypes = [
@@ -609,6 +610,24 @@ class RevealManagerWidget {
         this.emitSavedDecksChanged();
     }
 
+    saveLastDeck(deck) {
+        const normalizedDeck = this.normalizeStoredDeck(deck);
+        if (!normalizedDeck) {
+            return;
+        }
+
+        localStorage.setItem(this.lastDeckStorageKey, JSON.stringify(normalizedDeck));
+    }
+
+    getLastDeck() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(this.lastDeckStorageKey) || 'null');
+            return this.normalizeStoredDeck(parsed);
+        } catch (error) {
+            return null;
+        }
+    }
+
     normalizeStoredDeck(deck) {
         if (!deck || typeof deck !== 'object') {
             return null;
@@ -1139,6 +1158,7 @@ class RevealManagerWidget {
             return;
         }
 
+        this.saveLastDeck(this.activeDeck);
         this.persistActiveDeckState();
     }
 
@@ -1299,6 +1319,22 @@ class RevealManagerWidget {
         return !!this.activeDeck;
     }
 
+    async loadLastDeck() {
+        const deck = this.getLastDeck();
+        if (!deck) {
+            this.setStatus('No last deck is available yet.');
+            return false;
+        }
+
+        this.deckNameInput.value = deck.name;
+        this.sourceTypeSelect.value = deck.type || 'html';
+        this.externalUrlInput.value = deck.sourceUrl || '';
+        this.htmlInput.value = deck.content || '';
+        this.updateSourceFields();
+        await this.launchDeck(deck, { preserveIndices: false });
+        return !!this.activeDeck;
+    }
+
     handleRenameDeck() {
         const selectedId = Number(this.savedSelect.value);
         if (!selectedId) return;
@@ -1348,6 +1384,7 @@ class RevealManagerWidget {
                 ...this.activeDeck,
                 name: trimmedName
             };
+            this.saveLastDeck(this.activeDeck);
             this.updateDeckIndicator();
             this.emitPresentationState();
             this.persistActiveDeckState();

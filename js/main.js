@@ -160,6 +160,7 @@ class ClassroomScreenApp {
         this.presentationStatusDisplay = document.getElementById('presentation-status-display');
         this.presentationStatusContext = document.getElementById('presentation-status-context');
         this.presentationStatusMeta = document.getElementById('presentation-status-meta');
+        this.presentationLastButton = document.getElementById('presentation-last-btn');
         this.presentationSourceTypeSelect = document.getElementById('presentation-source-type');
         this.presentationSourceNameInput = document.getElementById('presentation-source-name');
         this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
@@ -309,6 +310,7 @@ class ClassroomScreenApp {
         this.syncTimerControlsFromWidget();
         this.syncPresentationControlsFromWidget();
         this.renderPresentationSavedDeckOptions();
+        this.updatePresentationLastDeckAction();
 
         this.showWelcomeTourIfNeeded();
 
@@ -578,6 +580,12 @@ class ClassroomScreenApp {
         if (this.presentationSaveLinkButton) {
             this.presentationSaveLinkButton.addEventListener('click', () => {
                 void this.savePresentationLinkFromPanel();
+            });
+        }
+
+        if (this.presentationLastButton) {
+            this.presentationLastButton.addEventListener('click', () => {
+                void this.presentLastDeckFromPanel();
             });
         }
 
@@ -2457,6 +2465,33 @@ class ClassroomScreenApp {
             .filter((deck) => Number.isFinite(deck.id) && deck.id > 0);
     }
 
+    getLastPresentationDeck() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem('revealLastDeck') || 'null');
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    updatePresentationLastDeckAction() {
+        if (!this.presentationLastButton) {
+            return;
+        }
+
+        const lastDeck = this.getLastPresentationDeck();
+        const sourceLabel = lastDeck?.type === 'powerpoint'
+            ? 'PowerPoint'
+            : lastDeck?.type === 'google-slides'
+                ? 'Google Slides'
+                : 'Deck';
+
+        this.presentationLastButton.disabled = !lastDeck;
+        this.presentationLastButton.textContent = lastDeck
+            ? `Present Last ${sourceLabel}`
+            : 'Present Last Deck';
+    }
+
     renderPresentationSavedDeckOptions(rawDecks = null) {
         if (!this.presentationSavedSelect) {
             return;
@@ -2743,12 +2778,14 @@ class ClassroomScreenApp {
 
     syncPresentationControlsFromWidget(widget = this.getPrimaryRevealManagerWidget()) {
         this.renderPresentationSavedDeckOptions();
+        this.updatePresentationLastDeckAction();
         this.renderPresentationControlState(this.buildPresentationControlState(widget));
     }
 
     syncPresentationControlsFromPayload(payload = {}) {
         const presentationWidget = this.getPrimaryRevealManagerWidget();
         if (!presentationWidget) {
+            this.updatePresentationLastDeckAction();
             this.renderPresentationControlState();
             return;
         }
@@ -2758,6 +2795,7 @@ class ClassroomScreenApp {
         }
 
         this.renderPresentationControlState(this.buildPresentationControlState(presentationWidget, payload));
+        this.updatePresentationLastDeckAction();
     }
 
     openPresentationControlsFromPanel() {
@@ -2916,6 +2954,45 @@ class ClassroomScreenApp {
         }
 
         this.showNotification('Saved presentation loaded in Reveal Manager.', 'success');
+    }
+
+    async presentLastDeckFromPanel() {
+        const lastDeck = this.getLastPresentationDeck();
+        if (!lastDeck) {
+            this.showNotification('No last presentation is available yet.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadLastDeck !== 'function') {
+            this.showNotification('This Reveal Manager build does not support last deck launch yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadLastDeck();
+        if (!loaded) {
+            this.showNotification('Unable to load the last presentation.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+        }
+
+        this.showNotification('Last presentation opened on the projector.', 'success');
     }
 
     async renameSavedPresentationFromPanel() {
