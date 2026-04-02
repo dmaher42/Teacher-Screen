@@ -2207,8 +2207,23 @@ dialog::backdrop {
       flex: 0 0 auto;
   }
 
+.rich-text-controls--modes {
+      padding-top: 4px;
+      border-top: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 76%, transparent);
+  }
+
+.rich-text-settings-controls .control-button.is-active {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 90%, #ffffff 10%), var(--primary-color, #8e82ff));
+      color: var(--text-on-accent);
+      border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 70%, #000 5%);
+  }
+
 .rich-text-mode-hint {
-      display: none;
+      display: block;
+      margin: 0;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      color: color-mix(in srgb, var(--text-secondary, #64748b) 78%, transparent);
   }
 
 .rich-text-editor-container {
@@ -2345,6 +2360,93 @@ body.projector-view .rich-text-widget-inner .ql-toolbar {
 .rich-text-widget-inner.display-mode .ql-editor {
     font-size: 1.3rem;
     transition: font-size 0.3s ease;
+}
+
+.rich-text-widget-inner.display-mode .ql-editor,
+.rich-text-widget-inner.is-projector-mode .ql-editor,
+body.projector-view .rich-text-widget-inner .ql-editor {
+    font-size: 1.35rem;
+    line-height: 1.72;
+    padding: 1.5rem 1.65rem 1.8rem;
+}
+
+.rich-text-widget-inner.display-mode .ql-editor h2,
+.rich-text-widget-inner.is-projector-mode .ql-editor h2,
+body.projector-view .rich-text-widget-inner .ql-editor h2 {
+    font-size: 2.1rem;
+    margin-top: 0.6rem;
+}
+
+.rich-text-widget-inner.display-mode .ql-editor h3,
+.rich-text-widget-inner.is-projector-mode .ql-editor h3,
+body.projector-view .rich-text-widget-inner .ql-editor h3 {
+    font-size: 1.55rem;
+}
+
+.rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor,
+.rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor,
+body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor {
+    font-size: 1.65rem;
+    line-height: 1.82;
+    padding: 1.9rem 2rem 2.1rem;
+}
+
+.rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor h2,
+.rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor h2,
+body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor h2 {
+    font-size: 2.45rem;
+}
+
+.rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor h3,
+.rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor h3,
+body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor h3 {
+    font-size: 1.75rem;
+}
+
+.rich-text-widget-inner[data-presentation-mode="focus"].display-mode .ql-container,
+.rich-text-widget-inner[data-presentation-mode="focus"].is-projector-mode .ql-container,
+body.projector-view .rich-text-widget-inner[data-presentation-mode="focus"] .ql-container {
+    background:
+        radial-gradient(circle at top, color-mix(in srgb, var(--primary-color, #8e82ff) 12%, transparent), transparent 42%),
+        color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, var(--card-background, #ffffff) 8%);
+}
+
+.rich-text-widget-inner[data-presentation-mode="focus"].display-mode .ql-editor,
+.rich-text-widget-inner[data-presentation-mode="focus"].is-projector-mode .ql-editor,
+body.projector-view .rich-text-widget-inner[data-presentation-mode="focus"] .ql-editor {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 2.2rem 2.4rem;
+}
+
+.rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode {
+    position: fixed;
+    inset: 64px 0 0;
+    z-index: 1200;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, var(--card-background, #ffffff) 8%);
+    box-shadow: none;
+}
+
+body.projector-view .rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode {
+    inset: 0;
+}
+
+.rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode .ql-container {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--bg-surface, #f8fafc) 94%, #ffffff 6%), var(--card-background, #ffffff));
+}
+
+.rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode .ql-editor {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2.6rem 2.8rem 3rem;
+    font-size: 1.55rem;
+    line-height: 1.82;
+}
+
+.rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode .rich-text-drag-handle {
+    display: none;
 }
 
 .rich-text-widget-inner.display-mode .rich-text-editor-container,

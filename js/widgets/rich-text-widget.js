@@ -14,6 +14,7 @@ class RichTextWidget {
   constructor() {
     this.pendingContent = '';
     this.isDisplayMode = false;
+    this.presentationMode = 'normal';
     const appModeUtils = window.TeacherScreenAppMode || {};
     this.isProjectorMode = appModeUtils.isProjectorMode || (() => (
       window.APP_MODE === 'projector'
@@ -25,9 +26,17 @@ class RichTextWidget {
 
     this.handleDisplayModeClick = this.handleDisplayModeClick.bind(this);
     this.handleTextChange = this.handleTextChange.bind(this);
+    this.handleTemplateButtonClick = this.handleTemplateButtonClick.bind(this);
+    this.handleModeButtonClick = this.handleModeButtonClick.bind(this);
 
     this.controlsOverlay = document.createElement('div');
     this.controlsOverlay.className = 'widget-content-controls rich-text-settings-controls';
+
+    this.templateControls = document.createElement('div');
+    this.templateControls.className = 'rich-text-controls';
+
+    this.modeControls = document.createElement('div');
+    this.modeControls.className = 'rich-text-controls rich-text-controls--modes';
 
     this.displayModeButton = document.createElement('button');
     this.displayModeButton.className = 'control-button';
@@ -37,7 +46,48 @@ class RichTextWidget {
     this.displayModeButton.title = 'Toggle display mode';
     this.displayModeButton.addEventListener('click', this.handleDisplayModeClick);
 
-    this.controlsOverlay.appendChild(this.displayModeButton);
+    this.templateButtons = [
+      ['title', 'Title'],
+      ['instructions', 'Instructions'],
+      ['task', 'Task'],
+      ['example', 'Example'],
+      ['exit-ticket', 'Exit Ticket'],
+      ['homework', 'Homework']
+    ].map(([templateKey, label]) => {
+      const button = document.createElement('button');
+      button.className = 'control-button control-button--ghost';
+      button.type = 'button';
+      button.textContent = label;
+      button.dataset.template = templateKey;
+      button.addEventListener('click', this.handleTemplateButtonClick);
+      this.templateControls.appendChild(button);
+      return button;
+    });
+
+    this.modeButtons = [
+      ['normal', 'Normal'],
+      ['large', 'Large Text'],
+      ['focus', 'Focus'],
+      ['fullscreen', 'Full Screen']
+    ].map(([modeKey, label]) => {
+      const button = document.createElement('button');
+      button.className = 'control-button control-button--ghost';
+      button.type = 'button';
+      button.textContent = label;
+      button.dataset.mode = modeKey;
+      button.addEventListener('click', this.handleModeButtonClick);
+      this.modeControls.appendChild(button);
+      return button;
+    });
+
+    this.modeControls.appendChild(this.displayModeButton);
+
+    this.modeHint = document.createElement('p');
+    this.modeHint.className = 'rich-text-mode-hint';
+
+    this.controlsOverlay.appendChild(this.templateControls);
+    this.controlsOverlay.appendChild(this.modeControls);
+    this.controlsOverlay.appendChild(this.modeHint);
     this.updateDisplayModeUI();
 
     this.dragHandle = document.createElement('div');
@@ -97,7 +147,24 @@ class RichTextWidget {
 
   handleDisplayModeClick() {
     this.isDisplayMode = !this.isDisplayMode;
-    this.element.classList.toggle('display-mode', this.isDisplayMode);
+    this.updateDisplayModeUI();
+  }
+
+  handleTemplateButtonClick(event) {
+    const templateKey = event.currentTarget?.dataset?.template;
+    if (!templateKey) {
+      return;
+    }
+
+    this.insertTemplate(templateKey);
+  }
+
+  handleModeButtonClick(event) {
+    const mode = event.currentTarget?.dataset?.mode || 'normal';
+    this.presentationMode = mode;
+    if (mode !== 'normal') {
+      this.isDisplayMode = true;
+    }
     this.updateDisplayModeUI();
   }
 
@@ -118,19 +185,51 @@ class RichTextWidget {
     const range = this.quill.getSelection(true);
     const insertIndex = range ? range.index : this.quill.getLength();
     this.quill.clipboard.dangerouslyPasteHTML(insertIndex, html);
-    this.quill.setSelection(insertIndex + 1, 0);
+    this.quill.setSelection(this.quill.getLength(), 0);
+  }
+
+  getTemplateMarkup(templateKey) {
+    const templateMap = {
+      title: '<h2>Lesson Title</h2><p>Start with a short intro or objective.</p>',
+      instructions: '<h3>Instructions</h3><ul><li>Step 1</li><li>Step 2</li><li>Step 3</li></ul>',
+      task: '<div class="display-callout"><strong>Task</strong><p>Complete the activity and be ready to share your answer.</p></div>',
+      example: '<h3>Example</h3><p><strong>Model answer:</strong> Add a worked example here.</p>',
+      'exit-ticket': '<h3>Exit Ticket</h3><ol><li>What did you learn today?</li><li>What is one thing you still need help with?</li></ol>',
+      homework: '<h3>Homework</h3><ul><li>Complete the task set in class.</li><li>Bring your notes next lesson.</li></ul>'
+    };
+
+    return templateMap[templateKey] || '';
+  }
+
+  insertTemplate(templateKey) {
+    if (!this.quill) {
+      return;
+    }
+
+    const html = this.getTemplateMarkup(templateKey);
+    if (!html) {
+      return;
+    }
+
+    const range = this.quill.getSelection(true);
+    const insertIndex = range ? range.index : this.quill.getLength();
+    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
+    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, `${needsSpacing}${html}`);
+    this.quill.setSelection(this.quill.getLength(), 0);
   }
 
   serialize() {
     return {
       content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
-      displayMode: this.isDisplayMode
+      displayMode: this.isDisplayMode,
+      presentationMode: this.presentationMode
     };
   }
 
   deserialize(data) {
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
+    this.presentationMode = data?.presentationMode || 'normal';
     this.element.classList.toggle('display-mode', this.isDisplayMode);
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.updateDisplayModeUI();
@@ -142,16 +241,43 @@ class RichTextWidget {
 
   updateDisplayModeUI() {
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
+    this.element.classList.toggle('display-mode', this.isDisplayMode);
+    this.element.dataset.presentationMode = this.presentationMode;
     this.displayModeButton.textContent = this.isDisplayMode ? 'Edit' : 'Display';
     this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
 
+    const modeLabels = {
+      normal: 'Normal display layout',
+      large: 'Large text presentation mode',
+      focus: 'Focused reading mode',
+      fullscreen: 'Full screen presentation mode'
+    };
+
+    this.modeButtons.forEach((button) => {
+      const isActive = button.dataset.mode === this.presentationMode;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    if (this.modeHint) {
+      this.modeHint.textContent = this.isDisplayMode
+        ? modeLabels[this.presentationMode] || modeLabels.normal
+        : 'Choose a format, then switch to Display when you are ready to present.';
+    }
+
     if (this.quill) {
-      this.quill.enable(!this.isProjectorMode());
+      this.quill.enable(!this.isProjectorMode() && !this.isDisplayMode);
     }
   }
 
   remove() {
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
+    this.templateButtons?.forEach((button) => {
+      button.removeEventListener('click', this.handleTemplateButtonClick);
+    });
+    this.modeButtons?.forEach((button) => {
+      button.removeEventListener('click', this.handleModeButtonClick);
+    });
 
     if (this.initTimer) {
       clearTimeout(this.initTimer);
