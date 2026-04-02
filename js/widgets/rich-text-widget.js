@@ -102,7 +102,7 @@ class RichTextWidget {
 
     this.dragHandle = document.createElement('div');
     this.dragHandle.className = 'rich-text-drag-handle';
-    this.dragHandle.textContent = 'Drag to move';
+    this.dragHandle.textContent = 'Move';
     this.dragHandle.setAttribute('role', 'presentation');
 
     this.editorHeader = document.createElement('div');
@@ -110,11 +110,11 @@ class RichTextWidget {
 
     this.editorTitle = document.createElement('div');
     this.editorTitle.className = 'rich-text-editor-title';
-    this.editorTitle.textContent = 'Rich Text Board';
+    this.editorTitle.textContent = 'Rich Text';
 
     this.editorStatus = document.createElement('span');
     this.editorStatus.className = 'rich-text-editor-status';
-    this.editorStatus.textContent = 'Editing';
+    this.editorStatus.textContent = 'Edit';
 
     this.editorHeader.appendChild(this.editorTitle);
     this.editorHeader.appendChild(this.editorStatus);
@@ -296,7 +296,7 @@ class RichTextWidget {
         ? 'Projector View'
         : this.isDisplayMode
           ? modeLabels[this.presentationMode] || modeLabels.normal
-          : 'Editing';
+          : 'Edit';
     }
 
     if (this.quill) {

@@ -2168,7 +2168,7 @@ dialog::backdrop {
       overflow: hidden;
       color: var(--text-primary);
       background: var(--card-background, #ffffff);
-      gap: 0.35rem;
+      gap: 0.1rem;
   }
 
 .rich-text-drag-handle {
@@ -2176,14 +2176,14 @@ dialog::backdrop {
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 28px;
-      padding: 0.2rem 0.75rem;
+      min-height: 16px;
+      padding: 0.04rem 0.45rem;
       border-bottom: 1px dashed color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
       background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
       color: var(--text-secondary, #64748b);
-      font-size: 0.78rem;
+      font-size: 0.62rem;
       font-weight: 600;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       cursor: grab;
       user-select: none;
@@ -2201,28 +2201,29 @@ dialog::backdrop {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 0.55rem 0.85rem 0.35rem;
+      gap: 8px;
+      min-height: 28px;
+      padding: 0.08rem 0.55rem 0.08rem;
       color: var(--text-primary, #0f172a);
   }
 
 .rich-text-editor-title {
-      font-size: 0.95rem;
-      font-weight: 800;
+      font-size: 0.76rem;
+      font-weight: 700;
       letter-spacing: -0.02em;
   }
 
 .rich-text-editor-status {
       display: inline-flex;
       align-items: center;
-      min-height: 28px;
-      padding: 0.2rem 0.7rem;
+      min-height: 20px;
+      padding: 0 0.45rem;
       border-radius: 999px;
       background: color-mix(in srgb, var(--primary-color, #8e82ff) 14%, #ffffff 86%);
       color: color-mix(in srgb, var(--primary-color, #8e82ff) 78%, #1f2937 22%);
-      font-size: 0.74rem;
+      font-size: 0.6rem;
       font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       white-space: nowrap;
   }
@@ -2277,11 +2278,11 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-header {
       flex: 1;
       min-height: 0;
       overflow: hidden;
-      margin: 0 0.45rem 0.45rem;
+      margin: 0 0.2rem 0.2rem;
       border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
-      border-radius: 18px;
+      border-radius: 12px;
       background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 24px rgba(15, 23, 42, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 4px 14px rgba(15, 23, 42, 0.05);
   }
 
 .rich-text-widget-inner .ql-toolbar,
@@ -2292,45 +2293,49 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-header {
 .rich-text-widget-inner .ql-toolbar {
         border: 0;
         border-radius: 0;
-        padding: 0.35rem 0.55rem 0.3rem;
+        padding: 0.12rem 0.25rem;
         background: color-mix(in srgb, var(--card-background, #ffffff) 90%, var(--bg-surface, #f8fafc) 10%);
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
-        gap: 0.15rem;
+        gap: 0.08rem;
         border-bottom: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 74%, transparent);
         position: sticky;
         top: 0;
         z-index: 1;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
     }
 
 .rich-text-widget-inner .ql-toolbar.ql-snow .ql-formats {
-    margin-right: 0.25rem;
-    margin-bottom: 0.1rem;
+    margin-right: 0.08rem;
+    margin-bottom: 0;
+    flex: 0 0 auto;
 }
 
 .rich-text-widget-inner .ql-toolbar button,
 .rich-text-widget-inner .ql-toolbar .ql-picker-label {
-    min-height: 24px;
+    min-height: 20px;
 }
 
 .rich-text-widget-inner .ql-toolbar button {
-    padding: 1px 3px;
+    padding: 0 1px;
 }
 
 .rich-text-widget-inner .ql-toolbar .ql-picker-label {
-    padding: 1px 6px;
+    padding: 0 2px;
 }
 
 .rich-text-widget-inner .ql-toolbar .ql-picker {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
 }
 
 .rich-text-widget-inner .ql-container {
         display: flex;
         flex-direction: column;
         border: 0;
-        border-radius: 0 0 18px 18px;
+        border-radius: 0 0 12px 12px;
         background: var(--card-background, #ffffff);
         height: 100%;
         min-height: 0;
@@ -2342,18 +2347,18 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-header {
       flex: 1;
       min-height: 0;
       font-family: 'Poppins', sans-serif;
-      font-size: 1.05rem;
-      line-height: 1.55;
+      font-size: 0.98rem;
+      line-height: 1.5;
       letter-spacing: 0.01em;
-      padding: 1rem 1rem 1.05rem;
+      padding: 0.65rem 0.75rem 0.75rem;
       color: var(--text-primary);
       background: var(--card-background, #ffffff);
       overflow-y: auto;
   }
 
 .rich-text-widget-inner .ql-editor.ql-blank::before {
-    left: 1rem;
-    right: 1rem;
+    left: 0.75rem;
+    right: 0.75rem;
     color: color-mix(in srgb, var(--text-secondary, #64748b) 78%, transparent);
     font-style: normal;
 }
