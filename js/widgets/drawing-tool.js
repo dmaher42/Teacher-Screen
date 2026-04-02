@@ -80,9 +80,8 @@ class DrawingToolWidget {
      * This is called after the widget is added to the DOM.
      */
     setupCanvas() {
-        const rect = this.element.getBoundingClientRect();
-        const nextWidth = Math.max(1, Math.floor(rect.width));
-        const nextHeight = Math.max(1, Math.floor(rect.height - this.controls.offsetHeight));
+        const nextWidth = Math.max(1, Math.floor(this.canvas.clientWidth || this.element.clientWidth || this.element.getBoundingClientRect().width));
+        const nextHeight = Math.max(1, Math.floor(this.canvas.clientHeight || (this.element.clientHeight - this.controls.offsetHeight)));
         if (!nextWidth || !nextHeight) {
             return;
         }
