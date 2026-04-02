@@ -595,6 +595,18 @@ class LayoutManager {
       const rowH = this.container.clientHeight / this.gridRows || COL_PX_ESTIMATE;
       const minWidth = Math.round((rules.minW ? rules.minW * colW : GRID_SIZE * 4) / GRID_SIZE) * GRID_SIZE;
       const minHeight = Math.round((rules.minH ? rules.minH * rowH : GRID_SIZE * 3) / GRID_SIZE) * GRID_SIZE;
+      let resizeFrame = null;
+      let pendingResize = null;
+
+      const applyResizePosition = () => {
+        resizeFrame = null;
+        if (!pendingResize) return;
+
+        element.style.width = `${pendingResize.width}px`;
+        element.style.height = `${pendingResize.height}px`;
+        element.style.left = `${pendingResize.left}px`;
+        element.style.top = `${pendingResize.top}px`;
+      };
 
       const onMouseMove = (moveEvent) => {
         const deltaX = moveEvent.clientX - startX;
@@ -643,27 +655,65 @@ class LayoutManager {
         newLeft = Math.min(Math.max(0, newLeft), maxLeft);
         newTop = Math.min(Math.max(0, newTop), maxTop);
 
-        newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
-        newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
-        newLeft = Math.round(newLeft / GRID_SIZE) * GRID_SIZE;
-        newTop = Math.round(newTop / GRID_SIZE) * GRID_SIZE;
+        pendingResize = {
+          width: Math.round(newWidth),
+          height: Math.round(newHeight),
+          left: Math.round(newLeft),
+          top: Math.round(newTop)
+        };
 
-        element.style.width = `${newWidth}px`;
-        element.style.height = `${newHeight}px`;
-        element.style.left = `${newLeft}px`;
-        element.style.top = `${newTop}px`;
-
-        if (info) {
-          info.width = newWidth;
-          info.height = newHeight;
-          info.x = newLeft;
-          info.y = newTop;
+        if (!resizeFrame) {
+          resizeFrame = requestAnimationFrame(applyResizePosition);
         }
       };
 
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+        element.classList.remove('is-resizing');
+        document.body.classList.remove('widget-resize-active');
+
+        if (resizeFrame) {
+          cancelAnimationFrame(resizeFrame);
+          resizeFrame = null;
+        }
+
+        if (pendingResize) {
+          element.style.width = `${pendingResize.width}px`;
+          element.style.height = `${pendingResize.height}px`;
+          element.style.left = `${pendingResize.left}px`;
+          element.style.top = `${pendingResize.top}px`;
+        }
+
+        let finalWidth = parseInt(element.style.width, 10) || startWidth;
+        let finalHeight = parseInt(element.style.height, 10) || startHeight;
+        let finalLeft = parseInt(element.style.left, 10) || startLeft;
+        let finalTop = parseInt(element.style.top, 10) || startTop;
+
+        finalWidth = Math.round(finalWidth / GRID_SIZE) * GRID_SIZE;
+        finalHeight = Math.round(finalHeight / GRID_SIZE) * GRID_SIZE;
+        finalLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
+        finalTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
+
+        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight);
+        finalWidth = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+        finalHeight = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+        finalLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+        finalTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+
+        element.style.width = `${finalWidth}px`;
+        element.style.height = `${finalHeight}px`;
+        element.style.left = `${finalLeft}px`;
+        element.style.top = `${finalTop}px`;
+
+        if (info) {
+          info.width = finalWidth;
+          info.height = finalHeight;
+          info.x = finalLeft;
+          info.y = finalTop;
+        }
+
+        pendingResize = null;
         this.emitWidgetUpdate(info);
         if (info) {
           this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
@@ -673,6 +723,8 @@ class LayoutManager {
 
       e.preventDefault();
       e.stopPropagation();
+      element.classList.add('is-resizing');
+      document.body.classList.add('widget-resize-active');
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
