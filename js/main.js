@@ -171,6 +171,8 @@ class ClassroomScreenApp {
         this.presentationSavedHint = document.getElementById('presentation-saved-hint');
         this.presentationOpenSavedButton = document.getElementById('presentation-open-saved-btn');
         this.presentationOpenSavedProjectorButton = document.getElementById('presentation-open-saved-projector-btn');
+        this.presentationRenameSavedButton = document.getElementById('presentation-rename-saved-btn');
+        this.presentationDeleteSavedButton = document.getElementById('presentation-delete-saved-btn');
         this.presentationManageButton = document.getElementById('presentation-manage-btn');
         this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
         this.presentationPrevButton = document.getElementById('presentation-prev-btn');
@@ -604,6 +606,18 @@ class ClassroomScreenApp {
         if (this.presentationOpenSavedProjectorButton) {
             this.presentationOpenSavedProjectorButton.addEventListener('click', () => {
                 void this.openSavedPresentationFromPanel({ openProjector: true });
+            });
+        }
+
+        if (this.presentationRenameSavedButton) {
+            this.presentationRenameSavedButton.addEventListener('click', () => {
+                void this.renameSavedPresentationFromPanel();
+            });
+        }
+
+        if (this.presentationDeleteSavedButton) {
+            this.presentationDeleteSavedButton.addEventListener('click', () => {
+                void this.deleteSavedPresentationFromPanel();
             });
         }
 
@@ -2483,6 +2497,14 @@ class ClassroomScreenApp {
         if (this.presentationOpenSavedProjectorButton) {
             this.presentationOpenSavedProjectorButton.disabled = !hasSavedDecks || !hasSelection;
         }
+
+        if (this.presentationRenameSavedButton) {
+            this.presentationRenameSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+
+        if (this.presentationDeleteSavedButton) {
+            this.presentationDeleteSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
     }
 
     detectPresentationSourceTypeFromUrl(url = '') {
@@ -2894,6 +2916,85 @@ class ClassroomScreenApp {
         }
 
         this.showNotification('Saved presentation loaded in Reveal Manager.', 'success');
+    }
+
+    async renameSavedPresentationFromPanel() {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const savedDeck = this.getSavedPresentationDecks().find((deck) => deck.id === selectedId);
+        const nextName = window.prompt('Rename saved presentation', savedDeck?.name || 'Untitled Deck');
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Saved presentation name cannot be blank.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.renameSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation rename yet.', 'error');
+            return;
+        }
+
+        const renamed = presentationWidget.renameSavedDeckById(selectedId, trimmedName);
+        if (!renamed) {
+            this.showNotification('Unable to rename that saved presentation.', 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        this.presentationSavedSelect.value = String(selectedId);
+        this.updatePresentationSavedActions();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        this.showNotification('Saved presentation renamed.', 'success');
+    }
+
+    async deleteSavedPresentationFromPanel() {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const savedDeck = this.getSavedPresentationDecks().find((deck) => deck.id === selectedId);
+        const confirmed = window.confirm(`Delete saved presentation "${savedDeck?.name || 'Untitled Deck'}"?`);
+        if (!confirmed) {
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.deleteSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation delete yet.', 'error');
+            return;
+        }
+
+        const deleted = await presentationWidget.deleteSavedDeckById(selectedId);
+        if (!deleted) {
+            this.showNotification('Unable to delete that saved presentation.', 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        this.updatePresentationSavedActions();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        this.showNotification('Saved presentation deleted.', 'success');
     }
 
     openPresentationProjectorFromPanel() {

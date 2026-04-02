@@ -1321,6 +1321,42 @@ class RevealManagerWidget {
         this.setStatus('Deck renamed.');
     }
 
+    renameSavedDeckById(deckId, nextName) {
+        const selectedId = Number(deckId);
+        const trimmedName = typeof nextName === 'string' ? nextName.trim() : '';
+        if (!selectedId || !trimmedName) {
+            return false;
+        }
+
+        const decks = this.getSavedDecks();
+        const index = decks.findIndex((item) => Number(item?.id) === selectedId);
+        if (index < 0) {
+            return false;
+        }
+
+        decks[index] = {
+            ...decks[index],
+            name: trimmedName
+        };
+
+        this.saveDecks(decks);
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(selectedId);
+
+        if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
+            this.activeDeck = {
+                ...this.activeDeck,
+                name: trimmedName
+            };
+            this.updateDeckIndicator();
+            this.emitPresentationState();
+            this.persistActiveDeckState();
+        }
+
+        this.setStatus('Deck renamed.');
+        return true;
+    }
+
     handleDeleteDeck() {
         const selectedId = Number(this.savedSelect.value);
         if (!selectedId) return;
@@ -1330,6 +1366,30 @@ class RevealManagerWidget {
         this.renderSavedDeckOptions();
         this.savedSelect.value = '';
         this.setStatus('Deck deleted.');
+    }
+
+    async deleteSavedDeckById(deckId) {
+        const selectedId = Number(deckId);
+        if (!selectedId) {
+            return false;
+        }
+
+        const nextDecks = this.getSavedDecks().filter((item) => Number(item?.id) !== selectedId);
+        if (nextDecks.length === this.getSavedDecks().length) {
+            return false;
+        }
+
+        this.saveDecks(nextDecks);
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = '';
+
+        if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
+            await this.stopDeck();
+        } else {
+            this.setStatus('Deck deleted.');
+        }
+
+        return true;
     }
 
     openProjector() {
