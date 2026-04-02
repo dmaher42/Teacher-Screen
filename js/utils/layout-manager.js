@@ -55,7 +55,7 @@ const WIDGET_SIZE_RULES = {
   PresentationWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
-  RichTextWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 5 },
+  RichTextWidget: { minW: 4, minH: 3, defaultW: 6, defaultH: 5 },
   MaskWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
