@@ -480,11 +480,11 @@ details:focus-visible,
 /* Teacher Panel */
 .teacher-panel {
     position: fixed;
-    top: 50px;
+    top: 64px;
     right: 0;
     width: 35%;
     max-width: 450px;
-    height: calc(100vh - 50px);
+    height: calc(100dvh - 64px);
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg,
@@ -503,10 +503,10 @@ details:focus-visible,
 
 .panel-backdrop {
     position: fixed;
-    top: 50px;
+    top: 64px;
     left: 0;
     width: 100%;
-    height: calc(100vh - 50px);
+    height: calc(100dvh - 64px);
     background: rgba(0,0,0,0.5);
     z-index: 1040;
     opacity: 0;
@@ -574,13 +574,20 @@ details:focus-visible,
 }
 
 .panel-content {
-    padding: 18px 20px 24px;
+    padding: 18px 20px 40px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 14px;
+    scroll-padding-top: 16px;
+    scroll-padding-bottom: 48px;
+    overscroll-behavior: contain;
+}
+
+.panel-content > * {
+    flex-shrink: 0;
 }
 
 .panel-intro {
@@ -631,6 +638,12 @@ details:focus-visible,
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
     overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.control-card details {
+    display: block;
+    width: 100%;
 }
 
 .control-card summary {
@@ -711,6 +724,166 @@ details:focus-visible,
 
 .button-group--stack-gap {
     margin-top: 2px;
+}
+
+.control-button--ghost {
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+    color: var(--text-primary, #0f172a);
+    border-color: color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    box-shadow: none;
+}
+
+.control-button--ghost:hover {
+    background: color-mix(in srgb, var(--card-background, #ffffff) 76%, var(--bg-surface, #f8fafc) 24%);
+    filter: none;
+}
+
+.timer-status-panel {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 16%, var(--border-color, #dfe4e2) 84%);
+    border-radius: 16px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--primary-color, #8e82ff) 8%, #ffffff 92%),
+        color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%));
+}
+
+.timer-status-panel__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.timer-status-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 30px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.timer-status-badge[data-state="running"] {
+    background: color-mix(in srgb, #22c55e 18%, #ffffff 82%);
+    color: color-mix(in srgb, #166534 84%, #0f172a 16%);
+}
+
+.timer-status-badge[data-state="stopped"] {
+    background: color-mix(in srgb, #f59e0b 18%, #ffffff 82%);
+    color: color-mix(in srgb, #b45309 82%, #0f172a 18%);
+}
+
+.timer-status-badge[data-state="idle"] {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 14%, #ffffff 86%);
+    color: color-mix(in srgb, var(--primary-color, #8e82ff) 82%, #1f2937 18%);
+}
+
+.timer-status-badge[data-state="empty"] {
+    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
+}
+
+.timer-status-display {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--text-primary, #0f172a);
+}
+
+.timer-status-meta {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--text-color, #333) 72%, #64748b 28%);
+}
+
+.presentation-status-panel {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 16%, var(--border-color, #dfe4e2) 84%);
+    border-radius: 16px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--primary-color, #8e82ff) 7%, #ffffff 93%),
+        color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%));
+}
+
+.presentation-status-panel__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.presentation-status-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 30px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.presentation-status-badge[data-state="live"] {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 18%, #ffffff 82%);
+    color: color-mix(in srgb, var(--primary-color, #8e82ff) 82%, #1f2937 18%);
+}
+
+.presentation-status-badge[data-state="external"] {
+    background: color-mix(in srgb, #0ea5e9 18%, #ffffff 82%);
+    color: color-mix(in srgb, #075985 84%, #0f172a 16%);
+}
+
+.presentation-status-badge[data-state="idle"] {
+    background: color-mix(in srgb, #f59e0b 16%, #ffffff 84%);
+    color: color-mix(in srgb, #b45309 84%, #0f172a 16%);
+}
+
+.presentation-status-badge[data-state="empty"] {
+    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
+}
+
+.presentation-status-display {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-primary, #0f172a);
+    word-break: break-word;
+}
+
+.presentation-status-context,
+.presentation-status-meta {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.presentation-status-context {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: color-mix(in srgb, var(--text-color, #333) 60%, #64748b 40%);
+}
+
+.presentation-status-meta {
+    font-size: 0.9rem;
+    color: color-mix(in srgb, var(--text-color, #333) 72%, #64748b 28%);
 }
 
 .panel-toggle-label {
@@ -1944,6 +2117,32 @@ dialog::backdrop {
       background: var(--card-background, #ffffff);
       gap: 0.35rem;
   }
+
+.rich-text-drag-handle {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0.2rem 0.75rem;
+      border-bottom: 1px dashed color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+      background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
+      color: var(--text-secondary, #64748b);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: grab;
+      user-select: none;
+}
+
+.rich-text-drag-handle:active {
+      cursor: grabbing;
+}
+
+.rich-text-widget-inner.is-projector-mode .rich-text-drag-handle {
+      display: none;
+}
 
 .rich-text-controls {
       display: flex;
@@ -3215,6 +3414,13 @@ body.projector-view .rich-text-widget-inner .ql-toolbar {
     resize: vertical;
 }
 
+.reveal-external-hint {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
 .reveal-manager-actions {
     justify-content: flex-start;
     flex-wrap: wrap;
@@ -3251,6 +3457,43 @@ body.projector-view .rich-text-widget-inner .ql-toolbar {
 
 .reveal-btn-secondary:hover {
     background-color: var(--border-soft-2);
+}
+
+.reveal-external-source-card {
+    width: min(100%, 540px);
+    margin: auto;
+    padding: 1.2rem 1.25rem;
+    border-radius: 1rem;
+    border: 1px solid var(--border-soft-2);
+    background: linear-gradient(180deg, var(--card-background, #ffffff), color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, #ffffff 14%));
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    display: grid;
+    gap: 0.75rem;
+    align-self: center;
+}
+
+.reveal-external-source-card__eyebrow {
+    display: inline-flex;
+    width: fit-content;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, #ffffff 86%);
+    color: color-mix(in srgb, var(--accent) 82%, #1f2937 18%);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.reveal-external-source-card h3,
+.reveal-external-source-card p {
+    margin: 0;
+}
+
+.reveal-external-source-card__link {
+    color: var(--accent);
+    word-break: break-word;
+    font-weight: 600;
 }
 
 .reveal-btn-danger {

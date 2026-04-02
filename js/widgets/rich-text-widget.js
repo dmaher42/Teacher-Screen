@@ -40,10 +40,16 @@ class RichTextWidget {
     this.controlsOverlay.appendChild(this.displayModeButton);
     this.updateDisplayModeUI();
 
+    this.dragHandle = document.createElement('div');
+    this.dragHandle.className = 'rich-text-drag-handle';
+    this.dragHandle.textContent = 'Drag to move';
+    this.dragHandle.setAttribute('role', 'presentation');
+
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
     this.editorContainer.style.height = '100%';
 
+    this.element.appendChild(this.dragHandle);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {

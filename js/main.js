@@ -64,6 +64,7 @@ function resetAppState() {
 }
 
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
+const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
 
 function createProjectorSyncToken() {
     const makeToken = () => {
@@ -136,6 +137,18 @@ class ClassroomScreenApp {
         this.plannerModal = document.getElementById('planner-modal');
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
+        this.timerStatusBadge = document.getElementById('timer-status-badge');
+        this.timerStatusDisplay = document.getElementById('timer-status-display');
+        this.timerStatusMeta = document.getElementById('timer-status-meta');
+        this.resetTimerButton = document.getElementById('reset-timer');
+        this.presentationStatusBadge = document.getElementById('presentation-status-badge');
+        this.presentationStatusDisplay = document.getElementById('presentation-status-display');
+        this.presentationStatusContext = document.getElementById('presentation-status-context');
+        this.presentationStatusMeta = document.getElementById('presentation-status-meta');
+        this.presentationManageButton = document.getElementById('presentation-manage-btn');
+        this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
+        this.presentationPrevButton = document.getElementById('presentation-prev-btn');
+        this.presentationNextButton = document.getElementById('presentation-next-btn');
 
         this.agendaModal = document.getElementById('agenda-modal');
         this.agendaList = document.getElementById('agenda-list');
@@ -266,6 +279,8 @@ class ClassroomScreenApp {
         this.renderWidgetModal();
         this.displaySavedLayouts();
         this.initializeSavedNotes();
+        this.syncTimerControlsFromWidget();
+        this.syncPresentationControlsFromWidget();
 
         this.showWelcomeTourIfNeeded();
 
@@ -283,7 +298,9 @@ class ClassroomScreenApp {
             this.handleWidgetRemoved(widget);
         });
 
-        this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true } = {}) => {
+        this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true, ...payload } = {}) => {
+            this.syncTimerControlsFromPayload({ ...payload, minutes });
+            this.syncTimerStateToProjector({ ...payload, minutes });
             if (!Number.isFinite(minutes) || minutes <= 0) {
                 return;
             }
@@ -293,10 +310,26 @@ class ClassroomScreenApp {
             }
         });
 
-        this.subscribeToEventBus('timer:stopped', ({ showNotification = true } = {}) => {
+        this.subscribeToEventBus('timer:stopped', ({ showNotification = true, ...payload } = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
             if (showNotification) {
                 this.showNotification('Timer stopped.');
             }
+        });
+
+        this.subscribeToEventBus('timer:reset', (payload = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
+        });
+
+        this.subscribeToEventBus('timer:updated', (payload = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
+        });
+
+        this.subscribeToEventBus('presentation:state-changed', (payload = {}) => {
+            this.syncPresentationControlsFromPayload(payload);
         });
 
         this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
@@ -473,6 +506,19 @@ class ClassroomScreenApp {
                             otherDetails.open = false;
                         }
                     });
+
+                    const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
+                    const summary = details.querySelector('summary');
+                    if (panelContent && summary) {
+                        window.requestAnimationFrame(() => {
+                            const panelRect = panelContent.getBoundingClientRect();
+                            const summaryRect = summary.getBoundingClientRect();
+                            const currentScroll = panelContent.scrollTop;
+                            const offsetTop = summaryRect.top - panelRect.top + currentScroll;
+                            const targetScroll = Math.max(offsetTop - 12, 0);
+                            panelContent.scrollTo({ top: targetScroll, behavior: 'smooth' });
+                        });
+                    }
                 }
             });
         });
@@ -480,6 +526,25 @@ class ClassroomScreenApp {
         // Other controls...
         document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
         document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
+        if (this.resetTimerButton) {
+            this.resetTimerButton.addEventListener('click', () => this.resetTimerFromControls());
+        }
+
+        if (this.presentationManageButton) {
+            this.presentationManageButton.addEventListener('click', () => this.openPresentationControlsFromPanel());
+        }
+
+        if (this.presentationProjectorButton) {
+            this.presentationProjectorButton.addEventListener('click', () => this.openPresentationProjectorFromPanel());
+        }
+
+        if (this.presentationPrevButton) {
+            this.presentationPrevButton.addEventListener('click', () => this.navigatePresentationFromPanel('prev'));
+        }
+
+        if (this.presentationNextButton) {
+            this.presentationNextButton.addEventListener('click', () => this.navigatePresentationFromPanel('next'));
+        }
 
         // Widget Settings Modal Logic
         document.addEventListener('openWidgetSettings', (e) => this.openWidgetSettings(e.detail.widget));
@@ -495,35 +560,20 @@ class ClassroomScreenApp {
             }
         });
 
-        // New Timer Presets (5, 10, 15 min)
+        // Timer presets set the duration first; Start remains the explicit action.
         const preset5 = document.getElementById('timer-preset-5');
         if (preset5) {
-            preset5.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 5;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset5.addEventListener('click', () => this.applyTimerPresetToControls(5));
         }
 
         const preset10 = document.getElementById('timer-preset-10');
         if (preset10) {
-            preset10.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 10;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset10.addEventListener('click', () => this.applyTimerPresetToControls(10));
         }
 
         const preset15 = document.getElementById('timer-preset-15');
         if (preset15) {
-            preset15.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 15;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset15.addEventListener('click', () => this.applyTimerPresetToControls(15));
         }
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
@@ -644,6 +694,15 @@ class ClassroomScreenApp {
         this.teacherPanel.classList.toggle('open', this.isTeacherPanelOpen);
         this.panelBackdrop.classList.toggle('visible', this.isTeacherPanelOpen);
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
+
+        if (this.isTeacherPanelOpen) {
+            const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
+            if (panelContent) {
+                panelContent.scrollTop = 0;
+            }
+            this.syncTimerControlsFromWidget();
+            this.syncPresentationControlsFromWidget();
+        }
     }
 
     renderSavedNotesList() {
@@ -713,7 +772,7 @@ class ClassroomScreenApp {
                 memoryCueBtn.className = 'control-button';
                 memoryCueBtn.dataset.noteAction = 'memory-cue';
                 memoryCueBtn.dataset.noteId = note.id;
-                memoryCueBtn.textContent = 'Export';
+                memoryCueBtn.textContent = 'Send';
 
                 actions.appendChild(openBtn);
                 actions.appendChild(memoryCueBtn);
@@ -773,20 +832,14 @@ class ClassroomScreenApp {
             return;
         }
 
-        const payload = {
-            version: 1,
-            exportedAt: new Date().toISOString(),
-            sourceApp: 'teach-screen',
-            targetApp: 'memory-cue',
-            note: this.buildMemoryCueNotePayload(note)
-        };
+        const queued = this.queueMemoryCueNoteImports([this.buildMemoryCueNotePayload(note)]);
+        if (!queued) {
+            this.showNotification('Unable to queue the note for Memory Cue.', 'error');
+            return;
+        }
 
-        const jsonString = JSON.stringify(payload, null, 2);
-        const copied = await this.copyTextToClipboard(jsonString);
-        const filename = `memory-cue-note-${this.slugifyFilename(note.title || 'note')}.json`;
-
-        this.downloadJsonFile(filename, payload);
-        this.showNotification(copied ? 'Memory Cue export copied and downloaded. Import it in Memory Cue.' : 'Memory Cue export downloaded. Import it in Memory Cue.');
+        const opened = this.openMemoryCueNotebook();
+        this.showNotification(opened ? 'Note sent to Memory Cue.' : 'Note queued for Memory Cue. Open Memory Cue to finish the import.');
     }
 
     async exportAllSavedNotesToMemoryCue() {
@@ -796,19 +849,15 @@ class ClassroomScreenApp {
             return;
         }
 
-        const payload = {
-            version: 1,
-            exportedAt: new Date().toISOString(),
-            sourceApp: 'teach-screen',
-            targetApp: 'memory-cue',
-            notes: notes.map((note) => this.buildMemoryCueNotePayload(note))
-        };
+        const queued = this.queueMemoryCueNoteImports(notes.map((note) => this.buildMemoryCueNotePayload(note)));
+        if (!queued) {
+            this.showNotification('Unable to queue notes for Memory Cue.', 'error');
+            return;
+        }
 
-        const jsonString = JSON.stringify(payload, null, 2);
-        const copied = await this.copyTextToClipboard(jsonString);
-
-        this.downloadJsonFile('memory-cue-notes-export.json', payload);
-        this.showNotification(copied ? 'Memory Cue export copied and downloaded. Import it in Memory Cue.' : 'Memory Cue export downloaded. Import it in Memory Cue.');
+        const opened = this.openMemoryCueNotebook();
+        const noteLabel = notes.length === 1 ? '1 note' : `${notes.length} notes`;
+        this.showNotification(opened ? `Sent ${noteLabel} to Memory Cue.` : `Queued ${noteLabel} for Memory Cue. Open Memory Cue to finish the import.`);
     }
 
     buildMemoryCueNotePayload(note = {}) {
@@ -820,15 +869,55 @@ class ClassroomScreenApp {
             text: text || 'Untitled note',
             bodyHtml: html,
             folderId: 'school',
+            parsedType: 'note',
             source: 'teach-screen',
             tags: ['teaching', 'teacher-screen'],
+            updatedAt: note.updatedAt || new Date().toISOString(),
             metadata: {
                 source: 'teach-screen',
                 teaching: true,
                 noteType: 'lesson-note',
-                sourceNoteId: note.id || null
+                sourceNoteId: note.id || null,
+                lessonCueBody: text || '',
+                lessonCueHtml: html || '',
+                lessonCueUpdatedAt: note.updatedAt || new Date().toISOString()
             }
         };
+    }
+
+    queueMemoryCueNoteImports(notes = []) {
+        const nextNotes = Array.isArray(notes) ? notes.filter((note) => note && typeof note === 'object') : [];
+        if (!nextNotes.length) {
+            return false;
+        }
+
+        try {
+            const raw = localStorage.getItem(MEMORY_CUE_IMPORT_QUEUE_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            const existingQueue = Array.isArray(parsed) ? parsed : [];
+            const queuedNotes = nextNotes.map((note) => ({
+                ...note,
+                queuedAt: new Date().toISOString(),
+                sourceApp: 'teach-screen'
+            }));
+
+            localStorage.setItem(MEMORY_CUE_IMPORT_QUEUE_KEY, JSON.stringify([...existingQueue, ...queuedNotes]));
+            return true;
+        } catch (error) {
+            console.warn('Unable to queue notes for Memory Cue.', error);
+            return false;
+        }
+    }
+
+    openMemoryCueNotebook() {
+        try {
+            const targetUrl = new URL('../mobile.html', window.location.href);
+            const openedWindow = window.open(targetUrl.toString(), '_blank', 'noopener');
+            return Boolean(openedWindow);
+        } catch (error) {
+            console.warn('Unable to open Memory Cue notebook.', error);
+            return false;
+        }
     }
 
     getNotePreviewText(content = '') {
@@ -863,6 +952,10 @@ class ClassroomScreenApp {
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
             eventBus.emit('widget:created', { type, widget, element: widgetElement });
+
+            if (this.isRevealManagerWidget(widget)) {
+                this.syncPresentationControlsFromWidget(widget);
+            }
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
@@ -1560,6 +1653,7 @@ class ClassroomScreenApp {
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
+            timerStates: this.collectTimerStateSnapshots(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
     }
@@ -2014,7 +2108,132 @@ class ClassroomScreenApp {
         if (this.widgets.length === 0 && !this.widgetsContainer.querySelector('.widget-placeholder')) {
             this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
         }
+        if (widget instanceof TimerWidget) {
+            this.syncTimerControlsFromWidget();
+        }
+        if (this.isRevealManagerWidget(widget)) {
+            this.syncPresentationControlsFromWidget();
+        }
         this.saveState();
+    }
+
+    getPrimaryTimerWidget() {
+        return this.widgets.find(widget => widget instanceof TimerWidget) || null;
+    }
+
+    collectTimerStateSnapshots() {
+        return this.widgets
+            .filter(widget => widget instanceof TimerWidget && typeof widget.getTimerStateSnapshot === 'function')
+            .map(widget => widget.getTimerStateSnapshot());
+    }
+
+    syncTimerStateToProjector(timerState = {}) {
+        if (!this.projectorChannel || !timerState || typeof timerState !== 'object') {
+            return;
+        }
+
+        this.projectorChannel.postMessage({
+            type: 'timer-sync',
+            source: 'teacher',
+            timerState,
+            syncToken: this.projectorSyncToken
+        });
+    }
+
+    formatTimerStatusDisplay(remainingSeconds = 0, currentPhase = null, isIntervalMode = false) {
+        const safeSeconds = Number.isFinite(remainingSeconds) ? Math.max(0, Math.floor(remainingSeconds)) : 0;
+        const minutes = Math.floor(safeSeconds / 60);
+        const seconds = safeSeconds % 60;
+        const label = isIntervalMode && currentPhase ? `${currentPhase}: ` : '';
+        return `${label}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    renderTimerControlState({
+        hasTimer = false,
+        running = false,
+        remainingSeconds = 0,
+        display = '00:00',
+        isIntervalMode = false,
+        currentPhase = null,
+        statusMessage = ''
+    } = {}) {
+        if (!this.timerStatusBadge || !this.timerStatusDisplay || !this.timerStatusMeta) {
+            return;
+        }
+
+        let badgeText = 'No Timer';
+        let badgeState = 'empty';
+        let metaText = statusMessage || 'Add a timer widget or press Start to begin.';
+
+        if (hasTimer) {
+            if (running) {
+                badgeText = 'Running';
+                badgeState = 'running';
+                metaText = statusMessage || (isIntervalMode && currentPhase
+                    ? `${currentPhase} phase is active on the classroom screen.`
+                    : 'Timer is active on the classroom screen.');
+            } else if (remainingSeconds > 0) {
+                badgeText = 'Stopped';
+                badgeState = 'stopped';
+                metaText = statusMessage || 'Timer is ready to resume or reset.';
+            } else {
+                badgeText = 'Ready';
+                badgeState = 'idle';
+                metaText = statusMessage || 'Timer widget is ready. Set a duration and press Start.';
+            }
+        }
+
+        this.timerStatusBadge.textContent = badgeText;
+        this.timerStatusBadge.dataset.state = badgeState;
+        this.timerStatusDisplay.textContent = display || this.formatTimerStatusDisplay(remainingSeconds, currentPhase, isIntervalMode);
+        this.timerStatusMeta.textContent = metaText;
+
+        if (this.resetTimerButton) {
+            this.resetTimerButton.disabled = !hasTimer;
+        }
+    }
+
+    syncTimerControlsFromWidget(widget = this.getPrimaryTimerWidget()) {
+        if (!widget) {
+            this.renderTimerControlState();
+            return;
+        }
+
+        this.renderTimerControlState({
+            hasTimer: true,
+            running: !!widget.running,
+            remainingSeconds: widget.time,
+            display: typeof widget.getDisplayText === 'function'
+                ? widget.getDisplayText()
+                : this.formatTimerStatusDisplay(widget.time, widget.currentPhase, widget.isIntervalMode),
+            isIntervalMode: !!widget.isIntervalMode,
+            currentPhase: widget.currentPhase || null,
+            statusMessage: widget.latestStatusMessage || ''
+        });
+    }
+
+    syncTimerControlsFromPayload(payload = {}) {
+        const timerWidget = this.getPrimaryTimerWidget();
+        if (!timerWidget) {
+            this.renderTimerControlState();
+            return;
+        }
+
+        if (payload.widgetId && timerWidget.widgetId && payload.widgetId !== timerWidget.widgetId) {
+            return;
+        }
+
+        this.renderTimerControlState({
+            hasTimer: true,
+            running: typeof payload.running === 'boolean' ? payload.running : !!timerWidget.running,
+            remainingSeconds: Number.isFinite(payload.remainingSeconds) ? payload.remainingSeconds : timerWidget.time,
+            display: payload.display || (typeof timerWidget.getDisplayText === 'function'
+                ? timerWidget.getDisplayText()
+                : this.formatTimerStatusDisplay(timerWidget.time, timerWidget.currentPhase, timerWidget.isIntervalMode)),
+            isIntervalMode: typeof payload.isIntervalMode === 'boolean' ? payload.isIntervalMode : !!timerWidget.isIntervalMode,
+            currentPhase: payload.currentPhase || timerWidget.currentPhase || null,
+            statusMessage: payload.statusMessage || timerWidget.latestStatusMessage || ''
+        });
     }
 
     startTimerFromControls() {
@@ -2032,6 +2251,14 @@ class ClassroomScreenApp {
         }
     }
 
+    applyTimerPresetToControls(minutes) {
+        const safeMinutes = Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
+        document.getElementById('timer-hours').value = 0;
+        document.getElementById('timer-minutes').value = safeMinutes;
+        document.getElementById('timer-seconds').value = 0;
+        this.showNotification(`Timer set to ${safeMinutes} minute${safeMinutes === 1 ? '' : 's'}. Press Start to begin.`, 'success');
+    }
+
     startTimerPresetFromControls(minutes) {
         const timerWidget = this.ensureTimerWidget();
         if (!timerWidget) {
@@ -2042,7 +2269,7 @@ class ClassroomScreenApp {
     }
 
     stopTimerFromControls() {
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+        const timerWidget = this.getPrimaryTimerWidget();
         if (timerWidget) {
             eventBus.emit('timer:stop', { widgetId: timerWidget.widgetId });
         } else {
@@ -2050,21 +2277,234 @@ class ClassroomScreenApp {
         }
     }
 
-    ensureTimerWidget() {
-        let timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+    resetTimerFromControls() {
+        const timerWidget = this.getPrimaryTimerWidget();
         if (timerWidget) {
+            eventBus.emit('timer:reset', { widgetId: timerWidget.widgetId });
+        } else {
+            this.showNotification('No timer widget found.', 'error');
+            this.renderTimerControlState();
+        }
+    }
+
+    ensureTimerWidget() {
+        let timerWidget = this.getPrimaryTimerWidget();
+        if (timerWidget) {
+            this.syncTimerControlsFromWidget(timerWidget);
             return timerWidget;
         }
 
         this.addWidget('timer');
-        timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+        timerWidget = this.getPrimaryTimerWidget();
 
         if (!timerWidget) {
             this.showNotification('Unable to create a timer widget.', 'error');
             return null;
         }
 
+        this.syncTimerControlsFromWidget(timerWidget);
         return timerWidget;
+    }
+
+    isRevealManagerWidget(widget) {
+        if (!widget || !widget.constructor) {
+            return false;
+        }
+
+        return getRegistryWidgetKey(widget.constructor.name) === 'reveal-manager';
+    }
+
+    getPrimaryRevealManagerWidget() {
+        return this.widgets.find(widget => this.isRevealManagerWidget(widget)) || null;
+    }
+
+    formatPresentationSourceContext(sourceType = 'html', currentIndices = {}, sourceUrl = '') {
+        if (sourceType === 'html') {
+            const horizontalIndex = Number.isFinite(currentIndices?.h) ? currentIndices.h + 1 : 1;
+            const verticalIndex = Number.isFinite(currentIndices?.v) ? currentIndices.v : 0;
+            return verticalIndex > 0
+                ? `Slide ${horizontalIndex}.${verticalIndex + 1}`
+                : `Slide ${horizontalIndex}`;
+        }
+
+        if (!sourceUrl) {
+            return 'External source linked';
+        }
+
+        try {
+            const parsed = new URL(sourceUrl);
+            const trimmedPath = parsed.pathname && parsed.pathname !== '/'
+                ? parsed.pathname.replace(/\/$/, '')
+                : '';
+            return `${parsed.hostname}${trimmedPath}`;
+        } catch (error) {
+            return sourceUrl;
+        }
+    }
+
+    buildPresentationControlState(widget = null, payload = {}) {
+        if (!widget) {
+            return {
+                hasWidget: false,
+                hasDeck: false,
+                sourceType: null,
+                sourceLabel: '',
+                deckName: 'Reveal Manager',
+                currentIndices: { h: 0, v: 0 },
+                statusMessage: '',
+                sourceUrl: ''
+            };
+        }
+
+        const deckFromPayload = payload.activeDeck && typeof payload.activeDeck === 'object'
+            ? payload.activeDeck
+            : null;
+        const activeDeck = deckFromPayload || widget.activeDeck || null;
+        const sourceType = activeDeck?.type || payload.sourceType || 'html';
+        const sourceLabel = payload.sourceLabel
+            || (typeof widget.getSourceTypeLabel === 'function' ? widget.getSourceTypeLabel(sourceType) : 'Reveal HTML');
+        const currentIndices = payload.currentIndices && typeof payload.currentIndices === 'object'
+            ? payload.currentIndices
+            : (widget.currentIndices || { h: 0, v: 0 });
+
+        return {
+            hasWidget: true,
+            hasDeck: !!activeDeck,
+            sourceType,
+            sourceLabel,
+            deckName: activeDeck?.name || 'Reveal Manager',
+            currentIndices,
+            statusMessage: payload.statusMessage || widget.statusLabel?.textContent || '',
+            sourceUrl: payload.sourceUrl || activeDeck?.sourceUrl || ''
+        };
+    }
+
+    renderPresentationControlState({
+        hasWidget = false,
+        hasDeck = false,
+        sourceType = null,
+        sourceLabel = '',
+        deckName = 'Reveal Manager',
+        currentIndices = { h: 0, v: 0 },
+        statusMessage = '',
+        sourceUrl = ''
+    } = {}) {
+        if (!this.presentationStatusBadge || !this.presentationStatusDisplay || !this.presentationStatusContext || !this.presentationStatusMeta) {
+            return;
+        }
+
+        let badgeText = 'No Presentation';
+        let badgeState = 'empty';
+        let displayText = deckName || 'Reveal Manager';
+        let contextText = 'Add a Reveal Manager widget to load Reveal HTML, Google Slides, or PowerPoint.';
+        let metaText = 'Teacher Controls mirrors the Reveal widget instead of creating a second slide system.';
+        let manageLabel = 'Add Reveal Manager';
+
+        if (hasWidget) {
+            badgeText = 'Widget Ready';
+            badgeState = 'idle';
+            displayText = 'Reveal Manager';
+            contextText = 'No presentation is loaded yet.';
+            metaText = statusMessage || 'Open the Reveal Manager widget to load Reveal HTML or link a Google Slides / PowerPoint deck.';
+            manageLabel = 'Open Presentation Controls';
+        }
+
+        if (hasWidget && hasDeck) {
+            const isHtmlDeck = sourceType === 'html';
+            badgeText = sourceLabel || 'Presentation';
+            badgeState = isHtmlDeck ? 'live' : 'external';
+            displayText = deckName || sourceLabel || 'Presentation';
+            contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
+            metaText = statusMessage || (isHtmlDeck
+                ? 'Prev / Next controls stay available here and in the Reveal widget.'
+                : 'This external presentation is linked in Reveal Manager. Open Projector to present it.');
+        }
+
+        this.presentationStatusBadge.textContent = badgeText;
+        this.presentationStatusBadge.dataset.state = badgeState;
+        this.presentationStatusDisplay.textContent = displayText;
+        this.presentationStatusContext.textContent = contextText;
+        this.presentationStatusMeta.textContent = metaText;
+
+        if (this.presentationManageButton) {
+            this.presentationManageButton.textContent = manageLabel;
+        }
+
+        if (this.presentationProjectorButton) {
+            this.presentationProjectorButton.disabled = !hasDeck;
+        }
+
+        const canNavigate = hasDeck && sourceType === 'html';
+        if (this.presentationPrevButton) {
+            this.presentationPrevButton.disabled = !canNavigate;
+        }
+        if (this.presentationNextButton) {
+            this.presentationNextButton.disabled = !canNavigate;
+        }
+    }
+
+    syncPresentationControlsFromWidget(widget = this.getPrimaryRevealManagerWidget()) {
+        this.renderPresentationControlState(this.buildPresentationControlState(widget));
+    }
+
+    syncPresentationControlsFromPayload(payload = {}) {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.renderPresentationControlState();
+            return;
+        }
+
+        if (payload.widgetId && presentationWidget.widgetId && payload.widgetId !== presentationWidget.widgetId) {
+            return;
+        }
+
+        this.renderPresentationControlState(this.buildPresentationControlState(presentationWidget, payload));
+    }
+
+    openPresentationControlsFromPanel() {
+        let presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.addWidget('reveal-manager');
+            presentationWidget = this.getPrimaryRevealManagerWidget();
+        }
+
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        document.dispatchEvent(new CustomEvent('openWidgetSettings', {
+            detail: { widget: presentationWidget }
+        }));
+    }
+
+    openPresentationProjectorFromPanel() {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget || !presentationWidget.activeDeck || typeof presentationWidget.openProjector !== 'function') {
+            this.showNotification('Load a presentation in Reveal Manager before opening the projector.', 'warning');
+            return;
+        }
+
+        presentationWidget.openProjector();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+    }
+
+    navigatePresentationFromPanel(direction) {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget || !presentationWidget.activeDeck) {
+            this.showNotification('Load a presentation in Reveal Manager first.', 'warning');
+            return;
+        }
+
+        if (presentationWidget.activeDeck.type !== 'html' || typeof presentationWidget.navigate !== 'function') {
+            this.showNotification('Prev / Next controls are available only for Reveal HTML decks.', 'warning');
+            return;
+        }
+
+        presentationWidget.navigate(direction);
+        this.syncPresentationControlsFromWidget(presentationWidget);
     }
 
     renderBackgroundSelector() {

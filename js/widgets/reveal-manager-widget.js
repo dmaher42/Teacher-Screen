@@ -9,6 +9,11 @@ class RevealManagerWidget {
         this.storageKey = 'revealDecks';
         this.activeDeck = null;
         this.revealDeck = null;
+        this.sourceTypes = [
+            { value: 'html', label: 'Reveal HTML' },
+            { value: 'google-slides', label: 'Google Slides' },
+            { value: 'powerpoint', label: 'PowerPoint' }
+        ];
         this.currentIndices = { h: 0, v: 0 };
         this.isCompact = true;
         this.projectorWindow = null;
@@ -46,9 +51,20 @@ class RevealManagerWidget {
                     <details class="reveal-manager__section" open>
                         <summary>Deck Source</summary>
                         <div class="reveal-manager-row">
-                            <input type="text" class="reveal-deck-name" placeholder="Deck name">
+                            <select class="reveal-source-type" aria-label="Select presentation source type">
+                                <option value="html">Reveal HTML</option>
+                                <option value="google-slides">Google Slides</option>
+                                <option value="powerpoint">PowerPoint</option>
+                            </select>
                         </div>
                         <div class="reveal-manager-row">
+                            <input type="text" class="reveal-deck-name" placeholder="Deck name">
+                        </div>
+                        <div class="reveal-manager-row reveal-external-row" hidden>
+                            <input type="text" class="reveal-external-url" placeholder="Paste the share or present URL">
+                        </div>
+                        <p class="reveal-external-hint" hidden>Use a teacher-ready Google Slides or PowerPoint web link. Reveal-style in-app slide sync is kept for Reveal HTML decks.</p>
+                        <div class="reveal-manager-row reveal-html-row">
                             <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
                         </div>
                         <div class="reveal-manager-row reveal-manager-actions">
@@ -92,7 +108,12 @@ class RevealManagerWidget {
         this.projectorButton = this.element.querySelector('.reveal-projector-btn');
         this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
         this.panelContainer = this.element.querySelector('.reveal-manager__panel');
+        this.sourceTypeSelect = this.element.querySelector('.reveal-source-type');
         this.deckNameInput = this.element.querySelector('.reveal-deck-name');
+        this.externalUrlInput = this.element.querySelector('.reveal-external-url');
+        this.externalHint = this.element.querySelector('.reveal-external-hint');
+        this.htmlRow = this.element.querySelector('.reveal-html-row');
+        this.externalRow = this.element.querySelector('.reveal-external-row');
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
         this.saveButton = this.element.querySelector('.reveal-save-btn');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
@@ -113,6 +134,7 @@ class RevealManagerWidget {
         this.handleRootInteraction = this.handleRootInteraction.bind(this);
         this.handleDocumentVisibilityChange = this.handleDocumentVisibilityChange.bind(this);
         this.handleSceneChanged = this.handleSceneChanged.bind(this);
+        this.handleSourceTypeChange = this.handleSourceTypeChange.bind(this);
         this.openProjector = this.openProjector.bind(this);
 
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
@@ -124,6 +146,7 @@ class RevealManagerWidget {
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.projectorButton.addEventListener('click', this.openProjector);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
+        this.sourceTypeSelect.addEventListener('change', this.handleSourceTypeChange);
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
         document.addEventListener('visibilitychange', this.handleDocumentVisibilityChange);
@@ -142,8 +165,10 @@ class RevealManagerWidget {
         RevealManagerWidget.initKeyboardHandler();
         this.renderSavedDeckOptions();
         this.toggleCompact(true);
+        this.updateSourceFields();
         this.updateDeckIndicator();
         this.updateControls();
+        this.emitPresentationState();
     }
 
     static initKeyboardHandler() {
@@ -173,6 +198,100 @@ class RevealManagerWidget {
         if (!this.statusLabel) return;
         this.statusLabel.textContent = message || '';
         this.statusLabel.hidden = !message;
+        this.emitPresentationState();
+    }
+
+    getPresentationStateSnapshot() {
+        const activeDeck = this.activeDeck
+            ? {
+                name: this.activeDeck.name || '',
+                type: this.activeDeck.type || 'html',
+                sourceUrl: this.activeDeck.sourceUrl || ''
+            }
+            : null;
+
+        return {
+            widgetId: this.widgetId || null,
+            hasDeck: !!activeDeck,
+            activeDeck,
+            sourceType: activeDeck?.type || null,
+            sourceLabel: activeDeck ? this.getSourceTypeLabel(activeDeck.type) : '',
+            canNavigate: !!(activeDeck && activeDeck.type === 'html'),
+            currentIndices: {
+                h: Number.isFinite(this.currentIndices?.h) ? this.currentIndices.h : 0,
+                v: Number.isFinite(this.currentIndices?.v) ? this.currentIndices.v : 0
+            },
+            statusMessage: this.statusLabel?.textContent || ''
+        };
+    }
+
+    emitPresentationState() {
+        if (!eventBus || typeof eventBus.emit !== 'function') {
+            return;
+        }
+
+        eventBus.emit('presentation:state-changed', this.getPresentationStateSnapshot());
+    }
+
+    getSourceTypeLabel(type = 'html') {
+        return this.sourceTypes.find((item) => item.value === type)?.label || 'Reveal HTML';
+    }
+
+    isExternalSourceType(type = 'html') {
+        return type === 'google-slides' || type === 'powerpoint';
+    }
+
+    normalizeExternalUrl(url = '') {
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return '';
+        }
+
+        if (/^https?:\/\//i.test(raw)) {
+            return raw;
+        }
+
+        return `https://${raw}`;
+    }
+
+    updateSourceFields() {
+        const sourceType = this.sourceTypeSelect?.value || 'html';
+        const isExternal = this.isExternalSourceType(sourceType);
+
+        if (this.htmlRow) {
+            this.htmlRow.hidden = isExternal;
+        }
+
+        if (this.externalRow) {
+            this.externalRow.hidden = !isExternal;
+        }
+
+        if (this.externalHint) {
+            this.externalHint.hidden = !isExternal;
+            this.externalHint.textContent = sourceType === 'google-slides'
+                ? 'Use a Google Slides share, publish, or present link. This scaffold keeps Google Slides as an external source until a fuller connector is added.'
+                : sourceType === 'powerpoint'
+                    ? 'Use a PowerPoint web, OneDrive, or Microsoft 365 presentation link. This scaffold keeps PowerPoint as an external source until a fuller connector is added.'
+                    : '';
+        }
+
+        if (this.externalUrlInput) {
+            this.externalUrlInput.placeholder = sourceType === 'google-slides'
+                ? 'Paste the Google Slides share or present URL'
+                : sourceType === 'powerpoint'
+                    ? 'Paste the PowerPoint web presentation URL'
+                    : 'Paste the share or present URL';
+        }
+
+        if (this.emptyState && !this.activeDeck) {
+            this.emptyState.textContent = isExternal
+                ? `Add a ${this.getSourceTypeLabel(sourceType)} link, then press Open.`
+                : 'Paste Reveal HTML, then press Open.';
+        }
+    }
+
+    handleSourceTypeChange() {
+        this.updateSourceFields();
     }
 
     updateDeckIndicator() {
@@ -185,15 +304,16 @@ class RevealManagerWidget {
         }
 
         const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
-        this.deckIndicator.textContent = `${deckName} - HTML`;
+        this.deckIndicator.textContent = `${deckName} - ${this.getSourceTypeLabel(this.activeDeck.type)}`;
         this.deckIndicator.hidden = false;
     }
 
     updateControls() {
         const hasDeck = !!this.activeDeck;
+        const isLiveRevealDeck = hasDeck && this.activeDeck.type === 'html';
         this.launchButton.textContent = hasDeck ? 'Stop' : 'Open';
-        this.prevButton.disabled = !hasDeck;
-        this.nextButton.disabled = !hasDeck;
+        this.prevButton.disabled = !isLiveRevealDeck;
+        this.nextButton.disabled = !isLiveRevealDeck;
         this.emptyState.hidden = hasDeck;
     }
 
@@ -203,7 +323,7 @@ class RevealManagerWidget {
 
         const helpText = document.createElement('div');
         helpText.className = 'widget-help-text';
-        helpText.textContent = 'Paste Reveal HTML, save decks for reuse, and control the live presentation from one place.';
+        helpText.textContent = 'Use Reveal HTML for full slide sync, or save Google Slides and PowerPoint links as external presentation sources.';
         controls.appendChild(helpText);
 
         const sourceSection = document.createElement('div');
@@ -212,12 +332,36 @@ class RevealManagerWidget {
         sourceHeading.textContent = 'Source';
         sourceSection.appendChild(sourceHeading);
 
+        const sourceTypeLabel = document.createElement('label');
+        sourceTypeLabel.textContent = 'Source type';
+        const settingsSourceTypeSelect = document.createElement('select');
+        this.sourceTypes.forEach((sourceType) => {
+            const option = document.createElement('option');
+            option.value = sourceType.value;
+            option.textContent = sourceType.label;
+            settingsSourceTypeSelect.appendChild(option);
+        });
+        sourceTypeLabel.appendChild(settingsSourceTypeSelect);
+        sourceSection.appendChild(sourceTypeLabel);
+
         const deckNameLabel = document.createElement('label');
         deckNameLabel.textContent = 'Deck name';
         const settingsDeckNameInput = document.createElement('input');
         settingsDeckNameInput.type = 'text';
         deckNameLabel.appendChild(settingsDeckNameInput);
         sourceSection.appendChild(deckNameLabel);
+
+        const externalUrlLabel = document.createElement('label');
+        externalUrlLabel.textContent = 'External slide URL';
+        const settingsExternalUrlInput = document.createElement('input');
+        settingsExternalUrlInput.type = 'text';
+        settingsExternalUrlInput.placeholder = 'https://...';
+        externalUrlLabel.appendChild(settingsExternalUrlInput);
+        sourceSection.appendChild(externalUrlLabel);
+
+        const externalHint = document.createElement('div');
+        externalHint.className = 'widget-help-text';
+        sourceSection.appendChild(externalHint);
 
         const htmlLabel = document.createElement('label');
         htmlLabel.textContent = 'Reveal HTML';
@@ -312,26 +456,34 @@ class RevealManagerWidget {
 
         const syncFromWidget = () => {
             this.updateCurrentIndices();
+            settingsSourceTypeSelect.value = this.sourceTypeSelect.value;
             settingsDeckNameInput.value = this.deckNameInput.value;
+            settingsExternalUrlInput.value = this.externalUrlInput.value;
             settingsHtmlInput.value = this.htmlInput.value;
             openButton.textContent = this.activeDeck ? 'Stop Deck' : 'Load Deck';
-            prevButton.disabled = !this.activeDeck;
-            nextButton.disabled = !this.activeDeck;
+            prevButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
+            nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             projectorButton.disabled = !this.activeDeck;
             syncSavedOptions();
+            this.updateExternalSourceSettingsUI(settingsSourceTypeSelect, externalUrlLabel, htmlLabel, externalHint);
 
             if (this.activeDeck) {
                 const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
-                statusText.textContent = `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`;
+                statusText.textContent = this.activeDeck.type === 'html'
+                    ? `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`
+                    : `${deckName} ready as a ${this.getSourceTypeLabel(this.activeDeck.type)} source. Use Projector to open the live deck.`;
             } else {
                 statusText.textContent = 'No deck currently open.';
             }
         };
 
         const syncInputsToWidget = () => {
+            this.sourceTypeSelect.value = settingsSourceTypeSelect.value;
             this.deckNameInput.value = settingsDeckNameInput.value;
+            this.externalUrlInput.value = settingsExternalUrlInput.value;
             this.htmlInput.value = settingsHtmlInput.value;
             this.savedSelect.value = settingsSavedSelect.value;
+            this.updateSourceFields();
         };
 
         openButton.addEventListener('click', () => {
@@ -383,6 +535,12 @@ class RevealManagerWidget {
             this.savedSelect.value = settingsSavedSelect.value;
         });
 
+        settingsSourceTypeSelect.addEventListener('change', () => {
+            this.sourceTypeSelect.value = settingsSourceTypeSelect.value;
+            this.updateSourceFields();
+            this.updateExternalSourceSettingsUI(settingsSourceTypeSelect, externalUrlLabel, htmlLabel, externalHint);
+        });
+
         syncFromWidget();
         return controls;
     }
@@ -423,6 +581,7 @@ class RevealManagerWidget {
             source: this.isTeacherMode() ? 'teacher' : 'projector',
             payload: { type: 'widget-config', widget: 'reveal-manager' }
         });
+        this.emitPresentationState();
     }
 
     getSavedDecks() {
@@ -440,7 +599,27 @@ class RevealManagerWidget {
     }
 
     normalizeStoredDeck(deck) {
-        if (!deck || typeof deck.content !== 'string') {
+        if (!deck || typeof deck !== 'object') {
+            return null;
+        }
+
+        const sourceType = deck.type || 'html';
+        if (this.isExternalSourceType(sourceType)) {
+            const sourceUrl = this.normalizeExternalUrl(deck.sourceUrl || deck.url || '');
+            if (!sourceUrl) {
+                return null;
+            }
+
+            return {
+                id: deck.id || Date.now(),
+                name: (deck.name || 'Untitled Deck').trim(),
+                type: sourceType,
+                sourceUrl,
+                content: ''
+            };
+        }
+
+        if (typeof deck.content !== 'string') {
             return null;
         }
 
@@ -477,6 +656,24 @@ class RevealManagerWidget {
         if (selectedValue) {
             this.savedSelect.value = selectedValue;
         }
+    }
+
+    updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalHint) {
+        if (!sourceTypeSelect || !externalUrlLabel || !htmlLabel || !externalHint) {
+            return;
+        }
+
+        const sourceType = sourceTypeSelect.value || 'html';
+        const isExternal = this.isExternalSourceType(sourceType);
+
+        externalUrlLabel.hidden = !isExternal;
+        htmlLabel.hidden = isExternal;
+        externalHint.hidden = !isExternal;
+        externalHint.textContent = sourceType === 'google-slides'
+            ? 'Use a Google Slides share, publish, or present link. Reveal-only slide sync stays reserved for HTML decks.'
+            : sourceType === 'powerpoint'
+                ? 'Use a PowerPoint web presentation link. Reveal-only slide sync stays reserved for HTML decks.'
+                : '';
     }
 
     looksLikeHtmlDeck(content) {
@@ -528,6 +725,23 @@ class RevealManagerWidget {
     }
 
     buildDeckFromInputs() {
+        const sourceType = this.sourceTypeSelect?.value || 'html';
+        if (this.isExternalSourceType(sourceType)) {
+            const sourceUrl = this.normalizeExternalUrl(this.externalUrlInput?.value || '');
+            if (!sourceUrl) {
+                this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+                return null;
+            }
+
+            return {
+                id: Date.now(),
+                name: (this.deckNameInput.value || this.getSourceTypeLabel(sourceType)).trim(),
+                type: sourceType,
+                sourceUrl,
+                content: ''
+            };
+        }
+
         const content = this.normalizeHtmlDeckContent(this.htmlInput.value);
         if (!content.trim()) {
             this.setStatus('Paste Reveal HTML first.');
@@ -731,6 +945,15 @@ class RevealManagerWidget {
             return this.renderPromise;
         }
 
+        if (this.activeDeck.type !== 'html') {
+            this.inlineDeckContainer.innerHTML = '';
+            this.inlineDeckContainer.__teacherScreenRevealDeck = null;
+            this.revealDeck = null;
+            this.renderExternalDeckScaffold(this.activeDeck);
+            this.setStatus(`${this.getSourceTypeLabel(this.activeDeck.type)} source ready.`);
+            return null;
+        }
+
         this.renderPromise = (async () => {
             try {
                 const renderVersion = ++this.renderVersion;
@@ -786,13 +1009,31 @@ class RevealManagerWidget {
         return this.renderPromise;
     }
 
+    renderExternalDeckScaffold(deck) {
+        if (!this.inlineDeckContainer || !deck) {
+            return;
+        }
+
+        const sourceLabel = this.getSourceTypeLabel(deck.type);
+        const sourceUrl = deck.sourceUrl || '';
+        this.inlineDeckContainer.innerHTML = `
+            <div class="reveal-external-source-card">
+                <span class="reveal-external-source-card__eyebrow">${sourceLabel}</span>
+                <h3>${deck.name || sourceLabel}</h3>
+                <p>This source is saved inside the Reveal widget and can be launched to the projector, but Reveal slide-by-slide sync remains available only for HTML decks.</p>
+                <a class="reveal-external-source-card__link" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceUrl}</a>
+            </div>
+        `;
+    }
+
     async launchDeck(deck, { preserveIndices = false } = {}) {
-        this.activeDeck = {
-            id: deck.id,
-            name: deck.name,
-            type: 'html',
-            content: this.normalizeHtmlDeckContent(deck.content)
-        };
+        const normalizedDeck = this.normalizeStoredDeck(deck);
+        if (!normalizedDeck) {
+            this.setStatus('That deck could not be loaded.');
+            return;
+        }
+
+        this.activeDeck = normalizedDeck;
 
         if (!preserveIndices) {
             this.currentIndices = { h: 0, v: 0 };
@@ -805,7 +1046,7 @@ class RevealManagerWidget {
         this.setStatus('Loading deck...');
 
         const loadedDeck = await this.renderActiveDeck({ preserveIndices });
-        if (!loadedDeck) {
+        if (this.activeDeck.type === 'html' && !loadedDeck) {
             return;
         }
 
@@ -831,17 +1072,19 @@ class RevealManagerWidget {
         this.currentIndices = { h: 0, v: 0 };
         this.savedSelect.value = '';
         this.setStatus('');
+        this.updateSourceFields();
         this.updateDeckIndicator();
         this.updateControls();
         this.persistActiveDeckState();
     }
 
     broadcastSlideSync(event = null) {
-        if (!this.activeDeck || !this.isTeacherMode()) {
+        if (!this.activeDeck || this.activeDeck.type !== 'html' || !this.isTeacherMode()) {
             return null;
         }
 
         this.updateCurrentIndices(event);
+        this.emitPresentationState();
 
         const payload = {
             type: 'slideSync',
@@ -875,7 +1118,7 @@ class RevealManagerWidget {
     }
 
     navigate(direction) {
-        if (!this.activeDeck || !this.revealDeck) return;
+        if (!this.activeDeck || this.activeDeck.type !== 'html' || !this.revealDeck) return;
 
         this.activateDeck();
 
@@ -942,7 +1185,10 @@ class RevealManagerWidget {
         }
 
         this.deckNameInput.value = normalized.name;
-        this.htmlInput.value = normalized.content;
+        this.sourceTypeSelect.value = normalized.type || 'html';
+        this.externalUrlInput.value = normalized.sourceUrl || '';
+        this.htmlInput.value = normalized.content || '';
+        this.updateSourceFields();
         this.launchDeck(normalized, { preserveIndices: false });
     }
 
@@ -985,6 +1231,11 @@ class RevealManagerWidget {
             return;
         }
 
+        if (this.activeDeck.type !== 'html') {
+            this.openExternalSourceWindow(this.activeDeck);
+            return;
+        }
+
         const projectorUrl = new URL('projector.html', window.location.href);
         try {
             const syncToken = sessionStorage.getItem('teacher-screen-projector-sync-token')
@@ -1013,6 +1264,23 @@ class RevealManagerWidget {
         window.setTimeout(() => this.broadcastSlideSync(), 1500);
     }
 
+    openExternalSourceWindow(deck) {
+        const sourceUrl = this.normalizeExternalUrl(deck?.sourceUrl || '');
+        if (!sourceUrl) {
+            this.setStatus('This external source does not have a usable URL yet.');
+            return;
+        }
+
+        const externalWindow = window.open(sourceUrl, 'projector', 'fullscreen=yes');
+        if (!externalWindow) {
+            this.setStatus('Projector popup blocked.');
+            return;
+        }
+
+        this.projectorWindow = externalWindow;
+        this.setStatus(`${this.getSourceTypeLabel(deck.type)} opening in a projector window...`);
+    }
+
     serialize() {
         return {
             type: 'RevealManagerWidget',
@@ -1033,7 +1301,10 @@ class RevealManagerWidget {
             : { h: 0, v: 0 };
 
         this.deckNameInput.value = deck.name;
-        this.htmlInput.value = deck.content;
+        this.sourceTypeSelect.value = deck.type || 'html';
+        this.externalUrlInput.value = deck.sourceUrl || '';
+        this.htmlInput.value = deck.content || '';
+        this.updateSourceFields();
         this.launchDeck(deck, { preserveIndices: true });
     }
 
@@ -1049,6 +1320,7 @@ class RevealManagerWidget {
         this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
         this.projectorButton.removeEventListener('click', this.openProjector);
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
+        this.sourceTypeSelect.removeEventListener('change', this.handleSourceTypeChange);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         document.removeEventListener('visibilitychange', this.handleDocumentVisibilityChange);

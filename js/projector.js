@@ -439,6 +439,14 @@ class ProjectorApp {
                 return;
             }
 
+            if (message.type === 'timer-sync' && message.timerState) {
+                if (message.source === 'projector') {
+                    return;
+                }
+                this.applyTimerState(message.timerState);
+                return;
+            }
+
             if (message.type === 'slideSync') {
                 handleSlideSyncPayload(message);
             }
@@ -613,9 +621,43 @@ class ProjectorApp {
             } else {
                 clearProjectorPresentationRoot();
             }
+
+            this.applyTimerStates(state.timerStates);
         } catch (err) {
             console.error('Projector layout rebuild failed:', err);
         }
+    }
+
+    applyTimerStates(timerStates = []) {
+        if (!Array.isArray(timerStates)) {
+            return;
+        }
+
+        timerStates.forEach((timerState) => this.applyTimerState(timerState));
+    }
+
+    applyTimerState(timerState = {}) {
+        if (!timerState || typeof timerState !== 'object') {
+            return;
+        }
+
+        const targetWidget = this.widgets.find((widget) => {
+            if (!widget || typeof widget.applySyncedState !== 'function') {
+                return false;
+            }
+
+            if (timerState.widgetId && widget.widgetId) {
+                return widget.widgetId === timerState.widgetId;
+            }
+
+            return true;
+        });
+
+        if (!targetWidget || typeof targetWidget.applySyncedState !== 'function') {
+            return;
+        }
+
+        targetWidget.applySyncedState(timerState);
     }
 
     getRevealWidgets() {

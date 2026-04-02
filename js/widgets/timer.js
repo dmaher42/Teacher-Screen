@@ -324,6 +324,7 @@ class TimerWidget {
         this.running = false;
         this.isIntervalMode = false;
         this.currentPhase = null;
+        this.latestStatusMessage = 'Ready to start a timer.';
 
         this.handleTimerStartEvent = this.handleTimerStartEvent.bind(this);
         this.handleTimerStopEvent = this.handleTimerStopEvent.bind(this);
@@ -356,6 +357,64 @@ class TimerWidget {
         } catch (error) {
             console.error(`[TimerWidget] Failed to emit ${eventName}`, error);
         }
+    }
+
+    getDisplayText() {
+        const minutes = Math.floor(this.time / 60);
+        const seconds = this.time % 60;
+        const label = this.isIntervalMode && this.currentPhase ? `${this.currentPhase}: ` : '';
+        return `${label}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    getTimerStateSnapshot(extra = {}) {
+        return {
+            widgetId: this.widgetId || null,
+            running: this.running,
+            display: this.getDisplayText(),
+            remainingSeconds: this.time,
+            totalSeconds: this.totalTime,
+            isIntervalMode: this.isIntervalMode,
+            currentPhase: this.currentPhase,
+            statusMessage: this.latestStatusMessage,
+            ...extra
+        };
+    }
+
+    emitTimerState(eventName = 'timer:updated', extra = {}) {
+        this.emitTimerEvent(eventName, this.getTimerStateSnapshot(extra));
+    }
+
+    applySyncedState(snapshot = {}) {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+        }
+
+        if (typeof snapshot.isIntervalMode === 'boolean') {
+            this.isIntervalMode = snapshot.isIntervalMode;
+            if (this.intervalCheckbox) {
+                this.intervalCheckbox.checked = this.isIntervalMode;
+            }
+            if (this.intervalOptions) {
+                this.intervalOptions.style.display = this.isIntervalMode ? 'block' : 'none';
+            }
+        }
+
+        this.currentPhase = typeof snapshot.currentPhase === 'string' ? snapshot.currentPhase : null;
+        this.time = Number.isFinite(snapshot.remainingSeconds) ? Math.max(0, Math.floor(snapshot.remainingSeconds)) : 0;
+        this.totalTime = Number.isFinite(snapshot.totalSeconds) ? Math.max(0, Math.floor(snapshot.totalSeconds)) : this.time;
+        this.running = !!snapshot.running;
+        const syncedStatus = typeof snapshot.statusMessage === 'string' && snapshot.statusMessage.trim()
+            ? snapshot.statusMessage
+            : (this.running ? 'Timer running...' : 'Ready to start a timer.');
+        this.latestStatusMessage = syncedStatus;
+        this.display.style.color = this.latestStatusMessage === 'Time is up!' ? 'red' : '';
+        this.updateDisplay();
+        this.statusElements.forEach((statusEl) => {
+            if (!statusEl) return;
+            statusEl.textContent = syncedStatus;
+            statusEl.classList.toggle('warning', syncedStatus === 'Time is up!' || syncedStatus === 'Timer stopped.' || syncedStatus === 'Timer reset.');
+        });
     }
 
     handleTimerStartEvent(payload = {}) {
@@ -486,9 +545,18 @@ class TimerWidget {
      * @param {number} minutes - The number of minutes to count down from.
      */
     start(minutes = null) {
+        const hasExplicitMinutes = Number.isFinite(minutes) && minutes > 0;
+
+        // Teacher controls can send a fresh duration while the timer is already running.
+        if (this.running && hasExplicitMinutes) {
+            clearInterval(this.interval);
+            this.interval = null;
+            this.running = false;
+        }
+
         if (!this.running) {
             this.display.style.color = ''; // Reset color in case it was red
-            if (this.isIntervalMode) {
+            if (this.isIntervalMode && !hasExplicitMinutes) {
                 this.currentPhase = 'Work';
                 const workMinutes = this.getWorkDuration();
                 this.time = workMinutes * 60;
@@ -497,8 +565,10 @@ class TimerWidget {
             } else {
                 // Priority: Argument -> Current Time (if set by preset) -> Dropdown -> Default
                 let chosenMinutes;
-                if (Number.isFinite(minutes) && minutes > 0) {
+                if (hasExplicitMinutes) {
                      chosenMinutes = minutes;
+                     this.currentPhase = null;
+                     this.selectedPresetName = null;
                      this.time = chosenMinutes * 60;
                 } else if (this.time > 0 && this.selectedPresetName) {
                      // Using currently selected preset or manually set time via preset click
@@ -512,11 +582,12 @@ class TimerWidget {
                 this.totalTime = this.time;
                 this.setStatus(`Timer started for ${Math.round(chosenMinutes * 10) / 10} minute(s).`);
             }
+            this.running = true;
             this.updateDisplay();
             this.flashDisplay();
             this.interval = setInterval(() => this.tick(), 1000);
-            this.running = true;
-            this.emitTimerEvent('timer:started', { widgetId: this.widgetId, minutes: this.totalTime / 60 });
+            this.emitTimerState('timer:updated');
+            this.emitTimerState('timer:started', { minutes: this.totalTime / 60 });
         }
     }
 
@@ -551,10 +622,8 @@ class TimerWidget {
      * Update the timer display.
      */
     updateDisplay() {
-        const minutes = Math.floor(this.time / 60);
-        const seconds = this.time % 60;
-        const label = this.isIntervalMode && this.currentPhase ? `${this.currentPhase}: ` : '';
-        this.display.textContent = `${label}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        this.display.textContent = this.getDisplayText();
+        this.emitTimerState('timer:updated');
     }
 
     /**
@@ -566,9 +635,10 @@ class TimerWidget {
         this.running = false;
         this.setStatus('Timer stopped.', 'warning');
         this.flashDisplay();
+        this.emitTimerState('timer:updated');
 
         if (emitEvent) {
-            this.emitTimerEvent('timer:stopped', { widgetId: this.widgetId });
+            this.emitTimerState('timer:stopped');
         }
     }
 
@@ -585,9 +655,10 @@ class TimerWidget {
         this.display.style.color = '';
         this.updateDisplay();
         this.setStatus('Timer reset.', 'warning');
+        this.emitTimerState('timer:updated');
 
         if (emitEvent) {
-            this.emitTimerEvent('timer:reset', { widgetId: this.widgetId });
+            this.emitTimerState('timer:reset');
         }
     }
 
@@ -670,6 +741,7 @@ class TimerWidget {
      * @param {string} tone
      */
     setStatus(message, tone = 'success') {
+        this.latestStatusMessage = message;
         this.statusElements.forEach((statusEl) => {
             if (!statusEl) return;
             statusEl.textContent = message;
@@ -778,5 +850,6 @@ class TimerWidget {
 
 
         this.setStatus(this.running ? 'Timer running...' : 'Ready to start a timer.');
+        this.emitTimerState('timer:updated');
     }
 }
