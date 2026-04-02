@@ -190,10 +190,14 @@ class NotesWidget {
 
         const subtitleSpan = document.createElement('span');
         subtitleSpan.className = 'notes-expanded-subtitle';
-        subtitleSpan.textContent = 'Write something useful, then save to keep it on the card.';
+        subtitleSpan.textContent = 'Write something useful, then save to keep it on the card and in the Notes library.';
+
+        this.expandedMeta = document.createElement('span');
+        this.expandedMeta.className = 'notes-expanded-meta';
 
         titleBlock.appendChild(titleSpan);
         titleBlock.appendChild(subtitleSpan);
+        titleBlock.appendChild(this.expandedMeta);
 
         const minimizeBtn = document.createElement('button');
         minimizeBtn.innerHTML = '&times;';
@@ -223,7 +227,7 @@ class NotesWidget {
         const primaryActions = document.createElement('div');
         primaryActions.className = 'primary-actions';
         const saveButton = document.createElement('button');
-        saveButton.textContent = 'Save Note';
+        saveButton.textContent = 'Save and Close';
         saveButton.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapse();
@@ -232,6 +236,15 @@ class NotesWidget {
 
         const secondaryActions = document.createElement('div');
         secondaryActions.className = 'secondary-actions';
+        const continueButton = document.createElement('button');
+        continueButton.textContent = 'Keep Editing';
+        continueButton.title = 'Keep writing';
+        continueButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.quillEditor) {
+                this.quillEditor.focus();
+            }
+        });
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '&times;';
         closeButton.title = 'Close editor';
@@ -239,10 +252,12 @@ class NotesWidget {
             e.stopPropagation();
             this.collapse();
         });
+        secondaryActions.appendChild(continueButton);
         secondaryActions.appendChild(closeButton);
 
         controlBar.append(primaryActions, secondaryActions);
         this.editorContainerWrapper.appendChild(controlBar);
+        this.updateExpandedHeader();
 
         // Create/Initialize Quill
         this.initializeEditor();
@@ -312,6 +327,7 @@ class NotesWidget {
             this.title = this.getTitleFromContent();
             this.updatedAt = new Date().toISOString();
             this.updateDisplay();
+            this.updateExpandedHeader();
             document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
         };
         this.quillEditor.on('text-change', this.quillTextChangeHandler);
@@ -339,6 +355,24 @@ class NotesWidget {
         this.mainDisplay.title = hasContent
             ? `Open "${previewTitle}"`
             : 'Open the quick note editor';
+        this.updateExpandedHeader();
+    }
+
+    updateExpandedHeader() {
+        if (!this.expandedHeader) return;
+
+        const titleNode = this.expandedHeader.querySelector('.notes-expanded-title');
+        if (titleNode) {
+            titleNode.textContent = this.title || 'Editing note';
+        }
+
+        if (this.expandedMeta) {
+            const wordCount = this.getWordCount(this.savedContent);
+            const wordLabel = wordCount === 1 ? '1 word' : `${wordCount} words`;
+            this.expandedMeta.textContent = this.savedContent && this.savedContent.trim()
+                ? `${wordLabel} | Updated ${this.formatUpdatedAt(this.updatedAt)}`
+                : 'Nothing saved yet';
+        }
     }
 
     persistNote() {
@@ -375,6 +409,17 @@ class NotesWidget {
         }
 
         return `${text.slice(0, limit).trimEnd()}…`;
+    }
+
+    getWordCount(html = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) {
+            return 0;
+        }
+
+        return text.split(/\s+/).filter(Boolean).length;
     }
 
     formatUpdatedAt(value) {

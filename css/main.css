@@ -3029,6 +3029,26 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     margin-bottom: 16px;
 }
 
+.notes-panel__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.notes-panel__summary-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 82%, var(--primary-color, #8e82ff) 18%);
+    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 18%, var(--border-color, #dfe4e2) 82%);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .notes-panel__header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -3054,58 +3074,106 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
 }
 
 .saved-note-card {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: flex-start;
-    padding: 14px 16px;
-    border: 1px solid var(--border-color, #dfe4e2);
-    border-radius: var(--border-radius-medium, 10px);
-    background: var(--card-background, #ffffff);
-    box-shadow: var(--shadow-soft, 0 1px 3px rgba(0, 0, 0, 0.05));
-    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    border-radius: 16px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--card-background, #ffffff) 94%, var(--bg-surface, #f8fafc) 6%),
+        color-mix(in srgb, var(--bg-surface, #f8fafc) 82%, var(--card-background, #ffffff) 18%));
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    gap: 16px;
 }
 
 .saved-note-card:hover {
     border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 35%, var(--border-color, #dfe4e2));
-    box-shadow: var(--shadow-soft, 0 3px 8px rgba(0, 0, 0, 0.08));
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
 }
 
 .saved-note-meta {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
+    min-width: 0;
+}
+
+.saved-note-header,
+.saved-note-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.saved-note-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.saved-note-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    color: color-mix(in srgb, var(--text-secondary, #64748b) 82%, var(--text-primary, #0f172a) 18%);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.saved-note-chip--accent {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
+    color: color-mix(in srgb, var(--primary-color, #8e82ff) 78%, #1f2937 22%);
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 22%, var(--border-color, #dfe4e2) 78%);
 }
 
 .saved-note-title {
-    font-weight: 700;
+    font-weight: 800;
     color: var(--text-color, #333);
-    font-size: 1rem;
+    font-size: 1.08rem;
+    letter-spacing: -0.02em;
 }
 
 .saved-note-updated {
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     color: color-mix(in srgb, var(--text-color, #333) 65%, #000);
 }
 
 .saved-note-preview {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
+    line-height: 1.6;
     color: color-mix(in srgb, var(--text-color, #333) 80%, #000);
-    max-width: 640px;
+    max-width: 720px;
+    margin: 0;
 }
 
 .saved-note-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
     flex-shrink: 0;
+    min-width: 178px;
+}
+
+.saved-note-source {
+    font-size: 0.84rem;
+    color: color-mix(in srgb, var(--text-secondary, #64748b) 82%, transparent);
 }
 
 .notes-empty {
-    padding: 16px;
+    padding: 24px;
     text-align: center;
     color: color-mix(in srgb, var(--text-color, #333) 70%, #000);
     border: 1px dashed var(--border-color, #dfe4e2);
-    border-radius: var(--border-radius-medium, 10px);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
 }
 
 .planner-panel__header-actions {

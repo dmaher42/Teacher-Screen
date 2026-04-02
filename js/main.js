@@ -141,6 +141,7 @@ class ClassroomScreenApp {
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
         this.savedNotesListElement = document.getElementById('saved-notes-list');
         this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
+        this.notesPanelSummary = document.getElementById('notes-panel-summary');
         this.exportAllNotesButton = document.getElementById('export-all-notes-memory-cue');
         this.layoutNameInput = document.getElementById('planner-layout-name-input');
         this.saveLayoutButton = document.getElementById('planner-save-layout-btn');
@@ -806,8 +807,11 @@ class ClassroomScreenApp {
         this.savedNotesListElement.innerHTML = '';
         const emptyState = this.savedNotesEmptyState;
         const notes = Array.isArray(this.savedNotes) ? [...this.savedNotes] : [];
+        const sortedNotes = notes.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
-        if (!notes.length) {
+        this.updateSavedNotesSummary(sortedNotes);
+
+        if (!sortedNotes.length) {
             if (emptyState) {
                 emptyState.hidden = false;
                 this.savedNotesListElement.appendChild(emptyState);
@@ -819,9 +823,7 @@ class ClassroomScreenApp {
             emptyState.hidden = true;
         }
 
-        notes
-            .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
-            .forEach((note) => {
+        sortedNotes.forEach((note) => {
                 const card = document.createElement('div');
                 card.className = 'saved-note-card';
                 card.setAttribute('role', 'listitem');
@@ -829,21 +831,50 @@ class ClassroomScreenApp {
                 const meta = document.createElement('div');
                 meta.className = 'saved-note-meta';
 
+                const header = document.createElement('div');
+                header.className = 'saved-note-header';
+
                 const title = document.createElement('span');
                 title.className = 'saved-note-title';
                 title.textContent = note.title || 'Untitled Note';
 
-                const updated = document.createElement('span');
-                updated.className = 'saved-note-updated';
-                updated.textContent = `Updated ${this.formatNoteDate(note.updatedAt)}`;
+                const chips = document.createElement('div');
+                chips.className = 'saved-note-chips';
+
+                const wordChip = document.createElement('span');
+                wordChip.className = 'saved-note-chip';
+                const wordCount = this.getNoteWordCount(note.content);
+                wordChip.textContent = wordCount === 1 ? '1 word' : `${wordCount} words`;
+
+                const statusChip = document.createElement('span');
+                statusChip.className = 'saved-note-chip saved-note-chip--accent';
+                statusChip.textContent = 'Ready';
 
                 const preview = document.createElement('p');
                 preview.className = 'saved-note-preview';
                 preview.textContent = this.getNotePreviewText(note.content);
 
-                meta.appendChild(title);
-                meta.appendChild(updated);
+                const footer = document.createElement('div');
+                footer.className = 'saved-note-footer';
+
+                const updated = document.createElement('span');
+                updated.className = 'saved-note-updated';
+                updated.textContent = `Updated ${this.formatNoteDate(note.updatedAt)}`;
+
+                const source = document.createElement('span');
+                source.className = 'saved-note-source';
+                source.textContent = 'Open in Classroom to continue editing';
+
+                chips.appendChild(wordChip);
+                chips.appendChild(statusChip);
+                header.appendChild(title);
+                header.appendChild(chips);
+                footer.appendChild(updated);
+                footer.appendChild(source);
+
+                meta.appendChild(header);
                 meta.appendChild(preview);
+                meta.appendChild(footer);
 
                 const actions = document.createElement('div');
                 actions.className = 'saved-note-actions';
@@ -853,21 +884,21 @@ class ClassroomScreenApp {
                 openBtn.className = 'control-button';
                 openBtn.dataset.noteAction = 'open';
                 openBtn.dataset.noteId = note.id;
-                openBtn.textContent = 'Open';
+                openBtn.textContent = 'Open in Classroom';
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.type = 'button';
-                deleteBtn.className = 'control-button';
+                deleteBtn.className = 'control-button control-button--ghost';
                 deleteBtn.dataset.noteAction = 'delete';
                 deleteBtn.dataset.noteId = note.id;
                 deleteBtn.textContent = 'Delete';
 
                 const memoryCueBtn = document.createElement('button');
                 memoryCueBtn.type = 'button';
-                memoryCueBtn.className = 'control-button';
+                memoryCueBtn.className = 'control-button control-button--ghost';
                 memoryCueBtn.dataset.noteAction = 'memory-cue';
                 memoryCueBtn.dataset.noteId = note.id;
-                memoryCueBtn.textContent = 'Send';
+                memoryCueBtn.textContent = 'Send to Memory Cue';
 
                 actions.appendChild(openBtn);
                 actions.appendChild(memoryCueBtn);
@@ -878,6 +909,31 @@ class ClassroomScreenApp {
 
                 this.savedNotesListElement.appendChild(card);
             });
+    }
+
+    updateSavedNotesSummary(notes = []) {
+        if (!this.notesPanelSummary) {
+            return;
+        }
+
+        if (!notes.length) {
+            this.notesPanelSummary.innerHTML = '';
+            return;
+        }
+
+        const totalWords = notes.reduce((sum, note) => sum + this.getNoteWordCount(note.content), 0);
+        const summary = [
+            `${notes.length} ${notes.length === 1 ? 'saved note' : 'saved notes'}`,
+            `${totalWords} ${totalWords === 1 ? 'word' : 'words'} in library`
+        ];
+
+        if (notes[0]?.updatedAt) {
+            summary.push(`Latest ${this.formatNoteDate(notes[0].updatedAt)}`);
+        }
+
+        this.notesPanelSummary.innerHTML = summary
+            .map((item) => `<span class="notes-panel__summary-pill">${item}</span>`)
+            .join('');
     }
 
     openSavedNote(noteId) {
@@ -1018,9 +1074,18 @@ class ClassroomScreenApp {
     getNotePreviewText(content = '') {
         const temp = document.createElement('div');
         temp.innerHTML = content || '';
-        const text = (temp.textContent || '').trim();
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
         if (!text) return 'No content saved yet.';
-        return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+        return text.length > 180 ? `${text.slice(0, 177).trimEnd()}...` : text;
+    }
+
+    getNoteWordCount(content = '') {
+        const text = this.getNotePlainText(content);
+        if (!text) {
+            return 0;
+        }
+
+        return text.split(/\s+/).filter(Boolean).length;
     }
 
     getNotePlainText(content = '') {
