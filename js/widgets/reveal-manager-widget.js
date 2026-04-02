@@ -766,6 +766,32 @@ class RevealManagerWidget {
         };
     }
 
+    async loadExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
+        const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
+        const normalizedUrl = this.normalizeExternalUrl(sourceUrl);
+        if (!normalizedUrl) {
+            this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+            return false;
+        }
+
+        const deckName = (name || this.getSourceTypeLabel(sourceType)).trim();
+        this.sourceTypeSelect.value = sourceType;
+        this.deckNameInput.value = deckName;
+        this.externalUrlInput.value = normalizedUrl;
+        this.htmlInput.value = '';
+        this.updateSourceFields();
+
+        await this.launchDeck({
+            id: Date.now(),
+            name: deckName,
+            type: sourceType,
+            sourceUrl: normalizedUrl,
+            content: ''
+        }, { preserveIndices: false });
+
+        return !!this.activeDeck;
+    }
+
     wrapDeckMarkup(content) {
         const normalized = this.normalizeHtmlDeckContent(content);
         const hasRevealStructure = /class=["'][^"']*\breveal\b[^"']*["']/i.test(normalized)

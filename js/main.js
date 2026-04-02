@@ -160,6 +160,11 @@ class ClassroomScreenApp {
         this.presentationStatusDisplay = document.getElementById('presentation-status-display');
         this.presentationStatusContext = document.getElementById('presentation-status-context');
         this.presentationStatusMeta = document.getElementById('presentation-status-meta');
+        this.presentationSourceTypeSelect = document.getElementById('presentation-source-type');
+        this.presentationSourceNameInput = document.getElementById('presentation-source-name');
+        this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
+        this.presentationLinkHint = document.getElementById('presentation-link-hint');
+        this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
         this.presentationManageButton = document.getElementById('presentation-manage-btn');
         this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
         this.presentationPrevButton = document.getElementById('presentation-prev-btn');
@@ -546,6 +551,16 @@ class ClassroomScreenApp {
 
         if (this.presentationManageButton) {
             this.presentationManageButton.addEventListener('click', () => this.openPresentationControlsFromPanel());
+        }
+
+        if (this.presentationSourceTypeSelect) {
+            this.presentationSourceTypeSelect.addEventListener('change', () => this.updatePresentationLinkInputs());
+        }
+
+        if (this.presentationOpenLinkButton) {
+            this.presentationOpenLinkButton.addEventListener('click', () => {
+                void this.openPresentationLinkFromPanel();
+            });
         }
 
         if (this.presentationProjectorButton) {
@@ -2350,6 +2365,40 @@ class ClassroomScreenApp {
         return this.widgets.find(widget => this.isRevealManagerWidget(widget)) || null;
     }
 
+    updatePresentationLinkInputs(sourceType = this.presentationSourceTypeSelect?.value || 'google-slides') {
+        const normalizedSourceType = sourceType === 'powerpoint' ? 'powerpoint' : 'google-slides';
+        const sourceLabel = normalizedSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+        const urlPlaceholder = normalizedSourceType === 'powerpoint'
+            ? 'Paste the PowerPoint web presentation URL'
+            : 'Paste the Google Slides share or present URL';
+        const namePlaceholder = normalizedSourceType === 'powerpoint'
+            ? 'Optional PowerPoint name'
+            : 'Optional Google Slides name';
+        const hintText = normalizedSourceType === 'powerpoint'
+            ? 'Paste a Microsoft 365, OneDrive, or PowerPoint web presentation link and Teacher Controls will load it into Reveal Manager for you.'
+            : 'Paste a teacher-ready Google Slides link here and Teacher Controls will load it into Reveal Manager for you.';
+
+        if (this.presentationSourceTypeSelect && this.presentationSourceTypeSelect.value !== normalizedSourceType) {
+            this.presentationSourceTypeSelect.value = normalizedSourceType;
+        }
+
+        if (this.presentationSourceUrlInput) {
+            this.presentationSourceUrlInput.placeholder = urlPlaceholder;
+        }
+
+        if (this.presentationSourceNameInput) {
+            this.presentationSourceNameInput.placeholder = namePlaceholder;
+        }
+
+        if (this.presentationLinkHint) {
+            this.presentationLinkHint.textContent = hintText;
+        }
+
+        if (this.presentationOpenLinkButton) {
+            this.presentationOpenLinkButton.textContent = `Open ${sourceLabel} Link`;
+        }
+    }
+
     formatPresentationSourceContext(sourceType = 'html', currentIndices = {}, sourceUrl = '') {
         if (sourceType === 'html') {
             const horizontalIndex = Number.isFinite(currentIndices?.h) ? currentIndices.h + 1 : 1;
@@ -2452,6 +2501,18 @@ class ClassroomScreenApp {
                 : 'This external presentation is linked in Reveal Manager. Open Projector to present it.');
         }
 
+        if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {
+            this.updatePresentationLinkInputs(sourceType);
+            if (this.presentationSourceNameInput) {
+                this.presentationSourceNameInput.value = deckName || '';
+            }
+            if (this.presentationSourceUrlInput) {
+                this.presentationSourceUrlInput.value = sourceUrl || '';
+            }
+        } else {
+            this.updatePresentationLinkInputs();
+        }
+
         this.presentationStatusBadge.textContent = badgeText;
         this.presentationStatusBadge.dataset.state = badgeState;
         this.presentationStatusDisplay.textContent = displayText;
@@ -2510,6 +2571,49 @@ class ClassroomScreenApp {
         document.dispatchEvent(new CustomEvent('openWidgetSettings', {
             detail: { widget: presentationWidget }
         }));
+    }
+
+    async openPresentationLinkFromPanel() {
+        const sourceType = this.presentationSourceTypeSelect?.value || 'google-slides';
+        const sourceUrl = this.presentationSourceUrlInput?.value?.trim() || '';
+        const deckName = this.presentationSourceNameInput?.value?.trim() || '';
+        const sourceLabel = sourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+
+        if (!sourceUrl) {
+            this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        let presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.addWidget('reveal-manager');
+            presentationWidget = this.getPrimaryRevealManagerWidget();
+        }
+
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadExternalSource !== 'function') {
+            this.showNotification('This Reveal Manager build does not support direct links yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadExternalSource({
+            type: sourceType,
+            sourceUrl,
+            name: deckName
+        });
+
+        if (!loaded) {
+            this.showNotification(`Unable to load that ${sourceLabel} link.`, 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        this.showNotification(`${sourceLabel} link loaded in Reveal Manager.`, 'success');
     }
 
     openPresentationProjectorFromPanel() {

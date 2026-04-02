@@ -886,6 +886,34 @@ details:focus-visible,
     color: color-mix(in srgb, var(--text-color, #333) 72%, #64748b 28%);
 }
 
+.presentation-link-panel {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+}
+
+.presentation-link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+    gap: 10px;
+}
+
+.presentation-link-hint {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: color-mix(in srgb, var(--text-color, #333) 66%, #64748b 34%);
+}
+
+@media (max-width: 720px) {
+    .presentation-link-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .panel-toggle-label {
     display: flex;
     align-items: center;
