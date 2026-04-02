@@ -684,6 +684,16 @@ class LayoutManager {
     let isDragging = false;
     let startX, startY;
     let initialLeft, initialTop;
+    let dragFrame = null;
+    let pendingPosition = null;
+
+    const applyDragPosition = () => {
+      dragFrame = null;
+      if (!pendingPosition) return;
+
+      widgetElement.style.left = `${pendingPosition.x}px`;
+      widgetElement.style.top = `${pendingPosition.y}px`;
+    };
 
     widgetElement.addEventListener('mousedown', (e) => {
       if (!this.editable) return;
@@ -712,6 +722,9 @@ class LayoutManager {
 
       initialLeft = parseInt(widgetElement.style.left, 10) || 0;
       initialTop = parseInt(widgetElement.style.top, 10) || 0;
+      pendingPosition = { x: initialLeft, y: initialTop };
+      widgetElement.classList.add('is-dragging');
+      document.body.classList.add('widget-drag-active');
 
       e.preventDefault();
     });
@@ -719,24 +732,39 @@ class LayoutManager {
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
 
+      const info = this.widgets.find(w => w.element === widgetElement);
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
 
       let left = initialLeft + deltaX;
       let top = initialTop + deltaY;
+      const bounded = this.normalizeWidgetBounds(left, top, info?.width, info?.height);
 
-      // Calculate the snapped position
-      const snappedLeft = Math.round(left / GRID_SIZE) * GRID_SIZE;
-      const snappedTop = Math.round(top / GRID_SIZE) * GRID_SIZE;
+      pendingPosition = {
+        x: Math.round(bounded.x),
+        y: Math.round(bounded.y)
+      };
 
-      // Apply the snapped position to the widget
-      widgetElement.style.left = `${snappedLeft}px`;
-      widgetElement.style.top = `${snappedTop}px`;
+      if (!dragFrame) {
+        dragFrame = requestAnimationFrame(applyDragPosition);
+      }
     });
 
     document.addEventListener('mouseup', (e) => {
       if (isDragging) {
         isDragging = false;
+        widgetElement.classList.remove('is-dragging');
+        document.body.classList.remove('widget-drag-active');
+
+        if (dragFrame) {
+          cancelAnimationFrame(dragFrame);
+          dragFrame = null;
+        }
+
+        if (pendingPosition) {
+          widgetElement.style.left = `${pendingPosition.x}px`;
+          widgetElement.style.top = `${pendingPosition.y}px`;
+        }
 
         const finalLeft = parseInt(widgetElement.style.left, 10) || 0;
         const finalTop = parseInt(widgetElement.style.top, 10) || 0;
@@ -753,6 +781,8 @@ class LayoutManager {
           info.x = snappedLeft;
           info.y = snappedTop;
         }
+
+        pendingPosition = null;
 
         this.emitWidgetUpdate(info);
         if (info) {

@@ -1738,8 +1738,23 @@ dialog::backdrop {
                 transform calc(200ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
+.layout-edit-mode .widget {
+    will-change: left, top;
+}
+
 .widget:hover {
     box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
+}
+
+.layout-edit-mode .widget.is-dragging {
+    transition: none;
+    cursor: grabbing;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+}
+
+body.widget-drag-active {
+    cursor: grabbing;
+    user-select: none;
 }
 
 .widget:focus-within,
