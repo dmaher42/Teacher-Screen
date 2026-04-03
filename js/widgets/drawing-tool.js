@@ -104,6 +104,8 @@ class DrawingToolWidget {
         this.startPoint = null;
         this.lastPointer = null;
         this.previewSnapshot = null;
+        this.drawActions = [];
+        this.currentStroke = null;
         this.hasContent = false;
         this.updateDrawingUI();
 
@@ -122,7 +124,10 @@ class DrawingToolWidget {
             return;
         }
 
+        const devicePixelRatio = window.devicePixelRatio || 1;
         let previousSnapshot = null;
+        const previousWidth = this.canvas.width;
+        const previousHeight = this.canvas.height;
         if (this.canvas.width > 0 && this.canvas.height > 0) {
             previousSnapshot = document.createElement('canvas');
             previousSnapshot.width = this.canvas.width;
@@ -130,8 +135,13 @@ class DrawingToolWidget {
             previousSnapshot.getContext('2d').drawImage(this.canvas, 0, 0);
         }
 
-        this.canvas.width = nextWidth;
-        this.canvas.height = nextHeight;
+        this.canvas.width = Math.max(1, Math.floor(nextWidth * devicePixelRatio));
+        this.canvas.height = Math.max(1, Math.floor(nextHeight * devicePixelRatio));
+        this.canvas.style.width = `${nextWidth}px`;
+        this.canvas.style.height = `${nextHeight}px`;
+
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(devicePixelRatio, devicePixelRatio);
 
         // Set initial drawing styles
         this.ctx.lineCap = 'round';
@@ -139,8 +149,20 @@ class DrawingToolWidget {
 
         this.setupEventListeners();
 
-        if (previousSnapshot) {
-            this.ctx.drawImage(previousSnapshot, 0, 0, nextWidth, nextHeight);
+        if (this.drawActions.length) {
+            this.redrawCanvas();
+        } else if (previousSnapshot && previousWidth && previousHeight) {
+            this.ctx.drawImage(
+                previousSnapshot,
+                0,
+                0,
+                previousWidth,
+                previousHeight,
+                0,
+                0,
+                nextWidth,
+                nextHeight
+            );
         } else {
             this.restorePendingImage();
         }
@@ -200,6 +222,12 @@ class DrawingToolWidget {
         this.element.classList.add('is-drawing');
 
         if (this.currentTool === 'freehand') {
+            this.currentStroke = {
+                type: 'freehand',
+                color: this.currentColor,
+                lineWidth: this.currentLineWidth,
+                points: [point]
+            };
             this.ctx.beginPath();
             this.ctx.moveTo(point.x, point.y);
             return;
@@ -217,6 +245,7 @@ class DrawingToolWidget {
         this.lastPointer = point;
 
         if (this.currentTool === 'freehand') {
+            this.currentStroke?.points.push(point);
             this.ctx.lineTo(point.x, point.y);
             this.ctx.strokeStyle = this.currentColor;
             this.ctx.lineWidth = this.currentLineWidth;
@@ -235,10 +264,22 @@ class DrawingToolWidget {
      */
     stopDrawing(e = null) {
         if (this.isDrawing) {
-            if (this.currentTool !== 'freehand' && this.startPoint) {
+            if (this.currentTool === 'freehand' && this.currentStroke?.points?.length > 1) {
+                this.drawActions.push({
+                    ...this.currentStroke,
+                    points: this.currentStroke.points.map((point) => ({ ...point }))
+                });
+            } else if (this.currentTool !== 'freehand' && this.startPoint) {
                 const point = e ? this.getPointerPosition(e) : this.lastPointer;
                 this.restoreSnapshot(this.previewSnapshot);
                 this.drawShapeFromPoints(this.startPoint, point);
+                this.drawActions.push({
+                    type: this.currentTool,
+                    color: this.currentColor,
+                    lineWidth: this.currentLineWidth,
+                    start: { ...this.startPoint },
+                    end: point ? { ...point } : { ...this.startPoint }
+                });
                 this.hasContent = true;
             }
 
@@ -246,6 +287,7 @@ class DrawingToolWidget {
             this.startPoint = null;
             this.lastPointer = null;
             this.previewSnapshot = null;
+            this.currentStroke = null;
             this.element.classList.remove('is-drawing');
             this.ctx.beginPath(); // Reset the path
             this.updateDrawingUI();
@@ -327,9 +369,9 @@ class DrawingToolWidget {
     }
 
     restoreSnapshot(snapshot) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
         if (snapshot) {
-            this.ctx.drawImage(snapshot, 0, 0);
+            this.ctx.drawImage(snapshot, 0, 0, this.canvas.width, this.canvas.height, 0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
         }
     }
 
@@ -366,11 +408,79 @@ class DrawingToolWidget {
         this.ctx.stroke();
     }
 
+    drawAction(action) {
+        if (!action) {
+            return;
+        }
+
+        this.ctx.strokeStyle = action.color || this.currentColor;
+        this.ctx.lineWidth = action.lineWidth || this.currentLineWidth;
+        this.ctx.beginPath();
+
+        if (action.type === 'freehand') {
+            const points = Array.isArray(action.points) ? action.points : [];
+            if (!points.length) {
+                return;
+            }
+
+            this.ctx.moveTo(points[0].x, points[0].y);
+            for (let index = 1; index < points.length; index += 1) {
+                this.ctx.lineTo(points[index].x, points[index].y);
+            }
+            this.ctx.stroke();
+            return;
+        }
+
+        if (!action.start || !action.end) {
+            return;
+        }
+
+        const start = action.start;
+        const end = action.end;
+        const width = end.x - start.x;
+        const height = end.y - start.y;
+
+        if (action.type === 'line') {
+            this.ctx.moveTo(start.x, start.y);
+            this.ctx.lineTo(end.x, end.y);
+            this.ctx.stroke();
+            return;
+        }
+
+        if (action.type === 'rectangle') {
+            this.ctx.strokeRect(start.x, start.y, width, height);
+            return;
+        }
+
+        if (action.type === 'ellipse') {
+            this.ctx.ellipse(
+                start.x + (width / 2),
+                start.y + (height / 2),
+                Math.abs(width / 2),
+                Math.abs(height / 2),
+                0,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.stroke();
+        }
+    }
+
+    redrawCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        this.drawActions.forEach((action) => this.drawAction(action));
+        this.hasContent = this.drawActions.length > 0;
+        this.updateDrawingUI();
+    }
+
     /**
      * Clear the entire canvas.
      */
     clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        this.drawActions = [];
+        this.currentStroke = null;
+        this.pendingImageData = null;
         this.hasContent = false;
         this.updateDrawingUI();
     }
@@ -498,6 +608,7 @@ class DrawingToolWidget {
         return {
             type: 'DrawingToolWidget',
             imageData: imageData,
+            actions: this.drawActions,
             tool: this.currentTool,
             color: this.currentColor,
             lineWidth: this.currentLineWidth
@@ -520,6 +631,10 @@ class DrawingToolWidget {
             this.lineWidthSelector.value = String(data.lineWidth);
             this.setLineWidth(data.lineWidth);
         }
+        if (Array.isArray(data.actions)) {
+            this.drawActions = data.actions;
+            this.hasContent = this.drawActions.length > 0;
+        }
         if (data.imageData) {
             this.pendingImageData = data.imageData;
             this.restorePendingImage();
@@ -527,6 +642,11 @@ class DrawingToolWidget {
     }
 
     restorePendingImage() {
+        if (this.drawActions.length) {
+            this.redrawCanvas();
+            return;
+        }
+
         if (!this.pendingImageData || !this.canvas.width || !this.canvas.height) {
             return;
         }
@@ -537,8 +657,8 @@ class DrawingToolWidget {
             if (!this.ctx) {
                 return;
             }
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+            this.ctx.drawImage(img, 0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
             this.hasContent = true;
             this.updateDrawingUI();
             if (this.pendingImageData === imageData) {
