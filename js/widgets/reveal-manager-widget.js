@@ -65,6 +65,7 @@ class RevealManagerWidget {
                             <input type="text" class="reveal-external-url" placeholder="Paste the share or present URL">
                         </div>
                         <p class="reveal-external-hint" hidden>Use a teacher-ready Google Slides or PowerPoint web link. Reveal-style in-app slide sync is kept for Reveal HTML decks.</p>
+                        <p class="reveal-external-validation" hidden></p>
                         <div class="reveal-manager-row reveal-html-row">
                             <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
                         </div>
@@ -113,6 +114,7 @@ class RevealManagerWidget {
         this.deckNameInput = this.element.querySelector('.reveal-deck-name');
         this.externalUrlInput = this.element.querySelector('.reveal-external-url');
         this.externalHint = this.element.querySelector('.reveal-external-hint');
+        this.externalValidation = this.element.querySelector('.reveal-external-validation');
         this.htmlRow = this.element.querySelector('.reveal-html-row');
         this.externalRow = this.element.querySelector('.reveal-external-row');
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
@@ -148,6 +150,8 @@ class RevealManagerWidget {
         this.projectorButton.addEventListener('click', this.openProjector);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.sourceTypeSelect.addEventListener('change', this.handleSourceTypeChange);
+        this.externalUrlInput.addEventListener('input', () => this.updateSourceFields());
+        this.externalUrlInput.addEventListener('blur', () => this.updateSourceFields());
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
         document.addEventListener('visibilitychange', this.handleDocumentVisibilityChange);
@@ -265,6 +269,235 @@ class RevealManagerWidget {
         return `https://${raw}`;
     }
 
+    detectExternalSourceTypeFromUrl(url = '') {
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return null;
+        }
+
+        const normalizedUrl = this.normalizeExternalUrl(raw);
+        try {
+            const parsed = new URL(normalizedUrl);
+            const hostname = parsed.hostname.toLowerCase();
+            const pathname = parsed.pathname.toLowerCase();
+
+            if (hostname.includes('docs.google.com') && pathname.includes('/presentation')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('slides.google.com')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('1drv.ms')
+                || hostname.includes('sharepoint.com')
+                || pathname.includes('.ppt')
+                || pathname.includes('.pptx')) {
+                return 'powerpoint';
+            }
+        } catch (error) {
+            return null;
+        }
+
+        return null;
+    }
+
+    validateExternalSourceUrl({ type = 'google-slides', sourceUrl = '' } = {}) {
+        const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
+        const raw = String(sourceUrl || '').trim();
+
+        if (!raw) {
+            return {
+                sourceType,
+                detectedSourceType: null,
+                normalizedUrl: '',
+                state: 'empty',
+                message: '',
+                canProceed: false
+            };
+        }
+
+        const normalizedUrl = this.normalizeExternalUrl(raw);
+        let parsed;
+        try {
+            parsed = new URL(normalizedUrl);
+        } catch (error) {
+            return {
+                sourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'Enter a full Google Slides or PowerPoint web link.',
+                canProceed: false
+            };
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        const queryText = `${parsed.search}${parsed.hash}`.toLowerCase();
+        const detectedSourceType = this.detectExternalSourceTypeFromUrl(normalizedUrl);
+
+        if (!detectedSourceType) {
+            return {
+                sourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'This link is not recognised as a Google Slides or PowerPoint presentation.',
+                canProceed: false
+            };
+        }
+
+        if (detectedSourceType === 'google-slides') {
+            if (!(hostname.includes('docs.google.com') || hostname.includes('slides.google.com'))) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Google Slides web link from docs.google.com or slides.google.com.',
+                    canProceed: false
+                };
+            }
+
+            if (hostname.includes('docs.google.com') && !pathname.includes('/presentation')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'This Google link is not pointing to a Slides presentation.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit') || queryText.includes('action=edit') || queryText.includes('mode=edit')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the editor instead of a clean presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/copy')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like a copy link. A Present, Preview, or Publish link is safer for class display.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/presentation/d/')
+                && !pathname.includes('/present')
+                && !pathname.includes('/preview')
+                && !pathname.includes('/pub')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link should work, but a Present or Publish link is more reliable on the projector.',
+                    canProceed: true
+                };
+            }
+        }
+
+        if (detectedSourceType === 'powerpoint') {
+            const isMicrosoftHost = hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('1drv.ms')
+                || hostname.includes('sharepoint.com');
+
+            if (!isMicrosoftHost && !pathname.includes('.ppt') && !pathname.includes('.pptx')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Microsoft 365, OneDrive, SharePoint, or direct PowerPoint web link.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit')
+                || pathname.includes('edit.aspx')
+                || queryText.includes('action=edit')
+                || queryText.includes('mode=edit')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the Office editor instead of the live presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('.ppt') || pathname.includes('.pptx')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This file link is accepted, but a browser presentation link is safer for live projection.',
+                    canProceed: true
+                };
+            }
+
+            if ((hostname.includes('onedrive.live.com') || hostname.includes('1drv.ms') || hostname.includes('sharepoint.com'))
+                && !hostname.includes('powerpoint.live.com')
+                && !pathname.includes('powerpoint')) {
+                return {
+                    sourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link may open a file page first. A dedicated PowerPoint presentation link is more reliable.',
+                    canProceed: true
+                };
+            }
+        }
+
+        return {
+            sourceType,
+            detectedSourceType,
+            normalizedUrl,
+            state: 'ok',
+            message: '',
+            canProceed: true
+        };
+    }
+
+    renderExternalValidationState(validation = null, target = this.externalValidation) {
+        if (!target) {
+            return validation;
+        }
+
+        if (!validation || !validation.message || validation.state === 'ok' || validation.state === 'empty') {
+            target.hidden = true;
+            target.textContent = '';
+            delete target.dataset.state;
+            return validation;
+        }
+
+        target.hidden = false;
+        target.textContent = validation.message;
+        target.dataset.state = validation.state;
+        return validation;
+    }
+
     updateSourceFields() {
         const sourceType = this.sourceTypeSelect?.value || 'html';
         const isExternal = this.isExternalSourceType(sourceType);
@@ -299,6 +532,15 @@ class RevealManagerWidget {
                 ? `Add a ${this.getSourceTypeLabel(sourceType)} link, then press Open.`
                 : 'Paste Reveal HTML, then press Open.';
         }
+
+        this.renderExternalValidationState(
+            isExternal
+                ? this.validateExternalSourceUrl({
+                    type: sourceType,
+                    sourceUrl: this.externalUrlInput?.value || ''
+                })
+                : null
+        );
     }
 
     handleSourceTypeChange() {
@@ -373,6 +615,11 @@ class RevealManagerWidget {
         const externalHint = document.createElement('div');
         externalHint.className = 'widget-help-text';
         sourceSection.appendChild(externalHint);
+
+        const externalValidation = document.createElement('div');
+        externalValidation.className = 'widget-help-text presentation-validation';
+        externalValidation.hidden = true;
+        sourceSection.appendChild(externalValidation);
 
         const htmlLabel = document.createElement('label');
         htmlLabel.textContent = 'Reveal HTML';
@@ -476,7 +723,14 @@ class RevealManagerWidget {
             nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             projectorButton.disabled = !this.activeDeck;
             syncSavedOptions();
-            this.updateExternalSourceSettingsUI(settingsSourceTypeSelect, externalUrlLabel, htmlLabel, externalHint);
+            this.updateExternalSourceSettingsUI(
+                settingsSourceTypeSelect,
+                externalUrlLabel,
+                htmlLabel,
+                externalHint,
+                externalValidation,
+                settingsExternalUrlInput
+            );
 
             if (this.activeDeck) {
                 const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
@@ -549,7 +803,34 @@ class RevealManagerWidget {
         settingsSourceTypeSelect.addEventListener('change', () => {
             this.sourceTypeSelect.value = settingsSourceTypeSelect.value;
             this.updateSourceFields();
-            this.updateExternalSourceSettingsUI(settingsSourceTypeSelect, externalUrlLabel, htmlLabel, externalHint);
+            this.updateExternalSourceSettingsUI(
+                settingsSourceTypeSelect,
+                externalUrlLabel,
+                htmlLabel,
+                externalHint,
+                externalValidation,
+                settingsExternalUrlInput
+            );
+        });
+
+        settingsExternalUrlInput.addEventListener('input', () => {
+            this.renderExternalValidationState(
+                this.validateExternalSourceUrl({
+                    type: settingsSourceTypeSelect.value,
+                    sourceUrl: settingsExternalUrlInput.value
+                }),
+                externalValidation
+            );
+        });
+
+        settingsExternalUrlInput.addEventListener('blur', () => {
+            this.renderExternalValidationState(
+                this.validateExternalSourceUrl({
+                    type: settingsSourceTypeSelect.value,
+                    sourceUrl: settingsExternalUrlInput.value
+                }),
+                externalValidation
+            );
         });
 
         syncFromWidget();
@@ -635,16 +916,19 @@ class RevealManagerWidget {
 
         const sourceType = deck.type || 'html';
         if (this.isExternalSourceType(sourceType)) {
-            const sourceUrl = this.normalizeExternalUrl(deck.sourceUrl || deck.url || '');
-            if (!sourceUrl) {
+            const validation = this.validateExternalSourceUrl({
+                type: sourceType,
+                sourceUrl: deck.sourceUrl || deck.url || ''
+            });
+            if (!validation.canProceed) {
                 return null;
             }
 
             return {
                 id: deck.id || Date.now(),
                 name: (deck.name || 'Untitled Deck').trim(),
-                type: sourceType,
-                sourceUrl,
+                type: validation.detectedSourceType || sourceType,
+                sourceUrl: validation.normalizedUrl,
                 content: ''
             };
         }
@@ -697,7 +981,7 @@ class RevealManagerWidget {
         return this.getSavedDecks().find((item) => Number(item?.id) === normalizedId) || null;
     }
 
-    updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalHint) {
+    updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalHint, externalValidation = null, externalUrlInput = null) {
         if (!sourceTypeSelect || !externalUrlLabel || !htmlLabel || !externalHint) {
             return;
         }
@@ -713,6 +997,16 @@ class RevealManagerWidget {
             : sourceType === 'powerpoint'
                 ? 'Use a PowerPoint web presentation link. Reveal-only slide sync stays reserved for HTML decks.'
                 : '';
+
+        this.renderExternalValidationState(
+            isExternal
+                ? this.validateExternalSourceUrl({
+                    type: sourceType,
+                    sourceUrl: externalUrlInput?.value || this.externalUrlInput?.value || ''
+                })
+                : null,
+            externalValidation
+        );
     }
 
     looksLikeHtmlDeck(content) {
@@ -766,17 +1060,27 @@ class RevealManagerWidget {
     buildDeckFromInputs() {
         const sourceType = this.sourceTypeSelect?.value || 'html';
         if (this.isExternalSourceType(sourceType)) {
-            const sourceUrl = this.normalizeExternalUrl(this.externalUrlInput?.value || '');
-            if (!sourceUrl) {
-                this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+            const validation = this.validateExternalSourceUrl({
+                type: sourceType,
+                sourceUrl: this.externalUrlInput?.value || ''
+            });
+            this.renderExternalValidationState(validation);
+            if (!validation.canProceed) {
+                this.setStatus(validation.message || `Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
                 return null;
+            }
+
+            const effectiveSourceType = validation.detectedSourceType || sourceType;
+            if (effectiveSourceType !== sourceType) {
+                this.sourceTypeSelect.value = effectiveSourceType;
+                this.updateSourceFields();
             }
 
             return {
                 id: Date.now(),
-                name: (this.deckNameInput.value || this.getSourceTypeLabel(sourceType)).trim(),
-                type: sourceType,
-                sourceUrl,
+                name: (this.deckNameInput.value || this.getSourceTypeLabel(effectiveSourceType)).trim(),
+                type: effectiveSourceType,
+                sourceUrl: validation.normalizedUrl,
                 content: ''
             };
         }
@@ -806,17 +1110,18 @@ class RevealManagerWidget {
     }
 
     async loadExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
-        const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
-        const normalizedUrl = this.normalizeExternalUrl(sourceUrl);
-        if (!normalizedUrl) {
-            this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+        const validation = this.validateExternalSourceUrl({ type, sourceUrl });
+        const sourceType = validation.detectedSourceType || (this.isExternalSourceType(type) ? type : 'google-slides');
+        if (!validation.canProceed) {
+            this.renderExternalValidationState(validation);
+            this.setStatus(validation.message || `Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
             return false;
         }
 
         const deckName = (name || this.getSourceTypeLabel(sourceType)).trim();
         this.sourceTypeSelect.value = sourceType;
         this.deckNameInput.value = deckName;
-        this.externalUrlInput.value = normalizedUrl;
+        this.externalUrlInput.value = validation.normalizedUrl;
         this.htmlInput.value = '';
         this.updateSourceFields();
 
@@ -824,7 +1129,7 @@ class RevealManagerWidget {
             id: Date.now(),
             name: deckName,
             type: sourceType,
-            sourceUrl: normalizedUrl,
+            sourceUrl: validation.normalizedUrl,
             content: ''
         }, { preserveIndices: false });
 
@@ -832,10 +1137,11 @@ class RevealManagerWidget {
     }
 
     saveExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
-        const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
-        const normalizedUrl = this.normalizeExternalUrl(sourceUrl);
-        if (!normalizedUrl) {
-            this.setStatus(`Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+        const validation = this.validateExternalSourceUrl({ type, sourceUrl });
+        const sourceType = validation.detectedSourceType || (this.isExternalSourceType(type) ? type : 'google-slides');
+        if (!validation.canProceed) {
+            this.renderExternalValidationState(validation);
+            this.setStatus(validation.message || `Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
             return null;
         }
 
@@ -845,14 +1151,14 @@ class RevealManagerWidget {
             const normalizedDeck = this.normalizeStoredDeck(deck);
             return normalizedDeck
                 && normalizedDeck.type === sourceType
-                && normalizedDeck.sourceUrl === normalizedUrl;
+                && normalizedDeck.sourceUrl === validation.normalizedUrl;
         });
 
         const nextDeck = {
             id: existingIndex >= 0 ? Number(decks[existingIndex].id) || Date.now() : Date.now(),
             name: deckName,
             type: sourceType,
-            sourceUrl: normalizedUrl,
+            sourceUrl: validation.normalizedUrl,
             content: ''
         };
 
@@ -864,7 +1170,7 @@ class RevealManagerWidget {
 
         this.sourceTypeSelect.value = sourceType;
         this.deckNameInput.value = deckName;
-        this.externalUrlInput.value = normalizedUrl;
+        this.externalUrlInput.value = validation.normalizedUrl;
         this.htmlInput.value = '';
         this.updateSourceFields();
         this.saveDecks(decks);
@@ -1469,13 +1775,17 @@ class RevealManagerWidget {
     }
 
     openExternalSourceWindow(deck) {
-        const sourceUrl = this.normalizeExternalUrl(deck?.sourceUrl || '');
-        if (!sourceUrl) {
-            this.setStatus('This external source does not have a usable URL yet.');
+        const validation = this.validateExternalSourceUrl({
+            type: deck?.type || 'google-slides',
+            sourceUrl: deck?.sourceUrl || ''
+        });
+        if (!validation.canProceed) {
+            this.renderExternalValidationState(validation);
+            this.setStatus(validation.message || 'This external source does not have a usable URL yet.');
             return false;
         }
 
-        const externalWindow = window.open(sourceUrl, 'projector', 'fullscreen=yes');
+        const externalWindow = window.open(validation.normalizedUrl, 'projector', 'fullscreen=yes');
         if (!externalWindow) {
             this.setStatus('Projector popup blocked.');
             return false;

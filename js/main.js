@@ -169,6 +169,7 @@ class ClassroomScreenApp {
         this.presentationSourceNameInput = document.getElementById('presentation-source-name');
         this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
         this.presentationLinkHint = document.getElementById('presentation-link-hint');
+        this.presentationLinkValidation = document.getElementById('presentation-link-validation');
         this.presentationSaveLinkButton = document.getElementById('presentation-save-link-btn');
         this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
         this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
@@ -2699,15 +2700,223 @@ class ClassroomScreenApp {
         return null;
     }
 
+    validatePresentationSourceUrl(sourceType = 'google-slides', url = '') {
+        const normalizedSourceType = sourceType === 'powerpoint' ? 'powerpoint' : 'google-slides';
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl: '',
+                state: 'empty',
+                message: '',
+                canProceed: false
+            };
+        }
+
+        let normalizedUrl = raw;
+        if (!/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = `https://${normalizedUrl}`;
+        }
+
+        let parsed;
+        try {
+            parsed = new URL(normalizedUrl);
+        } catch (error) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'Enter a full web link for Google Slides or PowerPoint.',
+                canProceed: false
+            };
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        const search = parsed.search.toLowerCase();
+        const hash = parsed.hash.toLowerCase();
+        const queryText = `${search}${hash}`;
+        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(normalizedUrl);
+
+        if (!detectedSourceType) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'This link is not recognised as a Google Slides or PowerPoint presentation.',
+                canProceed: false
+            };
+        }
+
+        if (detectedSourceType === 'google-slides') {
+            if (!(hostname.includes('docs.google.com') || hostname.includes('slides.google.com'))) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Google Slides web link from docs.google.com or slides.google.com.',
+                    canProceed: false
+                };
+            }
+
+            if (hostname.includes('docs.google.com') && !pathname.includes('/presentation')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'This Google link is not pointing to a Slides presentation.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit') || queryText.includes('action=edit') || queryText.includes('mode=edit')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the editor instead of a clean presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/copy')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like a copy link. A Present, Preview, or Publish link is safer for class display.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/presentation/d/')
+                && !pathname.includes('/present')
+                && !pathname.includes('/preview')
+                && !pathname.includes('/pub')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link should work, but a Present or Publish link is more reliable on the projector.',
+                    canProceed: true
+                };
+            }
+        }
+
+        if (detectedSourceType === 'powerpoint') {
+            const isMicrosoftHost = hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('1drv.ms')
+                || hostname.includes('sharepoint.com');
+
+            if (!isMicrosoftHost && !pathname.includes('.ppt') && !pathname.includes('.pptx')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Microsoft 365, OneDrive, SharePoint, or direct PowerPoint web link.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit')
+                || pathname.includes('edit.aspx')
+                || queryText.includes('action=edit')
+                || queryText.includes('mode=edit')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the Office editor instead of the live presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('.ppt') || pathname.includes('.pptx')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This file link is accepted, but a browser presentation link is safer for live projection.',
+                    canProceed: true
+                };
+            }
+
+            if ((hostname.includes('onedrive.live.com') || hostname.includes('1drv.ms') || hostname.includes('sharepoint.com'))
+                && !hostname.includes('powerpoint.live.com')
+                && !pathname.includes('powerpoint')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link may open a file page first. A dedicated PowerPoint presentation link is more reliable.',
+                    canProceed: true
+                };
+            }
+        }
+
+        return {
+            sourceType: normalizedSourceType,
+            detectedSourceType,
+            normalizedUrl,
+            state: 'ok',
+            message: '',
+            canProceed: true
+        };
+    }
+
+    renderPresentationLinkValidation(validation = null) {
+        if (!this.presentationLinkValidation) {
+            return validation;
+        }
+
+        if (!validation || !validation.message || validation.state === 'ok' || validation.state === 'empty') {
+            this.presentationLinkValidation.hidden = true;
+            this.presentationLinkValidation.textContent = '';
+            delete this.presentationLinkValidation.dataset.state;
+            return validation;
+        }
+
+        this.presentationLinkValidation.hidden = false;
+        this.presentationLinkValidation.textContent = validation.message;
+        this.presentationLinkValidation.dataset.state = validation.state;
+        return validation;
+    }
+
     syncPresentationSourceTypeFromUrl() {
-        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(this.presentationSourceUrlInput?.value || '');
+        const currentUrl = this.presentationSourceUrlInput?.value || '';
+        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(currentUrl);
         if (!detectedSourceType || !this.presentationSourceTypeSelect) {
+            this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+                this.presentationSourceTypeSelect?.value || 'google-slides',
+                currentUrl
+            ));
             return;
         }
 
         if (this.presentationSourceTypeSelect.value !== detectedSourceType) {
             this.updatePresentationLinkInputs(detectedSourceType);
+            return;
         }
+
+        this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+            this.presentationSourceTypeSelect.value,
+            currentUrl
+        ));
     }
 
     updatePresentationLinkInputs(sourceType = this.presentationSourceTypeSelect?.value || 'google-slides') {
@@ -2746,6 +2955,11 @@ class ClassroomScreenApp {
         if (this.presentationOpenProjectorLinkButton) {
             this.presentationOpenProjectorLinkButton.textContent = `Open ${sourceLabel} And Project`;
         }
+
+        this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+            normalizedSourceType,
+            this.presentationSourceUrlInput?.value || ''
+        ));
     }
 
     getPresentationLinkDraft() {
@@ -2946,10 +3160,18 @@ class ClassroomScreenApp {
 
     async openPresentationLinkFromPanel({ openProjector = false } = {}) {
         const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
-        const sourceLabel = sourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+        const validation = this.validatePresentationSourceUrl(sourceType, sourceUrl);
+        const effectiveSourceType = validation.detectedSourceType || sourceType;
+        const sourceLabel = effectiveSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
 
         if (!sourceUrl) {
             this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        this.renderPresentationLinkValidation(validation);
+        if (!validation.canProceed) {
+            this.showNotification(validation.message || `Paste a ${sourceLabel} link first.`, 'error');
             return;
         }
 
@@ -2966,8 +3188,8 @@ class ClassroomScreenApp {
         }
 
         const loaded = await presentationWidget.loadExternalSource({
-            type: sourceType,
-            sourceUrl,
+            type: effectiveSourceType,
+            sourceUrl: validation.normalizedUrl || sourceUrl,
             name: deckName
         });
 
@@ -2995,10 +3217,18 @@ class ClassroomScreenApp {
 
     async savePresentationLinkFromPanel() {
         const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
-        const sourceLabel = sourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+        const validation = this.validatePresentationSourceUrl(sourceType, sourceUrl);
+        const effectiveSourceType = validation.detectedSourceType || sourceType;
+        const sourceLabel = effectiveSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
 
         if (!sourceUrl) {
             this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        this.renderPresentationLinkValidation(validation);
+        if (!validation.canProceed) {
+            this.showNotification(validation.message || `Paste a ${sourceLabel} link first.`, 'error');
             return;
         }
 
@@ -3014,8 +3244,8 @@ class ClassroomScreenApp {
         }
 
         const savedDeck = presentationWidget.saveExternalSource({
-            type: sourceType,
-            sourceUrl,
+            type: effectiveSourceType,
+            sourceUrl: validation.normalizedUrl || sourceUrl,
             name: deckName
         });
 
