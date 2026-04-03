@@ -456,11 +456,14 @@ class DocumentViewerWidget {
             // Simple URL validation: add protocol if missing
             const hasProtocol = /^https?:\/\//i.test(url);
             const safeUrl = hasProtocol ? url : `https://${url}`;
+            const iframe = document.createElement('iframe');
+            iframe.className = 'document-viewer-iframe';
+            iframe.src = safeUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
 
-            this.contentArea.innerHTML = `
-                <iframe src="${safeUrl}" 
-                        class="document-viewer-iframe"
-                        style="width: 100%; height: 100%; border: none;"></iframe>`;
+            this.contentArea.replaceChildren(iframe);
         } else {
             this.contentArea.innerHTML = `<p>Please enter a URL to embed.</p>`;
         }
