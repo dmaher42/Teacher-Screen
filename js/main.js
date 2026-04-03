@@ -197,6 +197,8 @@ class ClassroomScreenApp {
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
+        this.widgetPickerStateKey = 'teacherScreenWidgetPickerState';
+        this.quickAddWidgetKeys = ['rich-text', 'reveal-manager', 'timer', 'drawing-tool'];
         this.savedNotes = [];
         this.scheduleStorageKey = 'teacherScreenSchedule';
         this.noteIdToLink = null;
@@ -1172,6 +1174,7 @@ class ClassroomScreenApp {
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
+            this.recordWidgetPickerUsage(type);
             
             this.saveState();
             this.showNotification(`${this.getFriendlyWidgetName(type)} Added!`);
@@ -1187,9 +1190,187 @@ class ClassroomScreenApp {
         return WidgetRegistry[key]?.label || 'Widget';
     }
 
+    getDefaultWidgetPickerState() {
+        return {
+            favorites: ['rich-text', 'reveal-manager', 'timer', 'drawing-tool'],
+            recent: []
+        };
+    }
+
+    getWidgetPickerState() {
+        const fallback = this.getDefaultWidgetPickerState();
+
+        try {
+            const raw = localStorage.getItem(this.widgetPickerStateKey);
+            if (!raw) {
+                return fallback;
+            }
+
+            const parsed = JSON.parse(raw);
+            const availableKeys = new Set(listAvailableWidgets().map((widget) => widget.key));
+            const favorites = Array.isArray(parsed?.favorites)
+                ? parsed.favorites.filter((key) => availableKeys.has(key))
+                : fallback.favorites;
+            const recent = Array.isArray(parsed?.recent)
+                ? parsed.recent.filter((key) => availableKeys.has(key))
+                : [];
+
+            return {
+                favorites: favorites.length ? favorites : fallback.favorites,
+                recent
+            };
+        } catch (error) {
+            console.warn('Unable to parse widget picker state:', error);
+            return fallback;
+        }
+    }
+
+    saveWidgetPickerState(state) {
+        localStorage.setItem(this.widgetPickerStateKey, JSON.stringify(state));
+    }
+
+    recordWidgetPickerUsage(type) {
+        const key = getRegistryWidgetKey(type);
+        if (!key) {
+            return;
+        }
+
+        const state = this.getWidgetPickerState();
+        this.saveWidgetPickerState({
+            ...state,
+            recent: [key, ...state.recent.filter((item) => item !== key)].slice(0, 6)
+        });
+    }
+
+    toggleWidgetPickerFavorite(widgetKey) {
+        const key = getRegistryWidgetKey(widgetKey) || widgetKey;
+        if (!key) {
+            return;
+        }
+
+        const state = this.getWidgetPickerState();
+        const isFavorite = state.favorites.includes(key);
+        const favorites = isFavorite
+            ? state.favorites.filter((item) => item !== key)
+            : [...state.favorites, key];
+
+        this.saveWidgetPickerState({
+            ...state,
+            favorites
+        });
+        this.renderWidgetModal(key);
+    }
+
+    createWidgetPickerButton(widget, { focusWidgetType = null, favorites = [] } = {}) {
+        const card = document.createElement('div');
+        card.className = 'widget-picker-card';
+
+        const button = document.createElement('button');
+        button.className = 'widget-category-btn';
+        button.dataset.widget = widget.key;
+        if (focusWidgetType && widget.key === focusWidgetType) {
+            button.classList.add('is-target');
+        }
+        button.innerHTML = `
+            <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
+            <span>${widget.label}</span>
+        `;
+        button.addEventListener('click', () => this.addWidget(widget.key));
+
+        const isFavorite = favorites.includes(widget.key);
+        const favoriteButton = document.createElement('button');
+        favoriteButton.type = 'button';
+        favoriteButton.className = 'widget-favorite-btn';
+        favoriteButton.dataset.favorite = isFavorite ? 'true' : 'false';
+        favoriteButton.setAttribute('aria-label', isFavorite ? `Remove ${widget.label} from favorites` : `Add ${widget.label} to favorites`);
+        favoriteButton.title = isFavorite ? 'Remove favorite' : 'Add favorite';
+        favoriteButton.textContent = '\u2605';
+        favoriteButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.toggleWidgetPickerFavorite(widget.key);
+        });
+
+        card.appendChild(button);
+        card.appendChild(favoriteButton);
+        return card;
+    }
+
+    appendWidgetSection(container, title, widgets, { focusWidgetType = null, accent = false, favorites = [] } = {}) {
+        if (!container || !Array.isArray(widgets) || widgets.length === 0) {
+            return;
+        }
+
+        const section = document.createElement('section');
+        section.className = `widget-category-section${accent ? ' widget-category-section--accent' : ''}`;
+
+        const heading = document.createElement('h4');
+        heading.className = 'widget-category-title';
+        heading.textContent = title;
+        section.appendChild(heading);
+
+        widgets.forEach((widget) => {
+            section.appendChild(this.createWidgetPickerButton(widget, { focusWidgetType, favorites }));
+        });
+
+        container.appendChild(section);
+    }
+
+    renderSmartWidgetModal(container, focusWidgetType = null) {
+        const widgetPickerState = this.getWidgetPickerState();
+        const availableWidgets = listAvailableWidgets();
+        const widgetMap = new Map(availableWidgets.map((widget) => [widget.key, widget]));
+
+        const quickAddWidgets = this.quickAddWidgetKeys
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean);
+        this.appendWidgetSection(container, 'Quick Add', quickAddWidgets, {
+            focusWidgetType,
+            accent: true,
+            favorites: widgetPickerState.favorites
+        });
+
+        const favoriteWidgets = widgetPickerState.favorites
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean)
+            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key));
+        this.appendWidgetSection(container, 'Favorites', favoriteWidgets, {
+            focusWidgetType,
+            favorites: widgetPickerState.favorites
+        });
+
+        const recentWidgets = widgetPickerState.recent
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean)
+            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key) && !widgetPickerState.favorites.includes(widget.key));
+        this.appendWidgetSection(container, 'Recent', recentWidgets, {
+            focusWidgetType,
+            favorites: widgetPickerState.favorites
+        });
+
+        const categories = {};
+        availableWidgets.forEach((widget) => {
+            const categoryName = widget.category || 'Secondary';
+            if (!categories[categoryName]) {
+                categories[categoryName] = [];
+            }
+            categories[categoryName].push(widget);
+        });
+
+        ['Primary', 'Secondary'].forEach((categoryName) => {
+            const widgets = (categories[categoryName] || []).slice().sort((a, b) => a.label.localeCompare(b.label));
+            this.appendWidgetSection(container, categoryName, widgets, {
+                focusWidgetType,
+                favorites: widgetPickerState.favorites
+            });
+        });
+    }
+
     renderWidgetModal(focusWidgetType = null) {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
+        this.renderSmartWidgetModal(container, focusWidgetType);
+        return;
 
         const categories = {};
         listAvailableWidgets().forEach((widget) => {
