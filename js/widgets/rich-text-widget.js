@@ -29,6 +29,7 @@ class RichTextWidget {
     this.handleTextChange = this.handleTextChange.bind(this);
     this.handleTemplateButtonClick = this.handleTemplateButtonClick.bind(this);
     this.handleModeButtonClick = this.handleModeButtonClick.bind(this);
+    this.handleTemplateBuilderClick = this.handleTemplateBuilderClick.bind(this);
     this.syncEditorLayout = this.syncEditorLayout.bind(this);
 
     this.controlsOverlay = document.createElement('div');
@@ -40,6 +41,12 @@ class RichTextWidget {
 
     this.templateControls = document.createElement('div');
     this.templateControls.className = 'rich-text-controls';
+
+    this.templateBuilderButton = document.createElement('button');
+    this.templateBuilderButton.className = 'control-button';
+    this.templateBuilderButton.type = 'button';
+    this.templateBuilderButton.textContent = 'Build Template';
+    this.templateBuilderButton.addEventListener('click', this.handleTemplateBuilderClick);
 
     this.modeLabel = document.createElement('p');
     this.modeLabel.className = 'rich-text-controls-label';
@@ -101,11 +108,14 @@ class RichTextWidget {
 
     this.controlsOverlay.appendChild(this.templateLabel);
     this.controlsOverlay.appendChild(this.templateControls);
+    this.controlsOverlay.appendChild(this.templateBuilderButton);
     this.controlsOverlay.appendChild(this.smartFormattingHint);
     this.controlsOverlay.appendChild(this.modeLabel);
     this.controlsOverlay.appendChild(this.modeControls);
     this.controlsOverlay.appendChild(this.modeHint);
     this.updateDisplayModeUI();
+    this.templateDialog = null;
+    this.templateDialogSubmitHandler = null;
 
     this.dragHandle = document.createElement('div');
     this.dragHandle.className = 'rich-text-drag-handle';
@@ -175,6 +185,249 @@ class RichTextWidget {
     }
 
     this.insertTemplate(templateKey);
+  }
+
+  getTemplateBuilderDefinitions() {
+    return {
+      instructions: {
+        label: 'Instructions',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Instructions' },
+          { key: 'step1', label: 'Step 1', placeholder: 'Open your book to page...' },
+          { key: 'step2', label: 'Step 2', placeholder: 'Complete questions...' },
+          { key: 'step3', label: 'Step 3', placeholder: 'Check your answer with...' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Instructions')}</h2>
+          <ol>
+            ${[values.step1, values.step2, values.step3].filter(Boolean).map((step) => `<li>${this.escapeHtml(step)}</li>`).join('')}
+          </ol>
+        `
+      },
+      'do-now': {
+        label: 'Do Now',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Do Now' },
+          { key: 'prompt', label: 'Prompt', placeholder: 'Answer the question below...' },
+          { key: 'time', label: 'Time', placeholder: '5 minutes' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Do Now')}</h2>
+          <div class="display-callout"><strong>Time</strong><p>${this.escapeHtml(values.time || '5 minutes')}</p></div>
+          <p>${this.escapeHtml(values.prompt || '')}</p>
+        `
+      },
+      'success-criteria': {
+        label: 'Success Criteria',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Success Criteria' },
+          { key: 'criterion1', label: 'Criterion 1', placeholder: 'I can explain...' },
+          { key: 'criterion2', label: 'Criterion 2', placeholder: 'I can solve...' },
+          { key: 'criterion3', label: 'Criterion 3', placeholder: 'I can check...' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Success Criteria')}</h2>
+          <ul>
+            ${[values.criterion1, values.criterion2, values.criterion3].filter(Boolean).map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}
+          </ul>
+        `
+      },
+      'exit-ticket': {
+        label: 'Exit Ticket',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Exit Ticket' },
+          { key: 'question1', label: 'Question 1', placeholder: 'What did you learn today?' },
+          { key: 'question2', label: 'Question 2', placeholder: 'What was challenging?' },
+          { key: 'question3', label: 'Question 3', placeholder: 'What do you want to review?' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Exit Ticket')}</h2>
+          <ol>
+            ${[values.question1, values.question2, values.question3].filter(Boolean).map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}
+          </ol>
+        `
+      },
+      homework: {
+        label: 'Homework',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Homework' },
+          { key: 'task', label: 'Task', placeholder: 'Complete the worksheet...' },
+          { key: 'due', label: 'Due', placeholder: 'Due Friday' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Homework')}</h2>
+          <p>${this.escapeHtml(values.task || '')}</p>
+          <div class="display-callout"><strong>Due</strong><p>${this.escapeHtml(values.due || '')}</p></div>
+        `
+      },
+      outline: {
+        label: 'Lesson Outline',
+        fields: [
+          { key: 'title', label: 'Title', placeholder: 'Lesson Outline' },
+          { key: 'starter', label: 'Starter', placeholder: 'Warm up / intro...' },
+          { key: 'main', label: 'Main Task', placeholder: 'Main activity...' },
+          { key: 'plenary', label: 'Plenary', placeholder: 'Review / close...' }
+        ],
+        buildHtml: (values) => `
+          <h2>${this.escapeHtml(values.title || 'Lesson Outline')}</h2>
+          <h3>Starter</h3>
+          <p>${this.escapeHtml(values.starter || '')}</p>
+          <h3>Main Task</h3>
+          <p>${this.escapeHtml(values.main || '')}</p>
+          <h3>Plenary</h3>
+          <p>${this.escapeHtml(values.plenary || '')}</p>
+        `
+      }
+    };
+  }
+
+  escapeHtml(value = '') {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  ensureTemplateDialog() {
+    if (this.templateDialog && document.body.contains(this.templateDialog)) {
+      return this.templateDialog;
+    }
+
+    const dialog = document.createElement('dialog');
+    dialog.className = 'rich-text-template-dialog';
+    dialog.innerHTML = `
+      <div class="modal-header">
+        <h3>Load Into Rich Text</h3>
+        <button class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <form class="rich-text-template-form" method="dialog">
+        <div class="modal-body rich-text-template-body">
+          <label class="rich-text-template-label">
+            <span>Template</span>
+            <select class="rich-text-template-select"></select>
+          </label>
+          <div class="rich-text-template-fields"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="control-button rich-text-template-load" type="submit" value="load">Load Template</button>
+          <button class="control-button" type="button" data-close>Cancel</button>
+        </div>
+      </form>
+    `;
+
+    dialog.querySelector('.modal-close')?.addEventListener('click', () => dialog.close());
+    dialog.querySelector('[data-close]')?.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+
+    document.body.appendChild(dialog);
+    this.templateDialog = dialog;
+    return dialog;
+  }
+
+  renderTemplateDialogFields(templateKey) {
+    const dialog = this.ensureTemplateDialog();
+    const select = dialog.querySelector('.rich-text-template-select');
+    const fieldsContainer = dialog.querySelector('.rich-text-template-fields');
+    const templates = this.getTemplateBuilderDefinitions();
+    const definition = templates[templateKey] || templates.instructions;
+
+    if (!select.dataset.initialized) {
+      Object.entries(templates).forEach(([key, template]) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = template.label;
+        select.appendChild(option);
+      });
+      select.dataset.initialized = 'true';
+      select.addEventListener('change', () => this.renderTemplateDialogFields(select.value));
+    }
+
+    select.value = templateKey;
+    fieldsContainer.innerHTML = '';
+
+    definition.fields.forEach((field) => {
+      const label = document.createElement('label');
+      label.className = 'rich-text-template-label';
+      label.innerHTML = `<span>${field.label}</span>`;
+
+      const input = field.multiline ? document.createElement('textarea') : document.createElement('input');
+      input.className = 'rich-text-template-input';
+      input.name = field.key;
+      input.placeholder = field.placeholder || '';
+      if (!field.multiline) {
+        input.type = 'text';
+      }
+
+      label.appendChild(input);
+      fieldsContainer.appendChild(label);
+    });
+
+    const firstField = fieldsContainer.querySelector('.rich-text-template-input');
+    if (firstField) {
+      setTimeout(() => firstField.focus(), 0);
+    }
+  }
+
+  buildTemplateHtml(templateKey, values = {}) {
+    const templates = this.getTemplateBuilderDefinitions();
+    const definition = templates[templateKey] || templates.instructions;
+    return definition.buildHtml(values).trim();
+  }
+
+  loadTemplateHtml(html) {
+    if (!this.quill) {
+      this.pendingContent = html;
+      return;
+    }
+
+    this.quill.setContents([], 'silent');
+    this.quill.clipboard.dangerouslyPasteHTML(0, html);
+    this.quill.setSelection(this.quill.getLength(), 0, 'silent');
+    this.pendingContent = this.quill.root.innerHTML;
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+  }
+
+  handleTemplateBuilderClick() {
+    const dialog = this.ensureTemplateDialog();
+    const initialTemplate = dialog.querySelector('.rich-text-template-select')?.value || 'instructions';
+    this.renderTemplateDialogFields(initialTemplate);
+
+    dialog.returnValue = '';
+    dialog.showModal();
+
+    const form = dialog.querySelector('.rich-text-template-form');
+    if (form && this.templateDialogSubmitHandler) {
+      form.removeEventListener('submit', this.templateDialogSubmitHandler);
+    }
+
+    const submitHandler = (event) => {
+      event.preventDefault();
+      const templateKey = dialog.querySelector('.rich-text-template-select')?.value || 'instructions';
+      const values = {};
+      dialog.querySelectorAll('.rich-text-template-input').forEach((input) => {
+        values[input.name] = input.value.trim();
+      });
+
+      const nextHtml = this.buildTemplateHtml(templateKey, values);
+      if (this.pendingContent && this.pendingContent.replace(/<p><br><\/p>/g, '').trim()) {
+        const confirmed = window.confirm('Replace the current Rich Text content with this template?');
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      this.loadTemplateHtml(nextHtml);
+      dialog.close();
+    };
+
+    this.templateDialogSubmitHandler = submitHandler;
+    form?.addEventListener('submit', submitHandler);
   }
 
   handleModeButtonClick(event) {
@@ -462,6 +715,7 @@ class RichTextWidget {
 
   remove() {
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
+    this.templateBuilderButton.removeEventListener('click', this.handleTemplateBuilderClick);
     this.templateButtons?.forEach((button) => {
       button.removeEventListener('click', this.handleTemplateButtonClick);
     });
@@ -477,6 +731,12 @@ class RichTextWidget {
     if (this.quill && typeof this.quill.off === 'function') {
       this.quill.off('text-change', this.handleTextChange);
     }
+
+    if (this.templateDialog) {
+      this.templateDialog.remove();
+      this.templateDialog = null;
+    }
+    this.templateDialogSubmitHandler = null;
 
     this.quill = null;
     this.element.remove();
