@@ -9,6 +9,9 @@ class DocumentViewerWidget {
         this.totalPages = 0;
         this.currentPage = 1;
         this.isRenderingPage = false;
+        this.sourceMode = 'none';
+        this.localPdfName = '';
+        this.pendingRestoreNotice = '';
 
         this.element = document.createElement('div');
         this.element.className = 'document-viewer document-viewer-widget-content';
@@ -140,7 +143,7 @@ class DocumentViewerWidget {
                 this.renderPdf(file);
             } else {
                 this.resetPdfState();
-                this.contentArea.innerHTML = `<p>File type not supported. Please upload a PDF file.</p>`;
+                this.showContentMessage('File type not supported. Please upload a PDF file.');
             }
         }
     }
@@ -176,7 +179,7 @@ class DocumentViewerWidget {
 
         const helpText = document.createElement('div');
         helpText.className = 'widget-help-text';
-        helpText.textContent = 'Upload a PDF for page-by-page navigation or embed a web page directly into the viewer.';
+        helpText.textContent = 'Upload a PDF for local page-by-page navigation or embed a web page directly into the viewer. Uploaded PDFs stay on this device and need to be re-uploaded after restore or projector rebuild.';
         controls.appendChild(helpText);
 
         const sourceSection = document.createElement('div');
@@ -262,6 +265,8 @@ class DocumentViewerWidget {
 
             if (hasPdf) {
                 statusText.textContent = `PDF loaded. Page ${this.currentPage} of ${this.totalPages}.`;
+            } else if (this.pendingRestoreNotice) {
+                statusText.textContent = this.pendingRestoreNotice;
             } else if (embeddedUrl) {
                 statusText.textContent = embeddedUrl;
             } else {
@@ -314,12 +319,31 @@ class DocumentViewerWidget {
         this.totalPages = 0;
         this.currentPage = 1;
         this.isRenderingPage = false;
+        this.sourceMode = 'none';
+        this.localPdfName = '';
+        this.pendingRestoreNotice = '';
         this.element.classList.remove('is-loading');
         this.updateNavControls();
     }
 
+    showContentMessage(message) {
+        const text = document.createElement('p');
+        text.textContent = message;
+        this.contentArea.replaceChildren(text);
+    }
+
+    showLocalPdfRestoreNotice(fileName = '') {
+        const label = fileName ? `"${fileName}"` : 'This PDF';
+        this.pendingRestoreNotice = `${label} was uploaded locally and needs to be re-uploaded on this device.`;
+        this.sourceMode = 'pdf-upload-missing';
+        this.localPdfName = fileName || '';
+        this.showContentMessage(this.pendingRestoreNotice);
+    }
+
     renderPdf(file) {
         this.resetPdfState();
+        this.sourceMode = 'pdf-upload';
+        this.localPdfName = file?.name || '';
         this.element.classList.add('is-loading');
         this.contentArea.innerHTML = `<p>Loading PDF…</p>`;
 
@@ -356,7 +380,7 @@ class DocumentViewerWidget {
                 .catch((error) => {
                     console.error('PDF load error:', error);
                     this.resetPdfState();
-                    this.contentArea.innerHTML = `<p>Unable to load document.</p>`;
+                    this.showContentMessage('Unable to load document.');
                 });
         };
 
@@ -462,10 +486,11 @@ class DocumentViewerWidget {
             iframe.style.width = '100%';
             iframe.style.height = '100%';
             iframe.style.border = 'none';
+            this.sourceMode = 'embed-url';
 
             this.contentArea.replaceChildren(iframe);
         } else {
-            this.contentArea.innerHTML = `<p>Please enter a URL to embed.</p>`;
+            this.showContentMessage('Please enter a URL to embed.');
         }
     }
 
@@ -474,18 +499,25 @@ class DocumentViewerWidget {
         return {
             type: 'DocumentViewerWidget',
             url: iframe ? iframe.src : null,
-            // Note: PDF files uploaded via <input type="file"> cannot be
-            // reliably reloaded without additional file-handling logic.
+            localPdf: this.sourceMode === 'pdf-upload' || this.sourceMode === 'pdf-upload-missing'
+                ? {
+                    name: this.localPdfName || '',
+                    requiresReupload: true
+                }
+                : null
         };
     }
 
     deserialize(data = {}) {
-        if (!data.url) {
+        if (data.url) {
+            this.urlInput.value = data.url;
+            this.embedUrl(data.url);
             return;
         }
 
-        this.urlInput.value = data.url;
-        this.embedUrl(data.url);
+        if (data.localPdf?.requiresReupload) {
+            this.showLocalPdfRestoreNotice(data.localPdf.name || '');
+        }
     }
 
     onWidgetLayout() {
