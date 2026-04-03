@@ -2929,8 +2929,8 @@ class ClassroomScreenApp {
             ? 'Optional PowerPoint name'
             : 'Optional Google Slides name';
         const hintText = normalizedSourceType === 'powerpoint'
-            ? 'Paste a Microsoft 365, OneDrive, or PowerPoint web presentation link and Teacher Controls will load it into Reveal Manager for you.'
-            : 'Paste a teacher-ready Google Slides link here and Teacher Controls will load it into Reveal Manager for you.';
+            ? 'Paste a Microsoft 365 or PowerPoint embed-ready link here. Embeddable links can mirror in Teacher Screen and the projector.'
+            : 'Paste a Google Slides link here. Embeddable links can mirror in Teacher Screen and the projector.';
 
         if (this.presentationSourceTypeSelect && this.presentationSourceTypeSelect.value !== normalizedSourceType) {
             this.presentationSourceTypeSelect.value = normalizedSourceType;
@@ -3069,7 +3069,7 @@ class ClassroomScreenApp {
             contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
             metaText = statusMessage || (isHtmlDeck
                 ? 'Prev / Next controls stay available here and in the Reveal widget.'
-                : 'This external presentation is linked in Reveal Manager. Open Projector to present it.');
+                : 'This external presentation is linked in Reveal Manager. Embeddable links can mirror in Teacher Screen and the projector.');
         }
 
         if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {

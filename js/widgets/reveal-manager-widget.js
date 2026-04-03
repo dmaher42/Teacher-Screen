@@ -306,6 +306,66 @@ class RevealManagerWidget {
         return null;
     }
 
+    getExternalPresentationRuntime(deck = {}) {
+        const requestedType = this.isExternalSourceType(deck?.type) ? deck.type : 'google-slides';
+        const validation = this.validateExternalSourceUrl({
+            type: requestedType,
+            sourceUrl: deck?.sourceUrl || deck?.url || ''
+        });
+        const sourceType = validation.detectedSourceType || requestedType;
+        const sourceLabel = this.getSourceTypeLabel(sourceType);
+
+        const runtime = {
+            sourceType,
+            sourceLabel,
+            validation,
+            normalizedUrl: validation.normalizedUrl || '',
+            launchUrl: validation.normalizedUrl || '',
+            embedUrl: '',
+            canMirrorInApp: false
+        };
+
+        if (!validation.canProceed || !validation.normalizedUrl) {
+            return runtime;
+        }
+
+        try {
+            const parsed = new URL(validation.normalizedUrl);
+            const hostname = parsed.hostname.toLowerCase();
+            const pathname = parsed.pathname.toLowerCase();
+            const queryText = `${parsed.search}${parsed.hash}`.toLowerCase();
+
+            if (sourceType === 'google-slides') {
+                const slideIdMatch = parsed.pathname.match(/\/presentation\/d\/([^/]+)/i);
+                if (slideIdMatch && slideIdMatch[1]) {
+                    const params = new URLSearchParams({
+                        start: 'false',
+                        loop: 'false',
+                        delayms: '3000',
+                        rm: 'minimal'
+                    });
+                    runtime.embedUrl = `https://docs.google.com/presentation/d/${slideIdMatch[1]}/embed?${params.toString()}`;
+                    runtime.canMirrorInApp = true;
+                }
+            } else if (sourceType === 'powerpoint') {
+                const isExplicitEmbedLink = hostname.includes('view.officeapps.live.com')
+                    || hostname.includes('officeapps.live.com')
+                    || (hostname.includes('powerpoint.live.com') && (pathname.includes('/embed') || queryText.includes('embed')))
+                    || queryText.includes('action=embedview')
+                    || queryText.includes('embed=true');
+
+                if (isExplicitEmbedLink) {
+                    runtime.embedUrl = validation.normalizedUrl;
+                    runtime.canMirrorInApp = true;
+                }
+            }
+        } catch (error) {
+            return runtime;
+        }
+
+        return runtime;
+    }
+
     validateExternalSourceUrl({ type = 'google-slides', sourceUrl = '' } = {}) {
         const sourceType = this.isExternalSourceType(type) ? type : 'google-slides';
         const raw = String(sourceUrl || '').trim();
@@ -513,9 +573,9 @@ class RevealManagerWidget {
         if (this.externalHint) {
             this.externalHint.hidden = !isExternal;
             this.externalHint.textContent = sourceType === 'google-slides'
-                ? 'Use a Google Slides share, publish, or present link. This scaffold keeps Google Slides as an external source until a fuller connector is added.'
+                ? 'Use a Google Slides share, publish, or present link. Teacher Screen can mirror embeddable Google Slides links in the widget and projector.'
                 : sourceType === 'powerpoint'
-                    ? 'Use a PowerPoint web, OneDrive, or Microsoft 365 presentation link. This scaffold keeps PowerPoint as an external source until a fuller connector is added.'
+                    ? 'Use a PowerPoint embed or presentation link. Teacher Screen can mirror embeddable PowerPoint links in the widget and projector.'
                     : '';
         }
 
@@ -576,7 +636,7 @@ class RevealManagerWidget {
 
         const helpText = document.createElement('div');
         helpText.className = 'widget-help-text';
-        helpText.textContent = 'Use Reveal HTML for full slide sync, or save Google Slides and PowerPoint links as external presentation sources.';
+        helpText.textContent = 'Use Reveal HTML for full slide sync, or use embeddable Google Slides / PowerPoint links to mirror a deck in the widget and projector.';
         controls.appendChild(helpText);
 
         const sourceSection = document.createElement('div');
@@ -993,9 +1053,9 @@ class RevealManagerWidget {
         htmlLabel.hidden = isExternal;
         externalHint.hidden = !isExternal;
         externalHint.textContent = sourceType === 'google-slides'
-            ? 'Use a Google Slides share, publish, or present link. Reveal-only slide sync stays reserved for HTML decks.'
+            ? 'Use a Google Slides share, publish, or present link. Embeddable links can mirror in Teacher Screen and the projector.'
             : sourceType === 'powerpoint'
-                ? 'Use a PowerPoint web presentation link. Reveal-only slide sync stays reserved for HTML decks.'
+                ? 'Use a PowerPoint embed or web presentation link. Embeddable links can mirror in Teacher Screen and the projector.'
                 : '';
 
         this.renderExternalValidationState(
@@ -1363,8 +1423,10 @@ class RevealManagerWidget {
             this.inlineDeckContainer.innerHTML = '';
             this.inlineDeckContainer.__teacherScreenRevealDeck = null;
             this.revealDeck = null;
-            this.renderExternalDeckScaffold(this.activeDeck);
-            this.setStatus(`${this.getSourceTypeLabel(this.activeDeck.type)} source ready.`);
+            const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
+            this.setStatus(externalRuntime?.canMirrorInApp
+                ? `${externalRuntime.sourceLabel} ready. Open Projector to mirror this deck.`
+                : `${this.getSourceTypeLabel(this.activeDeck.type)} link ready. Use an embeddable link to mirror it inside Teacher Screen and the projector.`);
             return null;
         }
 
@@ -1425,19 +1487,57 @@ class RevealManagerWidget {
 
     renderExternalDeckScaffold(deck) {
         if (!this.inlineDeckContainer || !deck) {
-            return;
+            return null;
         }
 
-        const sourceLabel = this.getSourceTypeLabel(deck.type);
-        const sourceUrl = deck.sourceUrl || '';
-        this.inlineDeckContainer.innerHTML = `
-            <div class="reveal-external-source-card">
-                <span class="reveal-external-source-card__eyebrow">${sourceLabel}</span>
-                <h3>${deck.name || sourceLabel}</h3>
-                <p>This source is saved inside the Reveal widget and can be launched to the projector, but Reveal slide-by-slide sync remains available only for HTML decks.</p>
-                <a class="reveal-external-source-card__link" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceUrl}</a>
-            </div>
-        `;
+        const runtime = this.getExternalPresentationRuntime(deck);
+        const sourceLabel = runtime.sourceLabel;
+        const sourceUrl = runtime.normalizedUrl || deck.sourceUrl || '';
+        this.inlineDeckContainer.innerHTML = '';
+
+        if (runtime.canMirrorInApp && runtime.embedUrl) {
+            const shell = document.createElement('div');
+            shell.className = 'reveal-external-embed-shell';
+
+            const iframe = document.createElement('iframe');
+            iframe.className = 'reveal-external-embed-frame';
+            iframe.src = runtime.embedUrl;
+            iframe.title = `${deck.name || sourceLabel} presentation`;
+            iframe.loading = 'lazy';
+            iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+            iframe.setAttribute('allow', 'fullscreen');
+
+            shell.appendChild(iframe);
+            this.inlineDeckContainer.appendChild(shell);
+            return runtime;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'reveal-external-source-card';
+
+        const eyebrow = document.createElement('span');
+        eyebrow.className = 'reveal-external-source-card__eyebrow';
+        eyebrow.textContent = sourceLabel;
+        card.appendChild(eyebrow);
+
+        const heading = document.createElement('h3');
+        heading.textContent = deck.name || sourceLabel;
+        card.appendChild(heading);
+
+        const message = document.createElement('p');
+        message.textContent = `${sourceLabel} can open externally, but this link needs an embeddable view before it can mirror inside Teacher Screen and the projector. Reveal Prev / Next controls still stay reserved for HTML decks.`;
+        card.appendChild(message);
+
+        const link = document.createElement('a');
+        link.className = 'reveal-external-source-card__link';
+        link.href = sourceUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = sourceUrl;
+        card.appendChild(link);
+
+        this.inlineDeckContainer.appendChild(card);
+        return runtime;
     }
 
     async launchDeck(deck, { preserveIndices = false } = {}) {
@@ -1742,7 +1842,10 @@ class RevealManagerWidget {
         }
 
         if (this.activeDeck.type !== 'html') {
-            return this.openExternalSourceWindow(this.activeDeck);
+            const externalRuntime = this.getExternalPresentationRuntime(this.activeDeck);
+            if (!externalRuntime.canMirrorInApp) {
+                return this.openExternalSourceWindow(this.activeDeck);
+            }
         }
 
         const projectorUrl = new URL('projector.html', window.location.href);
@@ -1768,9 +1871,16 @@ class RevealManagerWidget {
             return false;
         }
 
-        this.setStatus('Projector opening...');
-        window.setTimeout(() => this.broadcastSlideSync(), 500);
-        window.setTimeout(() => this.broadcastSlideSync(), 1500);
+        this.setStatus(this.activeDeck.type === 'html'
+            ? 'Projector opening...'
+            : `${this.getSourceTypeLabel(this.activeDeck.type)} projector opening...`);
+
+        if (this.activeDeck.type === 'html') {
+            window.setTimeout(() => this.broadcastSlideSync(), 500);
+            window.setTimeout(() => this.broadcastSlideSync(), 1500);
+        } else {
+            window.setTimeout(() => this.persistActiveDeckState(), 300);
+        }
         return true;
     }
 
