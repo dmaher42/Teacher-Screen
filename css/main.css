@@ -2455,6 +2455,14 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-header {
       color: color-mix(in srgb, var(--text-secondary, #64748b) 78%, transparent);
   }
 
+.rich-text-smart-hint {
+      display: block;
+      margin: -2px 0 6px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: color-mix(in srgb, var(--text-secondary, #64748b) 82%, transparent);
+  }
+
 .rich-text-editor-container {
       display: flex;
       flex-direction: column;

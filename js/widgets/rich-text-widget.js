@@ -15,6 +15,7 @@ class RichTextWidget {
     this.pendingContent = '';
     this.isDisplayMode = false;
     this.presentationMode = 'normal';
+    this.isApplyingSmartFormatting = false;
     const appModeUtils = window.TeacherScreenAppMode || {};
     this.isProjectorMode = appModeUtils.isProjectorMode || (() => (
       window.APP_MODE === 'projector'
@@ -94,8 +95,13 @@ class RichTextWidget {
     this.modeHint = document.createElement('p');
     this.modeHint.className = 'rich-text-mode-hint';
 
+    this.smartFormattingHint = document.createElement('p');
+    this.smartFormattingHint.className = 'rich-text-smart-hint';
+    this.smartFormattingHint.textContent = 'Smart formatting: start a line with "- " or "1. " then press Enter for a list, or end a short line with ":" to make a heading. Press Enter twice to leave a list.';
+
     this.controlsOverlay.appendChild(this.templateLabel);
     this.controlsOverlay.appendChild(this.templateControls);
+    this.controlsOverlay.appendChild(this.smartFormattingHint);
     this.controlsOverlay.appendChild(this.modeLabel);
     this.controlsOverlay.appendChild(this.modeControls);
     this.controlsOverlay.appendChild(this.modeHint);
@@ -180,11 +186,145 @@ class RichTextWidget {
     this.updateDisplayModeUI();
   }
 
-  handleTextChange() {
+  getInsertedText(delta = {}) {
+    if (!Array.isArray(delta?.ops)) {
+      return '';
+    }
+
+    return delta.ops
+      .map((op) => (typeof op?.insert === 'string' ? op.insert : ''))
+      .join('');
+  }
+
+  getLineContextAtIndex(index) {
+    if (!this.quill || index < 0) {
+      return null;
+    }
+
+    const [line] = this.quill.getLine(index);
+    if (!line || !line.domNode) {
+      return null;
+    }
+
+    const lineStart = this.quill.getIndex(line);
+    const lineLength = Math.max(0, line.length() - 1);
+    const rawText = this.quill.getText(lineStart, lineLength).replace(/\r/g, '');
+    const plainText = rawText.replace(/\u00a0/g, ' ');
+    const trimmedText = plainText.trim();
+    const formats = this.quill.getFormat(lineStart, Math.max(1, lineLength || 1));
+
+    return {
+      line,
+      lineStart,
+      lineLength,
+      rawText,
+      plainText,
+      trimmedText,
+      formats
+    };
+  }
+
+  applySilentTransform(transform) {
+    if (!this.quill || this.isApplyingSmartFormatting) {
+      return false;
+    }
+
+    this.isApplyingSmartFormatting = true;
+    try {
+      return transform() === true;
+    } finally {
+      this.isApplyingSmartFormatting = false;
+    }
+  }
+
+  isSmartHeadingLine(context) {
+    if (!context || context.formats?.header || context.formats?.list) {
+      return false;
+    }
+
+    if (!/:\s*$/.test(context.plainText)) {
+      return false;
+    }
+
+    const headingText = context.plainText.replace(/:\s*$/, '').trim();
+    if (!headingText) {
+      return false;
+    }
+
+    const wordCount = headingText.split(/\s+/).filter(Boolean).length;
+    return wordCount <= 5 && headingText.length <= 48;
+  }
+
+  applySmartFormattingToPreviousLine() {
+    if (!this.quill) {
+      return false;
+    }
+
+    const selection = this.quill.getSelection(true);
+    const targetIndex = Math.max(0, (selection?.index ?? this.quill.getLength()) - 2);
+    const context = this.getLineContextAtIndex(targetIndex);
+    if (!context || !context.trimmedText) {
+      return false;
+    }
+
+    if (!context.formats?.list) {
+      const bulletMatch = context.plainText.match(/^\s*[-*]\s+/);
+      const orderedMatch = context.plainText.match(/^\s*\d+[.)]\s+/);
+      if (bulletMatch || orderedMatch) {
+        return this.applySilentTransform(() => {
+          const selectionIndex = this.quill.getSelection(true)?.index ?? selection?.index ?? 0;
+          const markerLength = (bulletMatch || orderedMatch)[0].length;
+          const listType = bulletMatch ? 'bullet' : 'ordered';
+
+          this.quill.deleteText(context.lineStart, markerLength, 'silent');
+          this.quill.formatLine(context.lineStart, 1, 'list', listType, 'silent');
+          this.quill.setSelection(Math.max(context.lineStart, selectionIndex - markerLength), 0, 'silent');
+          return true;
+        });
+      }
+    }
+
+    if (!this.isSmartHeadingLine(context)) {
+      return false;
+    }
+
+    return this.applySilentTransform(() => {
+      const selectionIndex = this.quill.getSelection(true)?.index ?? selection?.index ?? 0;
+      const colonIndex = context.plainText.lastIndexOf(':');
+      const headingText = context.plainText.replace(/:\s*$/, '').trim();
+      const headingLevel = headingText.split(/\s+/).filter(Boolean).length <= 2 ? 2 : 3;
+
+      if (colonIndex >= 0) {
+        this.quill.deleteText(context.lineStart + colonIndex, 1, 'silent');
+      }
+
+      this.quill.formatLine(context.lineStart, 1, 'header', headingLevel, 'silent');
+      this.quill.setSelection(Math.max(context.lineStart, selectionIndex - 1), 0, 'silent');
+      return true;
+    });
+  }
+
+  maybeApplySmartFormatting(delta = {}, source = 'api') {
+    if (!this.quill || source !== 'user' || this.isApplyingSmartFormatting) {
+      return;
+    }
+
+    const insertedText = this.getInsertedText(delta);
+    if (!insertedText) {
+      return;
+    }
+
+    if (insertedText.includes('\n')) {
+      this.applySmartFormattingToPreviousLine();
+    }
+  }
+
+  handleTextChange(delta, oldDelta, source) {
     if (!this.quill) {
       return;
     }
 
+    this.maybeApplySmartFormatting(delta, source);
     this.pendingContent = this.quill.root.innerHTML;
     document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
   }
