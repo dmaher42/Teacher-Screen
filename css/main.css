@@ -3154,6 +3154,24 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     min-height: 0;
 }
 
+.document-viewer-widget-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.document-viewer-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 0 12px;
+}
+
+.document-viewer-url-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .document-viewer-content,
 .drawing-tool-canvas,
 .noise-meter-canvas,
@@ -3165,6 +3183,61 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     border: 1px solid var(--border-soft-2);
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
     overflow: hidden;
+}
+
+.document-viewer-canvas-container,
+.document-viewer-iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #fff;
+}
+
+.document-viewer-widget-content.presentation-mode {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1200;
+    padding: 18px;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 94%, var(--card-background, #ffffff) 6%);
+    box-shadow: none;
+}
+
+.document-viewer-widget-content.presentation-mode .document-viewer-controls {
+    display: none;
+}
+
+.document-viewer-widget-content.presentation-mode .document-viewer-content {
+    border-radius: 18px;
+    min-height: 0;
+}
+
+.document-viewer-widget-content.presentation-mode .widget-control-bar {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    width: auto;
+    padding: 10px 12px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 72%, transparent);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+}
+
+.document-viewer-widget-content.presentation-mode .upload-button,
+.document-viewer-widget-content.presentation-mode .embed-button {
+    display: none;
+}
+
+body.projector-view .document-viewer-widget-content.presentation-mode {
+    inset: 0;
+    padding: 0;
+}
+
+body.projector-view .document-viewer-widget-content.presentation-mode .widget-control-bar {
+    display: none;
 }
 
 .drawing-tool-surface {

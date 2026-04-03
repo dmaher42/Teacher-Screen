@@ -68,6 +68,8 @@ class DocumentViewerWidget {
 
         controlBar.append(primaryActions, secondaryActions);
         this.element.appendChild(controlBar);
+        this.controlBar = controlBar;
+        this.controlsRow = this.element.querySelector('.document-viewer-controls');
 
         // Canvas (created lazily)
         this.canvas = null;
