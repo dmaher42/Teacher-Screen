@@ -108,7 +108,6 @@ class RichTextWidget {
 
     this.controlsOverlay.appendChild(this.templateLabel);
     this.controlsOverlay.appendChild(this.templateControls);
-    this.controlsOverlay.appendChild(this.templateBuilderButton);
     this.controlsOverlay.appendChild(this.smartFormattingHint);
     this.controlsOverlay.appendChild(this.modeLabel);
     this.controlsOverlay.appendChild(this.modeControls);
@@ -122,10 +121,21 @@ class RichTextWidget {
     this.dragHandle.textContent = 'Move';
     this.dragHandle.setAttribute('role', 'presentation');
 
+    this.inlineActions = document.createElement('div');
+    this.inlineActions.className = 'rich-text-inline-actions';
+
+    this.inlineTemplateButton = document.createElement('button');
+    this.inlineTemplateButton.className = 'control-button control-button--ghost rich-text-inline-template-btn';
+    this.inlineTemplateButton.type = 'button';
+    this.inlineTemplateButton.textContent = 'Build Template';
+    this.inlineTemplateButton.addEventListener('click', this.handleTemplateBuilderClick);
+    this.inlineActions.appendChild(this.inlineTemplateButton);
+
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
 
     this.element.appendChild(this.dragHandle);
+    this.element.appendChild(this.inlineActions);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {
@@ -716,6 +726,7 @@ class RichTextWidget {
   remove() {
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
     this.templateBuilderButton.removeEventListener('click', this.handleTemplateBuilderClick);
+    this.inlineTemplateButton.removeEventListener('click', this.handleTemplateBuilderClick);
     this.templateButtons?.forEach((button) => {
       button.removeEventListener('click', this.handleTemplateButtonClick);
     });

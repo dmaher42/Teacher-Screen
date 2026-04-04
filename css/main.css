@@ -2425,6 +2425,30 @@ body.widget-resize-active {
       display: none;
 }
 
+.rich-text-inline-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      padding: 0.2rem 0.35rem 0;
+      flex: 0 0 auto;
+  }
+
+.rich-text-inline-template-btn {
+      min-height: 30px;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 24%, var(--border-color, #dfe4e2) 76%);
+      background: color-mix(in srgb, var(--primary-color, #8e82ff) 8%, var(--card-background, #ffffff) 92%);
+      color: color-mix(in srgb, var(--primary-color, #8e82ff) 78%, #1f2937 22%);
+      font-size: 0.78rem;
+      font-weight: 700;
+  }
+
+.rich-text-inline-template-btn:hover {
+      background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, var(--card-background, #ffffff) 88%);
+  }
+
 .rich-text-editor-header {
       display: flex;
       align-items: center;
@@ -2459,6 +2483,12 @@ body.widget-resize-active {
 .rich-text-widget-inner.display-mode .rich-text-editor-header,
 .rich-text-widget-inner.is-projector-mode .rich-text-editor-header,
 body.projector-view .rich-text-widget-inner .rich-text-editor-header {
+      display: none;
+  }
+
+.rich-text-widget-inner.display-mode .rich-text-inline-actions,
+.rich-text-widget-inner.is-projector-mode .rich-text-inline-actions,
+body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
       display: none;
   }
 
