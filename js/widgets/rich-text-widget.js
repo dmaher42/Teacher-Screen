@@ -102,13 +102,8 @@ class RichTextWidget {
     this.modeHint = document.createElement('p');
     this.modeHint.className = 'rich-text-mode-hint';
 
-    this.smartFormattingHint = document.createElement('p');
-    this.smartFormattingHint.className = 'rich-text-smart-hint';
-    this.smartFormattingHint.textContent = 'Smart formatting: start a line with "- " or "1. " then press Enter for a list, or end a short line with ":" to make a heading. Press Enter twice to leave a list.';
-
     this.controlsOverlay.appendChild(this.templateLabel);
     this.controlsOverlay.appendChild(this.templateControls);
-    this.controlsOverlay.appendChild(this.smartFormattingHint);
     this.controlsOverlay.appendChild(this.modeLabel);
     this.controlsOverlay.appendChild(this.modeControls);
     this.controlsOverlay.appendChild(this.modeHint);
