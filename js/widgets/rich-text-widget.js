@@ -47,6 +47,7 @@ class RichTextWidget {
     this.templateBuilderButton.type = 'button';
     this.templateBuilderButton.textContent = 'Build Template';
     this.templateBuilderButton.addEventListener('click', this.handleTemplateBuilderClick);
+    this.templateControls.appendChild(this.templateBuilderButton);
 
     this.modeLabel = document.createElement('p');
     this.modeLabel.className = 'rich-text-controls-label';
@@ -116,21 +117,10 @@ class RichTextWidget {
     this.dragHandle.textContent = 'Move';
     this.dragHandle.setAttribute('role', 'presentation');
 
-    this.inlineActions = document.createElement('div');
-    this.inlineActions.className = 'rich-text-inline-actions';
-
-    this.inlineTemplateButton = document.createElement('button');
-    this.inlineTemplateButton.className = 'control-button control-button--ghost rich-text-inline-template-btn';
-    this.inlineTemplateButton.type = 'button';
-    this.inlineTemplateButton.textContent = 'Build Template';
-    this.inlineTemplateButton.addEventListener('click', this.handleTemplateBuilderClick);
-    this.inlineActions.appendChild(this.inlineTemplateButton);
-
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
 
     this.element.appendChild(this.dragHandle);
-    this.element.appendChild(this.inlineActions);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {
@@ -156,7 +146,7 @@ class RichTextWidget {
 
       this.quill = new Quill(this.editorContainer, {
         theme: 'snow',
-        placeholder: 'Write instructions, examples, or a lesson outline...',
+        placeholder: '',
         modules: {
           toolbar: {
             container: toolbarOptions
@@ -721,7 +711,6 @@ class RichTextWidget {
   remove() {
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
     this.templateBuilderButton.removeEventListener('click', this.handleTemplateBuilderClick);
-    this.inlineTemplateButton.removeEventListener('click', this.handleTemplateBuilderClick);
     this.templateButtons?.forEach((button) => {
       button.removeEventListener('click', this.handleTemplateButtonClick);
     });
