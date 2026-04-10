@@ -417,7 +417,7 @@ class QuizGameWidget {
 
     updateResponsiveState(width = 0, height = 0) {
         const compact = width > 0 && (width < 1120 || height < 760);
-        const tight = width > 0 && (width < 920 || height < 640);
+        const tight = width > 0 && (width < 1040 || height < 720);
         this.element.classList.toggle('is-compact', compact);
         this.element.classList.toggle('is-tight', tight);
     }
