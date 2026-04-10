@@ -1,47 +1,71 @@
 const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js';
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
+const revealStateStore = new WeakMap();
 
-function isProjectorView() {
-    if (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.isProjectorMode === 'function') {
-        return window.TeacherScreenAppMode.isProjectorMode();
+function createRevealState(root = null) {
+    return {
+        initialized: false,
+        ready: false,
+        deck: null,
+        root
+    };
+}
+
+function setActiveRevealState(state) {
+    if (typeof window !== 'undefined') {
+        window.__RevealState = state || createRevealState();
+    }
+    return state;
+}
+
+function resolvePresentationRoot(container, createIfMissing = false) {
+    if (!container || typeof container.querySelector !== 'function') {
+        return null;
     }
 
-    return window.location.pathname.includes('/projector');
+    if (container.id === 'presentation-root') {
+        return container;
+    }
+
+    let root = container.querySelector('#presentation-root');
+    if (!root && createIfMissing) {
+        root = ensurePresentationRoot(container);
+    }
+
+    return root;
+}
+
+function getStoredRevealState(root, createIfMissing = false) {
+    if (!root) {
+        return null;
+    }
+
+    let state = revealStateStore.get(root);
+    if (!state && createIfMissing) {
+        state = createRevealState(root);
+        revealStateStore.set(root, state);
+    }
+
+    return state || null;
 }
 
 function getRevealOptions() {
     return {
         embedded: true,
-        keyboard: true,
-        hash: true,
-        slideNumber: true,
-        controls: true,
-        progress: true
+        controls: false,
+        progress: true,
+        slideNumber: false,
+        hash: false,
+        keyboard: false,
+        scrollActivationWidth: null
     };
 }
 
-function bindTeacherSlideSync(revealApi) {
-    if (isProjectorView() || typeof revealApi?.on !== 'function' || revealApi.__teacherScreenSlideSyncBound) {
-        return;
-    }
-
-    revealApi.on('slidechanged', () => {
-        const state = typeof revealApi.getState === 'function' ? revealApi.getState() : { indexh: 0, indexv: 0 };
-        const data = {
-            type: 'slide-update',
-            indexh: state.indexh,
-            indexv: state.indexv
-        };
-
-        console.log('[sync] teacher slide update', data);
-        localStorage.setItem('teacher-slide', JSON.stringify(data));
-    });
-
-    revealApi.__teacherScreenSlideSyncBound = true;
-}
-
 function ensureRevealCss() {
-    if (document.querySelector(`link[data-teacher-screen-reveal="base"]`)) {
+    if (
+        document.querySelector('link[data-teacher-screen-reveal="base"]') ||
+        document.querySelector('link[href*="reveal.js"][href*="reveal.css"]')
+    ) {
         return;
     }
 
@@ -72,37 +96,235 @@ function ensureRevealScript() {
     return window.__teacherScreenRevealScriptPromise;
 }
 
-export async function initReveal(container) {
-    ensureRevealCss();
-    await ensureRevealScript();
+function ensurePresentationRoot(container) {
+    if (!container) return null;
 
-    const revealElement = container.querySelector('.reveal');
+    let root = container.id === 'presentation-root'
+        ? container
+        : container.querySelector('#presentation-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'presentation-root';
+        container.appendChild(root);
+    }
+
+    if (!root.dataset.locked) {
+        root.dataset.locked = 'true';
+    }
+
+    root.style.width = '100%';
+    root.style.height = '100%';
+    root.style.position = 'relative';
+
+    let revealElement = root.querySelector('.reveal');
     if (!revealElement) {
-        console.warn('[reveal-manager] .reveal element not found in container');
+        revealElement = document.createElement('div');
+        revealElement.className = 'reveal';
+
+        const slidesElement = document.createElement('div');
+        slidesElement.className = 'slides';
+        revealElement.appendChild(slidesElement);
+        root.appendChild(revealElement);
+    }
+
+    revealElement.style.width = '100%';
+    revealElement.style.height = '100%';
+    revealElement.style.minHeight = '0';
+
+    const slidesElement = revealElement.querySelector('.slides');
+    if (slidesElement) {
+        slidesElement.style.width = '100%';
+        slidesElement.style.height = '100%';
+        slidesElement.style.minHeight = '0';
+    }
+
+    if (!revealElement.dataset.frozen) {
+        revealElement.dataset.frozen = 'true';
+        Object.freeze(revealElement);
+    }
+
+    return root;
+}
+
+export function getRevealState(container = null) {
+    if (!container) {
+        return window.__RevealState || createRevealState();
+    }
+
+    const root = resolvePresentationRoot(container, false);
+    return getStoredRevealState(root, false) || createRevealState(root);
+}
+
+export function getRevealDeck(container = null) {
+    const state = getRevealState(container);
+    return state && state.deck ? state.deck : null;
+}
+
+export function activateReveal(container = null) {
+    if (!container) {
+        return getRevealState();
+    }
+
+    const root = resolvePresentationRoot(container, false);
+    const state = getStoredRevealState(root, false);
+
+    if (!state) {
         return null;
     }
 
-    if (container.__teacherScreenRevealDeck && typeof container.__teacherScreenRevealDeck.layout === 'function') {
-        container.__teacherScreenRevealDeck.layout();
-        return container.__teacherScreenRevealDeck;
+    return setActiveRevealState(state);
+}
+
+export function destroyReveal(container) {
+    const root = resolvePresentationRoot(container, false);
+    const state = getStoredRevealState(root, false);
+
+    if (!state) {
+        return null;
     }
 
-    if (typeof window.Reveal === 'function') {
-        const deck = new window.Reveal(revealElement);
+    if (state.deck && typeof state.deck.destroy === 'function') {
+        try {
+            state.deck.destroy();
+        } catch (error) {
+            console.warn('Reveal destroy failed', error);
+        }
+    }
+
+    state.initialized = false;
+    state.ready = false;
+    state.deck = null;
+
+    const revealElement = root && root.querySelector('.reveal');
+    if (revealElement) {
+        revealElement.className = 'reveal';
+    }
+
+    if (window.__RevealState === state) {
+        setActiveRevealState(state);
+    }
+
+    return state;
+}
+
+export function mountPresentationMarkup(container, html) {
+    const root = ensurePresentationRoot(container);
+    if (!root) return null;
+
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    const incomingReveal = temp.querySelector('.reveal');
+    const slidesTarget = root.querySelector('.slides');
+    if (!slidesTarget) return root;
+
+    if (incomingReveal) {
+        const incomingSlides = incomingReveal.querySelector('.slides');
+        slidesTarget.innerHTML = incomingSlides ? incomingSlides.innerHTML : incomingReveal.innerHTML;
+    } else {
+        slidesTarget.innerHTML = `<section>${html}</section>`;
+    }
+
+    return root;
+}
+
+export function hasMountedReveal(container) {
+    const root = resolvePresentationRoot(container, false);
+    if (!root || typeof root.querySelector !== 'function') return false;
+    return !!root.querySelector('.reveal .slides');
+}
+
+export async function initializeReveal(container) {
+    ensureRevealCss();
+    await ensureRevealScript();
+
+    const root = ensurePresentationRoot(container);
+    if (!root) {
+        console.warn('[Reveal] presentation root not available');
+        return null;
+    }
+
+    const revealState = getStoredRevealState(root, true);
+
+    if (revealState.initialized && revealState.deck) {
+        setActiveRevealState(revealState);
+        return revealState.deck;
+    }
+
+    if (!window.Reveal) {
+        console.warn('[Reveal] library not available');
+        return null;
+    }
+
+    const revealElement = root.querySelector('.reveal');
+    if (!revealElement) {
+        console.warn('[Reveal] container not available');
+        return null;
+    }
+
+    const RevealCtor = window.Reveal;
+    let deck = null;
+
+    if (typeof RevealCtor === 'function') {
+        deck = new RevealCtor(revealElement, getRevealOptions());
+    } else if (typeof RevealCtor.initialize === 'function') {
+        deck = RevealCtor;
+    }
+
+    if (!deck || typeof deck.initialize !== 'function') {
+        console.warn('[Reveal] library not available');
+        return null;
+    }
+
+    revealState.deck = deck;
+    revealState.initialized = true;
+    revealState.ready = false;
+    setActiveRevealState(revealState);
+
+    if (typeof deck.on === 'function') {
+        deck.on('ready', () => {
+            revealState.ready = true;
+            setActiveRevealState(revealState);
+            console.log('[Reveal] ready');
+        });
+    }
+
+    if (deck === RevealCtor) {
         await deck.initialize(getRevealOptions());
-        bindTeacherSlideSync(deck);
-        console.log('[Reveal] deck initialized');
-        container.__teacherScreenRevealDeck = deck;
-        return deck;
+    } else {
+        await deck.initialize();
     }
 
-    if (window.Reveal && typeof window.Reveal.initialize === 'function') {
-        await window.Reveal.initialize(getRevealOptions());
-        bindTeacherSlideSync(window.Reveal);
-        console.log('[Reveal] deck initialized');
-        container.__teacherScreenRevealDeck = window.Reveal;
-        return window.Reveal;
+    revealState.ready = true;
+    setActiveRevealState(revealState);
+
+    console.log('[Reveal] initialized');
+    return deck;
+}
+
+export async function initReveal(container) {
+    return initializeReveal(container);
+}
+
+export function layoutReveal(container) {
+    const root = resolvePresentationRoot(container, false);
+    if (!root) {
+        return;
     }
 
-    return null;
+    const revealState = getStoredRevealState(root, false);
+    const deck = revealState && revealState.deck;
+    if (!deck || typeof deck.layout !== 'function') {
+        return;
+    }
+
+    if (!hasMountedReveal(container)) {
+        return;
+    }
+
+    if (typeof deck.isReady === 'function' && !deck.isReady()) {
+        return;
+    }
+
+    deck.layout();
 }

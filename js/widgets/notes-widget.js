@@ -53,6 +53,7 @@ class NotesWidget {
     constructor(noteData = {}) {
         this.layoutType = 'overlay';
         this.isExpanded = false;
+        this.quillTextChangeHandler = null;
 
         // Create the main widget element
         this.element = document.createElement('div');
@@ -64,54 +65,70 @@ class NotesWidget {
 
         // --- Create Display Section (Preview) ---
         this.mainDisplay = document.createElement('div');
-        this.mainDisplay.className = 'widget-display';
-        this.mainDisplay.style.overflowY = 'auto';
-        this.mainDisplay.style.padding = '10px';
-        this.mainDisplay.style.backgroundColor = '#fff';
-        this.mainDisplay.style.color = '#333';
-        this.mainDisplay.style.height = '100%';
-        this.mainDisplay.style.width = '100%';
-        this.mainDisplay.style.textAlign = 'left';
-        this.mainDisplay.style.cursor = 'pointer'; // Indicate clickability
+        this.mainDisplay.className = 'widget-display notes-main-display';
+        this.mainDisplay.title = 'Open the quick note editor';
+        this.mainDisplay.addEventListener('click', () => {
+            if (!this.isExpanded) {
+                this.expand();
+            }
+        });
 
         // Create the notes display preview
         this.display = document.createElement('div');
-        this.display.id = 'notes-display-preview';
         this.display.className = 'notes-display';
-        // Apply tidy preview styles as requested
-        this.display.style.fontSize = '0.8em';
-        this.display.style.minHeight = '50px';
-        this.display.style.width = '100%';
+
+        this.previewCard = document.createElement('div');
+        this.previewCard.className = 'notes-preview-card';
+
+        this.previewHeader = document.createElement('div');
+        this.previewHeader.className = 'notes-preview-header';
+
+        this.previewLabel = document.createElement('span');
+        this.previewLabel.className = 'notes-preview-label';
+        this.previewLabel.textContent = 'Quick Note';
+
+        this.previewMeta = document.createElement('span');
+        this.previewMeta.className = 'notes-preview-meta';
+
+        this.previewHeader.appendChild(this.previewLabel);
+        this.previewHeader.appendChild(this.previewMeta);
+
+        this.previewTitle = document.createElement('div');
+        this.previewTitle.className = 'notes-preview-title';
+
+        this.previewSnippet = document.createElement('div');
+        this.previewSnippet.className = 'notes-preview-snippet';
+
+        this.previewCard.appendChild(this.previewHeader);
+        this.previewCard.appendChild(this.previewTitle);
+        this.previewCard.appendChild(this.previewSnippet);
+        this.display.appendChild(this.previewCard);
 
         this.mainDisplay.appendChild(this.display);
 
         // --- Create Controls Section (Only for Settings Modal) ---
         this.controlsOverlay = document.createElement('div');
-        this.controlsOverlay.className = 'widget-content-controls';
+        this.controlsOverlay.className = 'widget-content-controls notes-settings-controls';
 
         // Header for settings
         const header = document.createElement('h3');
-        header.textContent = 'Note Settings';
+        header.textContent = 'Quick Note Settings';
         this.controlsOverlay.appendChild(header);
 
         // Link to Planner Button
         const linkBtn = document.createElement('button');
-        linkBtn.id = 'link-to-planner-btn';
         linkBtn.textContent = 'Link to Planner';
         linkBtn.className = 'control-button';
         linkBtn.addEventListener('click', () => {
-             localStorage.setItem('noteToLink', this.noteId);
-             document.dispatchEvent(new CustomEvent('requestOpenPlanner'));
+            localStorage.setItem('noteToLink', this.noteId);
+            document.dispatchEvent(new CustomEvent('requestOpenPlanner'));
         });
         this.controlsOverlay.appendChild(linkBtn);
 
         // Delete Note Button (Added for better management)
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete Note';
-        deleteBtn.className = 'control-button';
-        deleteBtn.style.marginTop = '10px';
-        deleteBtn.style.backgroundColor = '#ff6b6b';
-        deleteBtn.style.color = 'white';
+        deleteBtn.className = 'control-button modal-danger-btn';
         deleteBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to delete this note?')) {
                 SavedNotesStore.delete(this.noteId);
@@ -132,24 +149,6 @@ class NotesWidget {
         this.editorContainerWrapper.style.height = '100%';
 
         this.element.appendChild(this.editorContainerWrapper);
-
-        // Click listener for expansion
-        this.element.addEventListener('click', (e) => {
-            // Prevent expansion if clicking buttons or specific interactive elements
-            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-                return;
-            }
-            // If expanded, only collapse if clicking outside the editor (e.g. on the close button we might add, or if we want toggle behavior)
-            // The requirement says: "Click it to type, click it again to save and minimize."
-            // But if I am typing in the editor, I don't want to collapse.
-            // So we toggle ONLY if not clicking inside the editor content area when expanded?
-            // Actually, Quill intercepts clicks.
-            // Let's implement a distinct expand/collapse logic.
-
-            if (!this.isExpanded) {
-                this.expand();
-            }
-        });
 
         // State
         this.quillEditor = null;
@@ -181,32 +180,36 @@ class NotesWidget {
         // Create Header
         this.expandedHeader = document.createElement('div');
         this.expandedHeader.className = 'notes-expanded-header';
-        this.expandedHeader.style.display = 'flex';
-        this.expandedHeader.style.justifyContent = 'space-between';
-        this.expandedHeader.style.alignItems = 'center';
-        this.expandedHeader.style.padding = '8px';
-        this.expandedHeader.style.background = '#f4f4f4';
-        this.expandedHeader.style.borderBottom = '1px solid #ddd';
+
+        const titleBlock = document.createElement('div');
+        titleBlock.className = 'notes-expanded-copy';
 
         const titleSpan = document.createElement('span');
-        titleSpan.textContent = 'Editing Note';
-        titleSpan.style.fontWeight = 'bold';
+        titleSpan.className = 'notes-expanded-title';
+        titleSpan.textContent = this.title || 'Editing note';
+
+        const subtitleSpan = document.createElement('span');
+        subtitleSpan.className = 'notes-expanded-subtitle';
+        subtitleSpan.textContent = 'Write something useful, then save to keep it on the card and in the Notes library.';
+
+        this.expandedMeta = document.createElement('span');
+        this.expandedMeta.className = 'notes-expanded-meta';
+
+        titleBlock.appendChild(titleSpan);
+        titleBlock.appendChild(subtitleSpan);
+        titleBlock.appendChild(this.expandedMeta);
 
         const minimizeBtn = document.createElement('button');
         minimizeBtn.innerHTML = '&times;';
         minimizeBtn.title = 'Save and Minimize';
-        minimizeBtn.style.background = 'none';
-        minimizeBtn.style.border = 'none';
-        minimizeBtn.style.fontSize = '1.5rem';
-        minimizeBtn.style.cursor = 'pointer';
-        minimizeBtn.style.padding = '0 5px';
+        minimizeBtn.className = 'notes-close-button';
 
         minimizeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapse();
         });
 
-        this.expandedHeader.appendChild(titleSpan);
+        this.expandedHeader.appendChild(titleBlock);
         this.expandedHeader.appendChild(minimizeBtn);
 
         this.editorContainerWrapper.appendChild(this.expandedHeader);
@@ -215,7 +218,7 @@ class NotesWidget {
         this.editorContainer = document.createElement('div');
         this.editorContainer.id = 'editor-container-' + Math.random().toString(36).substr(2, 9);
         this.editorContainer.style.flex = '1';
-        this.editorContainer.style.backgroundColor = '#fff';
+        this.editorContainer.style.backgroundColor = 'var(--card-background, #ffffff)';
         this.editorContainerWrapper.appendChild(this.editorContainer);
 
         const controlBar = document.createElement('div');
@@ -224,7 +227,7 @@ class NotesWidget {
         const primaryActions = document.createElement('div');
         primaryActions.className = 'primary-actions';
         const saveButton = document.createElement('button');
-        saveButton.textContent = 'Save & Close';
+        saveButton.textContent = 'Save and Close';
         saveButton.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapse();
@@ -233,6 +236,15 @@ class NotesWidget {
 
         const secondaryActions = document.createElement('div');
         secondaryActions.className = 'secondary-actions';
+        const continueButton = document.createElement('button');
+        continueButton.textContent = 'Keep Editing';
+        continueButton.title = 'Keep writing';
+        continueButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.quillEditor) {
+                this.quillEditor.focus();
+            }
+        });
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '&times;';
         closeButton.title = 'Close editor';
@@ -240,10 +252,12 @@ class NotesWidget {
             e.stopPropagation();
             this.collapse();
         });
+        secondaryActions.appendChild(continueButton);
         secondaryActions.appendChild(closeButton);
 
         controlBar.append(primaryActions, secondaryActions);
         this.editorContainerWrapper.appendChild(controlBar);
+        this.updateExpandedHeader();
 
         // Create/Initialize Quill
         this.initializeEditor();
@@ -258,20 +272,11 @@ class NotesWidget {
             this.persistNote();
         }
 
-        this.isExpanded = false;
-        this.element.classList.remove('expanded');
-
-        // Destroy Quill and clear DOM
-        this.quillEditor = null;
-        this.editorContainer = null;
-        this.editorContainerWrapper.innerHTML = '';
-
-        // Hide editor wrapper
-        this.editorContainerWrapper.style.display = 'none';
+        this.destroyEditor();
+        this.resetEditorShell();
 
         // Show preview
         this.updateDisplay();
-        this.mainDisplay.style.display = 'block';
     }
 
     /**
@@ -316,6 +321,17 @@ class NotesWidget {
             }
         });
 
+        this.quillTextChangeHandler = () => {
+            if (!this.quillEditor) return;
+            this.savedContent = this.quillEditor.root.innerHTML;
+            this.title = this.getTitleFromContent();
+            this.updatedAt = new Date().toISOString();
+            this.updateDisplay();
+            this.updateExpandedHeader();
+            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+        };
+        this.quillEditor.on('text-change', this.quillTextChangeHandler);
+
         // Load content
         if (this.savedContent) {
             this.quillEditor.root.innerHTML = this.savedContent;
@@ -326,13 +342,36 @@ class NotesWidget {
     }
 
     updateDisplay() {
-        if (this.display) {
-            // Strip HTML for preview or keep simple formatting?
-            // Requirement: "shows a compact preview (e.g., the note's title and first few characters)"
-            // We'll use the HTML content but truncated, or text content.
-            // Using innerHTML allows some formatting to show through which is nice.
-            // But let's limit the height via CSS.
-            this.display.innerHTML = this.savedContent || '<em style="color:#888;">Click to add a note...</em>';
+        if (!this.display) return;
+
+        const hasContent = !!(this.savedContent && this.savedContent.trim());
+        const previewTitle = this.title || this.getTitleFromContent();
+        const previewSnippet = hasContent ? this.getPreviewSnippet(this.savedContent, 150) : 'Click to add a note.';
+
+        this.previewTitle.textContent = previewTitle || 'Quick note';
+        this.previewSnippet.textContent = previewSnippet;
+        this.previewSnippet.classList.toggle('is-empty', !hasContent);
+        this.previewMeta.textContent = hasContent ? `Updated ${this.formatUpdatedAt(this.updatedAt)}` : 'Tap to open';
+        this.mainDisplay.title = hasContent
+            ? `Open "${previewTitle}"`
+            : 'Open the quick note editor';
+        this.updateExpandedHeader();
+    }
+
+    updateExpandedHeader() {
+        if (!this.expandedHeader) return;
+
+        const titleNode = this.expandedHeader.querySelector('.notes-expanded-title');
+        if (titleNode) {
+            titleNode.textContent = this.title || 'Editing note';
+        }
+
+        if (this.expandedMeta) {
+            const wordCount = this.getWordCount(this.savedContent);
+            const wordLabel = wordCount === 1 ? '1 word' : `${wordCount} words`;
+            this.expandedMeta.textContent = this.savedContent && this.savedContent.trim()
+                ? `${wordLabel} | Updated ${this.formatUpdatedAt(this.updatedAt)}`
+                : 'Nothing saved yet';
         }
     }
 
@@ -346,6 +385,7 @@ class NotesWidget {
         });
         this.title = saved.title;
         this.updatedAt = saved.updatedAt;
+        this.updateDisplay();
     }
 
     getTitleFromContent() {
@@ -356,13 +396,75 @@ class NotesWidget {
         return text.split('\n')[0].slice(0, 80);
     }
 
+    getPreviewSnippet(html, limit = 140) {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) {
+            return 'Click to add a note.';
+        }
+
+        if (text.length <= limit) {
+            return text;
+        }
+
+        return `${text.slice(0, limit).trimEnd()}…`;
+    }
+
+    getWordCount(html = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) {
+            return 0;
+        }
+
+        return text.split(/\s+/).filter(Boolean).length;
+    }
+
+    formatUpdatedAt(value) {
+        if (!value) {
+            return 'just now';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return 'just now';
+        }
+
+        return date.toLocaleString([], {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    }
+
     /**
      * Remove the widget from the DOM.
      */
     remove() {
+        this.destroyEditor();
+        this.resetEditorShell();
         this.element.remove();
         const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
         document.dispatchEvent(event);
+    }
+
+    destroyEditor() {
+        if (this.quillEditor && this.quillTextChangeHandler) {
+            this.quillEditor.off('text-change', this.quillTextChangeHandler);
+        }
+
+        this.quillTextChangeHandler = null;
+        this.quillEditor = null;
+        this.editorContainer = null;
+    }
+
+    resetEditorShell() {
+        this.isExpanded = false;
+        this.element.classList.remove('expanded');
+        this.editorContainerWrapper.innerHTML = '';
+        this.editorContainerWrapper.style.display = 'none';
+        this.mainDisplay.style.display = 'block';
     }
 
     /**

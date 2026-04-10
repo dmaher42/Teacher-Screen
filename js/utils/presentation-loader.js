@@ -1,4 +1,4 @@
-import { initReveal } from './reveal-manager.js';
+import { initializeReveal, mountPresentationMarkup } from './reveal-manager.js';
 
 export async function loadPresentation(container, name) {
     try {
@@ -9,9 +9,9 @@ export async function loadPresentation(container, name) {
         }
 
         const html = await response.text();
-        container.innerHTML = html;
+        mountPresentationMarkup(container, html);
 
-        await initReveal(container);
+        await initializeReveal(container);
 
         console.log('[presentation] loaded:', name);
     } catch (error) {

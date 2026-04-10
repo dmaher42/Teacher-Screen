@@ -10,6 +10,15 @@ class WellbeingWidget {
         };
         this.historyKey = 'wellbeingHistory';
         this.chart = null;
+        this.optionButtonHandlers = [];
+        this.handleToggleMode = this.toggleMode.bind(this);
+        this.handleSaveCurrentCounts = this.saveCurrentCounts.bind(this);
+        this.handleShowHistory = this.showHistory.bind(this);
+        this.handleCloseHistory = () => {
+            if (this.historyDialog) {
+                this.historyDialog.close();
+            }
+        };
 
         this.element = document.createElement('div');
         this.element.className = 'wellbeing-widget-content';
@@ -37,7 +46,7 @@ class WellbeingWidget {
         this.toggleBtn.className = 'wellbeing-toggle-btn';
         this.toggleBtn.type = 'button';
         this.toggleBtn.textContent = 'Switch to Teacher Dashboard';
-        this.toggleBtn.addEventListener('click', () => this.toggleMode());
+        this.toggleBtn.addEventListener('click', this.handleToggleMode);
 
         this.header.appendChild(title);
         this.element.appendChild(this.header);
@@ -82,7 +91,9 @@ class WellbeingWidget {
             button.appendChild(emojiSpan);
             button.appendChild(textSpan);
 
-            button.addEventListener('click', () => this.handleStudentInput(option.key, button));
+            const handler = () => this.handleStudentInput(option.key, button);
+            this.optionButtonHandlers.push({ button, handler });
+            button.addEventListener('click', handler);
 
             optionsContainer.appendChild(button);
         });
@@ -109,12 +120,12 @@ class WellbeingWidget {
         this.saveBtn = document.createElement('button');
         this.saveBtn.type = 'button';
         this.saveBtn.textContent = "Save Today's Check-in";
-        this.saveBtn.addEventListener('click', () => this.saveCurrentCounts());
+        this.saveBtn.addEventListener('click', this.handleSaveCurrentCounts);
 
         this.historyBtn = document.createElement('button');
         this.historyBtn.type = 'button';
         this.historyBtn.textContent = 'View History';
-        this.historyBtn.addEventListener('click', () => this.showHistory());
+        this.historyBtn.addEventListener('click', this.handleShowHistory);
 
         this.status = document.createElement('div');
         this.status.className = 'wellbeing-status secondary-text';
@@ -263,7 +274,8 @@ class WellbeingWidget {
             const closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.textContent = 'Close';
-            closeBtn.addEventListener('click', () => this.historyDialog.close());
+            closeBtn.addEventListener('click', this.handleCloseHistory);
+            this.historyCloseBtn = closeBtn;
             this.historyDialog.appendChild(closeBtn);
 
             document.body.appendChild(this.historyDialog);
@@ -323,5 +335,124 @@ class WellbeingWidget {
         if (this.currentMode === 'dashboard') {
             this.renderChart();
         }
+    }
+
+    onWidgetLayout() {
+        if (this.currentMode !== 'dashboard') {
+            return;
+        }
+
+        if (this.chart && typeof this.chart.resize === 'function') {
+            this.chart.resize();
+            return;
+        }
+
+        this.renderChart();
+    }
+
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls wellbeing-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Switch between student check-in mode and the teacher dashboard, save the current results, or open the history list.';
+        controls.appendChild(helpText);
+
+        const modeSection = document.createElement('div');
+        modeSection.className = 'widget-settings-section';
+        const modeHeading = document.createElement('h3');
+        modeHeading.textContent = 'Mode';
+        modeSection.appendChild(modeHeading);
+
+        const modeActions = document.createElement('div');
+        modeActions.className = 'widget-settings-actions';
+        const toggleModeButton = document.createElement('button');
+        toggleModeButton.type = 'button';
+        toggleModeButton.className = 'control-button';
+        modeActions.appendChild(toggleModeButton);
+        modeSection.appendChild(modeActions);
+        controls.appendChild(modeSection);
+
+        const dataSection = document.createElement('div');
+        dataSection.className = 'widget-settings-section';
+        const dataHeading = document.createElement('h3');
+        dataHeading.textContent = 'Actions';
+        dataSection.appendChild(dataHeading);
+
+        const dataActions = document.createElement('div');
+        dataActions.className = 'widget-settings-actions';
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'control-button';
+        saveButton.textContent = 'Save Check-in';
+        const historyButton = document.createElement('button');
+        historyButton.type = 'button';
+        historyButton.className = 'control-button';
+        historyButton.textContent = 'View History';
+        dataActions.append(saveButton, historyButton);
+        dataSection.appendChild(dataActions);
+        controls.appendChild(dataSection);
+
+        const summaryCard = document.createElement('div');
+        summaryCard.className = 'widget-settings-meta';
+        const summaryLabel = document.createElement('strong');
+        summaryLabel.textContent = 'Status';
+        const summaryText = document.createElement('span');
+        summaryCard.append(summaryLabel, summaryText);
+        controls.appendChild(summaryCard);
+
+        const syncStatus = () => {
+            toggleModeButton.textContent = this.currentMode === 'student'
+                ? 'Open Teacher Dashboard'
+                : 'Open Student View';
+            summaryText.textContent = `Great ${this.counts.great}, Good ${this.counts.good}, Meh ${this.counts.meh}, Worried ${this.counts.worried}, Sad ${this.counts.sad}`;
+        };
+
+        toggleModeButton.addEventListener('click', () => {
+            this.toggleMode();
+            syncStatus();
+        });
+
+        saveButton.addEventListener('click', () => {
+            this.saveCurrentCounts();
+            syncStatus();
+        });
+
+        historyButton.addEventListener('click', () => {
+            this.showHistory();
+            syncStatus();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
+    remove() {
+        this.toggleBtn.removeEventListener('click', this.handleToggleMode);
+        this.saveBtn.removeEventListener('click', this.handleSaveCurrentCounts);
+        this.historyBtn.removeEventListener('click', this.handleShowHistory);
+        this.optionButtonHandlers.forEach(({ button, handler }) => {
+            button.removeEventListener('click', handler);
+        });
+        this.optionButtonHandlers = [];
+
+        if (this.chart && typeof this.chart.destroy === 'function') {
+            this.chart.destroy();
+        }
+        this.chart = null;
+
+        if (this.historyCloseBtn) {
+            this.historyCloseBtn.removeEventListener('click', this.handleCloseHistory);
+        }
+        if (this.historyDialog) {
+            this.historyDialog.remove();
+            this.historyDialog = null;
+        }
+
+        this.element.remove();
+
+        const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
+        document.dispatchEvent(event);
     }
 }

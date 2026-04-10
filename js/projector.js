@@ -1,10 +1,41 @@
-import { appBus } from './utils/app-bus.js';
-import { APP_MODE } from './utils/app-mode.js';
+import { startPresentationDiagnostics } from './utils/presentation-debug.js';
+import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
+import { createWidgetByType } from './widgets/widget-registry.js';
 
-console.log('Projector Mode:', APP_MODE);
+window.APP_MODE = 'projector';
+const PROJECTOR_APP_MODE = 'projector';
+const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 
-appBus.init();
-console.log('AppBus initialised');
+console.log('Projector Mode:', PROJECTOR_APP_MODE);
+
+window.__ProjectorConnection = {
+    window: window,
+    connected: true
+};
+
+let activePresentationSourceKey = null;
+let activePresentationLoadPromise = null;
+
+function isDedicatedRevealProjectorWidget(widgetData = {}) {
+    const type = widgetData.type;
+    return type === 'RevealManagerWidget' || type === 'reveal-manager';
+}
+
+function getProjectorSyncToken() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('syncToken');
+        if (token) {
+            sessionStorage.setItem(PROJECTOR_SYNC_TOKEN_KEY, token);
+            return token;
+        }
+
+        return sessionStorage.getItem(PROJECTOR_SYNC_TOKEN_KEY) || null;
+    } catch (error) {
+        console.warn('Unable to read projector sync token', error);
+        return null;
+    }
+}
 
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -15,29 +46,312 @@ const loadClassicScript = (src) => new Promise((resolve, reject) => {
     document.head.appendChild(script);
 });
 
+const PROJECTOR_DEPENDENCIES = [
+    { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
+    { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: 'js/utils/layout-manager.js', required: true },
+    { src: 'js/utils/background-manager.js', required: true },
+    { src: 'assets/sounds/sound-data.js', required: false },
+    { src: 'js/widgets/timer.js', required: false },
+    { src: 'js/widgets/noise-meter.js', required: false },
+    { src: 'js/widgets/noise-meter-widget.js', required: false },
+    { src: 'js/widgets/name-picker.js', required: false },
+    { src: 'js/widgets/qr-code-widget.js', required: false },
+    { src: 'js/widgets/drawing-tool.js', required: false },
+    { src: 'js/widgets/document-viewer.js', required: false },
+    { src: 'js/widgets/url-viewer.js', required: false },
+    { src: 'js/widgets/reveal-manager-widget.js', required: false },
+    { src: 'js/widgets/quiz-game-widget.js', required: false },
+    { src: 'js/widgets/presentation-widget.js', required: false },
+    { src: 'js/widgets/notes-widget.js', required: false },
+    { src: 'js/widgets/wellbeing-widget.js', required: false },
+    { src: 'js/widgets/rich-text-widget.js', required: false },
+    { src: 'js/widgets/mask-widget.js', required: false }
+];
+
 const bootstrapProjectorDependencies = async () => {
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js');
-    await loadClassicScript('https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js');
-    await loadClassicScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js');
-    await loadClassicScript('js/utils/layout-manager.js');
-    await loadClassicScript('js/utils/background-manager.js');
-    await loadClassicScript('js/utils/reveal-sync.js');
-    await loadClassicScript('assets/sounds/sound-data.js');
-    await loadClassicScript('js/widgets/timer.js');
-    await loadClassicScript('js/widgets/noise-meter.js');
-    await loadClassicScript('js/widgets/noise-meter-widget.js');
-    await loadClassicScript('js/widgets/name-picker.js');
-    await loadClassicScript('js/widgets/qr-code-widget.js');
-    await loadClassicScript('js/widgets/drawing-tool.js');
-    await loadClassicScript('js/widgets/document-viewer.js');
-    await loadClassicScript('js/widgets/url-viewer.js');
-    await loadClassicScript('js/widgets/reveal-manager-widget.js');
-    await loadClassicScript('js/widgets/presentation-widget.js');
-    await loadClassicScript('js/widgets/notes-widget.js');
-    await loadClassicScript('js/widgets/wellbeing-widget.js');
-    await loadClassicScript('js/widgets/rich-text-widget.js');
-    await loadClassicScript('js/widgets/mask-widget.js');
+    const failures = [];
+
+    for (const dependency of PROJECTOR_DEPENDENCIES) {
+        try {
+            await loadClassicScript(dependency.src);
+        } catch (error) {
+            failures.push({
+                src: dependency.src,
+                required: dependency.required,
+                error: error.message
+            });
+
+            const logMethod = dependency.required ? 'error' : 'warn';
+            console[logMethod](`[projector] dependency load failed: ${dependency.src}`, error);
+
+            if (dependency.required) {
+                throw Object.assign(new Error(`Critical projector dependency failed: ${dependency.src}`), {
+                    cause: error,
+                    failures
+                });
+            }
+        }
+    }
+
+    window.__ProjectorDependencyFailures = failures;
+    return failures;
+};
+
+function showProjectorStartupMessage(message) {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        return;
+    }
+
+    root.innerHTML = `<div style="padding:16px;color:#fff;background:#7f1d1d;font:600 16px/1.4 Poppins,sans-serif;">${message}</div>`;
+}
+
+function prepareProjectorPresentationRoot(root) {
+    if (!root) {
+        return;
+    }
+
+    root.style.position = 'fixed';
+    root.style.inset = '0';
+    root.style.width = '100vw';
+    root.style.height = '100vh';
+    root.style.zIndex = '10';
+    root.style.pointerEvents = 'none';
+}
+
+function clearProjectorPresentationRoot() {
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        return;
+    }
+
+    destroyReveal(root);
+    root.innerHTML = '';
+    activePresentationSourceKey = null;
+    activePresentationLoadPromise = null;
+}
+
+function getDedicatedRevealDeckState(layout = null) {
+    if (!layout || !Array.isArray(layout.widgets)) {
+        return null;
+    }
+
+    return layout.widgets.find((widgetData) => {
+        const revealData = widgetData && typeof widgetData.data === 'object' ? widgetData.data : null;
+        return (
+        isDedicatedRevealProjectorWidget(widgetData)
+        && widgetData.visibleOnProjector !== false
+        && revealData
+        && revealData.activeDeck
+        && typeof revealData.activeDeck.content === 'string'
+        && revealData.activeDeck.content.trim()
+        );
+    }) || null;
+}
+
+function syncRevealDeckFromLayout(layout = null) {
+    const revealWidget = getDedicatedRevealDeckState(layout);
+    if (!revealWidget) {
+        clearProjectorPresentationRoot();
+        return;
+    }
+
+    const revealData = revealWidget && typeof revealWidget.data === 'object' ? revealWidget.data : {};
+    const indices = revealData.currentIndices && typeof revealData.currentIndices === 'object'
+        ? revealData.currentIndices
+        : { h: 0, v: 0 };
+
+    loadPresentationHtml(revealData.activeDeck.content)
+        .then(() => slideRevealWhenReady(indices.h || 0, indices.v || 0))
+        .catch((error) => {
+            console.warn('Unable to restore Reveal deck from saved layout', error);
+        });
+}
+
+function getProjectorRevealWidgets() {
+    const app = window.__TeacherScreenProjectorApp;
+    if (!app || typeof app.getRevealWidgets !== 'function') {
+        return [];
+    }
+
+    return app.getRevealWidgets();
+}
+
+async function syncRevealWidgetsOnProjector(data = {}) {
+    const widgets = getProjectorRevealWidgets();
+    if (!widgets.length) {
+        return false;
+    }
+
+    const nextIndices = {
+        h: Number.isFinite(data.h) ? data.h : 0,
+        v: Number.isFinite(data.v) ? data.v : 0
+    };
+
+    await Promise.all(widgets.map(async (widget) => {
+        if (!widget) {
+            return;
+        }
+
+        widget.currentIndices = nextIndices;
+
+        if (data.html && typeof widget.launchDeck === 'function') {
+            const nextContent = String(data.html || '');
+            const needsReload = !widget.activeDeck || widget.activeDeck.content !== nextContent;
+
+            if (needsReload) {
+                await widget.launchDeck({
+                    id: widget.activeDeck && widget.activeDeck.id ? widget.activeDeck.id : Date.now(),
+                    name: widget.activeDeck && widget.activeDeck.name ? widget.activeDeck.name : 'Projector Deck',
+                    type: 'html',
+                    content: nextContent
+                }, { preserveIndices: true });
+                return;
+            }
+        }
+
+        if (typeof widget.moveDeckToStoredSlide === 'function') {
+            await widget.moveDeckToStoredSlide(widget.revealDeck);
+        }
+
+        if (typeof widget.requestRevealLayout === 'function') {
+            await widget.requestRevealLayout();
+        }
+    }));
+
+    clearProjectorPresentationRoot();
+    return true;
+}
+
+function wrapRevealPresentationHtml(html = '') {
+    const normalized = String(html || '').trim();
+    if (!normalized) {
+        return '';
+    }
+
+    const hasRevealStructure = /class=["'][^"']*\breveal\b[^"']*["']/i.test(normalized)
+        && /class=["'][^"']*\bslides\b[^"']*["']/i.test(normalized);
+
+    if (hasRevealStructure) {
+        return normalized;
+    }
+
+    const innerContent = /<\s*section\b/i.test(normalized)
+        ? normalized
+        : `<section>${normalized}</section>`;
+
+    return `<div class="reveal"><div class="slides">${innerContent}</div></div>`;
+}
+
+async function loadPresentationHtml(html) {
+    const wrappedHtml = wrapRevealPresentationHtml(html);
+    const sourceKey = `html:${wrappedHtml}`;
+    const root = document.getElementById('presentation-root');
+    if (!root) {
+        console.warn('Presentation root not found');
+        return;
+    }
+
+    if (activePresentationLoadPromise && activePresentationSourceKey === sourceKey) {
+        return activePresentationLoadPromise;
+    }
+
+    if (activePresentationSourceKey === sourceKey && getRevealDeck(root)) {
+        return getRevealDeck(root);
+    }
+
+    activePresentationSourceKey = sourceKey;
+    activePresentationLoadPromise = (async () => {
+        destroyReveal(root);
+        root.innerHTML = '';
+        mountPresentationMarkup(root, wrappedHtml);
+        const deck = await initializeReveal(root);
+        prepareProjectorPresentationRoot(root);
+        if (deck && typeof layoutReveal === 'function') {
+            layoutReveal(root);
+        }
+
+        return deck;
+    })();
+
+    try {
+        return await activePresentationLoadPromise;
+    } finally {
+        activePresentationLoadPromise = null;
+    }
+}
+
+const slideRevealWhenReady = async (h = 0, v = 0) => {
+    const root = document.getElementById('presentation-root');
+    const revealState = getRevealState(root);
+    const deck = getRevealDeck(root);
+    if (!deck || typeof deck.slide !== 'function') {
+        return;
+    }
+
+    if (revealState.ready || (typeof deck.isReady === 'function' && deck.isReady())) {
+        deck.slide(h, v);
+        return;
+    }
+
+    await new Promise((resolve) => {
+        const onReady = () => {
+            if (typeof deck.off === 'function') {
+                deck.off('ready', onReady);
+            }
+            resolve();
+        };
+
+        if (typeof deck.on === 'function') {
+            deck.on('ready', onReady);
+            return;
+        }
+
+        resolve();
+    });
+
+    if (typeof deck.slide === 'function') {
+        deck.slide(h, v);
+    }
+};
+
+const handleSlideSyncPayload = async (data = {}) => {
+    if (!data || data.type !== 'slideSync') {
+        return;
+    }
+
+    console.log('Projector received slide:', data.h, data.v);
+
+    const syncedRevealWidgets = await syncRevealWidgetsOnProjector(data);
+    if (syncedRevealWidgets) {
+        return;
+    }
+
+    if (data.html) {
+        loadPresentationHtml(data.html)
+            .then(() => slideRevealWhenReady(data.h, data.v))
+            .catch((error) => {
+                console.warn('Unable to load presentation HTML', error);
+            });
+        return;
+    }
+
+    slideRevealWhenReady(data.h, data.v);
+};
+
+const initializeRevealSyncListener = () => {
+    // Teacher -> Projector synchronization
+    // Uses postMessage slideSync events.
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+
+        if (!data || data.type !== 'slideSync') return;
+        if (event.origin !== window.location.origin) return;
+        handleSlideSyncPayload(data);
+    });
 };
 
 /**
@@ -46,11 +360,21 @@ const bootstrapProjectorDependencies = async () => {
  */
 
 const THEMES = ['theme-ocean', 'theme-professional', 'theme-light'];
+const THEME_META_COLORS = {
+    'theme-light': '#ffffff',
+    'theme-ocean': '#0f172a',
+    'theme-professional': '#111827'
+};
 
 function applyTheme(themeName) {
     const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
     THEMES.forEach(theme => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
+    document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+        metaTheme.setAttribute('content', THEME_META_COLORS[nextTheme] || THEME_META_COLORS['theme-professional']);
+    }
 }
 
 class ProjectorApp {
@@ -77,7 +401,8 @@ class ProjectorApp {
         this.backgroundManager = new BackgroundManager(this.studentView);
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
-        this.revealSync = typeof window !== 'undefined' && window.RevealSync ? new window.RevealSync() : null;
+        this.projectorSyncToken = getProjectorSyncToken();
+        window.__TeacherScreenProjectorApp = this;
     }
 
     init() {
@@ -86,7 +411,7 @@ class ProjectorApp {
         this.setupEditModeControls();
 
         // Ask the teacher window for the latest state as soon as the projector starts.
-        this.projectorChannel.postMessage({ type: 'request-sync' });
+        this.projectorChannel.postMessage({ type: 'request-sync', syncToken: this.projectorSyncToken });
 
         // Listen for storage events to update in real-time
         window.addEventListener('storage', (event) => {
@@ -96,31 +421,13 @@ class ProjectorApp {
             if (event.key === 'selectedTheme') {
                 this.loadTheme();
             }
-            if (event.key === 'teacher-slide' && event.newValue) {
-                try {
-                    const data = JSON.parse(event.newValue);
-                    console.log('[sync] projector received slide update');
-                    console.log('[sync] teacher slide update', data);
-
-                    if (window.Reveal && typeof window.Reveal.slide === 'function') {
-                        window.Reveal.slide(data.indexh, data.indexv);
-                    }
-                } catch (error) {
-                    console.warn('[sync] invalid teacher slide payload', error);
-                }
-            }
         });
-
-        if (this.revealSync) {
-            this.revealSync.onSlideState((state) => {
-                if (window.Reveal && typeof window.Reveal.slide === 'function') {
-                    window.Reveal.slide(state.indexh, state.indexv, state.indexf);
-                }
-            });
-        }
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
+            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
+                return;
+            }
 
             if (message.type === 'layout-update') {
                 if (message.source === 'projector') {
@@ -140,11 +447,29 @@ class ProjectorApp {
                     return;
                 }
                 this.layoutManager.applyLayoutDelta(message.delta);
+                return;
+            }
+
+            if (message.type === 'timer-sync' && message.timerState) {
+                if (message.source === 'projector') {
+                    return;
+                }
+                this.applyTimerState(message.timerState);
+                return;
+            }
+
+            if (message.type === 'slideSync') {
+                handleSlideSyncPayload(message);
             }
         };
 
         this.loadTheme();
         this.loadSavedState();
+
+        const root = document.getElementById('presentation-root');
+        if (root && !root.innerHTML.trim()) {
+            showProjectorStartupMessage('Projector ready. Open it from the teacher screen or load a saved Reveal layout.');
+        }
     }
 
     loadTheme() {
@@ -207,7 +532,8 @@ class ProjectorApp {
             this.projectorChannel.postMessage({
                 type: 'layout-delta-from-projector',
                 source: 'projector',
-                delta: payload
+                delta: payload,
+                syncToken: this.projectorSyncToken
             });
         };
 
@@ -232,7 +558,7 @@ class ProjectorApp {
         document.body.classList.toggle('edit-mode', this.isEditMode);
 
         if (this.editControls) {
-            this.editControls.hidden = !this.isEditMode;
+            this.editControls.hidden = true;
         }
 
         if (this.editStatus) {
@@ -252,7 +578,8 @@ class ProjectorApp {
             this.projectorChannel.postMessage({
                 type: 'layout-update-from-projector',
                 source: 'projector',
-                layout: this.layoutManager.serialize()
+                layout: this.layoutManager.serialize(),
+                syncToken: this.projectorSyncToken
             });
         }
     }
@@ -271,6 +598,8 @@ class ProjectorApp {
 
             // Restore layout and widgets
             if (state.layout && state.layout.widgets) {
+                clearProjectorPresentationRoot();
+
                 // Clear existing widgets before reloading to avoid duplicates/stale state
                 this.widgets = [];
                 // We need to clear the container or let LayoutManager handle it.
@@ -283,7 +612,11 @@ class ProjectorApp {
                     }
                     return widget;
                 });
+            } else {
+                clearProjectorPresentationRoot();
             }
+
+            this.applyTimerStates(state.timerStates);
         } catch (err) {
             console.error('Projector layout rebuild failed:', err);
         }
@@ -301,12 +634,62 @@ class ProjectorApp {
         if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
             this.revealSync.channel.close();
         }
+
+        timerStates.forEach((timerState) => this.applyTimerState(timerState));
     }
+
+    applyTimerState(timerState = {}) {
+        if (!timerState || typeof timerState !== 'object') {
+            return;
+        }
+
+        const targetWidget = this.widgets.find((widget) => {
+            if (!widget || typeof widget.applySyncedState !== 'function') {
+                return false;
+            }
+
+            if (timerState.widgetId && widget.widgetId) {
+                return widget.widgetId === timerState.widgetId;
+            }
+
+            return true;
+        });
+
+        if (!targetWidget || typeof targetWidget.applySyncedState !== 'function') {
+            return;
+        }
+
+        targetWidget.applySyncedState(timerState);
+    }
+
+    getRevealWidgets() {
+        return this.widgets.filter((widget) => widget && widget.constructor && widget.constructor.name === 'RevealManagerWidget');
+    }
+
+    destroy() {}
 
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await bootstrapProjectorDependencies();
-    const app = new ProjectorApp();
-    app.init();
+    try {
+        const failures = await bootstrapProjectorDependencies();
+
+        if (failures.length > 0) {
+            console.warn('[projector] continuing with optional dependency failures', failures);
+        }
+
+        initializeRevealSyncListener();
+
+        if (typeof LayoutManager !== 'function' || typeof BackgroundManager !== 'function') {
+            showProjectorStartupMessage('Projector failed to start because core layout files did not load.');
+            return;
+        }
+
+        const app = new ProjectorApp();
+        app.init();
+        startPresentationDiagnostics();
+    } catch (error) {
+        console.error('[projector] startup failed', error);
+        showProjectorStartupMessage('Projector startup failed. Check the browser console for dependency errors.');
+    }
 });

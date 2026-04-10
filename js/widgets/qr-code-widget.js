@@ -56,13 +56,21 @@ class QRCodeWidget {
      */
     generate() {
         const text = this.input.value.trim() || ' ';
+        const size = this.getCanvasSize();
         if (typeof QRCode !== 'undefined') {
-            QRCode.toCanvas(this.canvas, text, { width: 200 }).catch((error) => {
+            QRCode.toCanvas(this.canvas, text, { width: size, margin: 1 }).catch((error) => {
                 console.error('QR generation failed:', error);
             });
         } else {
             console.error('QRCode library is not loaded.');
         }
+    }
+
+    getCanvasSize() {
+        const bounds = this.element.getBoundingClientRect();
+        const usableWidth = Math.max(120, Math.floor(bounds.width - 32));
+        const usableHeight = Math.max(120, Math.floor(bounds.height - 132));
+        return Math.max(120, Math.min(280, usableWidth, usableHeight));
     }
 
     /**
@@ -92,6 +100,74 @@ class QRCodeWidget {
     deserialize(data) {
         this.input.value = data.text || '';
         this.generate();
+    }
+
+    onWidgetLayout() {
+        this.generate();
+    }
+
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls qr-code-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Enter any text, link, or code and regenerate the QR image instantly.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const contentLabel = document.createElement('label');
+        contentLabel.textContent = 'Text or URL';
+        const contentInput = document.createElement('input');
+        contentInput.type = 'text';
+        contentInput.value = this.input.value;
+        contentInput.placeholder = 'Enter text or URL';
+        contentLabel.appendChild(contentInput);
+        sourceSection.appendChild(contentLabel);
+
+        const actions = document.createElement('div');
+        actions.className = 'widget-settings-actions';
+        const generateButton = document.createElement('button');
+        generateButton.type = 'button';
+        generateButton.className = 'control-button';
+        generateButton.textContent = 'Generate QR Code';
+        actions.appendChild(generateButton);
+        sourceSection.appendChild(actions);
+        controls.appendChild(sourceSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Status';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncStatus = () => {
+            statusText.textContent = this.input.value.trim() || 'Blank QR placeholder';
+        };
+
+        const applyGenerate = () => {
+            this.input.value = contentInput.value;
+            this.generate();
+            syncStatus();
+        };
+
+        generateButton.addEventListener('click', applyGenerate);
+        contentInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            applyGenerate();
+        });
+
+        syncStatus();
+        return controls;
     }
 
     toggleHelp() {

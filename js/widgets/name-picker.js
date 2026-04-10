@@ -55,7 +55,6 @@ class NamePickerWidget {
         // Group selection controls
         this.groupControls = document.createElement('div');
         this.groupControls.className = 'name-picker-group-controls';
-        this.groupControls.style.marginBottom = '10px';
 
         const groupLabel = document.createElement('label');
         groupLabel.textContent = 'Current Group: ';
@@ -91,7 +90,6 @@ class NamePickerWidget {
         // Import/Export controls
         this.importExportControls = document.createElement('div');
         this.importExportControls.className = 'name-picker-import-export';
-        this.importExportControls.style.marginBottom = '10px';
 
         this.importButton = document.createElement('button');
         this.importButton.textContent = 'Import Names';
@@ -129,14 +127,11 @@ class NamePickerWidget {
         this.pickButton = document.createElement('button');
         this.pickButton.className = 'control-button pick-button';
         this.pickButton.textContent = 'Pick a Name';
-        this.pickButton.style.width = '100%';
-        this.pickButton.style.marginTop = '10px';
         this.pickButton.setAttribute('aria-label', 'Pick a name');
         this.pickButton.addEventListener('click', this.handlePickRequest);
 
         this.status = document.createElement('div');
         this.status.className = 'widget-status';
-        this.status.style.marginTop = '10px';
         this.status.textContent = 'Pick a name to begin.';
 
         // Assemble controls overlay

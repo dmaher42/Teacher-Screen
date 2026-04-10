@@ -9,6 +9,9 @@ class DocumentViewerWidget {
         this.totalPages = 0;
         this.currentPage = 1;
         this.isRenderingPage = false;
+        this.sourceMode = 'none';
+        this.localPdfName = '';
+        this.pendingRestoreNotice = '';
 
         this.element = document.createElement('div');
         this.element.className = 'document-viewer document-viewer-widget-content';
@@ -65,6 +68,8 @@ class DocumentViewerWidget {
 
         controlBar.append(primaryActions, secondaryActions);
         this.element.appendChild(controlBar);
+        this.controlBar = controlBar;
+        this.controlsRow = this.element.querySelector('.document-viewer-controls');
 
         // Canvas (created lazily)
         this.canvas = null;
@@ -140,7 +145,7 @@ class DocumentViewerWidget {
                 this.renderPdf(file);
             } else {
                 this.resetPdfState();
-                this.contentArea.innerHTML = `<p>File type not supported. Please upload a PDF file.</p>`;
+                this.showContentMessage('File type not supported. Please upload a PDF file.');
             }
         }
     }
@@ -170,17 +175,177 @@ class DocumentViewerWidget {
         // No help text defined for this widget yet.
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls document-viewer-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Upload a PDF for local page-by-page navigation or embed a web page directly into the viewer. Uploaded PDFs stay on this device and need to be re-uploaded after restore or projector rebuild.';
+        controls.appendChild(helpText);
+
+        const sourceSection = document.createElement('div');
+        sourceSection.className = 'widget-settings-section';
+
+        const sourceHeading = document.createElement('h3');
+        sourceHeading.textContent = 'Source';
+        sourceSection.appendChild(sourceHeading);
+
+        const sourceLabel = document.createElement('label');
+        sourceLabel.textContent = 'Embed URL';
+        const sourceInput = document.createElement('input');
+        sourceInput.type = 'text';
+        sourceInput.value = this.urlInput.value || '';
+        sourceInput.placeholder = 'https://example.com/document';
+        sourceLabel.appendChild(sourceInput);
+        sourceSection.appendChild(sourceLabel);
+
+        const sourceActions = document.createElement('div');
+        sourceActions.className = 'widget-settings-actions';
+
+        const uploadButton = document.createElement('button');
+        uploadButton.type = 'button';
+        uploadButton.className = 'control-button';
+        uploadButton.textContent = 'Upload PDF';
+
+        const embedButton = document.createElement('button');
+        embedButton.type = 'button';
+        embedButton.className = 'control-button';
+        embedButton.textContent = 'Load URL';
+
+        sourceActions.append(uploadButton, embedButton);
+        sourceSection.appendChild(sourceActions);
+        controls.appendChild(sourceSection);
+
+        const navigationSection = document.createElement('div');
+        navigationSection.className = 'widget-settings-section';
+
+        const navigationHeading = document.createElement('h3');
+        navigationHeading.textContent = 'Actions';
+        navigationSection.appendChild(navigationHeading);
+
+        const navActions = document.createElement('div');
+        navActions.className = 'widget-settings-actions';
+
+        const prevButton = document.createElement('button');
+        prevButton.type = 'button';
+        prevButton.className = 'control-button';
+        prevButton.textContent = 'Previous Page';
+
+        const nextButton = document.createElement('button');
+        nextButton.type = 'button';
+        nextButton.className = 'control-button';
+        nextButton.textContent = 'Next Page';
+
+        const presentButton = document.createElement('button');
+        presentButton.type = 'button';
+        presentButton.className = 'control-button';
+
+        navActions.append(prevButton, nextButton, presentButton);
+        navigationSection.appendChild(navActions);
+        controls.appendChild(navigationSection);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'widget-settings-meta';
+        const statusLabel = document.createElement('strong');
+        statusLabel.textContent = 'Status';
+        const statusText = document.createElement('span');
+        statusCard.append(statusLabel, statusText);
+        controls.appendChild(statusCard);
+
+        const syncStatus = () => {
+            const iframe = this.contentArea.querySelector('iframe');
+            const embeddedUrl = iframe ? iframe.src : '';
+            const hasPdf = !!this.pdfDoc;
+
+            sourceInput.value = this.urlInput.value || embeddedUrl || '';
+            prevButton.disabled = !hasPdf || this.currentPage <= 1;
+            nextButton.disabled = !hasPdf || this.currentPage >= this.totalPages;
+            presentButton.textContent = this.element.classList.contains('presentation-mode')
+                ? 'Exit Presentation Mode'
+                : 'Enter Presentation Mode';
+
+            if (hasPdf) {
+                statusText.textContent = `PDF loaded. Page ${this.currentPage} of ${this.totalPages}.`;
+            } else if (this.pendingRestoreNotice) {
+                statusText.textContent = this.pendingRestoreNotice;
+            } else if (embeddedUrl) {
+                statusText.textContent = embeddedUrl;
+            } else {
+                statusText.textContent = 'No document loaded yet.';
+            }
+        };
+
+        uploadButton.addEventListener('click', () => {
+            this.handleUploadClick();
+            window.setTimeout(syncStatus, 250);
+        });
+
+        embedButton.addEventListener('click', () => {
+            this.urlInput.value = sourceInput.value.trim();
+            this.handleEmbedClick();
+            syncStatus();
+        });
+
+        prevButton.addEventListener('click', () => {
+            this.handlePrevClick();
+            window.setTimeout(syncStatus, 0);
+        });
+
+        nextButton.addEventListener('click', () => {
+            this.handleNextClick();
+            window.setTimeout(syncStatus, 0);
+        });
+
+        presentButton.addEventListener('click', () => {
+            if (this.element.classList.contains('presentation-mode')) {
+                this.exitPresentationMode();
+            } else {
+                this.enterPresentationMode();
+            }
+            syncStatus();
+        });
+
+        sourceInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            embedButton.click();
+        });
+
+        syncStatus();
+        return controls;
+    }
+
     resetPdfState() {
         this.pdfDoc = null;
         this.totalPages = 0;
         this.currentPage = 1;
         this.isRenderingPage = false;
+        this.sourceMode = 'none';
+        this.localPdfName = '';
+        this.pendingRestoreNotice = '';
         this.element.classList.remove('is-loading');
         this.updateNavControls();
     }
 
+    showContentMessage(message) {
+        const text = document.createElement('p');
+        text.textContent = message;
+        this.contentArea.replaceChildren(text);
+    }
+
+    showLocalPdfRestoreNotice(fileName = '') {
+        const label = fileName ? `"${fileName}"` : 'This PDF';
+        this.pendingRestoreNotice = `${label} was uploaded locally and needs to be re-uploaded on this device.`;
+        this.sourceMode = 'pdf-upload-missing';
+        this.localPdfName = fileName || '';
+        this.showContentMessage(this.pendingRestoreNotice);
+    }
+
     renderPdf(file) {
         this.resetPdfState();
+        this.sourceMode = 'pdf-upload';
+        this.localPdfName = file?.name || '';
         this.element.classList.add('is-loading');
         this.contentArea.innerHTML = `<p>Loading PDF…</p>`;
 
@@ -217,7 +382,7 @@ class DocumentViewerWidget {
                 .catch((error) => {
                     console.error('PDF load error:', error);
                     this.resetPdfState();
-                    this.contentArea.innerHTML = `<p>Unable to load document.</p>`;
+                    this.showContentMessage('Unable to load document.');
                 });
         };
 
@@ -317,13 +482,17 @@ class DocumentViewerWidget {
             // Simple URL validation: add protocol if missing
             const hasProtocol = /^https?:\/\//i.test(url);
             const safeUrl = hasProtocol ? url : `https://${url}`;
+            const iframe = document.createElement('iframe');
+            iframe.className = 'document-viewer-iframe';
+            iframe.src = safeUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            this.sourceMode = 'embed-url';
 
-            this.contentArea.innerHTML = `
-                <iframe src="${safeUrl}" 
-                        class="document-viewer-iframe"
-                        style="width: 100%; height: 100%; border: none;"></iframe>`;
+            this.contentArea.replaceChildren(iframe);
         } else {
-            this.contentArea.innerHTML = `<p>Please enter a URL to embed.</p>`;
+            this.showContentMessage('Please enter a URL to embed.');
         }
     }
 
@@ -332,9 +501,37 @@ class DocumentViewerWidget {
         return {
             type: 'DocumentViewerWidget',
             url: iframe ? iframe.src : null,
-            // Note: PDF files uploaded via <input type="file"> cannot be
-            // reliably reloaded without additional file-handling logic.
+            localPdf: this.sourceMode === 'pdf-upload' || this.sourceMode === 'pdf-upload-missing'
+                ? {
+                    name: this.localPdfName || '',
+                    requiresReupload: true
+                }
+                : null
         };
+    }
+
+    deserialize(data = {}) {
+        if (data.url) {
+            this.urlInput.value = data.url;
+            this.embedUrl(data.url);
+            return;
+        }
+
+        if (data.localPdf?.requiresReupload) {
+            this.showLocalPdfRestoreNotice(data.localPdf.name || '');
+        }
+    }
+
+    onWidgetLayout() {
+        if (!this.pdfDoc || this.isRenderingPage) {
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            if (this.pdfDoc && !this.isRenderingPage) {
+                this.goToPage(this.currentPage);
+            }
+        });
     }
 
     setEditable() {}

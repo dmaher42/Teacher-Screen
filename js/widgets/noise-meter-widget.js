@@ -83,6 +83,21 @@ class NoiseMeterWidget {
 
     setEditable() {}
 
+    onWidgetLayout() {
+        const width = Math.max(180, Math.floor(this.element.clientWidth || this.canvas.width || 300));
+        const reservedHeight = (this.helpText?.offsetHeight || 0)
+            + (this.status?.offsetHeight || 24)
+            + 96;
+        const height = Math.max(80, Math.floor((this.element.clientHeight || 160) - reservedHeight));
+
+        if (this.canvas.width === width && this.canvas.height === height) {
+            return;
+        }
+
+        this.canvas.width = width;
+        this.canvas.height = height;
+    }
+
     /**
      * Begin capturing audio and drawing the noise meter visualization.
      * Handles both sync and Promise-returning NoiseMeter.start() implementations.

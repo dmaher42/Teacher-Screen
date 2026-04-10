@@ -1,9 +1,11 @@
 const PATH_PROJECTOR = '/projector';
+const PROJECTOR_FILENAMES = new Set(['/projector', '/projector/']);
 const MODE_PARAM = 'mode';
 const MODE_PROJECTOR = 'projector';
 
 const isProjector = () => {
     try {
+        const normalizedPath = window.location.pathname.toLowerCase();
         const searchParams = new URLSearchParams(window.location.search);
         const modeParam = (searchParams.get(MODE_PARAM) || '').toLowerCase();
         if (modeParam === MODE_PROJECTOR) {
@@ -15,7 +17,11 @@ const isProjector = () => {
             return true;
         }
 
-        return window.location.pathname.includes(PATH_PROJECTOR);
+        if (PROJECTOR_FILENAMES.has(normalizedPath)) {
+            return true;
+        }
+
+        return normalizedPath.endsWith('/projector.html') || normalizedPath.endsWith(`${PATH_PROJECTOR}/index.html`);
     } catch (e) {
         return false;
     }

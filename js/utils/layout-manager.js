@@ -6,18 +6,59 @@ const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.T
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
   : widgetInstance);
+const layoutManagerEventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+
+function safeParseLocalStorage(key) {
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return null;
+    return JSON.parse(value);
+  } catch (error) {
+    console.warn('Invalid localStorage data detected for:', key);
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function isValidLayout(layout) {
+  if (!layout || typeof layout !== 'object') return false;
+  if (!['dashboard', 'stage'].includes(layout.mode)) return false;
+  if (!Array.isArray(layout.widgets)) return false;
+
+  for (const widget of layout.widgets) {
+    if (!widget || typeof widget !== 'object') return false;
+    if (typeof widget.id !== 'string') return false;
+    if (typeof widget.type !== 'string') return false;
+    if (typeof widget.x !== 'number') return false;
+    if (typeof widget.y !== 'number') return false;
+    if (typeof widget.width !== 'number') return false;
+    if (typeof widget.height !== 'number') return false;
+  }
+
+  return true;
+}
 
 const WIDGET_SIZE_RULES = {
-  TimerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2, maxW: 12, maxH: 4 },
-  NoiseMeterWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
-  DocumentViewerWidget: { minW: 3, minH: 3, defaultW: 6, defaultH: 6 },
-  UrlViewerWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
+  TimerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
+  NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
+  QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
+  DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
+  QuizGameWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 6 },
+  DocumentViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
+  UrlViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   // Reveal manager uses standard grid sizing.
-  RevealManagerWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
-  PresentationWidget: { minW: 4, minH: 4, defaultW: 6, defaultH: 6, maxW: 12, maxH: 12 },
-  NamePickerWidget: { minW: 3, minH: 2, defaultW: 3, defaultH: 2 },
-  WellbeingWidget: { minW: 3, minH: 3, defaultW: 3, defaultH: 3 },
-  RichTextWidget: { minW: 4, minH: 3 }
+  RevealManagerWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
+  PresentationWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
+  NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
+  WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
+  RichTextWidget: { minW: 4, minH: 3, defaultW: 6, defaultH: 5 },
+  MaskWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
+  NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
 
 class LayoutManager {
@@ -65,6 +106,10 @@ class LayoutManager {
 
   init() {
     this.applyGridStyles();
+    window.addEventListener('resize', () => {
+      this.clampAllWidgetsToContainer();
+      this.saveLayout({ emitFull: false });
+    });
   }
 
   applyGridStyles() {
@@ -133,6 +178,95 @@ class LayoutManager {
     });
   }
 
+  emitBusEvent(eventName, payload) {
+    if (!layoutManagerEventBus) return;
+
+    try {
+      layoutManagerEventBus.emit(eventName, payload);
+    } catch (error) {
+      console.error(`[LayoutManager] Failed to emit ${eventName}`, error);
+    }
+  }
+
+  runWidgetLayoutHook(widgetInfo, options = {}) {
+    if (!widgetInfo || !widgetInfo.widget || typeof widgetInfo.widget.onWidgetLayout !== 'function') {
+      return;
+    }
+
+    const widgetBounds = widgetInfo.element && typeof widgetInfo.element.getBoundingClientRect === 'function'
+      ? widgetInfo.element.getBoundingClientRect()
+      : { width: widgetInfo.width || 0, height: widgetInfo.height || 0 };
+
+    try {
+      widgetInfo.widget.onWidgetLayout({
+        initial: !!options.initial,
+        width: Math.max(0, Math.round(widgetBounds.width || 0)),
+        height: Math.max(0, Math.round(widgetBounds.height || 0)),
+        container: widgetInfo.element
+      });
+    } catch (error) {
+      console.warn(`[LayoutManager] Widget layout hook failed for ${widgetInfo.widget.constructor?.name || 'unknown widget'}`, error);
+    }
+  }
+
+  scheduleWidgetLayoutHook(widgetInfo, options = {}) {
+    if (!widgetInfo || !widgetInfo.widget) {
+      return;
+    }
+
+    if (widgetInfo.layoutFrame) {
+      cancelAnimationFrame(widgetInfo.layoutFrame);
+    }
+    if (widgetInfo.layoutTimeout) {
+      clearTimeout(widgetInfo.layoutTimeout);
+    }
+
+    widgetInfo.layoutFrame = requestAnimationFrame(() => {
+      widgetInfo.layoutFrame = null;
+      this.runWidgetLayoutHook(widgetInfo, options);
+    });
+
+    widgetInfo.layoutTimeout = setTimeout(() => {
+      widgetInfo.layoutTimeout = null;
+      this.runWidgetLayoutHook(widgetInfo, options);
+    }, options.initial ? 120 : 0);
+  }
+
+  observeWidgetLayout(widgetInfo) {
+    if (!widgetInfo || !widgetInfo.element || typeof ResizeObserver !== 'function') {
+      this.scheduleWidgetLayoutHook(widgetInfo, { initial: true });
+      return;
+    }
+
+    if (!widgetInfo.layoutObserver) {
+      widgetInfo.layoutObserver = new ResizeObserver(() => {
+        this.scheduleWidgetLayoutHook(widgetInfo);
+      });
+      widgetInfo.layoutObserver.observe(widgetInfo.element);
+    }
+
+    this.scheduleWidgetLayoutHook(widgetInfo, { initial: true });
+  }
+
+  teardownWidgetLayout(widgetInfo) {
+    if (!widgetInfo) {
+      return;
+    }
+
+    if (widgetInfo.layoutObserver) {
+      widgetInfo.layoutObserver.disconnect();
+      widgetInfo.layoutObserver = null;
+    }
+    if (widgetInfo.layoutFrame) {
+      cancelAnimationFrame(widgetInfo.layoutFrame);
+      widgetInfo.layoutFrame = null;
+    }
+    if (widgetInfo.layoutTimeout) {
+      clearTimeout(widgetInfo.layoutTimeout);
+      widgetInfo.layoutTimeout = null;
+    }
+  }
+
   mountWidgetElement(widgetInfo) {
     const { element, layoutType } = widgetInfo;
     if (this.mode !== 'stage') {
@@ -196,6 +330,38 @@ class LayoutManager {
     return { width: w, height: h };
   }
 
+  normalizeWidgetBounds(x, y, width, height) {
+    const containerWidth = this.container.clientWidth || 1024;
+    const containerHeight = this.container.clientHeight || 768;
+    const safeWidth = Number.isFinite(width) && width > 0 ? width : 320;
+    const safeHeight = Number.isFinite(height) && height > 0 ? height : 240;
+    const maxX = Math.max(0, containerWidth - safeWidth);
+    const maxY = Math.max(0, containerHeight - safeHeight);
+
+    return {
+      x: clamp(Number.isFinite(x) ? x : 0, 0, maxX),
+      y: clamp(Number.isFinite(y) ? y : 0, 0, maxY),
+      width: safeWidth,
+      height: safeHeight
+    };
+  }
+
+  clampWidgetToContainer(widgetInfo) {
+    if (!widgetInfo) return;
+    const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height);
+    widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+  }
+
+  clampAllWidgetsToContainer() {
+    this.widgets.forEach((widgetInfo) => {
+      this.clampWidgetToContainer(widgetInfo);
+      this.mountWidgetElement(widgetInfo);
+    });
+  }
+
   moveWidgetByDelta(widgetElement, dx, dy) {
     const info = this.widgets.find(w => w.element === widgetElement);
     if (!info) return;
@@ -223,6 +389,7 @@ class LayoutManager {
       info.element.style.top = `${newY}px`;
 
       this.emitWidgetUpdate(info);
+      this.emitBusEvent('widget:moved', { id: info.id, x: newX, y: newY, width: info.width, height: info.height });
       this.saveLayout({ emitFull: false });
     }
   }
@@ -236,7 +403,7 @@ class LayoutManager {
      const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
      const defaultW = rules.defaultW || 3;
      const defaultH = rules.defaultH || 2;
-     const maxCols = 3;
+     const maxCols = Math.max(1, Math.floor((containerW + GRID_SIZE) / Math.max((colW * defaultW) + GRID_SIZE, GRID_SIZE)));
 
      // Default size uses widget-specific grid unit defaults when not provided.
      let finalW = width !== null ? width : colW * defaultW;
@@ -267,6 +434,12 @@ class LayoutManager {
      finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
      finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
      finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
+
+     const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
+     finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+     finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+     finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+     finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
 
     // Create widget container
     const widgetElement = document.createElement('div');
@@ -299,15 +472,20 @@ class LayoutManager {
       visibleOnProjector: true
     };
 
+    widget.widgetId = widgetInfo.id;
     this.widgets.push(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
-    this.widgets.forEach((info) => this.mountWidgetElement(info));
+    this.widgets.forEach((info) => {
+      this.mountWidgetElement(info);
+      this.observeWidgetLayout(info);
+    });
 
     if (typeof widget.setEditable === 'function') {
       widget.setEditable(this.editable);
     }
 
+    this.emitBusEvent('widget:created', { id: widgetInfo.id, type: widget.constructor.name });
     this.saveLayout();
     return widgetElement;
   }
@@ -339,6 +517,7 @@ class LayoutManager {
   removeWidget(widget) {
     const widgetInfo = this.widgets.find(info => info.widget === widget);
     if (widgetInfo) {
+      this.teardownWidgetLayout(widgetInfo);
       let widgetRemovedEventDispatched = false;
 
       const trackWidgetRemoved = (event) => {
@@ -351,6 +530,8 @@ class LayoutManager {
 
       if (widget && typeof widget.remove === 'function') {
         widget.remove();
+      } else if (widget && typeof widget.destroy === 'function') {
+        widget.destroy();
       }
 
       document.removeEventListener('widgetRemoved', trackWidgetRemoved);
@@ -366,6 +547,8 @@ class LayoutManager {
         const event = new CustomEvent('widgetRemoved', { detail: { widget } });
         document.dispatchEvent(event);
       }
+
+      this.emitBusEvent('widget:removed', { id: widgetInfo.id, type: widgetInfo.widget?.constructor?.name || null, widget: widgetInfo.widget });
     }
   }
   
@@ -413,6 +596,18 @@ class LayoutManager {
       const rowH = this.container.clientHeight / this.gridRows || COL_PX_ESTIMATE;
       const minWidth = Math.round((rules.minW ? rules.minW * colW : GRID_SIZE * 4) / GRID_SIZE) * GRID_SIZE;
       const minHeight = Math.round((rules.minH ? rules.minH * rowH : GRID_SIZE * 3) / GRID_SIZE) * GRID_SIZE;
+      let resizeFrame = null;
+      let pendingResize = null;
+
+      const applyResizePosition = () => {
+        resizeFrame = null;
+        if (!pendingResize) return;
+
+        element.style.width = `${pendingResize.width}px`;
+        element.style.height = `${pendingResize.height}px`;
+        element.style.left = `${pendingResize.left}px`;
+        element.style.top = `${pendingResize.top}px`;
+      };
 
       const onMouseMove = (moveEvent) => {
         const deltaX = moveEvent.clientX - startX;
@@ -461,33 +656,76 @@ class LayoutManager {
         newLeft = Math.min(Math.max(0, newLeft), maxLeft);
         newTop = Math.min(Math.max(0, newTop), maxTop);
 
-        newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
-        newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
-        newLeft = Math.round(newLeft / GRID_SIZE) * GRID_SIZE;
-        newTop = Math.round(newTop / GRID_SIZE) * GRID_SIZE;
+        pendingResize = {
+          width: Math.round(newWidth),
+          height: Math.round(newHeight),
+          left: Math.round(newLeft),
+          top: Math.round(newTop)
+        };
 
-        element.style.width = `${newWidth}px`;
-        element.style.height = `${newHeight}px`;
-        element.style.left = `${newLeft}px`;
-        element.style.top = `${newTop}px`;
-
-        if (info) {
-          info.width = newWidth;
-          info.height = newHeight;
-          info.x = newLeft;
-          info.y = newTop;
+        if (!resizeFrame) {
+          resizeFrame = requestAnimationFrame(applyResizePosition);
         }
       };
 
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+        element.classList.remove('is-resizing');
+        document.body.classList.remove('widget-resize-active');
+
+        if (resizeFrame) {
+          cancelAnimationFrame(resizeFrame);
+          resizeFrame = null;
+        }
+
+        if (pendingResize) {
+          element.style.width = `${pendingResize.width}px`;
+          element.style.height = `${pendingResize.height}px`;
+          element.style.left = `${pendingResize.left}px`;
+          element.style.top = `${pendingResize.top}px`;
+        }
+
+        let finalWidth = parseInt(element.style.width, 10) || startWidth;
+        let finalHeight = parseInt(element.style.height, 10) || startHeight;
+        let finalLeft = parseInt(element.style.left, 10) || startLeft;
+        let finalTop = parseInt(element.style.top, 10) || startTop;
+
+        finalWidth = Math.round(finalWidth / GRID_SIZE) * GRID_SIZE;
+        finalHeight = Math.round(finalHeight / GRID_SIZE) * GRID_SIZE;
+        finalLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
+        finalTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
+
+        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight);
+        finalWidth = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+        finalHeight = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+        finalLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+        finalTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+
+        element.style.width = `${finalWidth}px`;
+        element.style.height = `${finalHeight}px`;
+        element.style.left = `${finalLeft}px`;
+        element.style.top = `${finalTop}px`;
+
+        if (info) {
+          info.width = finalWidth;
+          info.height = finalHeight;
+          info.x = finalLeft;
+          info.y = finalTop;
+        }
+
+        pendingResize = null;
         this.emitWidgetUpdate(info);
+        if (info) {
+          this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
+        }
         this.saveLayout({ emitFull: false });
       };
 
       e.preventDefault();
       e.stopPropagation();
+      element.classList.add('is-resizing');
+      document.body.classList.add('widget-resize-active');
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
@@ -499,19 +737,36 @@ class LayoutManager {
     let isDragging = false;
     let startX, startY;
     let initialLeft, initialTop;
+    let dragFrame = null;
+    let pendingPosition = null;
+
+    const applyDragPosition = () => {
+      dragFrame = null;
+      if (!pendingPosition) return;
+
+      widgetElement.style.left = `${pendingPosition.x}px`;
+      widgetElement.style.top = `${pendingPosition.y}px`;
+    };
 
     widgetElement.addEventListener('mousedown', (e) => {
       if (!this.editable) return;
 
       if (e.target.classList.contains('resize-handle') ||
+          e.target.tagName === 'CANVAS' ||
           e.target.tagName === 'INPUT' ||
           e.target.tagName === 'BUTTON' ||
           e.target.tagName === 'SELECT' ||
           e.target.tagName === 'TEXTAREA' ||
           e.target.tagName === 'A' ||
+          e.target.isContentEditable ||
           e.target.closest('button') ||
           e.target.closest('input') ||
-          e.target.closest('select')) {
+          e.target.closest('select') ||
+          e.target.closest('textarea') ||
+          e.target.closest('[contenteditable="true"]') ||
+          e.target.closest('.ql-toolbar') ||
+          e.target.closest('.ql-editor') ||
+          e.target.closest('.ql-tooltip')) {
         return;
       }
 
@@ -521,6 +776,9 @@ class LayoutManager {
 
       initialLeft = parseInt(widgetElement.style.left, 10) || 0;
       initialTop = parseInt(widgetElement.style.top, 10) || 0;
+      pendingPosition = { x: initialLeft, y: initialTop };
+      widgetElement.classList.add('is-dragging');
+      document.body.classList.add('widget-drag-active');
 
       e.preventDefault();
     });
@@ -528,41 +786,62 @@ class LayoutManager {
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
 
+      const info = this.widgets.find(w => w.element === widgetElement);
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
 
       let left = initialLeft + deltaX;
       let top = initialTop + deltaY;
+      const bounded = this.normalizeWidgetBounds(left, top, info?.width, info?.height);
 
-      // Calculate the snapped position
-      const snappedLeft = Math.round(left / GRID_SIZE) * GRID_SIZE;
-      const snappedTop = Math.round(top / GRID_SIZE) * GRID_SIZE;
+      pendingPosition = {
+        x: Math.round(bounded.x),
+        y: Math.round(bounded.y)
+      };
 
-      // Apply the snapped position to the widget
-      widgetElement.style.left = `${snappedLeft}px`;
-      widgetElement.style.top = `${snappedTop}px`;
+      if (!dragFrame) {
+        dragFrame = requestAnimationFrame(applyDragPosition);
+      }
     });
 
     document.addEventListener('mouseup', (e) => {
       if (isDragging) {
         isDragging = false;
+        widgetElement.classList.remove('is-dragging');
+        document.body.classList.remove('widget-drag-active');
+
+        if (dragFrame) {
+          cancelAnimationFrame(dragFrame);
+          dragFrame = null;
+        }
+
+        if (pendingPosition) {
+          widgetElement.style.left = `${pendingPosition.x}px`;
+          widgetElement.style.top = `${pendingPosition.y}px`;
+        }
 
         const finalLeft = parseInt(widgetElement.style.left, 10) || 0;
         const finalTop = parseInt(widgetElement.style.top, 10) || 0;
 
-        const snappedLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
-        const snappedTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
+        const info = this.widgets.find(w => w.element === widgetElement);
+        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, info?.width, info?.height);
+        const snappedLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+        const snappedTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
 
         widgetElement.style.left = `${snappedLeft}px`;
         widgetElement.style.top = `${snappedTop}px`;
 
-        const info = this.widgets.find(w => w.element === widgetElement);
         if (info) {
           info.x = snappedLeft;
           info.y = snappedTop;
         }
 
+        pendingPosition = null;
+
         this.emitWidgetUpdate(info);
+        if (info) {
+          this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
+        }
         this.saveLayout({ emitFull: false });
       }
     });
@@ -583,6 +862,8 @@ class LayoutManager {
     if (this.onLayoutChange && options.emitFull !== false) {
       this.onLayoutChange(layout);
     }
+
+    this.emitBusEvent('layout:updated', { layout, options });
   }
 
   serialize() {
@@ -614,12 +895,16 @@ class LayoutManager {
   loadLayout() {
     // This function seems unused as `main.js` calls deserialize directly from `loadSavedState`
     // but we can keep it for consistency.
-    const savedLayout = localStorage.getItem('widgetLayout');
-    if (savedLayout) {
+    const layout = safeParseLocalStorage('widgetLayout');
+    if (layout) {
       this.isRestoring = true;
       try {
-        const layout = JSON.parse(savedLayout);
-        const layoutData = Array.isArray(layout) ? { widgets: layout } : layout;
+        const layoutData = Array.isArray(layout) ? { mode: 'dashboard', widgets: layout } : layout;
+        if (!isValidLayout(layoutData)) {
+          console.warn('Invalid layout detected. Resetting layout state.');
+          localStorage.removeItem('widgetLayout');
+          return;
+        }
         this.deserialize(layoutData, (widgetData) => this.createWidgetFromType(widgetData.type));
       } catch (e) {
         console.error('Failed to load layout:', e);
@@ -636,6 +921,7 @@ class LayoutManager {
 
     this.mode = layoutData.mode || (layoutManagerIsTeacherMode() && layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
     this.setupModeStructure();
+    this.widgets.forEach((widgetInfo) => this.teardownWidgetLayout(widgetInfo));
     this.widgets = [];
 
     const containerW = this.container.clientWidth || 1024;
@@ -700,8 +986,8 @@ class LayoutManager {
       finalH *= heightScale;
 
       // Default fallback
-      if (finalW == null) finalW = colW * 3;
-      if (finalH == null) finalH = rowH * 2;
+      if (finalW == null) finalW = 320;
+      if (finalH == null) finalH = 240;
       if (finalX == null) finalX = 0;
       if (finalY == null) finalY = 0;
 
@@ -710,6 +996,12 @@ class LayoutManager {
       finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
       finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
       finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
+
+      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
+      finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+      finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+      finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
 
       const widgetElement = document.createElement('div');
       const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
@@ -730,8 +1022,11 @@ class LayoutManager {
         widget.deserialize(widgetData.data);
       }
 
+      const resolvedWidgetId = widgetData.id || this.getNextWidgetId();
+      widget.widgetId = resolvedWidgetId;
+
       this.widgets.push({
-        id: widgetData.id || this.getNextWidgetId(),
+        id: resolvedWidgetId,
         element: widgetElement,
         widget: widget,
         layoutType: this.getWidgetLayoutType(widgetData, widget),
@@ -747,7 +1042,10 @@ class LayoutManager {
       }
     });
 
-    this.widgets.forEach((widgetInfo) => this.mountWidgetElement(widgetInfo));
+    this.widgets.forEach((widgetInfo) => {
+      this.mountWidgetElement(widgetInfo);
+      this.observeWidgetLayout(widgetInfo);
+    });
   }
 
   applyLayoutDelta(delta) {
@@ -759,39 +1057,18 @@ class LayoutManager {
     widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
     widget.width = typeof delta.w === 'number' ? delta.w : widget.width;
     widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
+    this.clampWidgetToContainer(widget);
     this.mountWidgetElement(widget);
+    this.scheduleWidgetLayoutHook(widget);
   }
 
   createWidgetFromType(type) {
-    switch (type) {
-      case 'TimerWidget':
-        return new TimerWidget();
-      case 'NoiseMeterWidget':
-        return new NoiseMeterWidget();
-      case 'NamePickerWidget':
-        return new NamePickerWidget();
-      case 'QRCodeWidget':
-        return new QRCodeWidget();
-      case 'DrawingToolWidget':
-        return new DrawingToolWidget();
-      case 'DocumentViewerWidget':
-        return new DocumentViewerWidget();
-      case 'UrlViewerWidget':
-        return new UrlViewerWidget();
-      case 'PresentationWidget':
-        return new PresentationWidget();
-      case 'MaskWidget':
-        return new MaskWidget();
-      case 'NotesWidget':
-        return new NotesWidget();
-      case 'WellbeingWidget':
-        return new WellbeingWidget();
-      case 'RichTextWidget':
-        return new RichTextWidget();
-      default:
-        console.warn(`Unknown widget type: ${type}`);
-        return null;
+    if (typeof window !== 'undefined' && typeof window.createWidgetByType === 'function') {
+      return window.createWidgetByType(type);
     }
+
+    console.warn(`Unknown widget type: ${type}`);
+    return null;
   }
 }
 

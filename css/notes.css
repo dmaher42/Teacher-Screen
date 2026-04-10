@@ -1,6 +1,6 @@
 #link-to-planner-btn {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
+    background: linear-gradient(135deg, var(--primary-color, #8e82ff), var(--secondary-color, #6b7280));
+    color: var(--text-on-accent, #ffffff);
     border: none;
     padding: 8px 16px;
     border-radius: 8px;
@@ -22,12 +22,15 @@
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
-    width: 600px !important;
-    height: 400px !important;
+    width: min(680px, calc(100vw - 32px)) !important;
+    height: min(520px, calc(100vh - 48px)) !important;
     z-index: 2000 !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    border-radius: 12px;
-    background: #fff;
+    box-shadow: var(--shadow-elevated, 0 10px 40px rgba(0, 0, 0, 0.3));
+    border-radius: 20px;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--card-background, #ffffff) 95%, var(--bg-surface, #f8fafc) 5%),
+        color-mix(in srgb, var(--bg-surface, #f8fafc) 85%, var(--card-background, #ffffff) 15%));
+    color: var(--text-color, #333);
     overflow: hidden;
     /* Reset any inherited grid placement if possible, though 'fixed' handles it */
 }
@@ -40,7 +43,7 @@
     left: -50vw;
     width: 200vw;
     height: 200vh;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--overlay-backdrop, rgba(0, 0, 0, 0.4));
     z-index: -1;
     pointer-events: all; /* Catch clicks? */
 }
@@ -51,6 +54,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
 }
 
 .ql-container {
@@ -66,7 +70,86 @@
 }
 
 .notes-expanded-header button:hover {
-    color: #e74c3c;
-    background-color: rgba(0,0,0,0.05);
+    color: var(--text-danger, #991b1b);
+    background-color: var(--surface-subtle, rgba(0,0,0,0.05));
     border-radius: 50%;
+}
+
+.notes-expanded-header {
+    padding: 14px 16px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+}
+
+.notes-expanded-copy {
+    gap: 6px;
+}
+
+.notes-expanded-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.notes-expanded-subtitle {
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--text-secondary, #64748b) 78%, transparent);
+}
+
+.notes-expanded-meta {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--text-secondary, #64748b) 88%, transparent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.notes-close-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+}
+
+.notes-editor-wrapper .widget-control-bar {
+    gap: 12px;
+    padding: 12px 14px 14px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    border-top: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+}
+
+.notes-editor-wrapper .widget-control-bar .primary-actions,
+.notes-editor-wrapper .widget-control-bar .secondary-actions {
+    gap: 10px;
+}
+
+.notes-editor-wrapper .widget-control-bar .primary-actions button,
+.notes-editor-wrapper .widget-control-bar .secondary-actions button {
+    min-height: 40px;
+    padding: 10px 14px;
+    border-radius: 999px;
+}
+
+.notes-editor-wrapper .ql-toolbar {
+    padding: 0.45rem 0.55rem 0.35rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 76%, transparent);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, var(--bg-surface, #f8fafc) 6%);
+}
+
+.notes-editor-wrapper .ql-container {
+    background: var(--card-background, #ffffff);
+}
+
+.notes-editor-wrapper .ql-editor {
+    padding: 1rem 1.1rem 1.15rem;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.notes-editor-wrapper .ql-editor.ql-blank::before {
+    left: 1.1rem;
+    right: 1.1rem;
+    color: color-mix(in srgb, var(--text-secondary, #64748b) 76%, transparent);
+    font-style: normal;
 }

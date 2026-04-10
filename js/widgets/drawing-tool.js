@@ -16,14 +16,26 @@ class DrawingToolWidget {
         this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Pick a color and line width, draw on the canvas, and use Clear to reset. Right-click or use browser tools to save your drawing.';
 
+        this.dragHandle = document.createElement('div');
+        this.dragHandle.className = 'drawing-tool-drag-handle';
+        this.dragHandle.textContent = 'Drag to move';
+
         // Create the canvas
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'drawing-tool-canvas';
         this.ctx = this.canvas.getContext('2d');
+        this.surface = document.createElement('div');
+        this.surface.className = 'drawing-tool-surface';
+        this.surfaceHint = document.createElement('div');
+        this.surfaceHint.className = 'drawing-tool-surface__hint';
+        this.surface.appendChild(this.canvas);
+        this.surface.appendChild(this.surfaceHint);
 
         // Create the controls bar
         this.controls = document.createElement('div');
         this.controls.className = 'widget-control-bar drawing-tool-controls';
+
+        this.toolButtons = new Map();
 
         // Color picker
         this.colorPicker = document.createElement('input');
@@ -49,11 +61,33 @@ class DrawingToolWidget {
         // Assemble the controls
         const primaryActions = document.createElement('div');
         primaryActions.className = 'primary-actions';
+        this.toolsGroup = document.createElement('div');
+        this.toolsGroup.className = 'drawing-tool-tools';
+        [
+            ['freehand', 'Free'],
+            ['line', 'Line'],
+            ['rectangle', 'Box'],
+            ['ellipse', 'Oval']
+        ].forEach(([tool, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'drawing-tool-tool';
+            button.textContent = label;
+            button.title = label;
+            button.dataset.tool = tool;
+            button.addEventListener('click', () => this.setTool(tool));
+            this.toolButtons.set(tool, button);
+            this.toolsGroup.appendChild(button);
+        });
+        primaryActions.appendChild(this.toolsGroup);
         primaryActions.appendChild(this.colorPicker);
         primaryActions.appendChild(this.lineWidthSelector);
 
         const secondaryActions = document.createElement('div');
         secondaryActions.className = 'secondary-actions';
+        this.statusBadge = document.createElement('span');
+        this.statusBadge.className = 'drawing-tool-status';
+        secondaryActions.appendChild(this.statusBadge);
         secondaryActions.appendChild(this.clearButton);
 
         this.controls.appendChild(primaryActions);
@@ -61,13 +95,24 @@ class DrawingToolWidget {
 
         // Assemble the widget
         this.element.appendChild(this.helpText);
-        this.element.appendChild(this.canvas);
+        this.element.appendChild(this.dragHandle);
+        this.element.appendChild(this.surface);
         this.element.appendChild(this.controls);
 
         // Drawing state
         this.isDrawing = false;
         this.currentColor = '#000000';
         this.currentLineWidth = 2;
+        this.currentTool = 'freehand';
+        this.canvasListenersBound = false;
+        this.pendingImageData = null;
+        this.startPoint = null;
+        this.lastPointer = null;
+        this.previewSnapshot = null;
+        this.drawActions = [];
+        this.currentStroke = null;
+        this.hasContent = false;
+        this.updateDrawingUI();
 
         // Set up event listeners after the element is in the DOM
         setTimeout(() => this.setupCanvas(), 0);
@@ -78,25 +123,67 @@ class DrawingToolWidget {
      * This is called after the widget is added to the DOM.
      */
     setupCanvas() {
-        // Set canvas size based on its container's dimensions
-        const rect = this.element.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height - this.controls.offsetHeight; // Adjust for controls
+        const nextWidth = Math.max(1, Math.floor(this.surface?.clientWidth || this.canvas.clientWidth || this.element.clientWidth || this.element.getBoundingClientRect().width));
+        const nextHeight = Math.max(1, Math.floor(this.surface?.clientHeight || this.canvas.clientHeight || (this.element.clientHeight - this.controls.offsetHeight)));
+        if (!nextWidth || !nextHeight) {
+            return;
+        }
+
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        let previousSnapshot = null;
+        const previousWidth = this.canvas.width;
+        const previousHeight = this.canvas.height;
+        if (this.canvas.width > 0 && this.canvas.height > 0) {
+            previousSnapshot = document.createElement('canvas');
+            previousSnapshot.width = this.canvas.width;
+            previousSnapshot.height = this.canvas.height;
+            previousSnapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+        }
+
+        this.canvas.width = Math.max(1, Math.floor(nextWidth * devicePixelRatio));
+        this.canvas.height = Math.max(1, Math.floor(nextHeight * devicePixelRatio));
+        this.canvas.style.width = `${nextWidth}px`;
+        this.canvas.style.height = `${nextHeight}px`;
+
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(devicePixelRatio, devicePixelRatio);
 
         // Set initial drawing styles
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
 
         this.setupEventListeners();
+
+        if (this.drawActions.length) {
+            this.redrawCanvas();
+        } else if (previousSnapshot && previousWidth && previousHeight) {
+            this.ctx.drawImage(
+                previousSnapshot,
+                0,
+                0,
+                previousWidth,
+                previousHeight,
+                0,
+                0,
+                nextWidth,
+                nextHeight
+            );
+        } else {
+            this.restorePendingImage();
+        }
     }
 
     /**
      * Set up mouse/touch event listeners for drawing.
      */
     setupEventListeners() {
+        if (this.canvasListenersBound) {
+            return;
+        }
+
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
         this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-        this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+        this.canvas.addEventListener('mouseup', (e) => this.stopDrawing(e));
         this.canvas.addEventListener('mouseleave', () => this.stopDrawing());
 
         // Add touch support for tablets
@@ -125,16 +212,33 @@ class DrawingToolWidget {
             const mouseEvent = new MouseEvent('mouseup', {});
             this.canvas.dispatchEvent(mouseEvent);
         });
+
+        this.canvasListenersBound = true;
     }
 
     /**
      * Handle the start of a drawing action.
      */
     startDrawing(e) {
+        const point = this.getPointerPosition(e);
         this.isDrawing = true;
-        const rect = this.canvas.getBoundingClientRect();
-        this.ctx.beginPath();
-        this.ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        this.startPoint = point;
+        this.lastPointer = point;
+        this.element.classList.add('is-drawing');
+
+        if (this.currentTool === 'freehand') {
+            this.currentStroke = {
+                type: 'freehand',
+                color: this.currentColor,
+                lineWidth: this.currentLineWidth,
+                points: [point]
+            };
+            this.ctx.beginPath();
+            this.ctx.moveTo(point.x, point.y);
+            return;
+        }
+
+        this.previewSnapshot = this.snapshotCanvas();
     }
 
     /**
@@ -142,20 +246,56 @@ class DrawingToolWidget {
      */
     draw(e) {
         if (!this.isDrawing) return;
-        const rect = this.canvas.getBoundingClientRect();
-        this.ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-        this.ctx.strokeStyle = this.currentColor;
-        this.ctx.lineWidth = this.currentLineWidth;
-        this.ctx.stroke();
+        const point = this.getPointerPosition(e);
+        this.lastPointer = point;
+
+        if (this.currentTool === 'freehand') {
+            this.currentStroke?.points.push(point);
+            this.ctx.lineTo(point.x, point.y);
+            this.ctx.strokeStyle = this.currentColor;
+            this.ctx.lineWidth = this.currentLineWidth;
+            this.ctx.stroke();
+            this.hasContent = true;
+            this.updateDrawingUI();
+            return;
+        }
+
+        this.restoreSnapshot(this.previewSnapshot);
+        this.drawShapeFromPoints(this.startPoint, point);
     }
 
     /**
      * Handle the end of a drawing action.
      */
-    stopDrawing() {
+    stopDrawing(e = null) {
         if (this.isDrawing) {
+            if (this.currentTool === 'freehand' && this.currentStroke?.points?.length > 1) {
+                this.drawActions.push({
+                    ...this.currentStroke,
+                    points: this.currentStroke.points.map((point) => ({ ...point }))
+                });
+            } else if (this.currentTool !== 'freehand' && this.startPoint) {
+                const point = e ? this.getPointerPosition(e) : this.lastPointer;
+                this.restoreSnapshot(this.previewSnapshot);
+                this.drawShapeFromPoints(this.startPoint, point);
+                this.drawActions.push({
+                    type: this.currentTool,
+                    color: this.currentColor,
+                    lineWidth: this.currentLineWidth,
+                    start: { ...this.startPoint },
+                    end: point ? { ...point } : { ...this.startPoint }
+                });
+                this.hasContent = true;
+            }
+
             this.isDrawing = false;
+            this.startPoint = null;
+            this.lastPointer = null;
+            this.previewSnapshot = null;
+            this.currentStroke = null;
+            this.element.classList.remove('is-drawing');
             this.ctx.beginPath(); // Reset the path
+            this.updateDrawingUI();
         }
     }
 
@@ -165,6 +305,7 @@ class DrawingToolWidget {
      */
     setColor(color) {
         this.currentColor = color;
+        this.updateDrawingUI();
     }
 
     /**
@@ -173,13 +314,180 @@ class DrawingToolWidget {
      */
     setLineWidth(width) {
         this.currentLineWidth = width;
+        this.updateDrawingUI();
+    }
+
+    setTool(tool) {
+        this.currentTool = tool;
+        this.updateDrawingUI();
+    }
+
+    updateDrawingUI() {
+        const toolLabels = {
+            freehand: 'Freehand',
+            line: 'Line',
+            rectangle: 'Box',
+            ellipse: 'Oval'
+        };
+
+        this.toolButtons.forEach((button, tool) => {
+            const isActive = tool === this.currentTool;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        if (this.surface) {
+            this.surface.dataset.tool = this.currentTool;
+            this.surface.classList.toggle('is-empty', !this.hasContent);
+        }
+
+        if (this.surfaceHint) {
+            this.surfaceHint.textContent = this.hasContent
+                ? ''
+                : `${toolLabels[this.currentTool] || 'Freehand'} ready`;
+        }
+
+        if (this.statusBadge) {
+            this.statusBadge.textContent = `${toolLabels[this.currentTool] || 'Freehand'} ${this.currentLineWidth}px`;
+            this.statusBadge.style.setProperty('--drawing-tool-color', this.currentColor);
+        }
+    }
+
+    getPointerPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    snapshotCanvas() {
+        if (!this.canvas.width || !this.canvas.height) {
+            return null;
+        }
+
+        const snapshot = document.createElement('canvas');
+        snapshot.width = this.canvas.width;
+        snapshot.height = this.canvas.height;
+        snapshot.getContext('2d').drawImage(this.canvas, 0, 0);
+        return snapshot;
+    }
+
+    restoreSnapshot(snapshot) {
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        if (snapshot) {
+            this.ctx.drawImage(snapshot, 0, 0, this.canvas.width, this.canvas.height, 0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        }
+    }
+
+    drawShapeFromPoints(start, end) {
+        if (!start || !end) {
+            return;
+        }
+
+        const width = end.x - start.x;
+        const height = end.y - start.y;
+
+        this.ctx.strokeStyle = this.currentColor;
+        this.ctx.lineWidth = this.currentLineWidth;
+        this.ctx.beginPath();
+
+        if (this.currentTool === 'line') {
+            this.ctx.moveTo(start.x, start.y);
+            this.ctx.lineTo(end.x, end.y);
+        } else if (this.currentTool === 'rectangle') {
+            this.ctx.strokeRect(start.x, start.y, width, height);
+            return;
+        } else if (this.currentTool === 'ellipse') {
+            this.ctx.ellipse(
+                start.x + (width / 2),
+                start.y + (height / 2),
+                Math.abs(width / 2),
+                Math.abs(height / 2),
+                0,
+                0,
+                Math.PI * 2
+            );
+        }
+
+        this.ctx.stroke();
+    }
+
+    drawAction(action) {
+        if (!action) {
+            return;
+        }
+
+        this.ctx.strokeStyle = action.color || this.currentColor;
+        this.ctx.lineWidth = action.lineWidth || this.currentLineWidth;
+        this.ctx.beginPath();
+
+        if (action.type === 'freehand') {
+            const points = Array.isArray(action.points) ? action.points : [];
+            if (!points.length) {
+                return;
+            }
+
+            this.ctx.moveTo(points[0].x, points[0].y);
+            for (let index = 1; index < points.length; index += 1) {
+                this.ctx.lineTo(points[index].x, points[index].y);
+            }
+            this.ctx.stroke();
+            return;
+        }
+
+        if (!action.start || !action.end) {
+            return;
+        }
+
+        const start = action.start;
+        const end = action.end;
+        const width = end.x - start.x;
+        const height = end.y - start.y;
+
+        if (action.type === 'line') {
+            this.ctx.moveTo(start.x, start.y);
+            this.ctx.lineTo(end.x, end.y);
+            this.ctx.stroke();
+            return;
+        }
+
+        if (action.type === 'rectangle') {
+            this.ctx.strokeRect(start.x, start.y, width, height);
+            return;
+        }
+
+        if (action.type === 'ellipse') {
+            this.ctx.ellipse(
+                start.x + (width / 2),
+                start.y + (height / 2),
+                Math.abs(width / 2),
+                Math.abs(height / 2),
+                0,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.stroke();
+        }
+    }
+
+    redrawCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        this.drawActions.forEach((action) => this.drawAction(action));
+        this.hasContent = this.drawActions.length > 0;
+        this.updateDrawingUI();
     }
 
     /**
      * Clear the entire canvas.
      */
     clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        this.drawActions = [];
+        this.currentStroke = null;
+        this.pendingImageData = null;
+        this.hasContent = false;
+        this.updateDrawingUI();
     }
 
     /**
@@ -197,6 +505,104 @@ class DrawingToolWidget {
         this.helpText.style.display = isVisible ? 'none' : 'block';
     }
 
+    getControls() {
+        const controls = document.createElement('div');
+        controls.className = 'widget-content-controls drawing-tool-settings-controls';
+
+        const helpText = document.createElement('div');
+        helpText.className = 'widget-help-text';
+        helpText.textContent = 'Adjust the drawing color and brush size here, then use Clear when you want a fresh board.';
+        controls.appendChild(helpText);
+
+        const drawSection = document.createElement('div');
+        drawSection.className = 'widget-settings-section';
+
+        const drawHeading = document.createElement('h3');
+        drawHeading.textContent = 'Actions';
+        drawSection.appendChild(drawHeading);
+
+        const toolLabel = document.createElement('label');
+        toolLabel.textContent = 'Tool';
+        const toolSelect = document.createElement('select');
+        [
+            ['freehand', 'Freehand'],
+            ['line', 'Straight line'],
+            ['rectangle', 'Rectangle'],
+            ['ellipse', 'Ellipse']
+        ].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            toolSelect.appendChild(option);
+        });
+        toolSelect.value = this.currentTool;
+        toolLabel.appendChild(toolSelect);
+        drawSection.appendChild(toolLabel);
+
+        const colorLabel = document.createElement('label');
+        colorLabel.textContent = 'Brush color';
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = this.currentColor;
+        colorLabel.appendChild(colorInput);
+        drawSection.appendChild(colorLabel);
+
+        const sizeLabel = document.createElement('label');
+        sizeLabel.textContent = 'Brush size';
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'range';
+        sizeInput.min = '1';
+        sizeInput.max = '20';
+        sizeInput.value = String(this.currentLineWidth);
+        sizeLabel.appendChild(sizeInput);
+        drawSection.appendChild(sizeLabel);
+
+        const sizeMeta = document.createElement('div');
+        sizeMeta.className = 'widget-settings-meta';
+        const sizeMetaLabel = document.createElement('strong');
+        sizeMetaLabel.textContent = 'Status';
+        const sizeMetaText = document.createElement('span');
+        sizeMeta.append(sizeMetaLabel, sizeMetaText);
+        drawSection.appendChild(sizeMeta);
+
+        const actions = document.createElement('div');
+        actions.className = 'widget-settings-actions';
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'control-button';
+        clearButton.textContent = 'Clear Drawing';
+        actions.appendChild(clearButton);
+        drawSection.appendChild(actions);
+
+        controls.appendChild(drawSection);
+
+        const syncStatus = () => {
+            sizeMetaText.textContent = `${toolSelect.options[toolSelect.selectedIndex]?.text || 'Freehand'} with ${this.currentLineWidth}px stroke in ${this.currentColor}.`;
+        };
+
+        toolSelect.addEventListener('change', (event) => {
+            this.setTool(event.target.value);
+            syncStatus();
+        });
+
+        colorInput.addEventListener('input', (event) => {
+            this.colorPicker.value = event.target.value;
+            this.setColor(event.target.value);
+            syncStatus();
+        });
+
+        sizeInput.addEventListener('input', (event) => {
+            this.lineWidthSelector.value = event.target.value;
+            this.setLineWidth(event.target.value);
+            syncStatus();
+        });
+
+        clearButton.addEventListener('click', () => this.clear());
+
+        syncStatus();
+        return controls;
+    }
+
     /**
      * Serialize the widget's state for saving to localStorage.
      * @returns {object} The serialized state.
@@ -206,7 +612,11 @@ class DrawingToolWidget {
         const imageData = this.canvas.toDataURL();
         return {
             type: 'DrawingToolWidget',
-            imageData: imageData
+            imageData: imageData,
+            actions: this.drawActions,
+            tool: this.currentTool,
+            color: this.currentColor,
+            lineWidth: this.currentLineWidth
         };
     }
 
@@ -215,13 +625,55 @@ class DrawingToolWidget {
      * @param {object} data - The serialized state.
      */
     deserialize(data) {
-        if (data.imageData) {
-            const img = new Image();
-            img.onload = () => {
-                // Redraw the saved image onto the canvas
-                this.ctx.drawImage(img, 0, 0);
-            };
-            img.src = data.imageData;
+        if (data.tool) {
+            this.setTool(data.tool);
         }
+        if (data.color) {
+            this.colorPicker.value = data.color;
+            this.setColor(data.color);
+        }
+        if (data.lineWidth) {
+            this.lineWidthSelector.value = String(data.lineWidth);
+            this.setLineWidth(data.lineWidth);
+        }
+        if (Array.isArray(data.actions)) {
+            this.drawActions = data.actions;
+            this.hasContent = this.drawActions.length > 0;
+        }
+        if (data.imageData) {
+            this.pendingImageData = data.imageData;
+            this.restorePendingImage();
+        }
+    }
+
+    restorePendingImage() {
+        if (this.drawActions.length) {
+            this.redrawCanvas();
+            return;
+        }
+
+        if (!this.pendingImageData || !this.canvas.width || !this.canvas.height) {
+            return;
+        }
+
+        const img = new Image();
+        const imageData = this.pendingImageData;
+        img.onload = () => {
+            if (!this.ctx) {
+                return;
+            }
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+            this.ctx.drawImage(img, 0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+            this.hasContent = true;
+            this.updateDrawingUI();
+            if (this.pendingImageData === imageData) {
+                this.pendingImageData = null;
+            }
+        };
+        img.src = imageData;
+    }
+
+    onWidgetLayout() {
+        this.setupCanvas();
     }
 }

@@ -1,3 +1,16 @@
+import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
+import { eventBus } from './core/event-bus.js';
+import {
+    saveState,
+    loadSavedState,
+    captureLocalStorageState,
+    restoreLocalStorageState,
+    safeParseLocalStorage,
+    isValidLayout,
+    runMigrations
+} from './services/state-manager.js';
+import { startPresentationDiagnostics } from './utils/presentation-debug.js';
+
 const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
 console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
 const mainAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
@@ -7,6 +20,8 @@ if (mainAppBus) {
     mainAppBus.init();
     console.log('AppBus initialised');
 }
+
+startPresentationDiagnostics();
 
 if (mainAppBus && mainIsTeacherMode()) {
     window.testBroadcast = () => {
@@ -27,48 +42,32 @@ function debounce(fn, delay = 250) {
     };
 }
 
-const STATE_MIGRATIONS = [
-    {
-        from: 0,
-        to: 1,
-        migrate(state) {
-            // Ensure state.layout exists and is well-formed.
-            if (!state.layout || typeof state.layout !== 'object' || !Array.isArray(state.layout.widgets)) {
-                state.layout = { widgets: [] };
-            }
-            // Future-proofing: Normalize widget types if they ever change format.
-            // For now, this is a placeholder for more complex migrations.
-
-            state.schemaVersion = 1;
-            console.log('Migrated state from schema v0 to v1');
-            return state;
-        }
-    }
-];
-
 const THEMES = [
     'theme-ocean',
     'theme-professional',
     'theme-light'
 ];
 
+const THEME_META_COLORS = {
+    'theme-light': '#ffffff',
+    'theme-ocean': '#0f172a',
+    'theme-professional': '#111827'
+};
+
+function syncDocumentThemeColor(themeName) {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+        metaTheme.setAttribute('content', THEME_META_COLORS[themeName] || THEME_META_COLORS['theme-professional']);
+    }
+}
+
 function applyTheme(themeName) {
     const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
     THEMES.forEach(theme => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
+    document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';
+    syncDocumentThemeColor(nextTheme);
     localStorage.setItem('selectedTheme', nextTheme);
-}
-
-function safeParse(key) {
-    try {
-        const value = localStorage.getItem(key);
-        if (!value) return null;
-        return JSON.parse(value);
-    } catch (error) {
-        console.warn('Invalid localStorage data for', key);
-        localStorage.removeItem(key);
-        return null;
-    }
 }
 
 function resetAppState() {
@@ -76,6 +75,33 @@ function resetAppState() {
     localStorage.removeItem('widgetLayout');
     localStorage.removeItem('background');
     localStorage.removeItem('selectedTheme');
+    localStorage.removeItem('drawingBoardVisible');
+}
+
+const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
+const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
+
+function createProjectorSyncToken() {
+    const makeToken = () => {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    };
+
+    try {
+        const stored = sessionStorage.getItem(PROJECTOR_SYNC_TOKEN_KEY);
+        if (stored) {
+            return stored;
+        }
+
+        const token = makeToken();
+        sessionStorage.setItem(PROJECTOR_SYNC_TOKEN_KEY, token);
+        return token;
+    } catch (error) {
+        console.warn('Unable to persist projector sync token', error);
+        return makeToken();
+    }
 }
 
 class ClassroomScreenApp {
@@ -100,8 +126,10 @@ class ClassroomScreenApp {
         this.widgetModal = document.getElementById('widget-modal');
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
+        this.currentSectionName = document.getElementById('current-section-name');
+        this.sectionsToggleButton = document.getElementById('sections-toggle');
+        this.sectionsMenu = document.getElementById('sections-menu');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
-        this.widgetSelectorButtons = Array.from(document.querySelectorAll('.widget-selector-btn'));
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
@@ -116,12 +144,45 @@ class ClassroomScreenApp {
         this.reduceMotionToggle = document.getElementById('reduce-motion-toggle');
         this.savedNotesListElement = document.getElementById('saved-notes-list');
         this.savedNotesEmptyState = document.getElementById('saved-notes-empty');
-        this.layoutNameInput = document.getElementById('layout-name-input');
-        this.saveLayoutButton = document.getElementById('save-layout-btn');
+        this.notesPanelSummary = document.getElementById('notes-panel-summary');
+        this.exportAllNotesButton = document.getElementById('export-all-notes-memory-cue');
+        this.layoutNameInput = document.getElementById('planner-layout-name-input');
+        this.saveLayoutButton = document.getElementById('planner-save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
+        this.addLayoutShortcutButton = document.getElementById('add-layout-btn');
+        this.saveLayoutShortcutButton = document.getElementById('save-layout-btn');
+        this.openWeeklyPlannerButton = document.getElementById('open-weekly-planner-btn');
+        this.openAgendaButton = document.getElementById('open-agenda-btn');
         this.plannerModal = document.getElementById('planner-modal');
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
+        this.timerStatusBadge = document.getElementById('timer-status-badge');
+        this.timerStatusDisplay = document.getElementById('timer-status-display');
+        this.timerStatusMeta = document.getElementById('timer-status-meta');
+        this.resetTimerButton = document.getElementById('reset-timer');
+        this.presentationStatusBadge = document.getElementById('presentation-status-badge');
+        this.presentationStatusDisplay = document.getElementById('presentation-status-display');
+        this.presentationStatusContext = document.getElementById('presentation-status-context');
+        this.presentationStatusMeta = document.getElementById('presentation-status-meta');
+        this.presentationLastButton = document.getElementById('presentation-last-btn');
+        this.presentationSourceTypeSelect = document.getElementById('presentation-source-type');
+        this.presentationSourceNameInput = document.getElementById('presentation-source-name');
+        this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
+        this.presentationLinkHint = document.getElementById('presentation-link-hint');
+        this.presentationLinkValidation = document.getElementById('presentation-link-validation');
+        this.presentationSaveLinkButton = document.getElementById('presentation-save-link-btn');
+        this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
+        this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
+        this.presentationSavedSelect = document.getElementById('presentation-saved-select');
+        this.presentationSavedHint = document.getElementById('presentation-saved-hint');
+        this.presentationOpenSavedButton = document.getElementById('presentation-open-saved-btn');
+        this.presentationOpenSavedProjectorButton = document.getElementById('presentation-open-saved-projector-btn');
+        this.presentationRenameSavedButton = document.getElementById('presentation-rename-saved-btn');
+        this.presentationDeleteSavedButton = document.getElementById('presentation-delete-saved-btn');
+        this.presentationManageButton = document.getElementById('presentation-manage-btn');
+        this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
+        this.presentationPrevButton = document.getElementById('presentation-prev-btn');
+        this.presentationNextButton = document.getElementById('presentation-next-btn');
 
         this.agendaModal = document.getElementById('agenda-modal');
         this.agendaList = document.getElementById('agenda-list');
@@ -136,51 +197,38 @@ class ClassroomScreenApp {
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
+        this.widgetPickerStateKey = 'teacherScreenWidgetPickerState';
+        this.quickAddWidgetKeys = ['rich-text', 'reveal-manager', 'timer', 'drawing-tool'];
         this.savedNotes = [];
         this.scheduleStorageKey = 'teacherScreenSchedule';
         this.noteIdToLink = null;
+        this.projectorSyncToken = createProjectorSyncToken();
+        window.__TeacherProjectorSyncToken = this.projectorSyncToken;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.eventBusSubscriptions = [];
+
+        this.handleWidgetRemovedEvent = (payload) => {
+            if (payload && payload.widget) {
+                this.handleWidgetRemoved(payload.widget);
+            }
+        };
 
         // Managers
         this.saveState = debounce(this.saveState.bind(this), 300);
 
-        this.layoutManager = new LayoutManager(this.studentView);
+        const layoutHost = this.widgetsContainer || this.studentView;
+        this.layoutManager = new LayoutManager(layoutHost);
         this.layoutManager.setEditable(true);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
                 this.applyProjectorLayoutDelta(payload, 'projector');
+                eventBus.emit('widget:moved', { payload, source: 'projector' });
                 return;
             }
-            this.saveState('teacher');
+            eventBus.emit('layout:updated', { source: 'teacher', payload });
         };
         this.backgroundManager = new BackgroundManager(this.studentView);
-
-        this.widgetCategories = [
-            {
-                name: 'Primary',
-                widgets: [
-                    { type: 'timer', label: 'Timer' },
-                    { type: 'noise-meter', label: 'Noise Meter' },
-                    { type: 'name-picker', label: 'Random Name Picker' }
-                ]
-            },
-            {
-                name: 'Secondary',
-                widgets: [
-                    { type: 'qr-code', label: 'QR Code' },
-                    { type: 'drawing-tool', label: 'Drawing Tool' },
-                    { type: 'document-viewer', label: 'Document Viewer' },
-                    { type: 'url-viewer', label: 'URL Viewer' },
-                    { type: 'reveal-manager', label: 'Reveal Manager' },
-                    { type: 'presentation', label: 'Presentation Loader' },
-                    { type: 'mask', label: 'Mask' },
-                    { type: 'notes', label: 'Notes' },
-                    { type: 'wellbeing', label: 'Well-being Check-in' },
-                    { name: 'Rich Text Board', type: 'RichTextWidget', icon: 'fa-pen' }
-                ]
-            }
-        ];
 
         this.themes = [
             { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
@@ -234,6 +282,7 @@ class ClassroomScreenApp {
     }
 
     init() {
+        this.setupInternalEventBus();
         this.setupEventListeners();
         this.initLessonPlanner();
 
@@ -250,26 +299,25 @@ class ClassroomScreenApp {
         try {
             this.loadSavedState();
         } catch (error) {
-            console.error('State restore failed. Resetting state.', error);
+            console.error('State restore failed. Resetting application state.', error);
             resetAppState();
         }
-        this.backgroundManager.init();
+        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
+        this.switchTheme(savedTheme);
+        this.backgroundManager.init(savedTheme);
         this.layoutManager.init();
         this.updateProjectorVisibility();
         this.setupPresetControls();
         this.renderBackgroundSelector();
 
-        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
-        this.switchTheme(savedTheme);
-
         this.renderThemeSelector();
         this.renderWidgetModal();
         this.displaySavedLayouts();
         this.initializeSavedNotes();
-
-        if (this.widgets.length === 0) {
-            this.addWidget('timer');
-        }
+        this.syncTimerControlsFromWidget();
+        this.syncPresentationControlsFromWidget();
+        this.renderPresentationSavedDeckOptions();
+        this.updatePresentationLastDeckAction();
 
         this.showWelcomeTourIfNeeded();
 
@@ -280,6 +328,60 @@ class ClassroomScreenApp {
         }
 
         this.updateProjectorVisibility();
+    }
+
+    setupInternalEventBus() {
+        this.subscribeToEventBus('widget:removed', ({ widget }) => {
+            this.handleWidgetRemoved(widget);
+        });
+
+        this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true, ...payload } = {}) => {
+            this.syncTimerControlsFromPayload({ ...payload, minutes });
+            this.syncTimerStateToProjector({ ...payload, minutes });
+            if (!Number.isFinite(minutes) || minutes <= 0) {
+                return;
+            }
+
+            if (showNotification) {
+                this.showNotification(`Timer started for ${Math.round(minutes * 100) / 100} minutes.`);
+            }
+        });
+
+        this.subscribeToEventBus('timer:stopped', ({ showNotification = true, ...payload } = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
+            if (showNotification) {
+                this.showNotification('Timer stopped.');
+            }
+        });
+
+        this.subscribeToEventBus('timer:reset', (payload = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
+        });
+
+        this.subscribeToEventBus('timer:updated', (payload = {}) => {
+            this.syncTimerControlsFromPayload(payload);
+            this.syncTimerStateToProjector(payload);
+        });
+
+        this.subscribeToEventBus('presentation:state-changed', (payload = {}) => {
+            this.syncPresentationControlsFromPayload(payload);
+        });
+
+        this.subscribeToEventBus('presentation:saved-decks-changed', ({ decks = null } = {}) => {
+            this.renderPresentationSavedDeckOptions(decks);
+        });
+
+        this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
+            this.saveState(source);
+        });
+
+    }
+
+    subscribeToEventBus(eventName, handler) {
+        eventBus.on(eventName, handler);
+        this.eventBusSubscriptions.push({ eventName, handler });
     }
 
     setupEventListeners() {
@@ -293,13 +395,18 @@ class ClassroomScreenApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
+            const isUntokenedSyncRequest = message.type === 'request-sync' && !message.syncToken;
+            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken && !isUntokenedSyncRequest) {
+                return;
+            }
 
             if (message.type === 'request-sync') {
                 const state = this.buildStateSnapshot();
                 this.projectorChannel.postMessage({
                     type: 'layout-update',
                     state,
-                    source: 'teacher'
+                    source: 'teacher',
+                    syncToken: this.projectorSyncToken
                 });
                 return;
             }
@@ -357,6 +464,14 @@ class ClassroomScreenApp {
             this.saveLayoutButton.addEventListener('click', () => this.saveLayoutFromModal());
         }
 
+        if (this.layoutNameInput) {
+            this.layoutNameInput.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                this.saveLayoutFromModal();
+            });
+        }
+
         if (this.savedLayoutsList) {
             this.savedLayoutsList.addEventListener('click', (event) => {
                 const targetButton = event.target.closest('button');
@@ -382,8 +497,51 @@ class ClassroomScreenApp {
 
         // Navigation and Panel
         this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
+        if (this.sectionsToggleButton) {
+            this.sectionsToggleButton.addEventListener('click', () => this.toggleSectionsMenu());
+        }
+        document.addEventListener('click', (event) => {
+            if (!this.sectionsMenu || this.sectionsMenu.hidden) return;
+
+            const clickedInsideMenu = this.sectionsMenu.contains(event.target);
+            const clickedToggle = this.sectionsToggleButton?.contains(event.target);
+            if (!clickedInsideMenu && !clickedToggle) {
+                this.closeSectionsMenu();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeSectionsMenu();
+            }
+        });
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
+
+        if (this.addLayoutShortcutButton) {
+            this.addLayoutShortcutButton.addEventListener('click', () => {
+                this.closeSectionsMenu();
+                this.handleNavClick('classroom');
+                this.openWidgetPicker();
+            });
+        }
+
+        if (this.saveLayoutShortcutButton) {
+            this.saveLayoutShortcutButton.addEventListener('click', () => {
+                this.closeSectionsMenu();
+                this.handleNavClick('planner');
+                if (this.layoutNameInput && typeof this.layoutNameInput.focus === 'function') {
+                    window.requestAnimationFrame(() => this.layoutNameInput.focus());
+                }
+            });
+        }
+
+        if (this.openWeeklyPlannerButton) {
+            this.openWeeklyPlannerButton.addEventListener('click', () => this.openPlannerModal());
+        }
+
+        if (this.openAgendaButton) {
+            this.openAgendaButton.addEventListener('click', () => this.openAgendaModal());
+        }
 
         // FAB and Modals
         const addBtn = document.getElementById('add-widget-btn');
@@ -398,8 +556,6 @@ class ClassroomScreenApp {
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
 
-        this.initializeWidgetSelector();
-
         // Accordion Cards
         const detailsElements = document.querySelectorAll('.control-card details');
         detailsElements.forEach(details => {
@@ -410,6 +566,19 @@ class ClassroomScreenApp {
                             otherDetails.open = false;
                         }
                     });
+
+                    const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
+                    const summary = details.querySelector('summary');
+                    if (panelContent && summary) {
+                        window.requestAnimationFrame(() => {
+                            const panelRect = panelContent.getBoundingClientRect();
+                            const summaryRect = summary.getBoundingClientRect();
+                            const currentScroll = panelContent.scrollTop;
+                            const offsetTop = summaryRect.top - panelRect.top + currentScroll;
+                            const targetScroll = Math.max(offsetTop - 12, 0);
+                            panelContent.scrollTo({ top: targetScroll, behavior: 'smooth' });
+                        });
+                    }
                 }
             });
         });
@@ -417,6 +586,86 @@ class ClassroomScreenApp {
         // Other controls...
         document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
         document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
+        if (this.resetTimerButton) {
+            this.resetTimerButton.addEventListener('click', () => this.resetTimerFromControls());
+        }
+
+        if (this.presentationManageButton) {
+            this.presentationManageButton.addEventListener('click', () => this.openPresentationControlsFromPanel());
+        }
+
+        if (this.presentationSourceTypeSelect) {
+            this.presentationSourceTypeSelect.addEventListener('change', () => this.updatePresentationLinkInputs());
+        }
+
+        if (this.presentationSourceUrlInput) {
+            this.presentationSourceUrlInput.addEventListener('input', () => this.syncPresentationSourceTypeFromUrl());
+            this.presentationSourceUrlInput.addEventListener('blur', () => this.syncPresentationSourceTypeFromUrl());
+        }
+
+        if (this.presentationSaveLinkButton) {
+            this.presentationSaveLinkButton.addEventListener('click', () => {
+                void this.savePresentationLinkFromPanel();
+            });
+        }
+
+        if (this.presentationLastButton) {
+            this.presentationLastButton.addEventListener('click', () => {
+                void this.presentLastDeckFromPanel();
+            });
+        }
+
+        if (this.presentationOpenLinkButton) {
+            this.presentationOpenLinkButton.addEventListener('click', () => {
+                void this.openPresentationLinkFromPanel();
+            });
+        }
+
+        if (this.presentationOpenProjectorLinkButton) {
+            this.presentationOpenProjectorLinkButton.addEventListener('click', () => {
+                void this.openPresentationLinkFromPanel({ openProjector: true });
+            });
+        }
+
+        if (this.presentationSavedSelect) {
+            this.presentationSavedSelect.addEventListener('change', () => this.updatePresentationSavedActions());
+        }
+
+        if (this.presentationOpenSavedButton) {
+            this.presentationOpenSavedButton.addEventListener('click', () => {
+                void this.openSavedPresentationFromPanel();
+            });
+        }
+
+        if (this.presentationOpenSavedProjectorButton) {
+            this.presentationOpenSavedProjectorButton.addEventListener('click', () => {
+                void this.openSavedPresentationFromPanel({ openProjector: true });
+            });
+        }
+
+        if (this.presentationRenameSavedButton) {
+            this.presentationRenameSavedButton.addEventListener('click', () => {
+                void this.renameSavedPresentationFromPanel();
+            });
+        }
+
+        if (this.presentationDeleteSavedButton) {
+            this.presentationDeleteSavedButton.addEventListener('click', () => {
+                void this.deleteSavedPresentationFromPanel();
+            });
+        }
+
+        if (this.presentationProjectorButton) {
+            this.presentationProjectorButton.addEventListener('click', () => this.openPresentationProjectorFromPanel());
+        }
+
+        if (this.presentationPrevButton) {
+            this.presentationPrevButton.addEventListener('click', () => this.navigatePresentationFromPanel('prev'));
+        }
+
+        if (this.presentationNextButton) {
+            this.presentationNextButton.addEventListener('click', () => this.navigatePresentationFromPanel('next'));
+        }
 
         // Widget Settings Modal Logic
         document.addEventListener('openWidgetSettings', (e) => this.openWidgetSettings(e.detail.widget));
@@ -432,40 +681,27 @@ class ClassroomScreenApp {
             }
         });
 
-        // New Timer Presets (5, 10, 15 min)
+        // Timer presets set the duration first; Start remains the explicit action.
         const preset5 = document.getElementById('timer-preset-5');
         if (preset5) {
-            preset5.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 5;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset5.addEventListener('click', () => this.applyTimerPresetToControls(5));
         }
 
         const preset10 = document.getElementById('timer-preset-10');
         if (preset10) {
-            preset10.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 10;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset10.addEventListener('click', () => this.applyTimerPresetToControls(10));
         }
 
         const preset15 = document.getElementById('timer-preset-15');
         if (preset15) {
-            preset15.addEventListener('click', () => {
-                document.getElementById('timer-hours').value = 0;
-                document.getElementById('timer-minutes').value = 15;
-                document.getElementById('timer-seconds').value = 0;
-                this.startTimerFromControls();
-            });
+            preset15.addEventListener('click', () => this.applyTimerPresetToControls(15));
         }
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
+        eventBus.on('widget:removed', this.handleWidgetRemovedEvent);
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
+        document.addEventListener('widgetChanged', () => this.saveState());
 
         // Request Open Planner
         document.addEventListener('requestOpenPlanner', () => {
@@ -489,6 +725,8 @@ class ClassroomScreenApp {
     }
 
     handleNavClick(tab) {
+        eventBus.emit('scene:changed', { tab });
+
         // Update tab states
         this.navTabs.forEach(t => {
             const isSelected = t.dataset.tab === tab;
@@ -496,6 +734,8 @@ class ClassroomScreenApp {
             if (isSelected) t.classList.add('active');
             else t.classList.remove('active');
         });
+        this.updateCurrentSectionLabel(tab);
+        this.closeSectionsMenu();
 
         // Show corresponding panel, hide others
         // We use the ID convention: {tab}-view
@@ -510,6 +750,14 @@ class ClassroomScreenApp {
 
         if (tab === 'notes') {
             this.renderSavedNotesList();
+        }
+
+        if (tab === 'planner') {
+            this.displaySavedLayouts();
+        }
+
+        if (tab !== 'planner' && this.plannerModal?.classList.contains('visible')) {
+            this.closePlannerModal();
         }
 
         // Teacher Panel Logic
@@ -532,6 +780,34 @@ class ClassroomScreenApp {
         }
     }
 
+    updateCurrentSectionLabel(tab) {
+        const selectedTab = Array.from(this.navTabs).find((navTab) => navTab.dataset.tab === tab);
+        const sectionLabel = selectedTab?.textContent?.trim() || 'Classroom';
+
+        if (this.currentSectionName) {
+            this.currentSectionName.textContent = sectionLabel;
+        }
+
+        if (this.sectionsToggleButton) {
+            this.sectionsToggleButton.setAttribute('aria-label', `Sections menu, current section ${sectionLabel}`);
+            this.sectionsToggleButton.title = `Current section: ${sectionLabel}`;
+        }
+    }
+
+    toggleSectionsMenu(forceOpen = null) {
+        if (!this.sectionsMenu || !this.sectionsToggleButton) {
+            return;
+        }
+
+        const shouldOpen = forceOpen === null ? this.sectionsMenu.hidden : forceOpen;
+        this.sectionsMenu.hidden = !shouldOpen;
+        this.sectionsToggleButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
+    closeSectionsMenu() {
+        this.toggleSectionsMenu(false);
+    }
+
     initializeSavedNotes() {
         if (window.SavedNotesStore && typeof window.SavedNotesStore.getAll === 'function') {
             this.savedNotes = window.SavedNotesStore.getAll();
@@ -548,7 +824,12 @@ class ClassroomScreenApp {
 
                 if (action === 'open') this.openSavedNote(noteId);
                 if (action === 'delete') this.deleteSavedNote(noteId);
+                if (action === 'memory-cue') this.exportSavedNoteToMemoryCue(noteId);
             });
+        }
+
+        if (this.exportAllNotesButton) {
+            this.exportAllNotesButton.addEventListener('click', () => this.exportAllSavedNotesToMemoryCue());
         }
 
         document.addEventListener('savedNotesUpdated', (event) => {
@@ -564,29 +845,15 @@ class ClassroomScreenApp {
         this.teacherPanel.classList.toggle('open', this.isTeacherPanelOpen);
         this.panelBackdrop.classList.toggle('visible', this.isTeacherPanelOpen);
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
-    }
 
-    initializeWidgetSelector() {
-        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
-
-        document.addEventListener('click', (event) => {
-            const widgetButton = event.target.closest('.widget-selector-btn');
-            if (!widgetButton || !this.widgetSelectorButtons.includes(widgetButton)) return;
-
-            const widgetType = widgetButton.dataset.widget;
-            if (!widgetType) return;
-
-            this.setActiveWidgetButton(widgetType);
-            this.addWidget(widgetType);
-        });
-    }
-
-    setActiveWidgetButton(type) {
-        if (!this.widgetSelectorButtons || !this.widgetSelectorButtons.length) return;
-        const targetButton = this.widgetSelectorButtons.find((btn) => btn.dataset.widget === type);
-        this.widgetSelectorButtons.forEach((btn) => {
-            btn.classList.toggle('active', btn === targetButton);
-        });
+        if (this.isTeacherPanelOpen) {
+            const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
+            if (panelContent) {
+                panelContent.scrollTop = 0;
+            }
+            this.syncTimerControlsFromWidget();
+            this.syncPresentationControlsFromWidget();
+        }
     }
 
     renderSavedNotesList() {
@@ -595,8 +862,11 @@ class ClassroomScreenApp {
         this.savedNotesListElement.innerHTML = '';
         const emptyState = this.savedNotesEmptyState;
         const notes = Array.isArray(this.savedNotes) ? [...this.savedNotes] : [];
+        const sortedNotes = notes.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
-        if (!notes.length) {
+        this.updateSavedNotesSummary(sortedNotes);
+
+        if (!sortedNotes.length) {
             if (emptyState) {
                 emptyState.hidden = false;
                 this.savedNotesListElement.appendChild(emptyState);
@@ -608,9 +878,7 @@ class ClassroomScreenApp {
             emptyState.hidden = true;
         }
 
-        notes
-            .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
-            .forEach((note) => {
+        sortedNotes.forEach((note) => {
                 const card = document.createElement('div');
                 card.className = 'saved-note-card';
                 card.setAttribute('role', 'listitem');
@@ -618,21 +886,50 @@ class ClassroomScreenApp {
                 const meta = document.createElement('div');
                 meta.className = 'saved-note-meta';
 
+                const header = document.createElement('div');
+                header.className = 'saved-note-header';
+
                 const title = document.createElement('span');
                 title.className = 'saved-note-title';
                 title.textContent = note.title || 'Untitled Note';
 
-                const updated = document.createElement('span');
-                updated.className = 'saved-note-updated';
-                updated.textContent = `Updated ${this.formatNoteDate(note.updatedAt)}`;
+                const chips = document.createElement('div');
+                chips.className = 'saved-note-chips';
+
+                const wordChip = document.createElement('span');
+                wordChip.className = 'saved-note-chip';
+                const wordCount = this.getNoteWordCount(note.content);
+                wordChip.textContent = wordCount === 1 ? '1 word' : `${wordCount} words`;
+
+                const statusChip = document.createElement('span');
+                statusChip.className = 'saved-note-chip saved-note-chip--accent';
+                statusChip.textContent = 'Ready';
 
                 const preview = document.createElement('p');
                 preview.className = 'saved-note-preview';
                 preview.textContent = this.getNotePreviewText(note.content);
 
-                meta.appendChild(title);
-                meta.appendChild(updated);
+                const footer = document.createElement('div');
+                footer.className = 'saved-note-footer';
+
+                const updated = document.createElement('span');
+                updated.className = 'saved-note-updated';
+                updated.textContent = `Updated ${this.formatNoteDate(note.updatedAt)}`;
+
+                const source = document.createElement('span');
+                source.className = 'saved-note-source';
+                source.textContent = 'Open in Classroom to continue editing';
+
+                chips.appendChild(wordChip);
+                chips.appendChild(statusChip);
+                header.appendChild(title);
+                header.appendChild(chips);
+                footer.appendChild(updated);
+                footer.appendChild(source);
+
+                meta.appendChild(header);
                 meta.appendChild(preview);
+                meta.appendChild(footer);
 
                 const actions = document.createElement('div');
                 actions.className = 'saved-note-actions';
@@ -642,16 +939,24 @@ class ClassroomScreenApp {
                 openBtn.className = 'control-button';
                 openBtn.dataset.noteAction = 'open';
                 openBtn.dataset.noteId = note.id;
-                openBtn.textContent = 'Open';
+                openBtn.textContent = 'Open in Classroom';
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.type = 'button';
-                deleteBtn.className = 'control-button';
+                deleteBtn.className = 'control-button control-button--ghost';
                 deleteBtn.dataset.noteAction = 'delete';
                 deleteBtn.dataset.noteId = note.id;
                 deleteBtn.textContent = 'Delete';
 
+                const memoryCueBtn = document.createElement('button');
+                memoryCueBtn.type = 'button';
+                memoryCueBtn.className = 'control-button control-button--ghost';
+                memoryCueBtn.dataset.noteAction = 'memory-cue';
+                memoryCueBtn.dataset.noteId = note.id;
+                memoryCueBtn.textContent = 'Send to Memory Cue';
+
                 actions.appendChild(openBtn);
+                actions.appendChild(memoryCueBtn);
                 actions.appendChild(deleteBtn);
 
                 card.appendChild(meta);
@@ -659,6 +964,31 @@ class ClassroomScreenApp {
 
                 this.savedNotesListElement.appendChild(card);
             });
+    }
+
+    updateSavedNotesSummary(notes = []) {
+        if (!this.notesPanelSummary) {
+            return;
+        }
+
+        if (!notes.length) {
+            this.notesPanelSummary.innerHTML = '';
+            return;
+        }
+
+        const totalWords = notes.reduce((sum, note) => sum + this.getNoteWordCount(note.content), 0);
+        const summary = [
+            `${notes.length} ${notes.length === 1 ? 'saved note' : 'saved notes'}`,
+            `${totalWords} ${totalWords === 1 ? 'word' : 'words'} in library`
+        ];
+
+        if (notes[0]?.updatedAt) {
+            summary.push(`Latest ${this.formatNoteDate(notes[0].updatedAt)}`);
+        }
+
+        this.notesPanelSummary.innerHTML = summary
+            .map((item) => `<span class="notes-panel__summary-pill">${item}</span>`)
+            .join('');
     }
 
     openSavedNote(noteId) {
@@ -699,12 +1029,124 @@ class ClassroomScreenApp {
         this.showNotification('Note deleted.');
     }
 
+    async exportSavedNoteToMemoryCue(noteId) {
+        if (!window.SavedNotesStore) return;
+
+        const note = window.SavedNotesStore.get(noteId);
+        if (!note) {
+            this.showNotification('Note could not be found.', 'error');
+            return;
+        }
+
+        const queued = this.queueMemoryCueNoteImports([this.buildMemoryCueNotePayload(note)]);
+        if (!queued) {
+            this.showNotification('Unable to queue the note for Memory Cue.', 'error');
+            return;
+        }
+
+        const opened = this.openMemoryCueNotebook();
+        this.showNotification(opened ? 'Note sent to Memory Cue.' : 'Note queued for Memory Cue. Open Memory Cue to finish the import.');
+    }
+
+    async exportAllSavedNotesToMemoryCue() {
+        const notes = Array.isArray(this.savedNotes) ? [...this.savedNotes] : [];
+        if (!notes.length) {
+            this.showNotification('No saved notes available to export yet.', 'warning');
+            return;
+        }
+
+        const queued = this.queueMemoryCueNoteImports(notes.map((note) => this.buildMemoryCueNotePayload(note)));
+        if (!queued) {
+            this.showNotification('Unable to queue notes for Memory Cue.', 'error');
+            return;
+        }
+
+        const opened = this.openMemoryCueNotebook();
+        const noteLabel = notes.length === 1 ? '1 note' : `${notes.length} notes`;
+        this.showNotification(opened ? `Sent ${noteLabel} to Memory Cue.` : `Queued ${noteLabel} for Memory Cue. Open Memory Cue to finish the import.`);
+    }
+
+    buildMemoryCueNotePayload(note = {}) {
+        const html = typeof note.content === 'string' ? note.content : '';
+        const text = this.getNotePlainText(html);
+
+        return {
+            title: note.title || 'Untitled note',
+            text: text || 'Untitled note',
+            bodyHtml: html,
+            folderId: 'school',
+            parsedType: 'note',
+            source: 'teach-screen',
+            tags: ['teaching', 'teacher-screen'],
+            updatedAt: note.updatedAt || new Date().toISOString(),
+            metadata: {
+                source: 'teach-screen',
+                teaching: true,
+                noteType: 'lesson-note',
+                sourceNoteId: note.id || null,
+                lessonCueBody: text || '',
+                lessonCueHtml: html || '',
+                lessonCueUpdatedAt: note.updatedAt || new Date().toISOString()
+            }
+        };
+    }
+
+    queueMemoryCueNoteImports(notes = []) {
+        const nextNotes = Array.isArray(notes) ? notes.filter((note) => note && typeof note === 'object') : [];
+        if (!nextNotes.length) {
+            return false;
+        }
+
+        try {
+            const raw = localStorage.getItem(MEMORY_CUE_IMPORT_QUEUE_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            const existingQueue = Array.isArray(parsed) ? parsed : [];
+            const queuedNotes = nextNotes.map((note) => ({
+                ...note,
+                queuedAt: new Date().toISOString(),
+                sourceApp: 'teach-screen'
+            }));
+
+            localStorage.setItem(MEMORY_CUE_IMPORT_QUEUE_KEY, JSON.stringify([...existingQueue, ...queuedNotes]));
+            return true;
+        } catch (error) {
+            console.warn('Unable to queue notes for Memory Cue.', error);
+            return false;
+        }
+    }
+
+    openMemoryCueNotebook() {
+        try {
+            const targetUrl = new URL('../mobile.html', window.location.href);
+            const openedWindow = window.open(targetUrl.toString(), '_blank', 'noopener');
+            return Boolean(openedWindow);
+        } catch (error) {
+            console.warn('Unable to open Memory Cue notebook.', error);
+            return false;
+        }
+    }
+
     getNotePreviewText(content = '') {
         const temp = document.createElement('div');
         temp.innerHTML = content || '';
-        const text = (temp.textContent || '').trim();
+        const text = (temp.textContent || '').replace(/\s+/g, ' ').trim();
         if (!text) return 'No content saved yet.';
-        return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+        return text.length > 180 ? `${text.slice(0, 177).trimEnd()}...` : text;
+    }
+
+    getNoteWordCount(content = '') {
+        const text = this.getNotePlainText(content);
+        if (!text) {
+            return 0;
+        }
+
+        return text.split(/\s+/).filter(Boolean).length;
+    }
+
+    getNotePlainText(content = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = content || '';
+        return (temp.textContent || '').trim();
     }
 
     formatNoteDate(dateValue) {
@@ -717,29 +1159,22 @@ class ClassroomScreenApp {
     addWidget(type) {
         let widget;
         try {
-            switch (type) {
-                case 'timer': widget = new TimerWidget(); break;
-                case 'noise-meter': widget = new NoiseMeterWidget(); break;
-                case 'name-picker': widget = new NamePickerWidget(); break;
-                case 'qr-code': widget = new QRCodeWidget(); break;
-                case 'drawing-tool': widget = new DrawingToolWidget(); break;
-                case 'document-viewer': widget = new DocumentViewerWidget(); break;
-                case 'url-viewer': widget = new UrlViewerWidget(); break;
-                case 'reveal-manager': widget = new RevealManagerWidget(); break;
-                case 'presentation': widget = new PresentationWidget(); break;
-                case 'mask': widget = new MaskWidget(); break;
-                case 'notes': widget = new NotesWidget(); break;
-                case 'wellbeing': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-                default: throw new Error(`Unknown widget type: ${type}`);
+            widget = createWidgetByType(type);
+            if (!widget) {
+                throw new Error(`Unknown widget type: ${type}`);
             }
 
             const widgetElement = this.layoutManager.addWidget(widget);
             this.widgets.push(widget);
-            this.setActiveWidgetButton(type);
+            eventBus.emit('widget:created', { type, widget, element: widgetElement });
+
+            if (this.isRevealManagerWidget(widget)) {
+                this.syncPresentationControlsFromWidget(widget);
+            }
             
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
+            this.recordWidgetPickerUsage(type);
             
             this.saveState();
             this.showNotification(`${this.getFriendlyWidgetName(type)} Added!`);
@@ -751,49 +1186,222 @@ class ClassroomScreenApp {
     }
 
     getFriendlyWidgetName(type) {
-        const names = {
-            'timer': 'Timer',
-            'noise-meter': 'Noise Meter',
-            'name-picker': 'Name Picker',
-            'qr-code': 'QR Code',
-            'drawing-tool': 'Drawing Tool',
-            'document-viewer': 'Document Viewer',
-            'url-viewer': 'URL Viewer',
-            'reveal-manager': 'Reveal Manager',
-            'presentation': 'Presentation Loader',
-            'mask': 'Mask',
-            'notes': 'Notes',
-            'wellbeing': 'Well-being',
-            'RichTextWidget': 'Rich Text Board'
-        };
-        return names[type] || 'Widget';
+        const key = getRegistryWidgetKey(type);
+        return WidgetRegistry[key]?.label || 'Widget';
     }
 
-    renderWidgetModal() {
+    getDefaultWidgetPickerState() {
+        return {
+            favorites: ['rich-text', 'reveal-manager', 'timer', 'drawing-tool'],
+            recent: []
+        };
+    }
+
+    getWidgetPickerState() {
+        const fallback = this.getDefaultWidgetPickerState();
+
+        try {
+            const raw = localStorage.getItem(this.widgetPickerStateKey);
+            if (!raw) {
+                return fallback;
+            }
+
+            const parsed = JSON.parse(raw);
+            const availableKeys = new Set(listAvailableWidgets().map((widget) => widget.key));
+            const favorites = Array.isArray(parsed?.favorites)
+                ? parsed.favorites.filter((key) => availableKeys.has(key))
+                : fallback.favorites;
+            const recent = Array.isArray(parsed?.recent)
+                ? parsed.recent.filter((key) => availableKeys.has(key))
+                : [];
+
+            return {
+                favorites: favorites.length ? favorites : fallback.favorites,
+                recent
+            };
+        } catch (error) {
+            console.warn('Unable to parse widget picker state:', error);
+            return fallback;
+        }
+    }
+
+    saveWidgetPickerState(state) {
+        localStorage.setItem(this.widgetPickerStateKey, JSON.stringify(state));
+    }
+
+    recordWidgetPickerUsage(type) {
+        const key = getRegistryWidgetKey(type);
+        if (!key) {
+            return;
+        }
+
+        const state = this.getWidgetPickerState();
+        this.saveWidgetPickerState({
+            ...state,
+            recent: [key, ...state.recent.filter((item) => item !== key)].slice(0, 6)
+        });
+    }
+
+    toggleWidgetPickerFavorite(widgetKey) {
+        const key = getRegistryWidgetKey(widgetKey) || widgetKey;
+        if (!key) {
+            return;
+        }
+
+        const state = this.getWidgetPickerState();
+        const isFavorite = state.favorites.includes(key);
+        const favorites = isFavorite
+            ? state.favorites.filter((item) => item !== key)
+            : [...state.favorites, key];
+
+        this.saveWidgetPickerState({
+            ...state,
+            favorites
+        });
+        this.renderWidgetModal(key);
+    }
+
+    createWidgetPickerButton(widget, { focusWidgetType = null, favorites = [] } = {}) {
+        const card = document.createElement('div');
+        card.className = 'widget-picker-card';
+
+        const button = document.createElement('button');
+        button.className = 'widget-category-btn';
+        button.dataset.widget = widget.key;
+        if (focusWidgetType && widget.key === focusWidgetType) {
+            button.classList.add('is-target');
+        }
+        button.innerHTML = `
+            <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
+            <span>${widget.label}</span>
+        `;
+        button.addEventListener('click', () => this.addWidget(widget.key));
+
+        const isFavorite = favorites.includes(widget.key);
+        const favoriteButton = document.createElement('button');
+        favoriteButton.type = 'button';
+        favoriteButton.className = 'widget-favorite-btn';
+        favoriteButton.dataset.favorite = isFavorite ? 'true' : 'false';
+        favoriteButton.setAttribute('aria-label', isFavorite ? `Remove ${widget.label} from favorites` : `Add ${widget.label} to favorites`);
+        favoriteButton.title = isFavorite ? 'Remove favorite' : 'Add favorite';
+        favoriteButton.textContent = '\u2605';
+        favoriteButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.toggleWidgetPickerFavorite(widget.key);
+        });
+
+        card.appendChild(button);
+        card.appendChild(favoriteButton);
+        return card;
+    }
+
+    appendWidgetSection(container, title, widgets, { focusWidgetType = null, accent = false, favorites = [] } = {}) {
+        if (!container || !Array.isArray(widgets) || widgets.length === 0) {
+            return;
+        }
+
+        const section = document.createElement('section');
+        section.className = `widget-category-section${accent ? ' widget-category-section--accent' : ''}`;
+
+        const heading = document.createElement('h4');
+        heading.className = 'widget-category-title';
+        heading.textContent = title;
+        section.appendChild(heading);
+
+        widgets.forEach((widget) => {
+            section.appendChild(this.createWidgetPickerButton(widget, { focusWidgetType, favorites }));
+        });
+
+        container.appendChild(section);
+    }
+
+    renderSmartWidgetModal(container, focusWidgetType = null) {
+        const widgetPickerState = this.getWidgetPickerState();
+        const availableWidgets = listAvailableWidgets();
+        const widgetMap = new Map(availableWidgets.map((widget) => [widget.key, widget]));
+
+        const quickAddWidgets = this.quickAddWidgetKeys
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean);
+        this.appendWidgetSection(container, 'Quick Add', quickAddWidgets, {
+            focusWidgetType,
+            accent: true,
+            favorites: widgetPickerState.favorites
+        });
+
+        const favoriteWidgets = widgetPickerState.favorites
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean)
+            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key));
+        this.appendWidgetSection(container, 'Favorites', favoriteWidgets, {
+            focusWidgetType,
+            favorites: widgetPickerState.favorites
+        });
+
+        const recentWidgets = widgetPickerState.recent
+            .map((key) => widgetMap.get(key))
+            .filter(Boolean)
+            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key) && !widgetPickerState.favorites.includes(widget.key));
+        this.appendWidgetSection(container, 'Recent', recentWidgets, {
+            focusWidgetType,
+            favorites: widgetPickerState.favorites
+        });
+
+        const categories = {};
+        availableWidgets.forEach((widget) => {
+            const categoryName = widget.category || 'Secondary';
+            if (!categories[categoryName]) {
+                categories[categoryName] = [];
+            }
+            categories[categoryName].push(widget);
+        });
+
+        ['Primary', 'Secondary'].forEach((categoryName) => {
+            const widgets = (categories[categoryName] || []).slice().sort((a, b) => a.label.localeCompare(b.label));
+            this.appendWidgetSection(container, categoryName, widgets, {
+                focusWidgetType,
+                favorites: widgetPickerState.favorites
+            });
+        });
+    }
+
+    renderWidgetModal(focusWidgetType = null) {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
-        this.widgetCategories.forEach((category) => {
+        this.renderSmartWidgetModal(container, focusWidgetType);
+        return;
+
+        const categories = {};
+        listAvailableWidgets().forEach((widget) => {
+            const categoryName = widget.category || 'Secondary';
+            if (!categories[categoryName]) {
+                categories[categoryName] = [];
+            }
+            categories[categoryName].push(widget);
+        });
+
+        Object.entries(categories).forEach(([categoryName, widgets]) => {
             const section = document.createElement('section');
             section.className = 'widget-category-section';
 
             const heading = document.createElement('h4');
             heading.className = 'widget-category-title';
-            heading.textContent = category.name;
+            heading.textContent = categoryName;
             section.appendChild(heading);
 
-            category.widgets.forEach((widget) => {
+            widgets.forEach((widget) => {
                 const button = document.createElement('button');
                 button.className = 'widget-category-btn';
-                button.innerHTML = widget.icon
-                    ? `
-                    <i class="fas ${widget.icon} category-icon" aria-hidden="true"></i>
-                    <span>${widget.name}</span>
-                `
-                    : `
-                    <img src="assets/icons/${widget.type}.svg" alt="" class="category-icon">
+                button.dataset.widget = widget.key;
+                if (focusWidgetType && widget.key === focusWidgetType) {
+                    button.classList.add('is-target');
+                }
+                button.innerHTML = `
+                    <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
                     <span>${widget.label}</span>
                 `;
-                button.addEventListener('click', () => this.addWidget(widget.type));
+                button.addEventListener('click', () => this.addWidget(widget.key));
                 section.appendChild(button);
             });
 
@@ -802,6 +1410,10 @@ class ClassroomScreenApp {
     }
 
     renderThemeSelector() {
+        if (!this.themeSelector) {
+            return;
+        }
+
         this.themeSelector.innerHTML = '';
         this.themes.forEach(theme => {
             const label = document.createElement('label');
@@ -821,8 +1433,22 @@ class ClassroomScreenApp {
         });
     }
 
+    syncThemeSelectorSelection(themeName) {
+        if (!this.themeSelector) {
+            return;
+        }
+
+        this.themeSelector.querySelectorAll('input[name="theme"]').forEach((input) => {
+            input.checked = input.value === themeName;
+        });
+    }
+
     switchTheme(themeName) {
         applyTheme(themeName);
+        this.syncThemeSelectorSelection(themeName);
+        if (this.backgroundManager && typeof this.backgroundManager.syncTheme === 'function') {
+            this.backgroundManager.syncTheme(themeName);
+        }
     }
 
     getLayoutStorageKey(name) {
@@ -1017,7 +1643,7 @@ class ClassroomScreenApp {
                 time: time
             };
 
-            const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+            const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
             recurringLessons.push(newRecurring);
             localStorage.setItem('teacherScreenRecurringLessons', JSON.stringify(recurringLessons));
 
@@ -1053,7 +1679,7 @@ class ClassroomScreenApp {
         if (!this.plannerGrid) return;
 
         const schedule = this.getSchedule();
-        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+        const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
         const startOfWeek = this.getWeekStart();
         const days = Array.from({ length: 5 }, (_, index) => {
             const date = new Date(startOfWeek);
@@ -1130,7 +1756,7 @@ class ClassroomScreenApp {
 
     loadTodaysLesson() {
         const schedule = this.getSchedule();
-        const recurringLessons = JSON.parse(localStorage.getItem('teacherScreenRecurringLessons') || '[]');
+        const recurringLessons = safeParseLocalStorage('teacherScreenRecurringLessons') || [];
 
         const now = new Date();
         now.setMinutes(0, 0, 0);
@@ -1229,24 +1855,6 @@ class ClassroomScreenApp {
         });
     }
 
-    captureLocalStorageState() {
-        const snapshot = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('layouts_')) continue;
-            snapshot[key] = localStorage.getItem(key);
-        }
-        return snapshot;
-    }
-
-    restoreLocalStorageState(snapshot = {}) {
-        Object.entries(snapshot).forEach(([key, value]) => {
-            if (typeof value === 'string') {
-                localStorage.setItem(key, value);
-            }
-        });
-    }
-
     saveLayoutFromModal() {
         const layoutName = this.layoutNameInput ? this.layoutNameInput.value.trim() : '';
         if (!layoutName) {
@@ -1255,11 +1863,6 @@ class ClassroomScreenApp {
         }
 
         const layoutData = this.layoutManager.serialize();
-        layoutData.widgets = layoutData.widgets.map((widget, index) => {
-            const info = this.layoutManager.widgets[index];
-            const isVisible = info ? getComputedStyle(info.element).display !== 'none' : true;
-            return { ...widget, isVisible };
-        });
 
         const payload = {
             name: layoutName,
@@ -1268,7 +1871,7 @@ class ClassroomScreenApp {
             background: this.backgroundManager.serialize(),
             layout: layoutData,
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
-            storage: this.captureLocalStorageState()
+            storage: captureLocalStorageState()
         };
 
         localStorage.setItem(this.getLayoutStorageKey(layoutName), JSON.stringify(payload));
@@ -1290,7 +1893,7 @@ class ClassroomScreenApp {
             const data = JSON.parse(raw);
 
             if (data.storage) {
-                this.restoreLocalStorageState(data.storage);
+                restoreLocalStorageState(data.storage);
             }
 
             if (data.theme) {
@@ -1301,38 +1904,38 @@ class ClassroomScreenApp {
                 this.backgroundManager.deserialize(data.background);
             }
 
+            const normalizedLayout = data.layout && Array.isArray(data.layout.widgets)
+                ? {
+                    ...data.layout,
+                    widgets: data.layout.widgets.map((widgetData) => {
+                        if (!widgetData || typeof widgetData !== 'object') {
+                            return widgetData;
+                        }
+
+                        if (typeof widgetData.visibleOnProjector === 'boolean') {
+                            return widgetData;
+                        }
+
+                        if (typeof widgetData.isVisible === 'boolean') {
+                            return {
+                                ...widgetData,
+                                visibleOnProjector: widgetData.isVisible
+                            };
+                        }
+
+                        return widgetData;
+                    })
+                }
+                : data.layout;
+
             this.widgets = [];
-            if (data.layout && data.layout.widgets) {
-                this.layoutManager.deserialize(data.layout, (widgetData) => {
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+            if (normalizedLayout && normalizedLayout.widgets) {
+                this.layoutManager.deserialize(normalizedLayout, (widgetData) => {
+                    const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }
                     return widget;
-                });
-            }
-
-            if (Array.isArray(data.layout?.widgets)) {
-                data.layout.widgets.forEach((widgetData, index) => {
-                    const info = this.layoutManager.widgets[index];
-                    if (info && widgetData) {
-                        info.element.style.display = widgetData.isVisible === false ? 'none' : 'block';
-                    }
                 });
             }
 
@@ -1418,6 +2021,43 @@ class ClassroomScreenApp {
         this.savedLayoutsList.appendChild(fragment);
     }
 
+    downloadJsonFile(filename, payload) {
+        const jsonString = JSON.stringify(payload, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        URL.revokeObjectURL(url);
+    }
+
+    async copyTextToClipboard(value) {
+        if (!value || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            return false;
+        }
+
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch (error) {
+            console.warn('Unable to copy export payload to clipboard.', error);
+            return false;
+        }
+    }
+
+    slugifyFilename(value = '') {
+        const slug = String(value)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        return slug || 'note';
+    }
+
     buildStateSnapshot() {
         return {
             version: this.appVersion,
@@ -1425,71 +2065,18 @@ class ClassroomScreenApp {
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
+            timerStates: this.collectTimerStateSnapshots(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
     }
 
     saveState(source = 'teacher') {
         const state = this.buildStateSnapshot();
-        const stateJSON = JSON.stringify(state);
-        localStorage.setItem('classroomScreenState', stateJSON);
-
-        // Rotate backups
-        try {
-            const backup1 = localStorage.getItem('classroomScreenState.backup1');
-            const backup2 = localStorage.getItem('classroomScreenState.backup2');
-
-            if (backup2) {
-                localStorage.setItem('classroomScreenState.backup3', backup2);
-            }
-            if (backup1) {
-                localStorage.setItem('classroomScreenState.backup2', backup1);
-            }
-            localStorage.setItem('classroomScreenState.backup1', stateJSON);
-        } catch (e) {
-            console.error('Backup rotation failed:', e);
-        }
-
-        this.projectorChannel.postMessage({
-            type: 'layout-update',
-            state: state,
-            source
+        saveState(state, {
+            source,
+            projectorChannel: this.projectorChannel,
+            syncToken: this.projectorSyncToken
         });
-    }
-
-
-    applyProjectorLayoutUpdate(layout) {
-        if (!layout || !Array.isArray(layout.widgets)) {
-            return;
-        }
-
-        const existingState = safeParse('classroomScreenState');
-
-        const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
-        mergedState.layout = layout;
-
-        this.layoutManager.deserialize(layout, (widgetData) => {
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
-            return widget;
-        });
-
-        this.widgets = this.layoutManager.widgets.map(info => info.widget);
-        this.saveState('teacher');
     }
 
     applyProjectorLayoutDelta(delta, source = 'teacher') {
@@ -1499,156 +2086,107 @@ class ClassroomScreenApp {
 
         this.layoutManager.applyLayoutDelta(delta);
         this.saveState(source);
-        this.projectorChannel.postMessage({
-            type: 'layout-delta',
-            source,
-            delta
+
+        if (source === 'teacher' && this.projectorChannel) {
+            this.projectorChannel.postMessage({
+                type: 'layout-delta',
+                source: 'teacher',
+                delta,
+                syncToken: this.projectorSyncToken
+            });
+        }
+    }
+
+
+    applyProjectorLayoutUpdate(layout) {
+        if (!layout || !Array.isArray(layout.widgets)) {
+            return;
+        }
+
+        const existingState = safeParseLocalStorage('classroomScreenState');
+
+        const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
+        mergedState.layout = layout;
+
+        this.widgets = [];
+        this.layoutManager.deserialize(layout, (widgetData) => {
+                    const widget = createWidgetByType(widgetData.type);
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
         });
+
+        this.updateProjectorVisibility();
+        this.saveState();
+        this.showNotification('Layout updated from projector.');
     }
 
     setupPresetControls() {
-        const storedPresets = localStorage.getItem(this.presetsKey);
-        try {
-            this.presets = storedPresets ? JSON.parse(storedPresets) : [];
-        } catch (e) {
-            console.error('Failed to parse presets:', e);
-            this.presets = [];
-        }
+        const storedPresets = safeParseLocalStorage(this.presetsKey);
+        this.presets = Array.isArray(storedPresets) ? storedPresets : [];
 
-        if (!Array.isArray(this.presets) || this.presets.length === 0) {
-            this.presets = [...this.defaultPresets];
-        }
-
-        // Ensure old presets have new fields
-        this.presets.forEach(p => {
-            p.className = p.className || '';
-            p.period = p.period || '';
+        this.presets.forEach((preset) => {
+            preset.className = preset.className || '';
+            preset.period = preset.period || '';
         });
 
-        this.savePresets();
         this.renderPresetList();
+        this.renderLayoutPresetOptions();
     }
 
     savePresets() {
         localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
+        this.renderLayoutPresetOptions();
     }
 
-    applyLayoutPreset() {
-        const preset = this.layoutPresetSelect ? this.layoutPresetSelect.value : '';
-        if (!preset) return;
-        if (!this.layoutManager || !Array.isArray(this.layoutManager.widgets)) return;
+    renderLayoutPresetOptions() {
+        if (!this.layoutPresetSelect) return;
 
-        switch (preset) {
-            case '2x2':
-                this.apply2x2Preset();
-                break;
-            case 'full-timer':
-                this.applyFullTimerPreset();
-                break;
-        }
+        this.layoutPresetSelect.innerHTML = '<option value="">Select preset</option>';
 
-        this.layoutManager.saveLayout();
-        this.saveState();
-        this.showNotification('Layout preset applied.');
-    }
-
-    apply2x2Preset() {
-        const containerW = this.widgetsContainer.clientWidth || 1024;
-        const containerH = this.widgetsContainer.clientHeight || 768;
-
-        // Calculate dimensions for 2x2 grid
-        // Add some margin/gap if desired, or flush.
-        // Let's assume a small gap of 20px (GRID_SIZE)
-        const GRID_SIZE = 20;
-        const gap = GRID_SIZE;
-        const width = Math.floor((containerW - gap) / 2 / GRID_SIZE) * GRID_SIZE;
-        const height = Math.floor((containerH - gap) / 2 / GRID_SIZE) * GRID_SIZE;
-
-        const slots = [
-            { x: 0, y: 0 },
-            { x: width + gap, y: 0 },
-            { x: 0, y: height + gap },
-            { x: width + gap, y: height + gap }
-        ];
-
-        this.layoutManager.widgets.forEach((info, index) => {
-            const slot = slots[index % slots.length];
-            info.x = slot.x;
-            info.y = slot.y;
-            info.width = width;
-            info.height = height;
-
-            info.element.style.left = `${slot.x}px`;
-            info.element.style.top = `${slot.y}px`;
-            info.element.style.width = `${width}px`;
-            info.element.style.height = `${height}px`;
+        this.presets.forEach((preset) => {
+            const option = document.createElement('option');
+            option.value = preset.name;
+            option.textContent = preset.name;
+            this.layoutPresetSelect.appendChild(option);
         });
     }
 
-    applyFullTimerPreset() {
-        if (!this.layoutManager.widgets.length) return;
-        const timerInfo = this.layoutManager.widgets.find(info => info.widget instanceof TimerWidget) || this.layoutManager.widgets[0];
-
-        const containerW = this.widgetsContainer.clientWidth || 1024;
-        const GRID_SIZE = 20;
-
-        timerInfo.x = 0;
-        timerInfo.y = 0;
-        timerInfo.width = Math.floor(containerW / GRID_SIZE) * GRID_SIZE;
-        timerInfo.height = 200; // Fixed height approx
-
-        timerInfo.element.style.left = '0px';
-        timerInfo.element.style.top = '0px';
-        timerInfo.element.style.width = `${timerInfo.width}px`;
-        timerInfo.element.style.height = `${timerInfo.height}px`;
-    }
-
     savePreset() {
-        const presetName = this.presetNameInput ? this.presetNameInput.value.trim() : '';
-        if (!presetName) {
-            this.showNotification('Please enter a preset name.', 'warning');
+        const name = this.presetNameInput ? this.presetNameInput.value.trim() : '';
+        if (!name) {
+            this.showNotification('Enter a preset name first.', 'error');
             return;
         }
 
-        const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
-        const period = this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '';
+        if (this.presets.some((preset) => preset.name === name)) {
+            this.showNotification(`Preset "${name}" already exists. Use Overwrite.`, 'error');
+            return;
+        }
 
-        const newPreset = {
-            name: presetName,
-            className,
-            period,
+        const preset = {
+            name,
+            className: this.presetClassInput ? this.presetClassInput.value.trim() : '',
+            period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
 
-        const existingIndex = this.presets.findIndex(preset => preset.name.toLowerCase() === presetName.toLowerCase());
-        if (existingIndex !== -1) {
-            if (!confirm(`Preset "${presetName}" exists. Overwrite it?`)) {
-                return;
-            }
-            this.presets[existingIndex] = newPreset;
-            this.showNotification(`Preset "${presetName}" updated.`);
-        } else {
-            this.presets.push(newPreset);
-            this.showNotification(`Preset "${presetName}" saved.`);
-        }
-
+        this.presets.push(preset);
         this.savePresets();
         this.renderPresetList();
+        this.showNotification(`Preset "${name}" saved.`);
     }
 
     loadPreset(name) {
-        const preset = this.presets.find(item => item.name === name);
+        const preset = this.presets.find((item) => item.name === name);
         if (!preset) {
             this.showNotification('Preset not found.', 'error');
             return;
         }
-
-        if (this.presetNameInput) this.presetNameInput.value = preset.name;
-        if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
-        if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
 
         if (preset.theme) this.switchTheme(preset.theme);
         if (preset.background) this.backgroundManager.deserialize(preset.background);
@@ -1656,22 +2194,7 @@ class ClassroomScreenApp {
 
         this.widgets = [];
         this.layoutManager.deserialize(preset.layout, (widgetData) => {
-            let widget;
-            switch (widgetData.type) {
-                case 'TimerWidget': widget = new TimerWidget(); break;
-                case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                        case 'PresentationWidget': widget = new PresentationWidget(); break;
-                case 'MaskWidget': widget = new MaskWidget(); break;
-                case 'NotesWidget': widget = new NotesWidget(); break;
-                case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                case 'RichTextWidget': widget = new RichTextWidget(); break;
-            }
+            const widget = createWidgetByType(widgetData.type);
             if (widget) {
                 this.widgets.push(widget);
             }
@@ -1681,6 +2204,18 @@ class ClassroomScreenApp {
         this.updateProjectorVisibility();
         this.saveState();
         this.showNotification(`Preset "${preset.name}" loaded.`);
+    }
+
+    applyLayoutPreset() {
+        if (!this.layoutPresetSelect) return;
+
+        const selectedName = this.layoutPresetSelect.value;
+        if (!selectedName) {
+            this.showNotification('Select a preset first.', 'error');
+            return;
+        }
+
+        this.loadPreset(selectedName);
     }
 
     overwritePreset(name) {
@@ -1772,7 +2307,7 @@ class ClassroomScreenApp {
                 throw new Error('Invalid JSON structure.');
             }
 
-            let state = this.runMigrations(parsed.state);
+            let state = runMigrations(parsed.state, this.schemaVersion);
 
             const summary = `
                 Ready to import:
@@ -1799,26 +2334,11 @@ class ClassroomScreenApp {
 
             this.widgets = [];
             this.layoutManager.deserialize(state.layout, (widgetData) => {
-                let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
+                    const widget = createWidgetByType(widgetData.type);
+                    if (widget) {
+                        this.widgets.push(widget);
                     }
-                if (widget) {
-                    this.widgets.push(widget);
-                }
-                return widget;
+                    return widget;
             });
 
             this.updateProjectorVisibility();
@@ -1921,74 +2441,24 @@ class ClassroomScreenApp {
     }
 
     loadSavedState() {
-        const attemptLoad = (key) => {
-            const parsed = safeParse(key);
-            if (parsed && typeof parsed === 'object') {
-                if (!this.isValidLayoutData(parsed.layout)) {
-                    console.warn('Invalid layout data. Resetting layout.');
-                    localStorage.removeItem('classroomScreenState');
-                    return {
-                        ...parsed,
-                        layout: { mode: 'dashboard', widgets: [] }
-                    };
-                }
-                return parsed;
-            }
-            return null;
-        };
-
-        // Try loading primary state
-        let state = attemptLoad('classroomScreenState');
-        if (state) {
-            this.applyState(state);
-            return;
-        }
-
-        // If primary failed, try backups
-        const backupKeys = [
-            'classroomScreenState.backup1',
-            'classroomScreenState.backup2',
-            'classroomScreenState.backup3'
-        ];
-
-        for (const key of backupKeys) {
-            state = attemptLoad(key);
-            if (state) {
-                console.log(`Restoring state from ${key}`);
-                this.applyState(state);
-                this.showNotification('Your layout was restored from a backup.');
-                return;
-            }
-        }
-
-        // If all fail, ensure corrupt state is cleared so defaults can load
-        if (localStorage.getItem('classroomScreenState')) {
-            console.warn('Corrupt state detected and no backups available; clearing.');
-            resetAppState();
-        }
-
-        console.log('No saved layout found — loading default layout');
-    }
-
-    isValidLayoutData(layout) {
-        if (!layout || typeof layout !== 'object') return false;
-        if (!['dashboard', 'stage'].includes(layout.mode)) return false;
-        if (!Array.isArray(layout.widgets)) return false;
-        return layout.widgets.every((widget) => (
-            widget &&
-            typeof widget.id === 'string' &&
-            typeof widget.type === 'string' &&
-            typeof widget.x === 'number' &&
-            typeof widget.y === 'number' &&
-            typeof widget.width === 'number' &&
-            typeof widget.height === 'number'
-        ));
+        loadSavedState({
+            applyState: (state) => this.applyState(state),
+            resetAppState,
+            showNotification: (message) => this.showNotification(message),
+            schemaVersion: this.schemaVersion
+        });
     }
 
     applyState(state) {
         try {
             // Run migration pipeline
-            state = this.runMigrations(state);
+            state = runMigrations(state, this.schemaVersion);
+
+            if (!isValidLayout(state.layout)) {
+                console.warn('Invalid layout detected. Resetting layout state.');
+                resetAppState();
+                return;
+            }
 
             // Restore theme
             if (state.theme) {
@@ -2002,24 +2472,10 @@ class ClassroomScreenApp {
 
             // Restore layout and widgets
             if (state.layout && state.layout.widgets) {
+                this.widgets = [];
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
                     // This factory function recreates widgets from saved data
-                    let widget;
-                    switch (widgetData.type) {
-                        case 'TimerWidget': widget = new TimerWidget(); break;
-                        case 'NoiseMeterWidget': widget = new NoiseMeterWidget(); break;
-                        case 'NamePickerWidget': widget = new NamePickerWidget(); break;
-                        case 'QRCodeWidget': widget = new QRCodeWidget(); break;
-                        case 'DrawingToolWidget': widget = new DrawingToolWidget(); break;
-                        case 'DocumentViewerWidget': widget = new DocumentViewerWidget(); break;
-                        case 'UrlViewerWidget': widget = new UrlViewerWidget(); break;
-                        case 'RevealManagerWidget': widget = new RevealManagerWidget(); break;
-                                case 'PresentationWidget': widget = new PresentationWidget(); break;
-                        case 'MaskWidget': widget = new MaskWidget(); break;
-                        case 'NotesWidget': widget = new NotesWidget(); break;
-                        case 'WellbeingWidget': widget = new WellbeingWidget(); break;
-                        case 'RichTextWidget': widget = new RichTextWidget(); break;
-                    }
+                    const widget = createWidgetByType(widgetData.type);
                     if (widget) {
                         this.widgets.push(widget);
                     }
@@ -2039,23 +2495,6 @@ class ClassroomScreenApp {
         }
     }
 
-    runMigrations(state) {
-        // Default to schema 0 if it's a legacy state object.
-        state.schemaVersion = state.schemaVersion || 0;
-
-        while (state.schemaVersion < this.schemaVersion) {
-            const migration = STATE_MIGRATIONS.find(m => m.from === state.schemaVersion);
-            if (!migration) {
-                console.warn(`No migration found for schema version ${state.schemaVersion}. Halting migration.`);
-                // Potentially discard incompatible layout, or handle error gracefully.
-                state.layout = { widgets: [] };
-                break;
-            }
-            state = migration.migrate(state);
-        }
-        return state;
-    }
-
     resetLayout() {
         if (confirm('Are you sure you want to reset the layout? This will remove all widgets.')) {
             this.widgets = [];
@@ -2073,6 +2512,7 @@ class ClassroomScreenApp {
     }
 
     handleWidgetRemoved(widget) {
+        if (!widget) return;
         this.widgets = this.widgets.filter(existing => existing !== widget);
         if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
             this.layoutManager.widgets = this.layoutManager.widgets.filter(info => info.widget !== widget);
@@ -2080,73 +2520,1141 @@ class ClassroomScreenApp {
         if (this.widgets.length === 0 && !this.widgetsContainer.querySelector('.widget-placeholder')) {
             this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
         }
+        if (widget instanceof TimerWidget) {
+            this.syncTimerControlsFromWidget();
+        }
+        if (this.isRevealManagerWidget(widget)) {
+            this.syncPresentationControlsFromWidget();
+        }
         this.saveState();
     }
 
+    getPrimaryTimerWidget() {
+        return this.widgets.find(widget => widget instanceof TimerWidget) || null;
+    }
+
+    collectTimerStateSnapshots() {
+        return this.widgets
+            .filter(widget => widget instanceof TimerWidget && typeof widget.getTimerStateSnapshot === 'function')
+            .map(widget => widget.getTimerStateSnapshot());
+    }
+
+    syncTimerStateToProjector(timerState = {}) {
+        if (!this.projectorChannel || !timerState || typeof timerState !== 'object') {
+            return;
+        }
+
+        this.projectorChannel.postMessage({
+            type: 'timer-sync',
+            source: 'teacher',
+            timerState,
+            syncToken: this.projectorSyncToken
+        });
+    }
+
+    formatTimerStatusDisplay(remainingSeconds = 0, currentPhase = null, isIntervalMode = false) {
+        const safeSeconds = Number.isFinite(remainingSeconds) ? Math.max(0, Math.floor(remainingSeconds)) : 0;
+        const minutes = Math.floor(safeSeconds / 60);
+        const seconds = safeSeconds % 60;
+        const label = isIntervalMode && currentPhase ? `${currentPhase}: ` : '';
+        return `${label}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    renderTimerControlState({
+        hasTimer = false,
+        running = false,
+        remainingSeconds = 0,
+        display = '00:00',
+        isIntervalMode = false,
+        currentPhase = null,
+        statusMessage = ''
+    } = {}) {
+        if (!this.timerStatusBadge || !this.timerStatusDisplay || !this.timerStatusMeta) {
+            return;
+        }
+
+        let badgeText = 'No Timer';
+        let badgeState = 'empty';
+        let metaText = statusMessage || 'Add a timer widget or press Start to begin.';
+
+        if (hasTimer) {
+            if (running) {
+                badgeText = 'Running';
+                badgeState = 'running';
+                metaText = statusMessage || (isIntervalMode && currentPhase
+                    ? `${currentPhase} phase is active on the classroom screen.`
+                    : 'Timer is active on the classroom screen.');
+            } else if (remainingSeconds > 0) {
+                badgeText = 'Stopped';
+                badgeState = 'stopped';
+                metaText = statusMessage || 'Timer is ready to resume or reset.';
+            } else {
+                badgeText = 'Ready';
+                badgeState = 'idle';
+                metaText = statusMessage || 'Timer widget is ready. Set a duration and press Start.';
+            }
+        }
+
+        this.timerStatusBadge.textContent = badgeText;
+        this.timerStatusBadge.dataset.state = badgeState;
+        this.timerStatusDisplay.textContent = display || this.formatTimerStatusDisplay(remainingSeconds, currentPhase, isIntervalMode);
+        this.timerStatusMeta.textContent = metaText;
+
+        if (this.resetTimerButton) {
+            this.resetTimerButton.disabled = !hasTimer;
+        }
+    }
+
+    syncTimerControlsFromWidget(widget = this.getPrimaryTimerWidget()) {
+        if (!widget) {
+            this.renderTimerControlState();
+            return;
+        }
+
+        this.renderTimerControlState({
+            hasTimer: true,
+            running: !!widget.running,
+            remainingSeconds: widget.time,
+            display: typeof widget.getDisplayText === 'function'
+                ? widget.getDisplayText()
+                : this.formatTimerStatusDisplay(widget.time, widget.currentPhase, widget.isIntervalMode),
+            isIntervalMode: !!widget.isIntervalMode,
+            currentPhase: widget.currentPhase || null,
+            statusMessage: widget.latestStatusMessage || ''
+        });
+    }
+
+    syncTimerControlsFromPayload(payload = {}) {
+        const timerWidget = this.getPrimaryTimerWidget();
+        if (!timerWidget) {
+            this.renderTimerControlState();
+            return;
+        }
+
+        if (payload.widgetId && timerWidget.widgetId && payload.widgetId !== timerWidget.widgetId) {
+            return;
+        }
+
+        this.renderTimerControlState({
+            hasTimer: true,
+            running: typeof payload.running === 'boolean' ? payload.running : !!timerWidget.running,
+            remainingSeconds: Number.isFinite(payload.remainingSeconds) ? payload.remainingSeconds : timerWidget.time,
+            display: payload.display || (typeof timerWidget.getDisplayText === 'function'
+                ? timerWidget.getDisplayText()
+                : this.formatTimerStatusDisplay(timerWidget.time, timerWidget.currentPhase, timerWidget.isIntervalMode)),
+            isIntervalMode: typeof payload.isIntervalMode === 'boolean' ? payload.isIntervalMode : !!timerWidget.isIntervalMode,
+            currentPhase: payload.currentPhase || timerWidget.currentPhase || null,
+            statusMessage: payload.statusMessage || timerWidget.latestStatusMessage || ''
+        });
+    }
+
     startTimerFromControls() {
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+        const timerWidget = this.ensureTimerWidget();
         if (timerWidget) {
             const hours = parseInt(document.getElementById('timer-hours').value, 10) || 0;
             const minutes = parseInt(document.getElementById('timer-minutes').value, 10) || 0;
             const seconds = parseInt(document.getElementById('timer-seconds').value, 10) || 0;
-            // The existing TimerWidget.start() takes minutes, or we need to update it to take arbitrary time?
-            // The existing startTimerFromControls uses timerWidget.set(totalSeconds) which doesn't seem to exist in the TimerWidget code I read.
-            // Let's re-read TimerWidget carefully. It has start(minutes). It has this.time = chosenMinutes * 60.
-            // It does NOT have a set(seconds) method. The current implementation in main.js seems to be broken or relying on a different version?
-            // "timerWidget.set(totalSeconds)" -> checking TimerWidget source again.
-            // TimerWidget has start(minutes), tick(), stop(), notifyComplete(), etc. No set().
-            // So I should fix this method as well while I am here, or at least implement the new one correctly.
-
-            // Wait, looking at TimerWidget.start(minutes):
-            // const customMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : null;
-            // ... this.time = chosenMinutes * 60;
-
-            // The user input in teacher panel has HH:MM:SS.
-            // If I want to support seconds, I might need to update TimerWidget to support starting with seconds or modify how I call it.
-            // But my task is "Timer quick-preset buttons".
-
-            // Let's implement startTimerPresetFromControls first.
-
             const totalMinutes = (hours * 60) + minutes + (seconds / 60);
             if (totalMinutes > 0) {
-                timerWidget.start(totalMinutes);
-                this.showNotification('Timer started!');
+                eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes });
             } else {
                 this.showNotification('Please set a timer duration.', 'warning');
             }
-        } else {
-            this.showNotification('No timer widget found. Add one first!', 'error');
         }
+    }
+
+    applyTimerPresetToControls(minutes) {
+        const safeMinutes = Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
+        document.getElementById('timer-hours').value = 0;
+        document.getElementById('timer-minutes').value = safeMinutes;
+        document.getElementById('timer-seconds').value = 0;
+        this.showNotification(`Timer set to ${safeMinutes} minute${safeMinutes === 1 ? '' : 's'}. Press Start to begin.`, 'success');
     }
 
     startTimerPresetFromControls(minutes) {
-        let timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+        const timerWidget = this.ensureTimerWidget();
         if (!timerWidget) {
-            // "Finds first TimerWidget and calls widget.start(minutes)"
-            // If none exists, maybe I should create one? The instructions say "Finds first TimerWidget".
-            // I'll stick to finding. If not found, I'll notify.
-            this.showNotification('No timer widget found. Add one first!', 'error');
             return;
         }
 
-        timerWidget.start(minutes);
-        this.showNotification(`Timer started for ${minutes} minutes.`);
+        eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes });
     }
 
     stopTimerFromControls() {
-        const timerWidget = this.widgets.find(widget => widget instanceof TimerWidget);
+        const timerWidget = this.getPrimaryTimerWidget();
         if (timerWidget) {
-            timerWidget.stop();
-            this.showNotification('Timer stopped.');
+            eventBus.emit('timer:stop', { widgetId: timerWidget.widgetId });
         } else {
             this.showNotification('No timer widget found.', 'error');
         }
+    }
+
+    resetTimerFromControls() {
+        const timerWidget = this.getPrimaryTimerWidget();
+        if (timerWidget) {
+            eventBus.emit('timer:reset', { widgetId: timerWidget.widgetId });
+        } else {
+            this.showNotification('No timer widget found.', 'error');
+            this.renderTimerControlState();
+        }
+    }
+
+    ensureTimerWidget() {
+        let timerWidget = this.getPrimaryTimerWidget();
+        if (timerWidget) {
+            this.syncTimerControlsFromWidget(timerWidget);
+            return timerWidget;
+        }
+
+        this.addWidget('timer');
+        timerWidget = this.getPrimaryTimerWidget();
+
+        if (!timerWidget) {
+            this.showNotification('Unable to create a timer widget.', 'error');
+            return null;
+        }
+
+        this.syncTimerControlsFromWidget(timerWidget);
+        return timerWidget;
+    }
+
+    isRevealManagerWidget(widget) {
+        if (!widget || !widget.constructor) {
+            return false;
+        }
+
+        return getRegistryWidgetKey(widget.constructor.name) === 'reveal-manager';
+    }
+
+    getPrimaryRevealManagerWidget() {
+        return this.widgets.find(widget => this.isRevealManagerWidget(widget)) || null;
+    }
+
+    getSavedPresentationDecks(rawDecks = null) {
+        let decks = rawDecks;
+        if (!Array.isArray(decks)) {
+            try {
+                const parsed = JSON.parse(localStorage.getItem('revealDecks') || '[]');
+                decks = Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                decks = [];
+            }
+        }
+
+        return decks
+            .filter((deck) => deck && typeof deck === 'object' && deck.id)
+            .map((deck) => {
+                const type = deck.type === 'google-slides' || deck.type === 'powerpoint' ? deck.type : 'html';
+                const label = type === 'google-slides'
+                    ? 'Google Slides'
+                    : type === 'powerpoint'
+                        ? 'PowerPoint'
+                        : 'Reveal HTML';
+                const name = typeof deck.name === 'string' && deck.name.trim()
+                    ? deck.name.trim()
+                    : label;
+
+                return {
+                    id: Number(deck.id),
+                    type,
+                    label,
+                    name
+                };
+            })
+            .filter((deck) => Number.isFinite(deck.id) && deck.id > 0);
+    }
+
+    getLastPresentationDeck() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem('revealLastDeck') || 'null');
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    updatePresentationLastDeckAction() {
+        if (!this.presentationLastButton) {
+            return;
+        }
+
+        const lastDeck = this.getLastPresentationDeck();
+        const sourceLabel = lastDeck?.type === 'powerpoint'
+            ? 'PowerPoint'
+            : lastDeck?.type === 'google-slides'
+                ? 'Google Slides'
+                : 'Deck';
+
+        this.presentationLastButton.disabled = !lastDeck;
+        this.presentationLastButton.textContent = lastDeck
+            ? `Present Last ${sourceLabel}`
+            : 'Present Last Deck';
+    }
+
+    renderPresentationSavedDeckOptions(rawDecks = null) {
+        if (!this.presentationSavedSelect) {
+            return;
+        }
+
+        const savedDecks = this.getSavedPresentationDecks(rawDecks);
+        const selectedValue = this.presentationSavedSelect.value;
+        this.presentationSavedSelect.innerHTML = '<option value="">Select saved presentation</option>';
+
+        savedDecks.forEach((deck) => {
+            const option = document.createElement('option');
+            option.value = String(deck.id);
+            option.textContent = `${deck.name} - ${deck.label}`;
+            this.presentationSavedSelect.appendChild(option);
+        });
+
+        if (selectedValue && savedDecks.some((deck) => String(deck.id) === selectedValue)) {
+            this.presentationSavedSelect.value = selectedValue;
+        }
+
+        const hasSavedDecks = savedDecks.length > 0;
+        if (this.presentationSavedHint) {
+            this.presentationSavedHint.textContent = hasSavedDecks
+                ? 'Saved decks from Reveal Manager appear here so you can reopen them from Teacher Controls.'
+                : 'Save a deck in Reveal Manager and it will appear here for quick reopening.';
+        }
+
+        this.updatePresentationSavedActions(hasSavedDecks);
+    }
+
+    updatePresentationSavedActions(hasSavedDecks = this.presentationSavedSelect?.options?.length > 1) {
+        const hasSelection = !!this.presentationSavedSelect?.value;
+
+        if (this.presentationOpenSavedButton) {
+            this.presentationOpenSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+
+        if (this.presentationOpenSavedProjectorButton) {
+            this.presentationOpenSavedProjectorButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+
+        if (this.presentationRenameSavedButton) {
+            this.presentationRenameSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+
+        if (this.presentationDeleteSavedButton) {
+            this.presentationDeleteSavedButton.disabled = !hasSavedDecks || !hasSelection;
+        }
+    }
+
+    detectPresentationSourceTypeFromUrl(url = '') {
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return null;
+        }
+
+        let normalizedUrl = raw;
+        if (!/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = `https://${normalizedUrl}`;
+        }
+
+        try {
+            const parsed = new URL(normalizedUrl);
+            const hostname = parsed.hostname.toLowerCase();
+            const pathname = parsed.pathname.toLowerCase();
+
+            if (hostname.includes('docs.google.com') && pathname.includes('/presentation')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('slides.google.com')) {
+                return 'google-slides';
+            }
+
+            if (hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('sharepoint.com')
+                || pathname.includes('.ppt')
+                || pathname.includes('.pptx')) {
+                return 'powerpoint';
+            }
+        } catch (error) {
+            return null;
+        }
+
+        return null;
+    }
+
+    validatePresentationSourceUrl(sourceType = 'google-slides', url = '') {
+        const normalizedSourceType = sourceType === 'powerpoint' ? 'powerpoint' : 'google-slides';
+        const raw = String(url || '').trim();
+        if (!raw) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl: '',
+                state: 'empty',
+                message: '',
+                canProceed: false
+            };
+        }
+
+        let normalizedUrl = raw;
+        if (!/^https?:\/\//i.test(normalizedUrl)) {
+            normalizedUrl = `https://${normalizedUrl}`;
+        }
+
+        let parsed;
+        try {
+            parsed = new URL(normalizedUrl);
+        } catch (error) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'Enter a full web link for Google Slides or PowerPoint.',
+                canProceed: false
+            };
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        const search = parsed.search.toLowerCase();
+        const hash = parsed.hash.toLowerCase();
+        const queryText = `${search}${hash}`;
+        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(normalizedUrl);
+
+        if (!detectedSourceType) {
+            return {
+                sourceType: normalizedSourceType,
+                detectedSourceType: null,
+                normalizedUrl,
+                state: 'error',
+                message: 'This link is not recognised as a Google Slides or PowerPoint presentation.',
+                canProceed: false
+            };
+        }
+
+        if (detectedSourceType === 'google-slides') {
+            if (!(hostname.includes('docs.google.com') || hostname.includes('slides.google.com'))) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Google Slides web link from docs.google.com or slides.google.com.',
+                    canProceed: false
+                };
+            }
+
+            if (hostname.includes('docs.google.com') && !pathname.includes('/presentation')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'This Google link is not pointing to a Slides presentation.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit') || queryText.includes('action=edit') || queryText.includes('mode=edit')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the editor instead of a clean presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/copy')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like a copy link. A Present, Preview, or Publish link is safer for class display.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('/presentation/d/')
+                && !pathname.includes('/present')
+                && !pathname.includes('/preview')
+                && !pathname.includes('/pub')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link should work, but a Present or Publish link is more reliable on the projector.',
+                    canProceed: true
+                };
+            }
+        }
+
+        if (detectedSourceType === 'powerpoint') {
+            const isMicrosoftHost = hostname.includes('powerpoint.live.com')
+                || hostname.includes('office.com')
+                || hostname.includes('officeapps.live.com')
+                || hostname.includes('onedrive.live.com')
+                || hostname.includes('1drv.ms')
+                || hostname.includes('sharepoint.com');
+
+            if (!isMicrosoftHost && !pathname.includes('.ppt') && !pathname.includes('.pptx')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'error',
+                    message: 'Use a Microsoft 365, OneDrive, SharePoint, or direct PowerPoint web link.',
+                    canProceed: false
+                };
+            }
+
+            if (pathname.includes('/edit')
+                || pathname.includes('edit.aspx')
+                || queryText.includes('action=edit')
+                || queryText.includes('mode=edit')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This looks like an edit link. It may open the Office editor instead of the live presentation view.',
+                    canProceed: true
+                };
+            }
+
+            if (pathname.includes('.ppt') || pathname.includes('.pptx')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This file link is accepted, but a browser presentation link is safer for live projection.',
+                    canProceed: true
+                };
+            }
+
+            if ((hostname.includes('onedrive.live.com') || hostname.includes('1drv.ms') || hostname.includes('sharepoint.com'))
+                && !hostname.includes('powerpoint.live.com')
+                && !pathname.includes('powerpoint')) {
+                return {
+                    sourceType: normalizedSourceType,
+                    detectedSourceType,
+                    normalizedUrl,
+                    state: 'warning',
+                    message: 'This share link may open a file page first. A dedicated PowerPoint presentation link is more reliable.',
+                    canProceed: true
+                };
+            }
+        }
+
+        return {
+            sourceType: normalizedSourceType,
+            detectedSourceType,
+            normalizedUrl,
+            state: 'ok',
+            message: '',
+            canProceed: true
+        };
+    }
+
+    renderPresentationLinkValidation(validation = null) {
+        if (!this.presentationLinkValidation) {
+            return validation;
+        }
+
+        if (!validation || !validation.message || validation.state === 'ok' || validation.state === 'empty') {
+            this.presentationLinkValidation.hidden = true;
+            this.presentationLinkValidation.textContent = '';
+            delete this.presentationLinkValidation.dataset.state;
+            return validation;
+        }
+
+        this.presentationLinkValidation.hidden = false;
+        this.presentationLinkValidation.textContent = validation.message;
+        this.presentationLinkValidation.dataset.state = validation.state;
+        return validation;
+    }
+
+    syncPresentationSourceTypeFromUrl() {
+        const currentUrl = this.presentationSourceUrlInput?.value || '';
+        const detectedSourceType = this.detectPresentationSourceTypeFromUrl(currentUrl);
+        if (!detectedSourceType || !this.presentationSourceTypeSelect) {
+            this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+                this.presentationSourceTypeSelect?.value || 'google-slides',
+                currentUrl
+            ));
+            return;
+        }
+
+        if (this.presentationSourceTypeSelect.value !== detectedSourceType) {
+            this.updatePresentationLinkInputs(detectedSourceType);
+            return;
+        }
+
+        this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+            this.presentationSourceTypeSelect.value,
+            currentUrl
+        ));
+    }
+
+    updatePresentationLinkInputs(sourceType = this.presentationSourceTypeSelect?.value || 'google-slides') {
+        const normalizedSourceType = sourceType === 'powerpoint' ? 'powerpoint' : 'google-slides';
+        const sourceLabel = normalizedSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+        const urlPlaceholder = normalizedSourceType === 'powerpoint'
+            ? 'Paste the PowerPoint web presentation URL'
+            : 'Paste the Google Slides share or present URL';
+        const namePlaceholder = normalizedSourceType === 'powerpoint'
+            ? 'Optional PowerPoint name'
+            : 'Optional Google Slides name';
+        const hintText = normalizedSourceType === 'powerpoint'
+            ? 'Paste a Microsoft 365 or PowerPoint embed-ready link here. Embeddable links can mirror in Teacher Screen and the projector.'
+            : 'Paste a Google Slides link here. Embeddable links can mirror in Teacher Screen and the projector.';
+
+        if (this.presentationSourceTypeSelect && this.presentationSourceTypeSelect.value !== normalizedSourceType) {
+            this.presentationSourceTypeSelect.value = normalizedSourceType;
+        }
+
+        if (this.presentationSourceUrlInput) {
+            this.presentationSourceUrlInput.placeholder = urlPlaceholder;
+        }
+
+        if (this.presentationSourceNameInput) {
+            this.presentationSourceNameInput.placeholder = namePlaceholder;
+        }
+
+        if (this.presentationLinkHint) {
+            this.presentationLinkHint.textContent = hintText;
+        }
+
+        if (this.presentationOpenLinkButton) {
+            this.presentationOpenLinkButton.textContent = `Open ${sourceLabel} Link`;
+        }
+
+        if (this.presentationOpenProjectorLinkButton) {
+            this.presentationOpenProjectorLinkButton.textContent = `Open ${sourceLabel} And Project`;
+        }
+
+        this.renderPresentationLinkValidation(this.validatePresentationSourceUrl(
+            normalizedSourceType,
+            this.presentationSourceUrlInput?.value || ''
+        ));
+    }
+
+    getPresentationLinkDraft() {
+        return {
+            sourceType: this.presentationSourceTypeSelect?.value || 'google-slides',
+            sourceUrl: this.presentationSourceUrlInput?.value?.trim() || '',
+            deckName: this.presentationSourceNameInput?.value?.trim() || ''
+        };
+    }
+
+    formatPresentationSourceContext(sourceType = 'html', currentIndices = {}, sourceUrl = '') {
+        if (sourceType === 'html') {
+            const horizontalIndex = Number.isFinite(currentIndices?.h) ? currentIndices.h + 1 : 1;
+            const verticalIndex = Number.isFinite(currentIndices?.v) ? currentIndices.v : 0;
+            return verticalIndex > 0
+                ? `Slide ${horizontalIndex}.${verticalIndex + 1}`
+                : `Slide ${horizontalIndex}`;
+        }
+
+        if (!sourceUrl) {
+            return 'External source linked';
+        }
+
+        try {
+            const parsed = new URL(sourceUrl);
+            const trimmedPath = parsed.pathname && parsed.pathname !== '/'
+                ? parsed.pathname.replace(/\/$/, '')
+                : '';
+            return `${parsed.hostname}${trimmedPath}`;
+        } catch (error) {
+            return sourceUrl;
+        }
+    }
+
+    buildPresentationControlState(widget = null, payload = {}) {
+        if (!widget) {
+            return {
+                hasWidget: false,
+                hasDeck: false,
+                sourceType: null,
+                sourceLabel: '',
+                deckName: 'Reveal Manager',
+                currentIndices: { h: 0, v: 0 },
+                statusMessage: '',
+                sourceUrl: ''
+            };
+        }
+
+        const deckFromPayload = payload.activeDeck && typeof payload.activeDeck === 'object'
+            ? payload.activeDeck
+            : null;
+        const activeDeck = deckFromPayload || widget.activeDeck || null;
+        const sourceType = activeDeck?.type || payload.sourceType || 'html';
+        const sourceLabel = payload.sourceLabel
+            || (typeof widget.getSourceTypeLabel === 'function' ? widget.getSourceTypeLabel(sourceType) : 'Reveal HTML');
+        const currentIndices = payload.currentIndices && typeof payload.currentIndices === 'object'
+            ? payload.currentIndices
+            : (widget.currentIndices || { h: 0, v: 0 });
+
+        return {
+            hasWidget: true,
+            hasDeck: !!activeDeck,
+            sourceType,
+            sourceLabel,
+            deckName: activeDeck?.name || 'Reveal Manager',
+            currentIndices,
+            statusMessage: payload.statusMessage || widget.statusLabel?.textContent || '',
+            sourceUrl: payload.sourceUrl || activeDeck?.sourceUrl || ''
+        };
+    }
+
+    renderPresentationControlState({
+        hasWidget = false,
+        hasDeck = false,
+        sourceType = null,
+        sourceLabel = '',
+        deckName = 'Reveal Manager',
+        currentIndices = { h: 0, v: 0 },
+        statusMessage = '',
+        sourceUrl = ''
+    } = {}) {
+        if (!this.presentationStatusBadge || !this.presentationStatusDisplay || !this.presentationStatusContext || !this.presentationStatusMeta) {
+            return;
+        }
+
+        let badgeText = 'No Presentation';
+        let badgeState = 'empty';
+        let displayText = deckName || 'Reveal Manager';
+        let contextText = 'Add a Reveal Manager widget to load Reveal HTML, Google Slides, or PowerPoint.';
+        let metaText = 'Teacher Controls mirrors the Reveal widget instead of creating a second slide system.';
+        let manageLabel = 'Add Reveal Manager';
+
+        if (hasWidget) {
+            badgeText = 'Widget Ready';
+            badgeState = 'idle';
+            displayText = 'Reveal Manager';
+            contextText = 'No presentation is loaded yet.';
+            metaText = statusMessage || 'Open the Reveal Manager widget to load Reveal HTML or link a Google Slides / PowerPoint deck.';
+            manageLabel = 'Open Presentation Controls';
+        }
+
+        if (hasWidget && hasDeck) {
+            const isHtmlDeck = sourceType === 'html';
+            badgeText = sourceLabel || 'Presentation';
+            badgeState = isHtmlDeck ? 'live' : 'external';
+            displayText = deckName || sourceLabel || 'Presentation';
+            contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
+            metaText = statusMessage || (isHtmlDeck
+                ? 'Prev / Next controls stay available here and in the Reveal widget.'
+                : 'This external presentation is linked in Reveal Manager. Embeddable links can mirror in Teacher Screen and the projector.');
+        }
+
+        if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {
+            this.updatePresentationLinkInputs(sourceType);
+            if (this.presentationSourceNameInput) {
+                this.presentationSourceNameInput.value = deckName || '';
+            }
+            if (this.presentationSourceUrlInput) {
+                this.presentationSourceUrlInput.value = sourceUrl || '';
+            }
+        } else {
+            this.updatePresentationLinkInputs();
+        }
+
+        this.presentationStatusBadge.textContent = badgeText;
+        this.presentationStatusBadge.dataset.state = badgeState;
+        this.presentationStatusDisplay.textContent = displayText;
+        this.presentationStatusContext.textContent = contextText;
+        this.presentationStatusMeta.textContent = metaText;
+
+        if (this.presentationManageButton) {
+            this.presentationManageButton.textContent = manageLabel;
+        }
+
+        if (this.presentationProjectorButton) {
+            this.presentationProjectorButton.disabled = !hasDeck;
+        }
+
+        const canNavigate = hasDeck && sourceType === 'html';
+        if (this.presentationPrevButton) {
+            this.presentationPrevButton.disabled = !canNavigate;
+        }
+        if (this.presentationNextButton) {
+            this.presentationNextButton.disabled = !canNavigate;
+        }
+    }
+
+    syncPresentationControlsFromWidget(widget = this.getPrimaryRevealManagerWidget()) {
+        this.renderPresentationSavedDeckOptions();
+        this.updatePresentationLastDeckAction();
+        this.renderPresentationControlState(this.buildPresentationControlState(widget));
+    }
+
+    syncPresentationControlsFromPayload(payload = {}) {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.updatePresentationLastDeckAction();
+            this.renderPresentationControlState();
+            return;
+        }
+
+        if (payload.widgetId && presentationWidget.widgetId && payload.widgetId !== presentationWidget.widgetId) {
+            return;
+        }
+
+        this.renderPresentationControlState(this.buildPresentationControlState(presentationWidget, payload));
+        this.updatePresentationLastDeckAction();
+    }
+
+    openPresentationControlsFromPanel() {
+        let presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.addWidget('reveal-manager');
+            presentationWidget = this.getPrimaryRevealManagerWidget();
+        }
+
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        document.dispatchEvent(new CustomEvent('openWidgetSettings', {
+            detail: { widget: presentationWidget }
+        }));
+    }
+
+    async ensureRevealManagerWidget() {
+        let presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget) {
+            this.addWidget('reveal-manager');
+            presentationWidget = this.getPrimaryRevealManagerWidget();
+        }
+
+        return presentationWidget;
+    }
+
+    async openPresentationLinkFromPanel({ openProjector = false } = {}) {
+        const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
+        const validation = this.validatePresentationSourceUrl(sourceType, sourceUrl);
+        const effectiveSourceType = validation.detectedSourceType || sourceType;
+        const sourceLabel = effectiveSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+
+        if (!sourceUrl) {
+            this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        this.renderPresentationLinkValidation(validation);
+        if (!validation.canProceed) {
+            this.showNotification(validation.message || `Paste a ${sourceLabel} link first.`, 'error');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadExternalSource !== 'function') {
+            this.showNotification('This Reveal Manager build does not support direct links yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadExternalSource({
+            type: effectiveSourceType,
+            sourceUrl: validation.normalizedUrl || sourceUrl,
+            name: deckName
+        });
+
+        if (!loaded) {
+            this.showNotification(`Unable to load that ${sourceLabel} link.`, 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (openProjector && typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+            this.showNotification(`${sourceLabel} link loaded and opened on the projector.`, 'success');
+            return;
+        }
+
+        this.showNotification(`${sourceLabel} link loaded in Reveal Manager.`, 'success');
+    }
+
+    async savePresentationLinkFromPanel() {
+        const { sourceType, sourceUrl, deckName } = this.getPresentationLinkDraft();
+        const validation = this.validatePresentationSourceUrl(sourceType, sourceUrl);
+        const effectiveSourceType = validation.detectedSourceType || sourceType;
+        const sourceLabel = effectiveSourceType === 'powerpoint' ? 'PowerPoint' : 'Google Slides';
+
+        if (!sourceUrl) {
+            this.showNotification(`Paste a ${sourceLabel} link first.`, 'warning');
+            return;
+        }
+
+        this.renderPresentationLinkValidation(validation);
+        if (!validation.canProceed) {
+            this.showNotification(validation.message || `Paste a ${sourceLabel} link first.`, 'error');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.saveExternalSource !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saving direct links yet.', 'error');
+            return;
+        }
+
+        const savedDeck = presentationWidget.saveExternalSource({
+            type: effectiveSourceType,
+            sourceUrl: validation.normalizedUrl || sourceUrl,
+            name: deckName
+        });
+
+        if (!savedDeck) {
+            this.showNotification(`Unable to save that ${sourceLabel} link.`, 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        if (this.presentationSavedSelect) {
+            this.presentationSavedSelect.value = String(savedDeck.id);
+        }
+        this.updatePresentationSavedActions();
+        this.showNotification(`${sourceLabel} link saved for quick access.`, 'success');
+    }
+
+    async openSavedPresentationFromPanel({ openProjector = false } = {}) {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation launch yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadSavedDeckById(selectedId);
+        if (!loaded) {
+            this.showNotification('Unable to load that saved presentation.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (openProjector && typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+            this.showNotification('Saved presentation opened on the projector.', 'success');
+            return;
+        }
+
+        this.showNotification('Saved presentation loaded in Reveal Manager.', 'success');
+    }
+
+    async presentLastDeckFromPanel() {
+        const lastDeck = this.getLastPresentationDeck();
+        if (!lastDeck) {
+            this.showNotification('No last presentation is available yet.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.loadLastDeck !== 'function') {
+            this.showNotification('This Reveal Manager build does not support last deck launch yet.', 'error');
+            return;
+        }
+
+        const loaded = await presentationWidget.loadLastDeck();
+        if (!loaded) {
+            this.showNotification('Unable to load the last presentation.', 'error');
+            return;
+        }
+
+        this.handleNavClick('classroom');
+        this.syncPresentationControlsFromWidget(presentationWidget);
+
+        if (typeof presentationWidget.openProjector === 'function') {
+            const projectorOpened = presentationWidget.openProjector();
+            this.syncPresentationControlsFromWidget(presentationWidget);
+            if (!projectorOpened) {
+                this.showNotification('Projector popup blocked or unavailable.', 'warning');
+                return;
+            }
+        }
+
+        this.showNotification('Last presentation opened on the projector.', 'success');
+    }
+
+    async renameSavedPresentationFromPanel() {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const savedDeck = this.getSavedPresentationDecks().find((deck) => deck.id === selectedId);
+        const nextName = window.prompt('Rename saved presentation', savedDeck?.name || 'Untitled Deck');
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Saved presentation name cannot be blank.', 'warning');
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.renameSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation rename yet.', 'error');
+            return;
+        }
+
+        const renamed = presentationWidget.renameSavedDeckById(selectedId, trimmedName);
+        if (!renamed) {
+            this.showNotification('Unable to rename that saved presentation.', 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        this.presentationSavedSelect.value = String(selectedId);
+        this.updatePresentationSavedActions();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        this.showNotification('Saved presentation renamed.', 'success');
+    }
+
+    async deleteSavedPresentationFromPanel() {
+        const selectedId = Number(this.presentationSavedSelect?.value || 0);
+        if (!selectedId) {
+            this.showNotification('Choose a saved presentation first.', 'warning');
+            return;
+        }
+
+        const savedDeck = this.getSavedPresentationDecks().find((deck) => deck.id === selectedId);
+        const confirmed = window.confirm(`Delete saved presentation "${savedDeck?.name || 'Untitled Deck'}"?`);
+        if (!confirmed) {
+            return;
+        }
+
+        const presentationWidget = await this.ensureRevealManagerWidget();
+        if (!presentationWidget) {
+            this.showNotification('Unable to create a Reveal Manager widget.', 'error');
+            return;
+        }
+
+        if (typeof presentationWidget.deleteSavedDeckById !== 'function') {
+            this.showNotification('This Reveal Manager build does not support saved presentation delete yet.', 'error');
+            return;
+        }
+
+        const deleted = await presentationWidget.deleteSavedDeckById(selectedId);
+        if (!deleted) {
+            this.showNotification('Unable to delete that saved presentation.', 'error');
+            return;
+        }
+
+        this.renderPresentationSavedDeckOptions();
+        this.updatePresentationSavedActions();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+        this.showNotification('Saved presentation deleted.', 'success');
+    }
+
+    openPresentationProjectorFromPanel() {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget || !presentationWidget.activeDeck || typeof presentationWidget.openProjector !== 'function') {
+            this.showNotification('Load a presentation in Reveal Manager before opening the projector.', 'warning');
+            return;
+        }
+
+        presentationWidget.openProjector();
+        this.syncPresentationControlsFromWidget(presentationWidget);
+    }
+
+    navigatePresentationFromPanel(direction) {
+        const presentationWidget = this.getPrimaryRevealManagerWidget();
+        if (!presentationWidget || !presentationWidget.activeDeck) {
+            this.showNotification('Load a presentation in Reveal Manager first.', 'warning');
+            return;
+        }
+
+        if (presentationWidget.activeDeck.type !== 'html' || typeof presentationWidget.navigate !== 'function') {
+            this.showNotification('Prev / Next controls are available only for Reveal HTML decks.', 'warning');
+            return;
+        }
+
+        presentationWidget.navigate(direction);
+        this.syncPresentationControlsFromWidget(presentationWidget);
     }
 
     renderBackgroundSelector() {
         if (!this.backgroundSelector) return;
         this.backgroundSelector.innerHTML = '';
         const backgrounds = this.backgroundManager.getAvailableBackgrounds();
+        const currentBackground = this.backgroundManager.serialize();
+
+        const uploadInput = document.createElement('input');
+        uploadInput.type = 'file';
+        uploadInput.accept = 'image/*';
+        uploadInput.hidden = true;
+
+        uploadInput.addEventListener('change', (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            this.handleCustomBackgroundUpload(file);
+            event.target.value = '';
+        });
+
+        const uploadButton = document.createElement('button');
+        uploadButton.type = 'button';
+        uploadButton.className = 'background-upload-button';
+        uploadButton.textContent = 'Upload';
+        uploadButton.addEventListener('click', () => uploadInput.click());
+
+        this.backgroundSelector.appendChild(uploadInput);
+        this.backgroundSelector.appendChild(uploadButton);
 
         for (const type in backgrounds) {
             backgrounds[type].forEach((value, index) => {
@@ -2162,6 +3670,10 @@ class ClassroomScreenApp {
                             ? `Gradient background ${index + 1}`
                             : `Image background ${index + 1}`
                 );
+
+                if (currentBackground?.type === type && currentBackground?.value === value) {
+                    swatch.classList.add('is-selected');
+                }
 
                 if (type === 'solid') {
                     swatch.style.backgroundColor = value;
@@ -2189,6 +3701,37 @@ class ClassroomScreenApp {
                 this.backgroundSelector.appendChild(swatch);
             });
         }
+    }
+
+    handleCustomBackgroundUpload(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            this.showNotification('Choose an image file for the classroom background.', 'warning');
+            return;
+        }
+
+        const maxBytes = 2 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            this.showNotification('Please choose an image under 2 MB.', 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = typeof reader.result === 'string' ? reader.result : '';
+            if (!result) {
+                this.showNotification('That image could not be loaded.', 'error');
+                return;
+            }
+
+            this.backgroundManager.setCustomImage(result);
+            this.renderBackgroundSelector();
+            this.saveState();
+            this.showNotification('Custom background added.', 'success');
+        };
+        reader.onerror = () => {
+            this.showNotification('That image could not be loaded.', 'error');
+        };
+        reader.readAsDataURL(file);
     }
 
     showNotification(message, type = 'success') {
@@ -2251,8 +3794,19 @@ class ClassroomScreenApp {
         }
     }
 
-    openWidgetPicker() {
+    openWidgetPicker(focusWidgetType = null) {
+        this.renderWidgetModal(focusWidgetType);
         this.openDialog(this.widgetModal);
+
+        if (!focusWidgetType) return;
+
+        window.requestAnimationFrame(() => {
+            const target = this.widgetModal.querySelector(`.widget-category-btn[data-widget="${focusWidgetType}"]`);
+            if (target && typeof target.focus === 'function') {
+                target.focus({ preventScroll: true });
+                target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        });
     }
 
     closeDialog(dialog) {
@@ -2310,7 +3864,21 @@ class ClassroomScreenApp {
         modalBody.innerHTML = '';
 
         // Set Title
-        modalTitle.textContent = `${widget.constructor.name.replace('Widget', '')} Settings`;
+        const rawName = widget.constructor.name.replace('Widget', '');
+        const widgetTitleMap = {
+            NamePicker: 'Random Name Picker',
+            Notes: 'Quick Notes',
+            Presentation: 'Presentation Loader',
+            QRCode: 'QR Code',
+            RichText: 'Rich Text Board',
+            UrlViewer: 'URL Viewer',
+            Wellbeing: 'Well-being'
+        };
+        const formattedName = widgetTitleMap[rawName]
+            || rawName
+                .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+        modalTitle.textContent = `${formattedName} Settings`;
 
         // Get controls from the widget
         // We assume widgets have a 'controlsOverlay' property or a 'getControls' method
@@ -2324,6 +3892,7 @@ class ClassroomScreenApp {
         } else {
             // Fallback for widgets that haven't been refactored yet
             const p = document.createElement('p');
+            p.className = 'widget-settings-empty';
             p.textContent = 'Settings not available for this widget yet.';
             controlsNode = p;
         }
@@ -2340,19 +3909,11 @@ class ClassroomScreenApp {
 
         const commonControls = document.createElement('div');
         commonControls.className = 'modal-common-controls';
-        commonControls.style.marginTop = '20px';
-        commonControls.style.paddingTop = '15px';
-        commonControls.style.borderTop = '1px solid #ddd';
-        commonControls.style.display = 'flex';
-        commonControls.style.justifyContent = 'space-between';
-        commonControls.style.alignItems = 'center';
 
         // Remove Widget Button
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'control-button';
+        removeBtn.className = 'control-button modal-danger-btn';
         removeBtn.textContent = 'Remove Widget';
-        removeBtn.style.backgroundColor = '#e74c3c'; // Red-ish
-        removeBtn.style.color = 'white';
         removeBtn.addEventListener('click', () => {
              this.layoutManager.removeWidget(widget);
              this.closeWidgetSettings();
@@ -2377,22 +3938,8 @@ class ClassroomScreenApp {
             });
         }
 
-        // Help Button
-        const helpBtn = document.createElement('button');
-        helpBtn.className = 'control-button';
-        helpBtn.textContent = 'Help / Info';
-        helpBtn.addEventListener('click', () => {
-             if (typeof widget.toggleHelp === 'function') {
-                 widget.toggleHelp();
-             } else {
-                 alert('No help available for this widget.');
-             }
-        });
-
         const rightGroup = document.createElement('div');
-        rightGroup.style.display = 'flex';
-        rightGroup.style.gap = '10px';
-        rightGroup.appendChild(helpBtn);
+        rightGroup.className = 'modal-common-controls__actions';
         rightGroup.appendChild(projectorToggle);
 
         commonControls.appendChild(removeBtn);

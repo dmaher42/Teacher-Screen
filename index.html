@@ -7,7 +7,7 @@
     <!-- SEO and Browser Meta Tags -->
     <meta name="description" content="A customizable classroom management screen with widgets for teachers.">
     <meta name="author" content="Your Name">
-    <meta name="theme-color" content="#3498db">
+    <meta name="theme-color" content="#111827">
 
     <title>Custom Classroom Screen</title>
 
@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/theme/black.css">
     
     <!-- Favicon (placeholder) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/lesson-plan.svg">
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
@@ -43,22 +43,25 @@
 
     <header>
         <nav id="top-nav" aria-label="Main sections">
-        <div class="nav-tabs" role="tablist">
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
-            <div class="nav-item-with-dropdown">
-                <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
-                <div id="planner-dropdown" class="nav-dropdown">
-                    <ul>
-                        <li><button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button></li>
-                        <li><button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button></li>
-                    </ul>
+            <div class="top-nav-shell">
+                <div class="sections-menu-wrap">
+                    <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu">Sections</button>
+                    <div id="sections-menu" class="sections-menu" hidden>
+                        <div class="nav-tabs" role="tablist" aria-orientation="vertical">
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
+                            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+                            <div class="sections-menu__actions" aria-label="Planner shortcuts">
+                                <button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button>
+                                <button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button>
+                            </div>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
-            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
-        </div>
         </nav>
     </header>
 
@@ -75,22 +78,6 @@
              ===================================================== -->
         <section id="classroom-view" class="view" role="tabpanel" aria-labelledby="classroom-tab">
             <section id="student-view" class="student-view" role="main" aria-label="Student view">
-                <div id="widget-toolbar-wrapper">
-                    <div id="widget-selector" class="widget-selector" role="toolbar" aria-label="Widget selector">
-                        <button id="timer-widget-btn" class="widget-selector-btn" data-widget="timer" type="button" aria-label="Timer">
-                            <i class="fas fa-clock" aria-hidden="true"></i>
-                            <span class="visually-hidden">Timer</span>
-                        </button>
-                        <button id="noise-meter-widget-btn" class="widget-selector-btn" data-widget="noise-meter" type="button" aria-label="Noise meter">
-                            <i class="fas fa-volume-high" aria-hidden="true"></i>
-                            <span class="visually-hidden">Noise Meter</span>
-                        </button>
-                        <button id="name-picker-widget-btn" class="widget-selector-btn" data-widget="name-picker" type="button" aria-label="Random name picker">
-                            <i class="fas fa-user-check" aria-hidden="true"></i>
-                            <span class="visually-hidden">Random Name Picker</span>
-                        </button>
-                    </div>
-                </div>
                 <div id="widgets-container" class="widgets-grid">
                     <!-- Widgets are dynamically added here by JavaScript -->
                     <div class="widget-placeholder">
@@ -135,7 +122,32 @@
             <div class="placeholder-content">Reminders content coming soon</div>
         </section>
         <section id="planner-view" class="view" role="tabpanel" aria-labelledby="planner-tab" hidden>
-            <div class="placeholder-content">Planner content coming soon</div>
+            <div class="planner-panel notes-panel">
+                <header class="notes-panel__header planner-panel__header">
+                    <div>
+                        <h2>Planner</h2>
+                        <p>Save the classroom screen you have open now, then schedule layouts into the weekly planner.</p>
+                    </div>
+                    <div class="planner-panel__header-actions">
+                        <button id="open-weekly-planner-btn" class="control-button modal-primary" type="button">Open Weekly Planner</button>
+                        <button id="open-agenda-btn" class="control-button" type="button">Today's Agenda</button>
+                    </div>
+                </header>
+                <div class="planner-panel__grid">
+                    <section class="planner-panel__card" aria-labelledby="planner-save-layout-title">
+                        <h3 id="planner-save-layout-title">Save Current Layout</h3>
+                        <p>Use your current classroom widgets, theme, and lesson plan as a reusable layout.</p>
+                        <label for="planner-layout-name-input">Layout Name</label>
+                        <input id="planner-layout-name-input" class="planner-panel__input" type="text" placeholder="e.g., Morning Routine">
+                        <button id="planner-save-layout-btn" class="control-button modal-primary" type="button">Save Current Layout</button>
+                    </section>
+                    <section class="planner-panel__card" aria-labelledby="saved-layouts-title">
+                        <h3 id="saved-layouts-title">Saved Layouts</h3>
+                        <p>Load, delete, and prepare layouts before placing them into the weekly planner.</p>
+                        <div id="saved-layouts-list" class="saved-layouts-list" aria-live="polite"></div>
+                    </section>
+                </div>
+            </div>
         </section>
         <section id="timetable-view" class="view" role="tabpanel" aria-labelledby="timetable-tab" hidden>
             <div class="placeholder-content">Timetable content coming soon</div>
@@ -145,9 +157,13 @@
                 <header class="notes-panel__header">
                     <div>
                         <h2>Saved Notes</h2>
-                        <p>Notes you save from the Notes widget will appear here for quick access.</p>
+                        <p>Notes you save from the Notes widget will appear here for quick access. You can also send them straight into Memory Cue notebooks.</p>
+                        <div id="notes-panel-summary" class="notes-panel__summary" aria-live="polite"></div>
                     </div>
-                    <span class="notes-panel__hint">Switch to the Classroom tab to edit notes.</span>
+                    <div class="notes-panel__header-actions">
+                        <button id="export-all-notes-memory-cue" class="control-button" type="button">Send All to Memory Cue</button>
+                        <span class="notes-panel__hint">Switch to the Classroom tab to edit notes.</span>
+                    </div>
                 </header>
                 <div id="saved-notes-list" class="saved-notes-list" role="list">
                     <p id="saved-notes-empty" class="notes-empty">No saved notes yet. Open the Notes widget and save a note to see it here.</p>
@@ -160,11 +176,14 @@
              ===================================================== -->
         <aside class="teacher-panel" id="teacher-panel" role="complementary" aria-label="Teacher controls">
             <header class="panel-header">
-                <h3>Teacher Controls</h3>
+                <div class="panel-header__copy">
+                    <p class="panel-eyebrow">Classroom Control Surface</p>
+                    <h3>Teacher Controls</h3>
+                </div>
                 <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>
             </header>
             <div class="panel-content">
-                <!-- Control Cards -->
+                <p class="panel-section-label">Session</p>
                 <section class="control-card">
                     <details open>
                         <summary role="button" tabindex="0">
@@ -179,16 +198,89 @@
                 <section class="control-card">
                     <details>
                         <summary role="button" tabindex="0">
+                            <img src="assets/icons/drawing-tool.svg" alt="" class="card-icon">
+                            <h4>Drawing Board</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div class="button-group">
+                                <button id="toggle-drawing-board-btn" class="control-button" type="button">Hide Drawing Board</button>
+                            </div>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details>
+                        <summary role="button" tabindex="0">
                             <img src="assets/icons/name-picker.svg" alt="" class="card-icon">
                             <h4>Student List</h4>
                         </summary>
                         <div class="card-body">
                             <ul id="student-list-display" class="student-list-display"></ul>
-                            <div class="button-group" style="margin-top: 10px;">
+                            <div class="button-group button-group--stack-gap">
                                 <button id="export-students-btn" class="control-button">Export Students</button>
                                 <button id="import-students-btn" class="control-button">Import Students</button>
                             </div>
                             <input type="file" id="file-input" accept=".txt" style="display: none;">
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card">
+                    <details open>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/reveal-manager.svg" alt="" class="card-icon">
+                            <h4>Presentation</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div class="presentation-status-panel" aria-live="polite">
+                                <div class="presentation-status-panel__top">
+                                    <span id="presentation-status-badge" class="presentation-status-badge" data-state="empty">No Presentation</span>
+                                </div>
+                                <p id="presentation-status-display" class="presentation-status-display">Reveal Manager</p>
+                                <p id="presentation-status-context" class="presentation-status-context">Add a Reveal Manager widget to load Reveal HTML, Google Slides, or PowerPoint.</p>
+                                <p id="presentation-status-meta" class="presentation-status-meta">Teacher Controls mirrors the Reveal widget instead of creating a second slide system.</p>
+                            </div>
+                            <button id="presentation-last-btn" class="control-button" type="button">Present Last Deck</button>
+                            <div class="presentation-link-panel">
+                                <div class="presentation-link-row">
+                                    <select id="presentation-source-type" aria-label="Presentation source type">
+                                        <option value="google-slides">Google Slides</option>
+                                        <option value="powerpoint">PowerPoint</option>
+                                    </select>
+                                    <input id="presentation-source-name" type="text" placeholder="Optional deck name">
+                                </div>
+                                <input id="presentation-source-url" type="text" placeholder="Paste the Google Slides share or present URL" autocomplete="off">
+                                <p id="presentation-link-hint" class="presentation-link-hint">Paste a Google Slides or embeddable PowerPoint link here and Teacher Controls will route it through Reveal Manager.</p>
+                                <p id="presentation-link-validation" class="presentation-link-validation" hidden></p>
+                                <div class="button-group presentation-link-actions">
+                                    <button id="presentation-save-link-btn" class="control-button" type="button">Save Link</button>
+                                    <button id="presentation-open-link-btn" class="control-button" type="button">Open Google Slides Link</button>
+                                    <button id="presentation-open-projector-link-btn" class="control-button" type="button">Open And Project</button>
+                                </div>
+                            </div>
+                            <div class="presentation-saved-panel">
+                                <div class="presentation-saved-row">
+                                    <select id="presentation-saved-select" aria-label="Saved presentations">
+                                        <option value="">Select saved presentation</option>
+                                    </select>
+                                </div>
+                                <p id="presentation-saved-hint" class="presentation-link-hint">Saved decks from Reveal Manager appear here so you can reopen them from Teacher Controls.</p>
+                                <div class="button-group presentation-link-actions">
+                                    <button id="presentation-open-saved-btn" class="control-button" type="button">Open Saved</button>
+                                    <button id="presentation-open-saved-projector-btn" class="control-button" type="button">Open Saved And Project</button>
+                                </div>
+                                <div class="button-group presentation-link-actions">
+                                    <button id="presentation-rename-saved-btn" class="control-button" type="button">Rename Saved</button>
+                                    <button id="presentation-delete-saved-btn" class="control-button" type="button">Delete Saved</button>
+                                </div>
+                            </div>
+                            <div class="button-group">
+                                <button id="presentation-manage-btn" class="control-button" type="button">Add Reveal Manager</button>
+                                <button id="presentation-projector-btn" class="control-button" type="button">Open Projector</button>
+                            </div>
+                            <div class="button-group button-group--stack-gap">
+                                <button id="presentation-prev-btn" class="control-button" type="button">Prev Slide</button>
+                                <button id="presentation-next-btn" class="control-button" type="button">Next Slide</button>
+                            </div>
                         </div>
                     </details>
                 </section>
@@ -210,14 +302,24 @@
                                 <button id="start-timer" class="control-button">Start Timer</button>
                                 <button id="stop-timer" class="control-button">Stop Timer</button>
                             </div>
-                            <div class="button-group" style="margin-top: 10px;">
+                            <div class="button-group button-group--stack-gap">
                                 <button id="timer-preset-5" class="timer-preset-btn control-button">5 min</button>
                                 <button id="timer-preset-10" class="timer-preset-btn control-button">10 min</button>
                                 <button id="timer-preset-15" class="timer-preset-btn control-button">15 min</button>
                             </div>
+                            <div class="timer-status-panel" aria-live="polite">
+                                <div class="timer-status-panel__top">
+                                    <span id="timer-status-badge" class="timer-status-badge">No Timer</span>
+                                    <button id="reset-timer" class="control-button control-button--ghost" type="button">Reset</button>
+                                </div>
+                                <p id="timer-status-display" class="timer-status-display">00:00</p>
+                                <p id="timer-status-meta" class="timer-status-meta">Add a timer widget or press Start to begin.</p>
+                            </div>
                         </div>
                     </details>
                 </section>
+
+                <p class="panel-section-label">Appearance</p>
                 <section class="control-card">
                     <details>
                         <summary role="button" tabindex="0">
@@ -229,9 +331,9 @@
                                 <!-- Radio buttons will be populated by JS -->
                             </div>
                             <div class="input-group">
-                                <label style="display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer;">
+                                <label class="panel-toggle-label" for="reduce-motion-toggle">
                                     <input type="checkbox" id="reduce-motion-toggle">
-                                    Reduce Motion (limit animations)
+                                    <span>Reduce Motion (limit animations)</span>
                                 </label>
                             </div>
                         </div>
@@ -250,6 +352,8 @@
                         </div>
                     </details>
                 </section>
+
+                <p class="panel-section-label">Planning</p>
                 <section class="control-card">
                     <details>
                         <summary role="button" tabindex="0">
@@ -298,13 +402,13 @@
                         </div>
                     </details>
                 </section>
-                <section class="control-card">
+                <section class="control-card control-card--lesson-plan">
                     <details>
                         <summary role="button" tabindex="0">
                             <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
                             <h4>Lesson Plan</h4>
                         </summary>
-                        <div class="card-body">
+                        <div class="card-body lesson-plan-body">
                             <div id="lesson-plan-editor"></div>
                         </div>
                     </details>
