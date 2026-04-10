@@ -3614,16 +3614,18 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-scoreboard {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
-    padding: 0 12px;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+    padding: 0 10px;
 }
 
 .quiz-game-team-card {
-    display: grid;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    padding: 12px;
-    border-radius: 18px;
+    padding: 8px 10px;
+    border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 90%, var(--bg-surface, #f8fafc) 10%);
 }
@@ -3636,9 +3638,11 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-team-meta {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
 }
 
 .quiz-game-team-name {
@@ -3646,7 +3650,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-team-score {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 800;
     line-height: 1;
 }
@@ -3657,16 +3661,20 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-score-actions {
     display: flex;
-    gap: 8px;
+    flex: 0 0 auto;
+    gap: 6px;
 }
 
 .quiz-game-score-actions > button {
     flex: 1 1 0;
+    min-height: 28px;
+    padding: 4px 7px;
+    border-radius: 999px;
 }
 
 .quiz-game-status {
-    margin: 0 12px;
-    padding: 10px 12px;
+    margin: 0 10px;
+    padding: 8px 10px;
     position: relative;
     z-index: 1;
 }
@@ -3674,7 +3682,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 .quiz-game-control-bar {
     position: static;
     margin-top: auto;
-    padding: 0 12px;
+    padding: 0 10px;
     background: transparent;
     position: relative;
     z-index: 1;
@@ -3682,13 +3690,13 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-control-bar .primary-actions,
 .quiz-game-control-bar .secondary-actions {
-    gap: 8px;
+    gap: 6px;
 }
 
 .quiz-game-control-bar .primary-actions button,
 .quiz-game-control-bar .secondary-actions button {
-    min-height: 36px;
-    padding: 8px 12px;
+    min-height: 32px;
+    padding: 7px 10px;
 }
 
 .quiz-game-settings-controls {
@@ -3749,26 +3757,43 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 
 .quiz-game-widget-content.is-compact .quiz-game-header {
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
+}
+
+.quiz-game-widget-content.is-compact .quiz-game-header-meta {
+    gap: 2px;
+}
+
+.quiz-game-widget-content.is-compact .quiz-game-title {
+    font-size: 1rem;
+}
+
+.quiz-game-widget-content.is-compact .quiz-game-progress {
+    font-size: 0.8rem;
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-header-aside {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
+}
+
+.quiz-game-widget-content.is-compact .quiz-game-status-pill,
+.quiz-game-widget-content.is-compact .quiz-game-timer-display {
+    padding: 4px 8px;
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-question-card {
     flex: 1 1 auto;
     min-height: 0;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px 10px 12px;
     overflow: hidden;
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-question-text {
-    font-size: clamp(0.95rem, 1.5vw, 1.25rem);
-    line-height: 1.18;
+    font-size: clamp(0.9rem, 1.3vw, 1.1rem);
+    line-height: 1.14;
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-scoreboard {
@@ -3782,7 +3807,7 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-team-card {
-    padding: 9px 10px;
+    padding: 7px 9px;
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-team-score-delta {
@@ -3790,7 +3815,7 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 }
 
 .quiz-game-widget-content.is-compact .quiz-game-team-score {
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .quiz-game-widget-content.is-tight {
@@ -3866,9 +3891,9 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 }
 
 .quiz-game-widget-content.is-tight .quiz-game-team-card {
-    gap: 8px;
-    padding: 7px 9px;
-    border-radius: 14px;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 12px;
 }
 
 .quiz-game-widget-content.is-tight .quiz-game-team-score-delta {
@@ -3880,7 +3905,13 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 }
 
 .quiz-game-widget-content.is-tight .quiz-game-team-score {
-    font-size: 0.98rem;
+    font-size: 0.9rem;
+}
+
+.quiz-game-widget-content.is-tight .quiz-game-score-actions > button {
+    min-height: 24px;
+    padding: 3px 6px;
+    font-size: 0.74rem;
 }
 
 .quiz-game-widget-content.is-tight .quiz-game-status,
