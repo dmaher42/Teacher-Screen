@@ -366,11 +366,19 @@ class QuizGameWidget {
         document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
     }
 
+    updateResponsiveState(width = 0, height = 0) {
+        const compact = width > 0 && (width < 980 || height < 640);
+        const tight = width > 0 && (width < 760 || height < 520);
+        this.element.classList.toggle('is-compact', compact);
+        this.element.classList.toggle('is-tight', tight);
+    }
+
     render() {
         const question = this.getCurrentQuestion();
         const totalQuestions = this.questions.length;
         const currentNumber = totalQuestions ? this.currentQuestionIndex + 1 : 0;
 
+        this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
         this.element.classList.toggle('has-revealed-answer', this.answerRevealed);
         this.headerTitle.textContent = this.quizTitle || 'Quiz Game';
         this.headerProgress.textContent = totalQuestions ? `Question ${currentNumber} of ${totalQuestions}` : 'No questions';
@@ -692,6 +700,10 @@ class QuizGameWidget {
 
     getControls() {
         return this.controlsOverlay;
+    }
+
+    onWidgetLayout({ width = 0, height = 0 } = {}) {
+        this.updateResponsiveState(width, height);
     }
 
     serialize() {
