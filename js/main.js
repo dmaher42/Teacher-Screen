@@ -104,6 +104,19 @@ function createProjectorSyncToken() {
     }
 }
 
+function isShortcutEditableTarget(target) {
+    if (!target || !(target instanceof Element)) {
+        return false;
+    }
+
+    const tagName = target.tagName;
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+        return true;
+    }
+
+    return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
+}
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -512,7 +525,30 @@ class ClassroomScreenApp {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 this.closeSectionsMenu();
+                return;
             }
+
+            const shortcutWidgetMap = {
+                q: 'quiz-game',
+                r: 'reveal-manager',
+                t: 'rich-text'
+            };
+
+            if (!event.ctrlKey && !event.metaKey) {
+                return;
+            }
+
+            if (event.altKey || event.repeat || isShortcutEditableTarget(event.target)) {
+                return;
+            }
+
+            const focusWidgetType = shortcutWidgetMap[(event.key || '').toLowerCase()];
+            if (!focusWidgetType) {
+                return;
+            }
+
+            event.preventDefault();
+            this.openWidgetPickerForShortcut(focusWidgetType);
         });
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
@@ -3807,6 +3843,12 @@ class ClassroomScreenApp {
                 target.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
         });
+    }
+
+    openWidgetPickerForShortcut(focusWidgetType) {
+        this.closeSectionsMenu();
+        this.handleNavClick('classroom');
+        this.openWidgetPicker(focusWidgetType);
     }
 
     closeDialog(dialog) {
