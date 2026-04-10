@@ -48,6 +48,7 @@ const WIDGET_SIZE_RULES = {
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
+  QuizGameWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 6 },
   DocumentViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   UrlViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   // Reveal manager uses standard grid sizing.

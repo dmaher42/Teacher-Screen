@@ -54,6 +54,7 @@ const TEACHER_DEPENDENCIES = [
     { src: './js/widgets/document-viewer.js', required: false },
     { src: './js/widgets/url-viewer.js', required: false },
     { src: './js/widgets/reveal-manager-widget.js', required: false },
+    { src: './js/widgets/quiz-game-widget.js', required: false },
     { src: './js/widgets/presentation-widget.js', required: false },
     { src: './js/widgets/mask-widget.js', required: false },
     { src: './js/widgets/notes-widget.js', required: false },

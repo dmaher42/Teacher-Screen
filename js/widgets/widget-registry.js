@@ -39,6 +39,14 @@ export const WidgetRegistry = {
         category: 'Secondary',
         create: () => new DrawingToolWidget()
     },
+    'quiz-game': {
+        key: 'quiz-game',
+        className: 'QuizGameWidget',
+        label: 'Quiz Game',
+        icon: 'Q',
+        category: 'Secondary',
+        create: () => new QuizGameWidget()
+    },
     'document-viewer': {
         key: 'document-viewer',
         className: 'DocumentViewerWidget',
@@ -111,6 +119,7 @@ const widgetTypeAliases = {
     NamePickerWidget: 'name-picker',
     QRCodeWidget: 'qr-code',
     DrawingToolWidget: 'drawing-tool',
+    QuizGameWidget: 'quiz-game',
     DocumentViewerWidget: 'document-viewer',
     UrlViewerWidget: 'url-viewer',
     RevealManagerWidget: 'reveal-manager',
@@ -124,6 +133,7 @@ const widgetTypeAliases = {
     'name-picker': 'name-picker',
     'qr-code': 'qr-code',
     'drawing-tool': 'drawing-tool',
+    'quiz-game': 'quiz-game',
     'document-viewer': 'document-viewer',
     'url-viewer': 'url-viewer',
     'reveal-manager': 'reveal-manager',
