@@ -17,6 +17,10 @@ class QuizGameWidget {
         this.timerRemainingSeconds = this.questionTimerSeconds;
         this.timerRunning = false;
         this.timerInterval = null;
+        this.questionBuzzTimeout = null;
+        this.scoreBuzzTimeout = null;
+        this.questionBuzzActive = false;
+        this.lastScoreChange = null;
 
         this.handleLoadQuiz = this.handleLoadQuiz.bind(this);
         this.handleLoadSampleQuiz = this.handleLoadSampleQuiz.bind(this);
@@ -322,6 +326,42 @@ class QuizGameWidget {
         }
     }
 
+    clearQuestionBuzzTimeout() {
+        if (this.questionBuzzTimeout) {
+            clearTimeout(this.questionBuzzTimeout);
+            this.questionBuzzTimeout = null;
+        }
+    }
+
+    clearScoreBuzzTimeout() {
+        if (this.scoreBuzzTimeout) {
+            clearTimeout(this.scoreBuzzTimeout);
+            this.scoreBuzzTimeout = null;
+        }
+    }
+
+    triggerQuestionBuzz() {
+        this.clearQuestionBuzzTimeout();
+        this.questionBuzzActive = true;
+        this.render();
+        this.questionBuzzTimeout = setTimeout(() => {
+            this.questionBuzzTimeout = null;
+            this.questionBuzzActive = false;
+            this.render();
+        }, 240);
+    }
+
+    triggerScoreBuzz(index, amount) {
+        this.clearScoreBuzzTimeout();
+        this.lastScoreChange = { index, amount };
+        this.render();
+        this.scoreBuzzTimeout = setTimeout(() => {
+            this.scoreBuzzTimeout = null;
+            this.lastScoreChange = null;
+            this.render();
+        }, 540);
+    }
+
     resetTimer(emitChange = true) {
         this.clearTimerInterval();
         this.timerRunning = false;
@@ -356,6 +396,7 @@ class QuizGameWidget {
                 this.timerRemainingSeconds = 0;
                 this.render();
                 this.setStatus('Question timer finished.');
+                this.triggerQuestionBuzz();
                 this.emitChange();
                 return;
             }
@@ -388,6 +429,7 @@ class QuizGameWidget {
 
         this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
         this.element.classList.toggle('has-revealed-answer', this.answerRevealed);
+        this.element.classList.toggle('is-buzzing', this.questionBuzzActive);
         this.headerTitle.textContent = this.quizTitle || 'Quiz Game';
         this.headerProgress.textContent = totalQuestions ? `Question ${currentNumber} of ${totalQuestions}` : 'No questions';
         this.headerStatus.textContent = this.answerRevealed ? 'Answer Revealed' : 'Question Live';
@@ -430,6 +472,10 @@ class QuizGameWidget {
         this.teams.forEach((team, index) => {
             const card = document.createElement('div');
             card.className = 'quiz-game-team-card';
+            const scoreBuzz = this.lastScoreChange && this.lastScoreChange.index === index;
+            if (scoreBuzz) {
+                card.classList.add('is-score-buzzed');
+            }
 
             const meta = document.createElement('div');
             meta.className = 'quiz-game-team-meta';
@@ -444,6 +490,13 @@ class QuizGameWidget {
 
             meta.append(name, score);
             card.appendChild(meta);
+
+            if (scoreBuzz) {
+                const delta = document.createElement('div');
+                delta.className = 'quiz-game-team-score-delta';
+                delta.textContent = `${this.lastScoreChange.amount > 0 ? '+' : ''}${this.lastScoreChange.amount}`;
+                card.appendChild(delta);
+            }
 
             const actions = document.createElement('div');
             actions.className = 'quiz-game-score-actions';
@@ -474,6 +527,7 @@ class QuizGameWidget {
         team.score = Math.max(0, team.score + amount);
         this.render();
         this.setStatus(`${team.name} ${amount > 0 ? 'gains' : 'loses'} a point.`);
+        this.triggerScoreBuzz(index, amount);
         this.emitChange();
     }
 
@@ -485,6 +539,7 @@ class QuizGameWidget {
 
         this.currentQuestionIndex = nextIndex;
         this.answerRevealed = false;
+        this.lastScoreChange = null;
         this.resetTimer(false);
         this.render();
         this.setStatus(`Moved to question ${this.currentQuestionIndex + 1}.`);
@@ -495,6 +550,9 @@ class QuizGameWidget {
         this.answerRevealed = !this.answerRevealed;
         this.render();
         this.setStatus(this.answerRevealed ? 'Answer revealed.' : 'Answer hidden.');
+        if (this.answerRevealed) {
+            this.triggerQuestionBuzz();
+        }
         this.emitChange();
     }
 
@@ -760,6 +818,8 @@ class QuizGameWidget {
         );
         this.timerRunning = false;
         this.clearTimerInterval();
+        this.questionBuzzActive = false;
+        this.lastScoreChange = null;
         this.quizJsonInput.value = this.stringifyQuizData({
             title: this.quizTitle,
             teams: this.teams.map((team) => team.name),
@@ -770,6 +830,8 @@ class QuizGameWidget {
 
     remove() {
         this.clearTimerInterval();
+        this.clearQuestionBuzzTimeout();
+        this.clearScoreBuzzTimeout();
         this.titleInput.removeEventListener('input', this.handleTitleInput);
         this.teamNamesInput.removeEventListener('change', this.handleTeamNamesInput);
         this.timerSecondsInput.removeEventListener('change', this.handleTimerSecondsInput);
