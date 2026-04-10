@@ -16,6 +16,7 @@ class QuizGameWidget {
 
         this.handleLoadQuiz = this.handleLoadQuiz.bind(this);
         this.handleLoadSampleQuiz = this.handleLoadSampleQuiz.bind(this);
+        this.handleImportLastRevealDeck = this.handleImportLastRevealDeck.bind(this);
         this.handleResetScores = this.handleResetScores.bind(this);
         this.handleTitleInput = this.handleTitleInput.bind(this);
         this.handleTeamNamesInput = this.handleTeamNamesInput.bind(this);
@@ -58,7 +59,10 @@ class QuizGameWidget {
         this.answersList = document.createElement('div');
         this.answersList.className = 'quiz-game-answers';
 
-        this.questionCard.append(this.questionNumber, this.questionText, this.answersList);
+        this.answerPanel = document.createElement('div');
+        this.answerPanel.className = 'quiz-game-direct-answer';
+
+        this.questionCard.append(this.questionNumber, this.questionText, this.answersList, this.answerPanel);
 
         this.scoreboard = document.createElement('div');
         this.scoreboard.className = 'quiz-game-scoreboard';
@@ -112,8 +116,9 @@ class QuizGameWidget {
 
         this.loadQuizButton = this.createControlButton('Load Quiz', this.handleLoadQuiz);
         this.sampleQuizButton = this.createControlButton('Load Sample', this.handleLoadSampleQuiz, 'control-button control-button--ghost');
+        this.importRevealButton = this.createControlButton('Import Last Reveal', this.handleImportLastRevealDeck, 'control-button control-button--ghost');
         this.resetScoresButton = this.createControlButton('Reset Scores', this.handleResetScores, 'control-button control-button--ghost');
-        this.settingsActions.append(this.loadQuizButton, this.sampleQuizButton, this.resetScoresButton);
+        this.settingsActions.append(this.loadQuizButton, this.sampleQuizButton, this.importRevealButton, this.resetScoresButton);
 
         this.controlsOverlay.append(this.titleLabel, this.teamNamesLabel, this.quizJsonLabel, this.settingsActions);
 
@@ -185,24 +190,40 @@ class QuizGameWidget {
                 .map((choice) => String(choice || '').trim())
                 .filter(Boolean)
                 .slice(0, 6);
+            const explicitAnswerText = String(question.answerText || '').trim();
 
-            if (!prompt || choices.length < 2) {
+            if (!prompt) {
                 return null;
             }
 
             let answerIndex = Number.isInteger(question.answer) ? question.answer : Number.parseInt(question.answer, 10);
-            if (!Number.isInteger(answerIndex) && typeof question.answer === 'string') {
+            if (!Number.isInteger(answerIndex) && typeof question.answer === 'string' && choices.length >= 2) {
                 answerIndex = choices.findIndex((choice) => choice.toLowerCase() === question.answer.trim().toLowerCase());
             }
 
-            if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= choices.length) {
-                answerIndex = 0;
+            if (choices.length >= 2) {
+                if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= choices.length) {
+                    answerIndex = 0;
+                }
+
+                return {
+                    question: prompt,
+                    choices,
+                    answer: answerIndex,
+                    answerText: explicitAnswerText || choices[answerIndex] || ''
+                };
+            }
+
+            const answerText = explicitAnswerText || String(question.answer || '').trim();
+            if (!answerText) {
+                return null;
             }
 
             return {
                 question: prompt,
-                choices,
-                answer: answerIndex
+                choices: [],
+                answer: 0,
+                answerText
             };
         }).filter(Boolean);
 
@@ -259,20 +280,30 @@ class QuizGameWidget {
         this.questionText.textContent = question ? question.question : 'Load a quiz to begin.';
 
         this.answersList.innerHTML = '';
+        this.answerPanel.hidden = true;
+        this.answerPanel.textContent = '';
         if (question) {
-            question.choices.forEach((choice, index) => {
-                const answer = document.createElement('div');
-                answer.className = 'quiz-game-answer';
-                answer.innerHTML = '<span class="quiz-game-answer-letter"></span><span class="quiz-game-answer-text"></span>';
-                answer.querySelector('.quiz-game-answer-letter').textContent = String.fromCharCode(65 + index);
-                answer.querySelector('.quiz-game-answer-text').textContent = choice;
+            if (Array.isArray(question.choices) && question.choices.length >= 2) {
+                question.choices.forEach((choice, index) => {
+                    const answer = document.createElement('div');
+                    answer.className = 'quiz-game-answer';
+                    answer.innerHTML = '<span class="quiz-game-answer-letter"></span><span class="quiz-game-answer-text"></span>';
+                    answer.querySelector('.quiz-game-answer-letter').textContent = String.fromCharCode(65 + index);
+                    answer.querySelector('.quiz-game-answer-text').textContent = choice;
 
-                if (this.answerRevealed) {
-                    answer.classList.add(index === question.answer ? 'is-correct' : 'is-dimmed');
-                }
+                    if (this.answerRevealed) {
+                        answer.classList.add(index === question.answer ? 'is-correct' : 'is-dimmed');
+                    }
 
-                this.answersList.appendChild(answer);
-            });
+                    this.answersList.appendChild(answer);
+                });
+            } else if (question.answerText) {
+                this.answerPanel.hidden = false;
+                this.answerPanel.classList.toggle('is-revealed', this.answerRevealed);
+                this.answerPanel.textContent = this.answerRevealed
+                    ? question.answerText
+                    : 'Short answer question';
+            }
         }
 
         this.scoreboard.innerHTML = '';
@@ -389,7 +420,7 @@ class QuizGameWidget {
         });
 
         if (!normalized) {
-            this.setStatus('Quiz JSON needs questions with at least two choices.');
+            this.setStatus('Quiz JSON needs questions with choices or short-answer text.');
             return;
         }
 
@@ -414,6 +445,127 @@ class QuizGameWidget {
         this.titleInput.value = sampleQuiz.title;
         this.teamNamesInput.value = sampleQuiz.teams.join(', ');
         this.handleLoadQuiz();
+    }
+
+    getLastRevealDeck() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem('revealLastDeck') || 'null');
+            if (!parsed || typeof parsed !== 'object') {
+                return null;
+            }
+
+            if (parsed.type !== 'html' || typeof parsed.content !== 'string' || !parsed.content.trim()) {
+                return null;
+            }
+
+            return parsed;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    getRevealLeafSections(doc) {
+        const topSections = Array.from(doc.querySelectorAll('.slides > section'));
+        return topSections.flatMap((section) => {
+            const childSections = Array.from(section.children).filter((child) => child.tagName === 'SECTION');
+            return childSections.length ? childSections : [section];
+        });
+    }
+
+    parseRevealQuestionNumber(text = '') {
+        const match = String(text || '').match(/(\d+)/);
+        return match ? Number.parseInt(match[1], 10) : null;
+    }
+
+    importRevealQuizDeck(deck = {}) {
+        if (typeof deck.content !== 'string' || !deck.content.trim()) {
+            return null;
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(deck.content, 'text/html');
+        const sections = this.getRevealLeafSections(doc);
+        const questionsByNumber = new Map();
+        const answerMap = new Map();
+        let fallbackQuestionNumber = 1;
+
+        sections.forEach((section) => {
+            const questionShell = section.querySelector('.question-shell');
+            if (questionShell) {
+                const questionNumber = this.parseRevealQuestionNumber(
+                    questionShell.querySelector('.q-number')?.textContent || ''
+                ) || fallbackQuestionNumber++;
+                const questionText = String(
+                    questionShell.querySelector('.question-card h1, .question-card h2, .question-card h3')?.textContent || ''
+                ).trim();
+                if (questionText) {
+                    questionsByNumber.set(questionNumber, {
+                        number: questionNumber,
+                        question: questionText,
+                        choices: [],
+                        answer: 0,
+                        answerText: ''
+                    });
+                }
+                return;
+            }
+
+            const answerItems = Array.from(section.querySelectorAll('.answers-shell .answer-item'));
+            if (!answerItems.length) {
+                return;
+            }
+
+            answerItems.forEach((item) => {
+                const text = String(item.textContent || '').trim();
+                const match = text.match(/^(\d+)[.)]?\s*(.+)$/);
+                if (!match) {
+                    return;
+                }
+                answerMap.set(Number.parseInt(match[1], 10), match[2].trim());
+            });
+        });
+
+        const questions = Array.from(questionsByNumber.values())
+            .sort((a, b) => a.number - b.number)
+            .map((question) => ({
+                question: question.question,
+                choices: [],
+                answer: 0,
+                answerText: answerMap.get(question.number) || ''
+            }))
+            .filter((question) => question.question && question.answerText);
+
+        if (!questions.length) {
+            return null;
+        }
+
+        return {
+            title: String(deck.name || doc.querySelector('title')?.textContent || 'Imported Reveal Quiz').trim(),
+            teams: this.getTeamNamesFromInput(),
+            questions
+        };
+    }
+
+    handleImportLastRevealDeck() {
+        const deck = this.getLastRevealDeck();
+        if (!deck) {
+            this.setStatus('Open a Reveal HTML quiz first, then import it here.');
+            return;
+        }
+
+        const importedQuiz = this.importRevealQuizDeck(deck);
+        if (!importedQuiz) {
+            this.setStatus('That Reveal deck did not match the quiz importer yet.');
+            return;
+        }
+
+        this.titleInput.value = importedQuiz.title;
+        this.teamNamesInput.value = (importedQuiz.teams && importedQuiz.teams.length
+            ? importedQuiz.teams
+            : this.teams.map((team) => team.name)).join(', ');
+        this.quizJsonInput.value = this.stringifyQuizData(importedQuiz);
+        this.handleLoadQuiz();
+        this.setStatus(`Imported ${importedQuiz.questions.length} questions from the last Reveal deck.`);
     }
 
     handleResetScores() {
@@ -474,6 +626,7 @@ class QuizGameWidget {
         this.teamNamesInput.removeEventListener('change', this.handleTeamNamesInput);
         this.loadQuizButton.removeEventListener('click', this.handleLoadQuiz);
         this.sampleQuizButton.removeEventListener('click', this.handleLoadSampleQuiz);
+        this.importRevealButton.removeEventListener('click', this.handleImportLastRevealDeck);
         this.resetScoresButton.removeEventListener('click', this.handleResetScores);
         this.element.remove();
         document.dispatchEvent(new CustomEvent('widgetRemoved', { detail: { widget: this } }));

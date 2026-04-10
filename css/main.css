@@ -3499,6 +3499,24 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     opacity: 0.65;
 }
 
+.quiz-game-direct-answer {
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px dashed color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, var(--card-background, #ffffff) 12%);
+    color: var(--text-secondary, #64748b);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.quiz-game-direct-answer.is-revealed {
+    border-style: solid;
+    border-color: color-mix(in srgb, #22c55e 38%, var(--border-color, #dfe4e2) 62%);
+    background: color-mix(in srgb, #22c55e 14%, var(--card-background, #ffffff) 86%);
+    color: var(--text-primary, #0f172a);
+}
+
 .quiz-game-scoreboard {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
