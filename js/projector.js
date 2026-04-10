@@ -572,19 +572,7 @@ class ProjectorApp {
             return;
         }
 
-        clearProjectorPresentationRoot();
-        this.widgets = [];
-        this.layoutManager.deserialize(resetSnapshot, (widgetData) => {
-            if (widgetData.visibleOnProjector === false) {
-                return null;
-            }
-
-            const widget = createWidgetByType(widgetData.type);
-            if (widget) {
-                this.widgets.push(widget);
-            }
-            return widget;
-        });
+        this.layoutManager.deserialize(resetSnapshot, (widgetData) => this.createProjectorWidget(widgetData));
 
         if (this.isEditMode) {
             this.projectorChannel.postMessage({
@@ -618,12 +606,7 @@ class ProjectorApp {
                 // LayoutManager.deserialize clears the container.
 
                 this.layoutManager.deserialize(state.layout, (widgetData) => {
-                    // Filter out widgets not meant for the projector
-                    if (widgetData.visibleOnProjector === false) {
-                        return null;
-                    }
-
-                    const widget = createWidgetByType(widgetData.type);
+                    const widget = this.createProjectorWidget(widgetData);
                     if (widget) {
                         this.widgets.push(widget);
                     }
@@ -639,9 +622,17 @@ class ProjectorApp {
         }
     }
 
-    applyTimerStates(timerStates = []) {
-        if (!Array.isArray(timerStates)) {
-            return;
+    createProjectorWidget(widgetData) {
+        if (widgetData.visibleOnProjector === false) {
+            return null;
+        }
+
+        return this.layoutManager.createWidgetFromType(widgetData.type);
+    }
+
+    destroy() {
+        if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
+            this.revealSync.channel.close();
         }
 
         timerStates.forEach((timerState) => this.applyTimerState(timerState));
