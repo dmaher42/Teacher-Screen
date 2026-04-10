@@ -83,6 +83,14 @@ class QuizGameWidget {
         this.answerPanel = document.createElement('div');
         this.answerPanel.className = 'quiz-game-direct-answer';
 
+        this.answerPanelLabel = document.createElement('div');
+        this.answerPanelLabel.className = 'quiz-game-direct-answer-label';
+
+        this.answerPanelValue = document.createElement('div');
+        this.answerPanelValue.className = 'quiz-game-direct-answer-value';
+
+        this.answerPanel.append(this.answerPanelLabel, this.answerPanelValue);
+
         this.questionCard.append(this.questionNumber, this.questionText, this.answersList, this.answerPanel);
 
         this.scoreboard = document.createElement('div');
@@ -391,7 +399,8 @@ class QuizGameWidget {
 
         this.answersList.innerHTML = '';
         this.answerPanel.hidden = true;
-        this.answerPanel.textContent = '';
+        this.answerPanelLabel.textContent = '';
+        this.answerPanelValue.textContent = '';
         if (question) {
             if (Array.isArray(question.choices) && question.choices.length >= 2) {
                 question.choices.forEach((choice, index) => {
@@ -410,9 +419,10 @@ class QuizGameWidget {
             } else if (question.answerText) {
                 this.answerPanel.hidden = false;
                 this.answerPanel.classList.toggle('is-revealed', this.answerRevealed);
-                this.answerPanel.textContent = this.answerRevealed
+                this.answerPanelLabel.textContent = this.answerRevealed ? 'Correct answer' : 'Short answer';
+                this.answerPanelValue.textContent = this.answerRevealed
                     ? question.answerText
-                    : 'Short answer question';
+                    : 'Reveal the answer to continue.';
             }
         }
 
