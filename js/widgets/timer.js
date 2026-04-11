@@ -422,7 +422,8 @@ class TimerWidget {
         if (targetId && targetId !== this.widgetId) return;
 
         const minutes = typeof payload.minutes === 'number' ? payload.minutes : null;
-        this.start(minutes);
+        const seconds = typeof payload.seconds === 'number' ? payload.seconds : null;
+        this.start(minutes, seconds);
     }
 
     handleTimerStopEvent(payload = {}) {
@@ -543,12 +544,15 @@ class TimerWidget {
     /**
      * Start the timer with a default of 5 minutes.
      * @param {number} minutes - The number of minutes to count down from.
+     * @param {number} seconds - Optional explicit total seconds to count down from.
      */
-    start(minutes = null) {
+    start(minutes = null, seconds = null) {
+        const hasExplicitSeconds = Number.isFinite(seconds) && seconds > 0;
         const hasExplicitMinutes = Number.isFinite(minutes) && minutes > 0;
+        const hasExplicitTime = hasExplicitSeconds || hasExplicitMinutes;
 
         // Teacher controls can send a fresh duration while the timer is already running.
-        if (this.running && hasExplicitMinutes) {
+        if (this.running && hasExplicitTime) {
             clearInterval(this.interval);
             this.interval = null;
             this.running = false;
@@ -556,31 +560,45 @@ class TimerWidget {
 
         if (!this.running) {
             this.display.style.color = ''; // Reset color in case it was red
-            if (this.isIntervalMode && !hasExplicitMinutes) {
+            if (this.isIntervalMode && !hasExplicitTime) {
                 this.currentPhase = 'Work';
                 const workMinutes = this.getWorkDuration();
                 this.time = workMinutes * 60;
                 this.totalTime = this.time;
                 this.setStatus(`Interval started: Work for ${workMinutes} minute(s).`);
             } else {
-                // Priority: Argument -> Current Time (if set by preset) -> Dropdown -> Default
-                let chosenMinutes;
-                if (hasExplicitMinutes) {
-                     chosenMinutes = minutes;
+                // Priority: Argument (seconds or minutes) -> Current Time (if set by preset) -> Dropdown -> Default
+                let statusMessage = '';
+                if (hasExplicitSeconds) {
                      this.currentPhase = null;
                      this.selectedPresetName = null;
-                     this.time = chosenMinutes * 60;
+                     this.time = seconds;
+
+                     const h = Math.floor(seconds / 3600);
+                     const m = Math.floor((seconds % 3600) / 60);
+                     const s = seconds % 60;
+                     let timeParts = [];
+                     if (h > 0) timeParts.push(`${h} hour${h !== 1 ? 's' : ''}`);
+                     if (m > 0) timeParts.push(`${m} minute${m !== 1 ? 's' : ''}`);
+                     if (s > 0) timeParts.push(`${s} second${s !== 1 ? 's' : ''}`);
+                     statusMessage = `Timer started for ${timeParts.join(', ')}.`;
+                } else if (hasExplicitMinutes) {
+                     this.currentPhase = null;
+                     this.selectedPresetName = null;
+                     this.time = minutes * 60;
+                     statusMessage = `Timer started for ${Math.round(minutes * 10) / 10} minute(s).`;
                 } else if (this.time > 0 && this.selectedPresetName) {
                      // Using currently selected preset or manually set time via preset click
-                     chosenMinutes = this.time / 60;
+                     statusMessage = `Timer started for ${Math.round((this.time / 60) * 10) / 10} minute(s).`;
                 } else {
                     const presetValue = this.presetSelect ? parseInt(this.presetSelect.value, 10) : null;
-                    chosenMinutes = !isNaN(presetValue) ? presetValue : 5;
+                    const chosenMinutes = !isNaN(presetValue) ? presetValue : 5;
                     this.time = chosenMinutes * 60;
+                    statusMessage = `Timer started for ${chosenMinutes} minute(s).`;
                 }
 
                 this.totalTime = this.time;
-                this.setStatus(`Timer started for ${Math.round(chosenMinutes * 10) / 10} minute(s).`);
+                this.setStatus(statusMessage);
             }
             this.running = true;
             this.updateDisplay();
