@@ -473,6 +473,7 @@ class LayoutManager {
     };
 
     widget.widgetId = widgetInfo.id;
+    widget.widgetInfo = widgetInfo;
     this.widgets.push(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
@@ -1025,7 +1026,7 @@ class LayoutManager {
       const resolvedWidgetId = widgetData.id || this.getNextWidgetId();
       widget.widgetId = resolvedWidgetId;
 
-      this.widgets.push({
+      const widgetInfo = {
         id: resolvedWidgetId,
         element: widgetElement,
         widget: widget,
@@ -1035,7 +1036,9 @@ class LayoutManager {
         width: finalW,
         height: finalH,
         visibleOnProjector: widgetData.visibleOnProjector !== false
-      });
+      };
+      widget.widgetInfo = widgetInfo;
+      this.widgets.push(widgetInfo);
 
       if (typeof widget.setEditable === 'function') {
         widget.setEditable(this.editable);

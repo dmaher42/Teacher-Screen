@@ -482,6 +482,11 @@ class DrawingToolWidget {
      * Clear the entire canvas.
      */
     clear() {
+        if (this.isTeacherMode && this.isTeacherMode() && this.widgetInfo && this.widgetInfo.visibleOnProjector !== false) {
+            const confirmed = window.confirm('This drawing board is visible to students. Clear it?');
+            if (!confirmed) return;
+        }
+
         this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
         this.drawActions = [];
         this.currentStroke = null;

@@ -661,6 +661,11 @@ class TimerWidget {
     }
 
     reset(emitEvent = true) {
+        if (this.isTeacherMode && this.isTeacherMode() && this.widgetInfo && this.widgetInfo.visibleOnProjector !== false) {
+            const confirmed = window.confirm('This timer is visible to students. Reset it?');
+            if (!confirmed) return;
+        }
+
         if (this.interval) {
             clearInterval(this.interval);
             this.interval = null;
