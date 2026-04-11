@@ -3399,8 +3399,8 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
-    padding: 0 12px;
+    gap: 8px;
+    padding: 0 8px;
 }
 
 .quiz-game-header-meta {
@@ -3416,19 +3416,19 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-title {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 800;
     line-height: 1.15;
 }
 
 .quiz-game-progress {
-    font-size: 0.84rem;
+    font-size: 0.75rem;
     color: var(--text-secondary, #64748b);
 }
 
 .quiz-game-status-pill {
     flex: 0 0 auto;
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
     border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 20%, var(--border-color, #dfe4e2) 80%);
