@@ -407,7 +407,6 @@ class QuizGameWidget {
         }, 1000);
 
         this.render();
-        this.setStatus('Question timer started.');
         this.emitChange();
     }
 
