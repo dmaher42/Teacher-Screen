@@ -3994,8 +3994,8 @@ body.projector-view .quiz-game-widget-content .quiz-game-question-number {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-question-text,
 body.projector-view .quiz-game-widget-content .quiz-game-question-text {
-    max-width: 18ch;
-    font-size: clamp(2rem, 4vw, 3.8rem);
+    /* max-width: 18ch; removed to fix narrow text */
+    font-size: clamp(2rem, 3.5vw, 3.2rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
     color: #ffffff;
@@ -4145,7 +4145,7 @@ body.projector-view .quiz-game-widget-content .quiz-game-team-card.is-score-buzz
 .quiz-game-widget-content.is-projector-mode.is-compact .quiz-game-question-text,
 body.projector-view .quiz-game-widget-content.is-compact .quiz-game-question-text {
     max-width: none;
-    font-size: clamp(1.5rem, 2.7vw, 2.4rem);
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
 }
 
 .quiz-game-widget-content.is-projector-mode.is-compact .quiz-game-answers,
@@ -4155,7 +4155,7 @@ body.projector-view .quiz-game-widget-content.is-compact .quiz-game-answers {
 
 .quiz-game-widget-content.is-projector-mode.is-tight .quiz-game-question-text,
 body.projector-view .quiz-game-widget-content.is-tight .quiz-game-question-text {
-    font-size: clamp(1.1rem, 2vw, 1.6rem);
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
 }
 
 .quiz-game-widget-content.is-projector-mode.is-tight .quiz-game-scoreboard,
