@@ -80,6 +80,11 @@ function resetAppState() {
 
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
+const WIDGET_PICKER_SHORTCUTS = {
+    q: 'quiz-game',
+    r: 'reveal-manager',
+    t: 'rich-text'
+};
 
 function createProjectorSyncToken() {
     const makeToken = () => {
@@ -523,32 +528,33 @@ class ClassroomScreenApp {
             }
         });
         document.addEventListener('keydown', (event) => {
+            const key = (event.key || '').toLowerCase();
+
             if (event.key === 'Escape') {
                 this.closeSectionsMenu();
                 return;
             }
 
-            const shortcutWidgetMap = {
-                q: 'quiz-game',
-                r: 'reveal-manager',
-                t: 'rich-text'
-            };
+            if (this.widgetModal?.open && !isShortcutEditableTarget(event.target)) {
+                const shortcutWidgetType = WIDGET_PICKER_SHORTCUTS[key];
+                if (shortcutWidgetType && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                    this.addWidget(shortcutWidgetType);
+                    return;
+                }
+            }
 
-            if (!event.ctrlKey && !event.metaKey) {
+            const isWidgetPickerLauncher = key === 'w' && (event.ctrlKey || event.metaKey) && event.altKey;
+            if (!isWidgetPickerLauncher) {
                 return;
             }
 
-            if (event.altKey || event.repeat || isShortcutEditableTarget(event.target)) {
-                return;
-            }
-
-            const focusWidgetType = shortcutWidgetMap[(event.key || '').toLowerCase()];
-            if (!focusWidgetType) {
+            if (event.repeat || isShortcutEditableTarget(event.target)) {
                 return;
             }
 
             event.preventDefault();
-            this.openWidgetPickerForShortcut(focusWidgetType);
+            this.openWidgetPickerForShortcut();
         });
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
@@ -3845,7 +3851,7 @@ class ClassroomScreenApp {
         });
     }
 
-    openWidgetPickerForShortcut(focusWidgetType) {
+    openWidgetPickerForShortcut(focusWidgetType = null) {
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
         this.openWidgetPicker(focusWidgetType);
