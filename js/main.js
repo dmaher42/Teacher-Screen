@@ -2696,9 +2696,10 @@ class ClassroomScreenApp {
             const hours = parseInt(document.getElementById('timer-hours').value, 10) || 0;
             const minutes = parseInt(document.getElementById('timer-minutes').value, 10) || 0;
             const seconds = parseInt(document.getElementById('timer-seconds').value, 10) || 0;
-            const totalMinutes = (hours * 60) + minutes + (seconds / 60);
-            if (totalMinutes > 0) {
-                eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes });
+            const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+            const totalMinutes = totalSeconds / 60;
+            if (totalSeconds > 0) {
+                eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes, seconds: totalSeconds });
             } else {
                 this.showNotification('Please set a timer duration.', 'warning');
             }
