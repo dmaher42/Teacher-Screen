@@ -3980,12 +3980,12 @@ body.projector-view .quiz-game-widget-content .quiz-game-header-meta {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-header-aside,
 body.projector-view .quiz-game-widget-content .quiz-game-header-aside {
-    gap: 14px;
+    gap: 10px;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-title,
 body.projector-view .quiz-game-widget-content .quiz-game-title {
-    font-size: clamp(1.65rem, 2.4vw, 2.6rem);
+    font-size: clamp(1.35rem, 2vw, 2.1rem);
     line-height: 1.05;
     letter-spacing: -0.02em;
     color: #ffffff;
@@ -3993,13 +3993,13 @@ body.projector-view .quiz-game-widget-content .quiz-game-title {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-progress,
 body.projector-view .quiz-game-widget-content .quiz-game-progress {
-    font-size: 1rem;
+    font-size: 0.88rem;
     color: rgba(226, 232, 240, 0.82);
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-status-pill,
 body.projector-view .quiz-game-widget-content .quiz-game-status-pill {
-    padding: 9px 14px;
+    padding: 7px 10px;
     border-color: rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.08);
     color: #f8fafc;
@@ -4007,8 +4007,8 @@ body.projector-view .quiz-game-widget-content .quiz-game-status-pill {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-timer-display,
 body.projector-view .quiz-game-widget-content .quiz-game-timer-display {
-    min-width: 120px;
-    padding: 10px 14px;
+    min-width: 104px;
+    padding: 7px 10px;
     border-color: rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -4016,11 +4016,12 @@ body.projector-view .quiz-game-widget-content .quiz-game-timer-display {
 .quiz-game-widget-content.is-projector-mode .quiz-game-timer-label,
 body.projector-view .quiz-game-widget-content .quiz-game-timer-label {
     color: rgba(226, 232, 240, 0.78);
+    font-size: 0.64rem;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-timer-value,
 body.projector-view .quiz-game-widget-content .quiz-game-timer-value {
-    font-size: clamp(1.35rem, 2vw, 2rem);
+    font-size: clamp(1.1rem, 1.8vw, 1.55rem);
     color: #ffffff;
 }
 
@@ -4038,31 +4039,31 @@ body.projector-view .quiz-game-widget-content .quiz-game-timer-display.is-finish
 body.projector-view .quiz-game-widget-content .quiz-game-question-card {
     flex: 1 1 auto;
     align-content: start;
-    gap: 20px;
+    gap: 14px;
     margin: 0;
-    padding: 24px 28px 28px;
-    border-radius: 28px;
+    padding: 16px 18px 18px;
+    border-radius: 22px;
     border-color: rgba(255, 255, 255, 0.12);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.06)),
         rgba(15, 23, 42, 0.7);
     box-shadow: 0 24px 60px rgba(2, 6, 23, 0.38);
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-question-number,
 body.projector-view .quiz-game-widget-content .quiz-game-question-number {
-    padding: 8px 14px;
-    font-size: 0.95rem;
+    padding: 6px 10px;
+    font-size: 0.8rem;
     background: rgba(96, 165, 250, 0.16);
     color: #bfdbfe;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-question-text,
 body.projector-view .quiz-game-widget-content .quiz-game-question-text {
-    max-width: 18ch;
-    font-size: clamp(2rem, 4vw, 3.8rem);
-    line-height: 1.08;
+    max-width: 22ch;
+    font-size: clamp(1.55rem, 3vw, 2.8rem);
+    line-height: 1.06;
     letter-spacing: -0.03em;
     color: #ffffff;
 }
@@ -4070,15 +4071,15 @@ body.projector-view .quiz-game-widget-content .quiz-game-question-text {
 .quiz-game-widget-content.is-projector-mode .quiz-game-answers,
 body.projector-view .quiz-game-widget-content .quiz-game-answers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 10px;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-answer,
 body.projector-view .quiz-game-widget-content .quiz-game-answer {
-    min-height: 84px;
+    min-height: 64px;
     align-items: start;
-    padding: 18px 20px;
-    border-radius: 22px;
+    padding: 12px 14px;
+    border-radius: 16px;
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -4091,17 +4092,17 @@ body.projector-view .quiz-game-widget-content .quiz-game-answer.is-correct::afte
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-answer-letter,
 body.projector-view .quiz-game-widget-content .quiz-game-answer-letter {
-    width: 42px;
-    height: 42px;
-    margin-top: 1px;
-    font-size: 1rem;
+    width: 30px;
+    height: 30px;
+    margin-top: 0;
+    font-size: 0.84rem;
     background: rgba(96, 165, 250, 0.18);
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-answer-text,
 body.projector-view .quiz-game-widget-content .quiz-game-answer-text {
-    font-size: clamp(1.15rem, 1.8vw, 1.75rem);
-    line-height: 1.25;
+    font-size: clamp(1rem, 1.5vw, 1.35rem);
+    line-height: 1.2;
     font-weight: 700;
     color: #f8fafc;
 }
@@ -4132,9 +4133,9 @@ body.projector-view .quiz-game-widget-content .quiz-game-answer.is-dimmed {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-direct-answer,
 body.projector-view .quiz-game-widget-content .quiz-game-direct-answer {
-    gap: 6px;
-    padding: 18px 22px;
-    border-radius: 22px;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 16px;
     border-color: rgba(255, 255, 255, 0.16);
     background: rgba(255, 255, 255, 0.08);
     color: rgba(226, 232, 240, 0.86);
@@ -4154,7 +4155,7 @@ body.projector-view .quiz-game-widget-content .quiz-game-direct-answer-label {
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-direct-answer-value,
 body.projector-view .quiz-game-widget-content .quiz-game-direct-answer-value {
-    font-size: clamp(1.2rem, 1.9vw, 1.8rem);
+    font-size: clamp(1rem, 1.5vw, 1.35rem);
     color: #ffffff;
 }
 
@@ -4170,29 +4171,29 @@ body.projector-view .quiz-game-widget-content .quiz-game-direct-answer.is-reveal
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-scoreboard,
 body.projector-view .quiz-game-widget-content .quiz-game-scoreboard {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
     padding: 0;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-team-card,
 body.projector-view .quiz-game-widget-content .quiz-game-team-card {
-    gap: 8px;
-    padding: 14px 18px;
-    border-radius: 22px;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 16px;
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.08);
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-team-name,
 body.projector-view .quiz-game-widget-content .quiz-game-team-name {
-    font-size: 1.05rem;
+    font-size: 0.92rem;
     color: rgba(226, 232, 240, 0.92);
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-team-score,
 body.projector-view .quiz-game-widget-content .quiz-game-team-score {
-    font-size: clamp(2rem, 3vw, 3rem);
+    font-size: clamp(1.5rem, 2.2vw, 2.3rem);
     color: #ffffff;
 }
 
@@ -4200,6 +4201,7 @@ body.projector-view .quiz-game-widget-content .quiz-game-team-score {
 body.projector-view .quiz-game-widget-content .quiz-game-team-score-delta {
     background: rgba(96, 165, 250, 0.16);
     color: #bfdbfe;
+    font-size: 0.56rem;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-team-card.is-score-buzzed,
