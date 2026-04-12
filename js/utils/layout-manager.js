@@ -548,6 +548,8 @@ class LayoutManager {
       this.observeWidgetLayout(info);
     });
 
+    this.resolveWidgetPlacementConflict(widgetInfo);
+
     if (typeof widget.setEditable === 'function') {
       widget.setEditable(this.editable);
     }
