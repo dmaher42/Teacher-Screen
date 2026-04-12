@@ -3972,7 +3972,7 @@ class ClassroomScreenApp {
         const projectorToggle = document.createElement('label');
         projectorToggle.className = 'widget-settings-toggle';
         const widgetInfo = this.layoutManager.widgets.find(w => w.widget === widget);
-        const isVisible = widgetInfo ? widgetInfo.visibleOnProjector : true;
+        const isVisible = widgetInfo ? widgetInfo.visibleOnProjector !== false : true;
         projectorToggle.innerHTML = `
             <input type="checkbox" id="projectorToggle" ${isVisible ? 'checked' : ''}>
             Show on projector
@@ -3981,9 +3981,7 @@ class ClassroomScreenApp {
         if (projectorToggleInput) {
             projectorToggleInput.addEventListener('change', (event) => {
                 if (!widgetInfo) return;
-                widgetInfo.visibleOnProjector = event.target.checked;
-                this.layoutManager.saveLayout();
-                this.updateProjectorVisibility();
+                this.layoutManager.setWidgetProjectorVisibility(widgetInfo, event.target.checked);
             });
         }
 

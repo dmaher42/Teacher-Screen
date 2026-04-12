@@ -3269,6 +3269,43 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     font-size: 0.72rem;
 }
 
+.widget-projector-visibility-btn {
+    position: absolute;
+    top: 8px;
+    right: 40px;
+    background-color: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--overlay-backdrop) 12%);
+    color: var(--text-color, #333);
+    border: 1px solid var(--border-soft-2, rgba(0, 0, 0, 0.08));
+    border-radius: 999px;
+    min-width: 0;
+    min-height: 24px;
+    padding: 0 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    opacity: 1;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    z-index: 40;
+    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
+    line-height: 1;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.widget-projector-visibility-btn.is-visible {
+    background-color: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, var(--card-background, #ffffff) 88%);
+}
+
+.widget-projector-visibility-btn.is-teacher-only {
+    background-color: color-mix(in srgb, var(--bg-surface, #f8fafc) 72%, var(--card-background, #ffffff) 28%);
+}
+
+.widget-projector-visibility-btn:focus-visible {
+    outline: 2px solid var(--primary-color, #8e82ff);
+    outline-offset: 2px;
+}
+
 .document-viewer-widget-content,
 .drawing-tool-widget-content,
 .noise-meter-widget-content,

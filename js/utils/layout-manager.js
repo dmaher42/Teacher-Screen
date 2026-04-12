@@ -469,12 +469,13 @@ class LayoutManager {
       y: finalY,
       width: finalW,
       height: finalH,
-      visibleOnProjector: true
+      visibleOnProjector: false
     };
 
     widget.widgetId = widgetInfo.id;
     widget.widgetInfo = widgetInfo;
     this.widgets.push(widgetInfo);
+    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
     this.widgets.forEach((info) => {
@@ -489,6 +490,45 @@ class LayoutManager {
     this.emitBusEvent('widget:created', { id: widgetInfo.id, type: widget.constructor.name });
     this.saveLayout();
     return widgetElement;
+  }
+
+  getWidgetProjectorVisibilityLabel(widgetInfo) {
+    return widgetInfo && widgetInfo.visibleOnProjector !== false
+      ? 'Visible to students'
+      : 'Teacher only';
+  }
+
+  refreshWidgetProjectorVisibilityControl(widgetInfo) {
+    if (!widgetInfo) return;
+
+    const projectorVisibilityButton = widgetInfo.projectorVisibilityButton || widgetInfo.widget?.projectorVisibilityButton;
+    if (!projectorVisibilityButton) return;
+
+    widgetInfo.projectorVisibilityButton = projectorVisibilityButton;
+
+    const isVisible = widgetInfo.visibleOnProjector !== false;
+    projectorVisibilityButton.textContent = this.getWidgetProjectorVisibilityLabel(widgetInfo);
+    projectorVisibilityButton.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+    projectorVisibilityButton.classList.toggle('is-visible', isVisible);
+    projectorVisibilityButton.classList.toggle('is-teacher-only', !isVisible);
+  }
+
+  setWidgetProjectorVisibility(widgetInfo, visibleOnProjector) {
+    if (!widgetInfo) return;
+
+    const nextVisible = visibleOnProjector !== false;
+    widgetInfo.visibleOnProjector = nextVisible;
+    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
+
+    if (this.widgetSettingsModal && this.widgetSettingsModal.classList.contains('visible') && this.activeSettingsWidget === widgetInfo.widget) {
+      const projectorToggleInput = this.widgetSettingsModal.querySelector('#projectorToggle');
+      if (projectorToggleInput) {
+        projectorToggleInput.checked = nextVisible;
+      }
+    }
+
+    this.saveLayout();
+    this.updateProjectorVisibility();
   }
 
   createSettingsButton(widget, widgetElement) {
@@ -513,6 +553,40 @@ class LayoutManager {
     });
 
     widgetElement.appendChild(settingsButton);
+
+    if (layoutManagerIsTeacherMode()) {
+      const projectorVisibilityButton = document.createElement('button');
+      projectorVisibilityButton.className = 'widget-projector-visibility-btn';
+      projectorVisibilityButton.type = 'button';
+      projectorVisibilityButton.setAttribute('aria-pressed', 'false');
+      projectorVisibilityButton.setAttribute('aria-label', 'Toggle projector visibility');
+      projectorVisibilityButton.title = 'Toggle projector visibility';
+      projectorVisibilityButton.textContent = 'Teacher only';
+
+      projectorVisibilityButton.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+      });
+
+      projectorVisibilityButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const widgetInfo = this.widgets.find(info => info.widget === widget);
+        if (!widgetInfo) return;
+        this.setWidgetProjectorVisibility(widgetInfo, !widgetInfo.visibleOnProjector);
+      });
+
+      projectorVisibilityButton.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          const widgetInfo = this.widgets.find(info => info.widget === widget);
+          if (!widgetInfo) return;
+          this.setWidgetProjectorVisibility(widgetInfo, !widgetInfo.visibleOnProjector);
+        }
+      });
+
+      widget.projectorVisibilityButton = projectorVisibilityButton;
+      widgetElement.appendChild(projectorVisibilityButton);
+    }
   }
 
   removeWidget(widget) {
@@ -1039,6 +1113,7 @@ class LayoutManager {
       };
       widget.widgetInfo = widgetInfo;
       this.widgets.push(widgetInfo);
+      this.refreshWidgetProjectorVisibilityControl(widgetInfo);
 
       if (typeof widget.setEditable === 'function') {
         widget.setEditable(this.editable);
