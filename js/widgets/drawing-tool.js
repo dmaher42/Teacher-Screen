@@ -112,6 +112,9 @@ class DrawingToolWidget {
         this.drawActions = [];
         this.currentStroke = null;
         this.hasContent = false;
+        this.widgetChangedFrame = null;
+        this.lastWidgetChangedAt = 0;
+        this.widgetChangedInterval = 100;
         this.updateDrawingUI();
 
         // Set up event listeners after the element is in the DOM
@@ -257,11 +260,13 @@ class DrawingToolWidget {
             this.ctx.stroke();
             this.hasContent = true;
             this.updateDrawingUI();
+            this.scheduleWidgetChanged();
             return;
         }
 
         this.restoreSnapshot(this.previewSnapshot);
         this.drawShapeFromPoints(this.startPoint, point);
+        this.scheduleWidgetChanged();
     }
 
     /**
@@ -269,11 +274,13 @@ class DrawingToolWidget {
      */
     stopDrawing(e = null) {
         if (this.isDrawing) {
+            let didCommitStroke = false;
             if (this.currentTool === 'freehand' && this.currentStroke?.points?.length > 1) {
                 this.drawActions.push({
                     ...this.currentStroke,
                     points: this.currentStroke.points.map((point) => ({ ...point }))
                 });
+                didCommitStroke = true;
             } else if (this.currentTool !== 'freehand' && this.startPoint) {
                 const point = e ? this.getPointerPosition(e) : this.lastPointer;
                 this.restoreSnapshot(this.previewSnapshot);
@@ -286,6 +293,7 @@ class DrawingToolWidget {
                     end: point ? { ...point } : { ...this.startPoint }
                 });
                 this.hasContent = true;
+                didCommitStroke = true;
             }
 
             this.isDrawing = false;
@@ -296,6 +304,9 @@ class DrawingToolWidget {
             this.element.classList.remove('is-drawing');
             this.ctx.beginPath(); // Reset the path
             this.updateDrawingUI();
+            if (didCommitStroke) {
+                this.flushWidgetChanged();
+            }
         }
     }
 
@@ -493,6 +504,7 @@ class DrawingToolWidget {
         this.pendingImageData = null;
         this.hasContent = false;
         this.updateDrawingUI();
+        this.flushWidgetChanged();
     }
 
     /**
@@ -508,6 +520,42 @@ class DrawingToolWidget {
     toggleHelp() {
         const isVisible = this.helpText.style.display === 'block';
         this.helpText.style.display = isVisible ? 'none' : 'block';
+    }
+
+    emitWidgetChanged() {
+        document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    }
+
+    scheduleWidgetChanged() {
+        if (this.widgetChangedFrame) {
+            return;
+        }
+
+        const now = Date.now();
+        const elapsed = now - this.lastWidgetChangedAt;
+        const delay = elapsed >= this.widgetChangedInterval ? 0 : this.widgetChangedInterval - elapsed;
+
+        if (delay === 0) {
+            this.emitWidgetChanged();
+            this.lastWidgetChangedAt = now;
+            return;
+        }
+
+        this.widgetChangedFrame = setTimeout(() => {
+            this.widgetChangedFrame = null;
+            this.emitWidgetChanged();
+            this.lastWidgetChangedAt = Date.now();
+        }, delay);
+    }
+
+    flushWidgetChanged() {
+        if (this.widgetChangedFrame) {
+            clearTimeout(this.widgetChangedFrame);
+            this.widgetChangedFrame = null;
+        }
+
+        this.emitWidgetChanged();
+        this.lastWidgetChangedAt = Date.now();
     }
 
     getControls() {
