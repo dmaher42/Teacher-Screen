@@ -388,10 +388,75 @@ class LayoutManager {
       info.element.style.left = `${newX}px`;
       info.element.style.top = `${newY}px`;
 
+      this.resolveWidgetPlacementConflict(info);
       this.emitWidgetUpdate(info);
-      this.emitBusEvent('widget:moved', { id: info.id, x: newX, y: newY, width: info.width, height: info.height });
+      this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
       this.saveLayout({ emitFull: false });
     }
+  }
+
+  rectsOverlap(a, b) {
+    if (!a || !b) return false;
+
+    return a.x < b.x + b.width
+      && a.x + a.width > b.x
+      && a.y < b.y + b.height
+      && a.y + a.height > b.y;
+  }
+
+  resolveWidgetPlacementConflict(widgetInfo) {
+    if (!widgetInfo || !widgetInfo.element) return false;
+    if (widgetInfo.layoutType === 'stage') return false;
+
+    const parent = widgetInfo.element.parentElement;
+    if (!parent) return false;
+
+    const maxWidth = parent.clientWidth || this.container.clientWidth || 1024;
+    const maxHeight = parent.clientHeight || this.container.clientHeight || 768;
+    const currentWidth = widgetInfo.width;
+    const currentHeight = widgetInfo.height;
+    const siblings = this.widgets.filter((info) => info && info !== widgetInfo && info.element && info.element.parentElement === parent);
+
+    let candidateX = widgetInfo.x;
+    let candidateY = widgetInfo.y;
+    let attempts = 0;
+    const maxAttempts = Math.max(1, Math.ceil((maxWidth * maxHeight) / Math.max(GRID_SIZE * GRID_SIZE, 1)));
+
+    while (attempts < maxAttempts) {
+      const candidateRect = {
+        x: candidateX,
+        y: candidateY,
+        width: currentWidth,
+        height: currentHeight
+      };
+
+      const overlap = siblings.some((other) => this.rectsOverlap(candidateRect, other));
+      if (!overlap) break;
+
+      candidateY += GRID_SIZE;
+      if (candidateY + currentHeight > maxHeight) {
+        candidateY = 0;
+        candidateX += GRID_SIZE;
+      }
+      if (candidateX + currentWidth > maxWidth) {
+        candidateX = 0;
+      }
+
+      attempts += 1;
+    }
+
+    const snappedX = Math.round(candidateX / GRID_SIZE) * GRID_SIZE;
+    const snappedY = Math.round(candidateY / GRID_SIZE) * GRID_SIZE;
+
+    if (snappedX === widgetInfo.x && snappedY === widgetInfo.y) {
+      return false;
+    }
+
+    widgetInfo.x = snappedX;
+    widgetInfo.y = snappedY;
+    widgetInfo.element.style.left = `${snappedX}px`;
+    widgetInfo.element.style.top = `${snappedY}px`;
+    return true;
   }
 
   addWidget(widget, x = null, y = null, width = null, height = null) {
@@ -788,6 +853,7 @@ class LayoutManager {
           info.height = finalHeight;
           info.x = finalLeft;
           info.y = finalTop;
+          this.resolveWidgetPlacementConflict(info);
         }
 
         pendingResize = null;
@@ -910,6 +976,7 @@ class LayoutManager {
         if (info) {
           info.x = snappedLeft;
           info.y = snappedTop;
+          this.resolveWidgetPlacementConflict(info);
         }
 
         pendingPosition = null;
