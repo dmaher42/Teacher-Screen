@@ -3277,9 +3277,9 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     color: var(--text-color, #333);
     border: 1px solid var(--border-soft-2, rgba(0, 0, 0, 0.08));
     border-radius: 999px;
-    min-width: 0;
-    min-height: 24px;
-    padding: 0 10px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -3289,16 +3289,17 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     z-index: 40;
     box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
     line-height: 1;
-    font-size: 0.72rem;
-    white-space: nowrap;
+    font-size: 0.76rem;
 }
 
 .widget-projector-visibility-btn.is-visible {
     background-color: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, var(--card-background, #ffffff) 88%);
+    color: #18a957;
 }
 
 .widget-projector-visibility-btn.is-teacher-only {
     background-color: color-mix(in srgb, var(--bg-surface, #f8fafc) 72%, var(--card-background, #ffffff) 28%);
+    color: #d94a4a;
 }
 
 .widget-projector-visibility-btn:focus-visible {

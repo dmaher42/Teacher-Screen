@@ -507,7 +507,9 @@ class LayoutManager {
     widgetInfo.projectorVisibilityButton = projectorVisibilityButton;
 
     const isVisible = widgetInfo.visibleOnProjector !== false;
-    projectorVisibilityButton.textContent = this.getWidgetProjectorVisibilityLabel(widgetInfo);
+    projectorVisibilityButton.innerHTML = isVisible
+      ? '<i class="fas fa-eye" aria-hidden="true"></i>'
+      : '<i class="fas fa-eye-slash" aria-hidden="true"></i>';
     projectorVisibilityButton.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
     projectorVisibilityButton.classList.toggle('is-visible', isVisible);
     projectorVisibilityButton.classList.toggle('is-teacher-only', !isVisible);
@@ -560,8 +562,7 @@ class LayoutManager {
       projectorVisibilityButton.type = 'button';
       projectorVisibilityButton.setAttribute('aria-pressed', 'false');
       projectorVisibilityButton.setAttribute('aria-label', 'Toggle projector visibility');
-      projectorVisibilityButton.title = 'Toggle projector visibility';
-      projectorVisibilityButton.textContent = 'Teacher only';
+      projectorVisibilityButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i>';
 
       projectorVisibilityButton.addEventListener('mousedown', (e) => {
         e.stopPropagation();
