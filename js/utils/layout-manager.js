@@ -417,46 +417,83 @@ class LayoutManager {
     const currentHeight = widgetInfo.height;
     const siblings = this.widgets.filter((info) => info && info !== widgetInfo && info.element && info.element.parentElement === parent);
 
-    let candidateX = widgetInfo.x;
-    let candidateY = widgetInfo.y;
-    let attempts = 0;
-    const maxAttempts = Math.max(1, Math.ceil((maxWidth * maxHeight) / Math.max(GRID_SIZE * GRID_SIZE, 1)));
+    const originalX = widgetInfo.x;
+    const originalY = widgetInfo.y;
+    const maxRadius = Math.max(1, Math.ceil(Math.max(maxWidth, maxHeight) / GRID_SIZE));
+    const visited = new Set();
+    const originalRect = {
+      x: originalX,
+      y: originalY,
+      width: currentWidth,
+      height: currentHeight
+    };
 
-    while (attempts < maxAttempts) {
+    if (!siblings.some((other) => this.rectsOverlap(originalRect, other))) {
+      return false;
+    }
+
+    const tryCandidate = (candidateX, candidateY) => {
+      const bounded = this.normalizeWidgetBounds(candidateX, candidateY, currentWidth, currentHeight);
+      const snappedX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+      const snappedY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      const key = `${snappedX}:${snappedY}`;
+
+      if (visited.has(key)) {
+        return false;
+      }
+      visited.add(key);
+
       const candidateRect = {
-        x: candidateX,
-        y: candidateY,
+        x: snappedX,
+        y: snappedY,
         width: currentWidth,
         height: currentHeight
       };
 
       const overlap = siblings.some((other) => this.rectsOverlap(candidateRect, other));
-      if (!overlap) break;
-
-      candidateY += GRID_SIZE;
-      if (candidateY + currentHeight > maxHeight) {
-        candidateY = 0;
-        candidateX += GRID_SIZE;
-      }
-      if (candidateX + currentWidth > maxWidth) {
-        candidateX = 0;
+      if (overlap) {
+        return false;
       }
 
-      attempts += 1;
+      if (snappedX === widgetInfo.x && snappedY === widgetInfo.y) {
+        return false;
+      }
+
+      widgetInfo.x = snappedX;
+      widgetInfo.y = snappedY;
+      widgetInfo.element.style.left = `${snappedX}px`;
+      widgetInfo.element.style.top = `${snappedY}px`;
+      return true;
+    };
+
+    for (let radius = 0; radius <= maxRadius; radius += 1) {
+      if (radius === 0) {
+        if (tryCandidate(originalX, originalY)) {
+          return true;
+        }
+        continue;
+      }
+
+      for (let offset = -radius; offset <= radius; offset += 1) {
+        if (tryCandidate(originalX + (offset * GRID_SIZE), originalY - (radius * GRID_SIZE))) {
+          return true;
+        }
+        if (tryCandidate(originalX + (offset * GRID_SIZE), originalY + (radius * GRID_SIZE))) {
+          return true;
+        }
+      }
+
+      for (let offset = -radius + 1; offset <= radius - 1; offset += 1) {
+        if (tryCandidate(originalX - (radius * GRID_SIZE), originalY + (offset * GRID_SIZE))) {
+          return true;
+        }
+        if (tryCandidate(originalX + (radius * GRID_SIZE), originalY + (offset * GRID_SIZE))) {
+          return true;
+        }
+      }
     }
 
-    const snappedX = Math.round(candidateX / GRID_SIZE) * GRID_SIZE;
-    const snappedY = Math.round(candidateY / GRID_SIZE) * GRID_SIZE;
-
-    if (snappedX === widgetInfo.x && snappedY === widgetInfo.y) {
-      return false;
-    }
-
-    widgetInfo.x = snappedX;
-    widgetInfo.y = snappedY;
-    widgetInfo.element.style.left = `${snappedX}px`;
-    widgetInfo.element.style.top = `${snappedY}px`;
-    return true;
+    return false;
   }
 
   addWidget(widget, x = null, y = null, width = null, height = null) {
