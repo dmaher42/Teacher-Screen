@@ -519,12 +519,11 @@ class LayoutManager {
      let finalY = y;
 
      if (finalX === null || finalY === null) {
-        // Place widgets in a row-by-row grid to avoid cascade overlap.
+        // Stagger new widgets so they don't exactly overlap previous ones
         const count = this.widgets.length;
-        const col = count % maxCols;
-        const row = Math.floor(count / maxCols);
-        finalX = col * (colW * defaultW + GRID_SIZE);
-        finalY = row * (rowH * defaultH + GRID_SIZE);
+        const staggerOffset = Math.min((count % 10) * (GRID_SIZE * 2), 200);
+        finalX = GRID_SIZE * 2 + staggerOffset;
+        finalY = GRID_SIZE * 2 + staggerOffset;
      } else {
          // Heuristic: if x is small (<= 12), assume grid units
          if (finalX <= 12 && finalX < containerW / 20) finalX = finalX * colW;
@@ -552,7 +551,7 @@ class LayoutManager {
     widgetElement.style.gridColumn = '';
     widgetElement.style.gridRow = '';
 
-    this.createSettingsButton(widget, widgetElement);
+    this.createWidgetHeader(widget, widgetElement, widgetType);
 
     const content = document.createElement('div');
     content.className = 'widget-content';
@@ -637,32 +636,28 @@ class LayoutManager {
     this.updateProjectorVisibility();
   }
 
-  createSettingsButton(widget, widgetElement) {
-    const settingsButton = document.createElement('button');
-    settingsButton.className = 'widget-settings-btn secondary-control';
-    settingsButton.innerHTML = '<i class="fas fa-cog"></i>';
-    settingsButton.setAttribute('aria-label', 'Open Settings');
-    settingsButton.title = 'Widget Settings';
+  createWidgetHeader(widget, widgetElement, widgetType) {
+    const header = document.createElement('div');
+    header.className = 'widget-header';
 
-    settingsButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
-        document.dispatchEvent(event);
-    });
+    // Drag handle title area
+    const title = document.createElement('div');
+    title.className = 'widget-header-title';
 
-    settingsButton.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.stopPropagation();
-             const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
-            document.dispatchEvent(event);
-        }
-    });
+    // Format the title from the class name (e.g. Timer, Rich Text, etc.)
+    const nameStr = widget.constructor.name.replace(/Widget$/, '');
+    const readableName = nameStr.replace(/([A-Z])/g, ' $1').trim();
 
-    widgetElement.appendChild(settingsButton);
+    title.innerHTML = `<i class="fas fa-grip-vertical"></i> <span>${readableName}</span>`;
+    header.appendChild(title);
 
+    const actions = document.createElement('div');
+    actions.className = 'widget-header-actions';
+
+    // Projector Visibility Button
     if (layoutManagerIsTeacherMode()) {
       const projectorVisibilityButton = document.createElement('button');
-      projectorVisibilityButton.className = 'widget-projector-visibility-btn';
+      projectorVisibilityButton.className = 'widget-projector-visibility-btn secondary-control';
       projectorVisibilityButton.type = 'button';
       projectorVisibilityButton.setAttribute('aria-pressed', 'false');
       projectorVisibilityButton.setAttribute('aria-label', 'Toggle projector visibility');
@@ -690,9 +685,46 @@ class LayoutManager {
       });
 
       widget.projectorVisibilityButton = projectorVisibilityButton;
-      widgetElement.appendChild(projectorVisibilityButton);
+      actions.appendChild(projectorVisibilityButton);
     }
+
+    // Settings Button
+    const settingsBtn = document.createElement('button');
+    settingsBtn.className = 'widget-header-settings-btn secondary-control';
+    settingsBtn.innerHTML = '<i class="fas fa-cog"></i>';
+    settingsBtn.setAttribute('aria-label', 'Open Settings');
+    settingsBtn.title = 'Widget Settings';
+    settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
+        document.dispatchEvent(event);
+    });
+
+    settingsBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.stopPropagation();
+             const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
+            document.dispatchEvent(event);
+        }
+    });
+    actions.appendChild(settingsBtn);
+
+    // Remove Button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'widget-remove-btn secondary-control';
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.setAttribute('aria-label', 'Remove Widget');
+    removeBtn.title = 'Remove Widget';
+    removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeWidget(widget);
+    });
+    actions.appendChild(removeBtn);
+
+    header.appendChild(actions);
+    widgetElement.appendChild(header);
   }
+
 
   removeWidget(widget) {
     const widgetInfo = this.widgets.find(info => info.widget === widget);
@@ -1189,7 +1221,7 @@ class LayoutManager {
       const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
       widgetElement.className = `widget ${widgetType}-widget`;
 
-      this.createSettingsButton(widget, widgetElement);
+      this.createWidgetHeader(widget, widgetElement, widgetType);
 
       const content = document.createElement('div');
       content.className = 'widget-content';

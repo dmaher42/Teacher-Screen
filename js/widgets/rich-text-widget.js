@@ -112,15 +112,9 @@ class RichTextWidget {
     this.templateDialog = null;
     this.templateDialogSubmitHandler = null;
 
-    this.dragHandle = document.createElement('div');
-    this.dragHandle.className = 'rich-text-drag-handle';
-    this.dragHandle.textContent = 'Move';
-    this.dragHandle.setAttribute('role', 'presentation');
-
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
 
-    this.element.appendChild(this.dragHandle);
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {

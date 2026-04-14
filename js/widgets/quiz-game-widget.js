@@ -50,7 +50,14 @@ class QuizGameWidget {
 
         this.headerProgress = document.createElement('div');
         this.headerProgress.className = 'quiz-game-progress';
-        this.headerMeta.append(this.headerTitle, this.headerProgress);
+        
+        this.progressBarContainer = document.createElement('div');
+        this.progressBarContainer.className = 'quiz-game-progress-bar-container';
+        this.progressBar = document.createElement('div');
+        this.progressBar.className = 'quiz-game-progress-bar';
+        this.progressBarContainer.appendChild(this.progressBar);
+
+        this.headerMeta.append(this.headerTitle, this.headerProgress, this.progressBarContainer);
 
         this.headerStatus = document.createElement('div');
         this.headerStatus.className = 'quiz-game-status-pill';
@@ -432,6 +439,12 @@ class QuizGameWidget {
         this.headerTitle.textContent = this.quizTitle || 'Quiz Game';
         this.headerProgress.textContent = totalQuestions ? `Question ${currentNumber} of ${totalQuestions}` : 'No questions';
         this.headerStatus.textContent = this.answerRevealed ? 'Answer Revealed' : 'Question Live';
+
+        const progressPercent = totalQuestions && totalQuestions > 0 ? ((this.currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
+        if (this.progressBar) {
+            this.progressBar.style.width = `${progressPercent}%`;
+        }
+
         this.timerValue.textContent = this.formatTimer(this.timerRemainingSeconds);
         this.timerDisplay.classList.toggle('is-running', this.timerRunning);
         this.timerDisplay.classList.toggle('is-finished', this.timerRemainingSeconds <= 0);
@@ -468,9 +481,17 @@ class QuizGameWidget {
         }
 
         this.scoreboard.innerHTML = '';
+        const maxScore = this.teams.length > 0 ? Math.max(...this.teams.map(t => t.score)) : 0;
+        const hasLeader = maxScore > 0;
+
         this.teams.forEach((team, index) => {
             const card = document.createElement('div');
             card.className = 'quiz-game-team-card';
+            
+            if (hasLeader && team.score === maxScore) {
+                card.classList.add('is-leader');
+            }
+
             const scoreBuzz = this.lastScoreChange && this.lastScoreChange.index === index;
             if (scoreBuzz) {
                 card.classList.add('is-score-buzzed');
