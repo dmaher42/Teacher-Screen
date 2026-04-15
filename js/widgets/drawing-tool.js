@@ -16,10 +16,6 @@ class DrawingToolWidget {
         this.helpText.style.display = 'none'; // Initially hidden
         this.helpText.textContent = 'Pick a color and line width, draw on the canvas, and use Clear to reset. Right-click or use browser tools to save your drawing.';
 
-        this.dragHandle = document.createElement('div');
-        this.dragHandle.className = 'drawing-tool-drag-handle';
-        this.dragHandle.textContent = 'Drag to move';
-
         // Create the canvas
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'drawing-tool-canvas';
@@ -95,7 +91,6 @@ class DrawingToolWidget {
 
         // Assemble the widget
         this.element.appendChild(this.helpText);
-        this.element.appendChild(this.dragHandle);
         this.element.appendChild(this.surface);
         this.element.appendChild(this.controls);
 
