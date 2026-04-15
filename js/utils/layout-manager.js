@@ -570,7 +570,8 @@ class LayoutManager {
       y: finalY,
       width: finalW,
       height: finalH,
-      visibleOnProjector: false
+      visibleOnProjector: true,
+      projectorVisibilityConfigured: false
     };
 
     widget.widgetId = widgetInfo.id;
@@ -623,6 +624,7 @@ class LayoutManager {
 
     const nextVisible = visibleOnProjector !== false;
     widgetInfo.visibleOnProjector = nextVisible;
+    widgetInfo.projectorVisibilityConfigured = true;
     this.refreshWidgetProjectorVisibilityControl(widgetInfo);
 
     if (this.widgetSettingsModal && this.widgetSettingsModal.classList.contains('visible') && this.activeSettingsWidget === widgetInfo.widget) {
@@ -1091,7 +1093,10 @@ class LayoutManager {
         y: widgetInfo.y,
         width: widgetInfo.width,
         height: widgetInfo.height,
-        visibleOnProjector: widgetInfo.visibleOnProjector !== false,
+        visibleOnProjector: widgetInfo.projectorVisibilityConfigured === true
+          ? widgetInfo.visibleOnProjector !== false
+          : true,
+        projectorVisibilityConfigured: widgetInfo.projectorVisibilityConfigured === true,
         data: widgetInfo.widget.serialize()
       };
     });
@@ -1248,7 +1253,10 @@ class LayoutManager {
         y: finalY,
         width: finalW,
         height: finalH,
-        visibleOnProjector: widgetData.visibleOnProjector !== false
+        projectorVisibilityConfigured: widgetData.projectorVisibilityConfigured === true,
+        visibleOnProjector: widgetData.projectorVisibilityConfigured === true
+          ? widgetData.visibleOnProjector !== false
+          : true
       };
       widget.widgetInfo = widgetInfo;
       this.widgets.push(widgetInfo);
