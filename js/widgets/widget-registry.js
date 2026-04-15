@@ -1,11 +1,11 @@
 export const WidgetRegistry = {
     timer: {
         key: 'timer',
-        className: 'TimerWidget',
-        label: 'Timer',
+        className: 'PomodoroWidget',
+        label: 'Pomodoro',
         icon: '⏱️',
         category: 'Primary',
-        create: () => new TimerWidget()
+        create: () => new PomodoroWidget()
     },
     'noise-meter': {
         key: 'noise-meter',
@@ -115,6 +115,7 @@ export const WidgetRegistry = {
 
 const widgetTypeAliases = {
     TimerWidget: 'timer',
+    PomodoroWidget: 'timer',
     NoiseMeterWidget: 'noise-meter',
     NamePickerWidget: 'name-picker',
     QRCodeWidget: 'qr-code',
