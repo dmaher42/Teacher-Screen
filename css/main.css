@@ -1872,7 +1872,7 @@ body.widget-resize-active {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 95%, var(--accent, #6b7cff) 5%);
     border-bottom: 1px solid var(--border-color-light, #e5e7eb);
     cursor: grab;
@@ -1889,13 +1889,13 @@ body.widget-resize-active {
 .widget-header-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .widget-header-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -1913,7 +1913,7 @@ body.widget-resize-active {
     color: var(--text-secondary, #64748b);
     cursor: pointer;
     font-size: 0.95rem;
-    padding: 4px;
+    padding: 3px;
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -3355,7 +3355,7 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     align-items: center;
     cursor: pointer;
     opacity: 1;
-    margin-right: 2px;
+    margin-right: 0;
     transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
     z-index: 40;
     box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
