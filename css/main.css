@@ -3478,10 +3478,10 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 .quiz-game-widget-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     height: 100%;
     min-height: 0;
-    padding: 0 0 8px;
+    padding: 0 0 6px;
     color: var(--text-primary, #0f172a);
     overflow-y: auto;
 }
@@ -3494,19 +3494,19 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 10px;
-    padding: 0 8px;
+    gap: 8px;
+    padding: 0 6px;
 }
 
 .quiz-game-header-meta {
     display: grid;
-    gap: 4px;
+    gap: 2px;
 }
 
 .quiz-game-header-aside {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .quiz-game-title {
@@ -3523,7 +3523,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-status-pill {
     flex: 0 0 auto;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
     border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 20%, var(--border-color, #dfe4e2) 80%);
@@ -3537,9 +3537,9 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     display: grid;
     justify-items: end;
     gap: 2px;
-    min-width: 88px;
-    padding: 5px 10px;
-    border-radius: 14px;
+    min-width: 82px;
+    padding: 4px 8px;
+    border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
 }
@@ -3569,10 +3569,10 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-question-card {
     display: grid;
-    gap: 10px;
-    padding: 12px 12px;
-    margin: 0 10px;
-    border-radius: 20px;
+    gap: 8px;
+    padding: 10px;
+    margin: 0 8px;
+    border-radius: 18px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 96%, var(--bg-surface, #f8fafc) 4%), color-mix(in srgb, var(--bg-surface, #f8fafc) 85%, var(--card-background, #ffffff) 15%));
     min-height: 0;
@@ -3582,7 +3582,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-question-number {
     justify-self: start;
-    padding: 5px 9px;
+    padding: 4px 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--accent, #2d81ff) 12%, transparent);
     color: var(--accent, #2d81ff);
@@ -3591,23 +3591,23 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-question-text {
-    font-size: 1.12rem;
+    font-size: 1.06rem;
     font-weight: 700;
     line-height: 1.35;
 }
 
 .quiz-game-answers {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .quiz-game-answer {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 16px;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
     transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
@@ -3621,11 +3621,11 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, transparent);
-    font-size: 0.84rem;
+    font-size: 0.78rem;
     font-weight: 700;
 }
 
@@ -3713,18 +3713,18 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-scoreboard {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-    gap: 6px;
-    padding: 0 10px;
+    grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+    gap: 5px;
+    padding: 0 8px;
 }
 
 .quiz-game-team-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding: 7px 9px;
-    border-radius: 16px;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 90%, var(--bg-surface, #f8fafc) 10%);
 }
@@ -3741,7 +3741,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     min-width: 0;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    gap: 2px;
 }
 
 .quiz-game-team-name {
@@ -3749,7 +3749,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-team-score {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 800;
     line-height: 1;
 }
@@ -3761,22 +3761,22 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 .quiz-game-score-actions {
     display: flex;
     flex: 0 0 auto;
-    gap: 6px;
+    gap: 4px;
 }
 
 .quiz-game-score-actions > button {
     flex: 1 1 0;
-    min-height: 28px;
-    padding: 4px 7px;
+    min-height: 26px;
+    padding: 3px 6px;
     border-radius: 999px;
 }
 
 .quiz-game-status {
-    margin: 0 10px;
-    padding: 6px 10px;
+    margin: 0 8px;
+    padding: 4px 8px;
     position: relative;
     z-index: 1;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
 }
@@ -3784,7 +3784,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 .quiz-game-control-bar {
     position: static;
     margin-top: auto;
-    padding: 0 10px;
+    padding: 0 8px;
     background: transparent;
     position: relative;
     z-index: 1;
@@ -3792,22 +3792,22 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-control-bar .primary-actions,
 .quiz-game-control-bar .secondary-actions {
-    gap: 6px;
+    gap: 4px;
 }
 
 .quiz-game-control-bar .primary-actions button,
 .quiz-game-control-bar .secondary-actions button {
-    min-height: 30px;
-    padding: 6px 9px;
+    min-height: 26px;
+    padding: 4px 7px;
 }
 
 .quiz-game-settings-controls {
-    gap: 10px;
+    gap: 8px;
 }
 
 .quiz-game-settings-controls label {
     display: grid;
-    gap: 6px;
+    gap: 4px;
 }
 
 .quiz-game-settings-controls input[type="number"] {
@@ -3854,13 +3854,13 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact {
-    gap: 6px;
+    gap: 5px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header {
     align-items: flex-start;
-    gap: 4px;
-    padding: 0 6px;
+    gap: 3px;
+    padding: 0 4px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header-meta {
@@ -3878,12 +3878,12 @@ body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-progre
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header-aside {
     flex-direction: column;
     align-items: stretch;
-    gap: 4px;
+    gap: 3px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-status-pill,
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-timer-display {
-    padding: 4px 8px;
+    padding: 3px 7px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-progress-bar-container {
@@ -3897,8 +3897,8 @@ body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-timer-
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-question-card {
     flex: 1 1 auto;
     min-height: 0;
-    gap: 6px;
-    padding: 8px 9px 9px;
+    gap: 5px;
+    padding: 7px 8px 8px;
     overflow: hidden;
 }
 
@@ -3909,16 +3909,16 @@ body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-questi
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-scoreboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-answers {
-    gap: 8px;
+    gap: 6px;
     padding-right: 2px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-card {
-    padding: 6px 8px;
+    padding: 5px 7px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-score-delta {
@@ -3930,13 +3930,13 @@ body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-s
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight {
-    gap: 6px;
+    gap: 5px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header {
     flex-direction: column;
-    padding: 0 6px;
-    gap: 4px;
+    padding: 0 4px;
+    gap: 3px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header-meta {
@@ -3952,7 +3952,7 @@ body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header-a
     width: 100%;
     flex-direction: row;
     justify-content: space-between;
-    gap: 4px;
+    gap: 3px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-title {
@@ -3966,7 +3966,7 @@ body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-progress
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status-pill,
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-timer-display {
     min-width: 0;
-    padding: 4px 7px;
+    padding: 3px 6px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-timer-label {
@@ -3976,14 +3976,14 @@ body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-timer-la
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question-card {
     flex: 1 1 auto;
     min-height: 0;
-    margin: 0 6px;
-    padding: 6px 7px 8px;
+    margin: 0 4px;
+    padding: 5px 6px 7px;
     border-radius: 14px;
     overflow: hidden;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question-number {
-    padding: 2px 6px;
+    padding: 2px 5px;
     font-size: 0.65rem;
 }
 
@@ -3994,32 +3994,32 @@ body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 5px;
+    gap: 4px;
     padding-right: 2px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answer,
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-direct-answer {
-    padding: 5px 7px;
+    padding: 4px 6px;
     border-radius: 10px;
     font-size: 0.76rem;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answer-letter {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     font-size: 0.65rem;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 5px;
-    padding: 0 6px;
+    gap: 4px;
+    padding: 0 4px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-card {
-    gap: 6px;
-    padding: 4px 6px;
+    gap: 5px;
+    padding: 4px 5px;
     border-radius: 10px;
     align-items: center;
 }
@@ -4040,36 +4040,36 @@ body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-met
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 4px;
+    gap: 3px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-score-actions > button {
-    min-height: 22px;
-    padding: 2px 5px;
+    min-height: 20px;
+    padding: 2px 4px;
     font-size: 0.7rem;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status,
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar {
-    margin: 0 6px;
+    margin: 0 4px;
     padding-left: 0;
     padding-right: 0;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status {
-    padding: 5px 7px;
+    padding: 4px 6px;
     font-size: 0.72rem;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions,
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions {
-    gap: 4px;
+    gap: 3px;
 }
 
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions button,
 body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions button {
-    min-height: 26px;
-    padding: 4px 7px;
+    min-height: 22px;
+    padding: 3px 6px;
     font-size: 0.72rem;
 }
 
