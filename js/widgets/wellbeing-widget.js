@@ -354,11 +354,6 @@ class WellbeingWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls wellbeing-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Switch between student check-in mode and the teacher dashboard, save the current results, or open the history list.';
-        controls.appendChild(helpText);
-
         const modeSection = document.createElement('div');
         modeSection.className = 'widget-settings-section';
         const modeHeading = document.createElement('h3');

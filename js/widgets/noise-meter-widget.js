@@ -43,11 +43,9 @@ class NoiseMeterWidget {
         // Controls overlay (not appended here if controls live in a separate modal)
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls';
-        const modalHelp = this.helpText.cloneNode(true);
         const modalStartButton = this.startButton.cloneNode(true);
         modalStartButton.addEventListener('click', () => this.start());
         const modalStatus = this.status.cloneNode(true);
-        this.controlsOverlay.appendChild(modalHelp);
         this.controlsOverlay.appendChild(modalStartButton);
         this.controlsOverlay.appendChild(modalStatus);
 

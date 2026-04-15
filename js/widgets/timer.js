@@ -35,7 +35,7 @@ class TimerWidget {
         this.helpText = document.createElement('div');
         this.helpText.className = 'widget-help-text';
         this.helpText.style.display = 'none'; // Initially hidden
-        this.helpText.textContent = 'Choose a preset or set an interval with work/break durations. Start to begin, Stop to pause, and customize the alert sound.';
+        this.helpText.textContent = '';
 
         // Timer presets
         this.presetContainer = document.createElement('div');
@@ -291,7 +291,6 @@ class TimerWidget {
         this.statusElements.push(this.modalStatus);
 
         // Assemble the widget
-        this.controlsOverlay.appendChild(this.helpText);
         this.controlsOverlay.appendChild(this.presetContainer);
         this.controlsOverlay.appendChild(this.namedPresetSection);
         this.controlsOverlay.appendChild(this.autoRestartContainer);
@@ -784,8 +783,7 @@ class TimerWidget {
     }
 
     toggleHelp() {
-        const isVisible = this.helpText.style.display === 'block';
-        this.helpText.style.display = isVisible ? 'none' : 'block';
+        // Help copy has been removed to keep the timer panel compact.
     }
 
     /**

@@ -47,11 +47,6 @@ class NamePickerWidget {
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls';
 
-        this.helpText = document.createElement('div');
-        this.helpText.className = 'widget-help-text';
-        this.helpText.style.display = 'none'; // Initially hidden
-        this.helpText.textContent = 'Click the tile to pick a name. Use settings to manage groups and names.';
-
         // Group selection controls
         this.groupControls = document.createElement('div');
         this.groupControls.className = 'name-picker-group-controls';
@@ -135,7 +130,6 @@ class NamePickerWidget {
         this.status.textContent = 'Pick a name to begin.';
 
         // Assemble controls overlay
-        this.controlsOverlay.appendChild(this.helpText);
         this.controlsOverlay.appendChild(this.groupControls);
         this.controlsOverlay.appendChild(document.createElement('hr')); // Visual separator
         this.controlsOverlay.appendChild(this.importExportControls);
@@ -585,7 +579,6 @@ class NamePickerWidget {
     }
 
     toggleHelp() {
-        const isVisible = this.helpText.style.display === 'block';
-        this.helpText.style.display = isVisible ? 'none' : 'block';
+        // Settings help text has been removed to keep the panel compact.
     }
 }

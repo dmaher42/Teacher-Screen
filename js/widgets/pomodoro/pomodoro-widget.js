@@ -14,6 +14,8 @@ class PomodoroWidget {
         this.interval = null;
         this.remainingSeconds = this.getWorkDurationSeconds();
         this.customWorkSeconds = null;
+        this.customWorkMinutes = this.getRhythmConfig('classic').workMinutes;
+        this.customBreakMinutes = this.getRhythmConfig('classic').breakMinutes;
         this.latestStatusMessage = 'Ready to focus.';
         this.audioContext = null;
         this.widgetId = null;
@@ -70,10 +72,6 @@ class PomodoroWidget {
         const settingsTitle = document.createElement('h3');
         settingsTitle.textContent = 'Pomodoro Rhythm';
 
-        const settingsHelp = document.createElement('p');
-        settingsHelp.className = 'widget-help-text pomodoro-settings-description';
-        settingsHelp.textContent = 'Choose the rhythm that fits the lesson. The widget will auto-switch from work to break.';
-
         this.rhythmGroup = document.createElement('div');
         this.rhythmGroup.className = 'pomodoro-rhythm-toggle';
 
@@ -86,7 +84,47 @@ class PomodoroWidget {
             this.rhythmGroup.appendChild(button);
         });
 
-        this.controlsOverlay.append(settingsTitle, settingsHelp, this.rhythmGroup);
+        this.customSection = document.createElement('div');
+        this.customSection.className = 'widget-settings-section pomodoro-custom-section';
+
+        const customHeading = document.createElement('h3');
+        customHeading.textContent = 'Custom rhythm';
+
+        this.customFields = document.createElement('div');
+        this.customFields.className = 'pomodoro-custom-fields';
+
+        this.customWorkLabel = document.createElement('label');
+        this.customWorkLabel.className = 'pomodoro-custom-field';
+        this.customWorkLabel.textContent = 'Work minutes';
+        this.customWorkInput = document.createElement('input');
+        this.customWorkInput.type = 'number';
+        this.customWorkInput.min = '1';
+        this.customWorkInput.max = '180';
+        this.customWorkInput.step = '1';
+        this.customWorkInput.value = String(this.customWorkMinutes);
+        this.customWorkLabel.appendChild(this.customWorkInput);
+
+        this.customBreakLabel = document.createElement('label');
+        this.customBreakLabel.className = 'pomodoro-custom-field';
+        this.customBreakLabel.textContent = 'Break minutes';
+        this.customBreakInput = document.createElement('input');
+        this.customBreakInput.type = 'number';
+        this.customBreakInput.min = '1';
+        this.customBreakInput.max = '180';
+        this.customBreakInput.step = '1';
+        this.customBreakInput.value = String(this.customBreakMinutes);
+        this.customBreakLabel.appendChild(this.customBreakInput);
+
+        this.customFields.append(this.customWorkLabel, this.customBreakLabel);
+
+        this.applyCustomButton = this.createControlButton('Apply custom', () => this.applyCustomRhythm(), 'control-button modal-primary');
+        this.customActions = document.createElement('div');
+        this.customActions.className = 'pomodoro-custom-actions';
+        this.customActions.appendChild(this.applyCustomButton);
+
+        this.customSection.append(customHeading, this.customFields, this.customActions);
+
+        this.controlsOverlay.append(settingsTitle, this.rhythmGroup, this.customSection);
 
         this.element.append(this.displayCard);
 
@@ -104,7 +142,34 @@ class PomodoroWidget {
     }
 
     getRhythmConfig(mode = this.mode) {
+        if (mode === 'custom') {
+            const workMinutes = this.getCustomWorkMinutes();
+            const breakMinutes = this.getCustomBreakMinutes();
+            return {
+                label: `${workMinutes} / ${breakMinutes}`,
+                workMinutes,
+                breakMinutes
+            };
+        }
+
         return POMODORO_RHYTHMS[mode] || POMODORO_RHYTHMS.classic;
+    }
+
+    getCustomWorkMinutes() {
+        return this.normalizeRhythmMinutes(this.customWorkMinutes, POMODORO_RHYTHMS.classic.workMinutes);
+    }
+
+    getCustomBreakMinutes() {
+        return this.normalizeRhythmMinutes(this.customBreakMinutes, POMODORO_RHYTHMS.classic.breakMinutes);
+    }
+
+    normalizeRhythmMinutes(value, fallback) {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed)) {
+            return fallback;
+        }
+
+        return Math.min(180, Math.max(1, parsed));
     }
 
     getWorkDurationSeconds(mode = this.mode) {
@@ -324,9 +389,18 @@ class PomodoroWidget {
     }
 
     setMode(mode) {
-        const nextMode = mode === 'extended' ? 'extended' : 'classic';
+        const nextMode = mode === 'extended'
+            ? 'extended'
+            : mode === 'custom'
+                ? 'custom'
+                : 'classic';
         if (this.mode === nextMode) {
             this.updateModeButtons();
+            return;
+        }
+
+        if (nextMode === 'custom') {
+            this.applyCustomRhythm(false);
             return;
         }
 
@@ -342,11 +416,40 @@ class PomodoroWidget {
         this.emitTimerState('timer:reset');
     }
 
+    applyCustomRhythm(emitReset = true) {
+        this.customWorkMinutes = this.normalizeRhythmMinutes(this.customWorkInput?.value, this.getCustomWorkMinutes());
+        this.customBreakMinutes = this.normalizeRhythmMinutes(this.customBreakInput?.value, this.getCustomBreakMinutes());
+        if (this.customWorkInput) {
+            this.customWorkInput.value = String(this.customWorkMinutes);
+        }
+        if (this.customBreakInput) {
+            this.customBreakInput.value = String(this.customBreakMinutes);
+        }
+
+        this.clearTimerInterval();
+        this.running = false;
+        this.mode = 'custom';
+        this.phase = 'work';
+        this.customWorkSeconds = null;
+        this.remainingSeconds = this.getWorkDurationSeconds('custom');
+        this.setStatus(`Custom rhythm set to ${this.getRhythmConfig('custom').label}.`);
+        this.render();
+        this.emitTimerState('timer:updated');
+
+        if (emitReset) {
+            this.emitTimerState('timer:reset');
+        }
+    }
+
     updateModeButtons() {
         this.rhythmButtons.forEach((button, mode) => {
             button.classList.toggle('is-active', this.mode === mode);
             button.setAttribute('aria-pressed', this.mode === mode ? 'true' : 'false');
         });
+
+        if (this.customSection) {
+            this.customSection.classList.toggle('is-active', this.mode === 'custom');
+        }
     }
 
     render() {
@@ -440,21 +543,36 @@ class PomodoroWidget {
             running: this.running,
             remainingSeconds: this.remainingSeconds,
             customWorkSeconds: this.customWorkSeconds,
+            customWorkMinutes: this.getCustomWorkMinutes(),
+            customBreakMinutes: this.getCustomBreakMinutes(),
             latestStatusMessage: this.latestStatusMessage
         };
     }
 
     deserialize(data = {}) {
-        this.mode = data.mode === 'extended' ? 'extended' : 'classic';
+        this.customWorkMinutes = this.normalizeRhythmMinutes(data.customWorkMinutes, this.customWorkMinutes);
+        this.customBreakMinutes = this.normalizeRhythmMinutes(data.customBreakMinutes, this.customBreakMinutes);
+        this.mode = data.mode === 'extended'
+            ? 'extended'
+            : data.mode === 'custom'
+                ? 'custom'
+                : 'classic';
         this.phase = data.phase === 'break' ? 'break' : 'work';
         this.customWorkSeconds = Number.isFinite(data.customWorkSeconds) && data.customWorkSeconds > 0
             ? Math.floor(data.customWorkSeconds)
             : null;
+        const phaseDuration = this.getCurrentPhaseDurationSeconds();
         this.remainingSeconds = Number.isFinite(data.remainingSeconds) && data.remainingSeconds >= 0
             ? Math.floor(data.remainingSeconds)
-            : this.getCurrentPhaseDurationSeconds();
+            : phaseDuration;
         this.running = false;
         this.latestStatusMessage = data.latestStatusMessage || 'Ready to focus.';
+        if (this.customWorkInput) {
+            this.customWorkInput.value = String(this.customWorkMinutes);
+        }
+        if (this.customBreakInput) {
+            this.customBreakInput.value = String(this.customBreakMinutes);
+        }
         this.render();
         this.emitTimerState('timer:updated');
     }

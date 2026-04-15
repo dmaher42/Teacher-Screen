@@ -64,7 +64,6 @@ class RevealManagerWidget {
                         <div class="reveal-manager-row reveal-external-row" hidden>
                             <input type="text" class="reveal-external-url" placeholder="Paste the share or present URL">
                         </div>
-                        <p class="reveal-external-hint" hidden>Use a teacher-ready Google Slides or PowerPoint web link. Reveal-style in-app slide sync is kept for Reveal HTML decks.</p>
                         <p class="reveal-external-validation" hidden></p>
                         <div class="reveal-manager-row reveal-html-row">
                             <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
@@ -113,7 +112,6 @@ class RevealManagerWidget {
         this.sourceTypeSelect = this.element.querySelector('.reveal-source-type');
         this.deckNameInput = this.element.querySelector('.reveal-deck-name');
         this.externalUrlInput = this.element.querySelector('.reveal-external-url');
-        this.externalHint = this.element.querySelector('.reveal-external-hint');
         this.externalValidation = this.element.querySelector('.reveal-external-validation');
         this.htmlRow = this.element.querySelector('.reveal-html-row');
         this.externalRow = this.element.querySelector('.reveal-external-row');
@@ -570,15 +568,6 @@ class RevealManagerWidget {
             this.externalRow.hidden = !isExternal;
         }
 
-        if (this.externalHint) {
-            this.externalHint.hidden = !isExternal;
-            this.externalHint.textContent = sourceType === 'google-slides'
-                ? 'Use a Google Slides share, publish, or present link. Teacher Screen can mirror embeddable Google Slides links in the widget and projector.'
-                : sourceType === 'powerpoint'
-                    ? 'Use a PowerPoint embed or presentation link. Teacher Screen can mirror embeddable PowerPoint links in the widget and projector.'
-                    : '';
-        }
-
         if (this.externalUrlInput) {
             this.externalUrlInput.placeholder = sourceType === 'google-slides'
                 ? 'Paste the Google Slides share or present URL'
@@ -634,11 +623,6 @@ class RevealManagerWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls reveal-manager-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Use Reveal HTML for full slide sync, or use embeddable Google Slides / PowerPoint links to mirror a deck in the widget and projector.';
-        controls.appendChild(helpText);
-
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
         const sourceHeading = document.createElement('h3');
@@ -671,10 +655,6 @@ class RevealManagerWidget {
         settingsExternalUrlInput.placeholder = 'https://...';
         externalUrlLabel.appendChild(settingsExternalUrlInput);
         sourceSection.appendChild(externalUrlLabel);
-
-        const externalHint = document.createElement('div');
-        externalHint.className = 'widget-help-text';
-        sourceSection.appendChild(externalHint);
 
         const externalValidation = document.createElement('div');
         externalValidation.className = 'widget-help-text presentation-validation';
@@ -787,7 +767,6 @@ class RevealManagerWidget {
                 settingsSourceTypeSelect,
                 externalUrlLabel,
                 htmlLabel,
-                externalHint,
                 externalValidation,
                 settingsExternalUrlInput
             );
@@ -867,7 +846,6 @@ class RevealManagerWidget {
                 settingsSourceTypeSelect,
                 externalUrlLabel,
                 htmlLabel,
-                externalHint,
                 externalValidation,
                 settingsExternalUrlInput
             );
@@ -1041,8 +1019,8 @@ class RevealManagerWidget {
         return this.getSavedDecks().find((item) => Number(item?.id) === normalizedId) || null;
     }
 
-    updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalHint, externalValidation = null, externalUrlInput = null) {
-        if (!sourceTypeSelect || !externalUrlLabel || !htmlLabel || !externalHint) {
+    updateExternalSourceSettingsUI(sourceTypeSelect, externalUrlLabel, htmlLabel, externalValidation = null, externalUrlInput = null) {
+        if (!sourceTypeSelect || !externalUrlLabel || !htmlLabel) {
             return;
         }
 
@@ -1051,12 +1029,6 @@ class RevealManagerWidget {
 
         externalUrlLabel.hidden = !isExternal;
         htmlLabel.hidden = isExternal;
-        externalHint.hidden = !isExternal;
-        externalHint.textContent = sourceType === 'google-slides'
-            ? 'Use a Google Slides share, publish, or present link. Embeddable links can mirror in Teacher Screen and the projector.'
-            : sourceType === 'powerpoint'
-                ? 'Use a PowerPoint embed or web presentation link. Embeddable links can mirror in Teacher Screen and the projector.'
-                : '';
 
         this.renderExternalValidationState(
             isExternal

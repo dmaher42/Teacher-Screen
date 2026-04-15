@@ -110,11 +110,6 @@ class QRCodeWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls qr-code-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Enter any text, link, or code and regenerate the QR image instantly.';
-        controls.appendChild(helpText);
-
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
 

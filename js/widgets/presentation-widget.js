@@ -157,11 +157,6 @@ class PresentationWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls presentation-widget-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Choose one of the built-in presentations and load it into the widget.';
-        controls.appendChild(helpText);
-
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
         const sourceHeading = document.createElement('h3');

@@ -3270,10 +3270,6 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     gap: 8px;
 }
 
-.pomodoro-settings-description {
-    margin: 0;
-}
-
 .pomodoro-rhythm-toggle {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3294,6 +3290,50 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     border-color: color-mix(in srgb, var(--primary-color, #2d81ff) 36%, #ffffff 64%);
     background: color-mix(in srgb, var(--primary-color, #2d81ff) 12%, #ffffff 88%);
     color: var(--primary-color, #2d81ff);
+}
+
+.pomodoro-custom-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pomodoro-custom-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.pomodoro-custom-field {
+    display: grid;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary, #64748b);
+}
+
+.pomodoro-custom-field input {
+    width: 100%;
+    min-height: 38px;
+    padding: 6px 8px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 78%, #ffffff 22%);
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
+    color: var(--text-color, #333);
+    font: inherit;
+}
+
+.pomodoro-custom-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+}
+
+.pomodoro-custom-section.is-active {
+    border-color: color-mix(in srgb, var(--primary-color, #2d81ff) 30%, #ffffff 70%);
+    background: color-mix(in srgb, var(--primary-color, #2d81ff) 8%, #ffffff 92%);
 }
 
 body.projector-view .pomodoro-widget-content {

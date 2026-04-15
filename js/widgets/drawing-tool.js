@@ -557,11 +557,6 @@ class DrawingToolWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls drawing-tool-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Adjust the drawing color and brush size here, then use Clear when you want a fresh board.';
-        controls.appendChild(helpText);
-
         const drawSection = document.createElement('div');
         drawSection.className = 'widget-settings-section';
 

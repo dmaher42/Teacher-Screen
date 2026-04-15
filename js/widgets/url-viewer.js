@@ -147,11 +147,6 @@ class UrlViewerWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls url-viewer-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Load a website into the widget, reload the current page, or open it in a separate tab.';
-        controls.appendChild(helpText);
-
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
 

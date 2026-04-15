@@ -10,11 +10,6 @@ class MaskWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls mask-widget-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'The mask widget works by resizing and positioning it over content you want hidden from view.';
-        controls.appendChild(helpText);
-
         const infoSection = document.createElement('div');
         infoSection.className = 'widget-settings-section';
         const heading = document.createElement('h3');

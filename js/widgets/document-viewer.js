@@ -179,11 +179,6 @@ class DocumentViewerWidget {
         const controls = document.createElement('div');
         controls.className = 'widget-content-controls document-viewer-settings-controls';
 
-        const helpText = document.createElement('div');
-        helpText.className = 'widget-help-text';
-        helpText.textContent = 'Upload a PDF for local page-by-page navigation or embed a web page directly into the viewer. Uploaded PDFs stay on this device and need to be re-uploaded after restore or projector rebuild.';
-        controls.appendChild(helpText);
-
         const sourceSection = document.createElement('div');
         sourceSection.className = 'widget-settings-section';
 
