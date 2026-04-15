@@ -634,6 +634,12 @@ class ProjectorApp {
         if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
             this.revealSync.channel.close();
         }
+    }
+
+    applyTimerStates(timerStates = []) {
+        if (!Array.isArray(timerStates) || !timerStates.length) {
+            return;
+        }
 
         timerStates.forEach((timerState) => this.applyTimerState(timerState));
     }
@@ -665,8 +671,6 @@ class ProjectorApp {
     getRevealWidgets() {
         return this.widgets.filter((widget) => widget && widget.constructor && widget.constructor.name === 'RevealManagerWidget');
     }
-
-    destroy() {}
 
 }
 
