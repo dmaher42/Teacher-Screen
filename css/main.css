@@ -3849,209 +3849,224 @@ body.projector-view .quiz-game-widget-content .quiz-game-score-actions {
     100% { transform: scale(1); }
 }
 
-.quiz-game-widget-content.is-compact {
-    gap: 10px;
-}
-
-.quiz-game-widget-content.is-compact .quiz-game-header {
-    align-items: flex-start;
+body:not(.projector-view) .quiz-game-widget-content.is-compact {
     gap: 6px;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-header-meta {
-    gap: 2px;
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header {
+    align-items: flex-start;
+    gap: 4px;
+    padding: 0 6px;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-title {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header-meta {
+    gap: 0;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-title {
     font-size: 1rem;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-progress {
-    font-size: 0.8rem;
-}
-
-.quiz-game-widget-content.is-compact .quiz-game-header-aside {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-}
-
-.quiz-game-widget-content.is-compact .quiz-game-status-pill,
-.quiz-game-widget-content.is-compact .quiz-game-timer-display {
-    padding: 4px 8px;
-}
-
-.quiz-game-widget-content.is-compact .quiz-game-timer-label {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-progress {
     display: none;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-question-card {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-header-aside {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-status-pill,
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-timer-display {
+    padding: 4px 8px;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-progress-bar-container {
+    display: none;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-timer-label {
+    display: none;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-question-card {
     flex: 1 1 auto;
     min-height: 0;
-    gap: 8px;
-    padding: 9px 10px 10px;
+    gap: 6px;
+    padding: 8px 9px 9px;
     overflow: hidden;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-question-text {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-question-text {
     font-size: clamp(0.86rem, 1.2vw, 1rem);
     line-height: 1.1;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-scoreboard {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-scoreboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-answers {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-answers {
     gap: 8px;
     padding-right: 2px;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-team-card {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-card {
     padding: 6px 8px;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-team-score-delta {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-score-delta {
     font-size: 0.62rem;
 }
 
-.quiz-game-widget-content.is-compact .quiz-game-team-score {
+body:not(.projector-view) .quiz-game-widget-content.is-compact .quiz-game-team-score {
     font-size: 0.95rem;
 }
 
-.quiz-game-widget-content.is-tight {
-    gap: 8px;
-}
-
-.quiz-game-widget-content.is-tight .quiz-game-header {
-    flex-direction: column;
-    padding: 0 8px;
-}
-
-.quiz-game-widget-content.is-tight .quiz-game-header-aside {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
+body:not(.projector-view) .quiz-game-widget-content.is-tight {
     gap: 6px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-title {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header {
+    flex-direction: column;
+    padding: 0 6px;
+    gap: 4px;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header-meta {
+    gap: 0;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-progress,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-progress-bar-container {
+    display: none;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-header-aside {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-title {
     font-size: 0.96rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-progress {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-progress {
     font-size: 0.72rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-status-pill,
-.quiz-game-widget-content.is-tight .quiz-game-timer-display {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status-pill,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-timer-display {
     min-width: 0;
     padding: 4px 7px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-timer-label {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-timer-label {
     display: none;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-question-card {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question-card {
     flex: 1 1 auto;
     min-height: 0;
-    margin: 0 8px;
-    padding: 8px 8px 10px;
+    margin: 0 6px;
+    padding: 6px 7px 8px;
     border-radius: 14px;
     overflow: hidden;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-question-number {
-    padding: 3px 7px;
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question-number {
+    padding: 2px 6px;
     font-size: 0.65rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-question-text {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-question-text {
     font-size: clamp(0.8rem, 1.15vw, 0.98rem);
     line-height: 1.1;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-answers {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answers {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
     padding-right: 2px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-answer,
-.quiz-game-widget-content.is-tight .quiz-game-direct-answer {
-    padding: 6px 8px;
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answer,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-direct-answer {
+    padding: 5px 7px;
     border-radius: 10px;
     font-size: 0.76rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-answer-letter {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answer-letter {
     width: 20px;
     height: 20px;
     font-size: 0.65rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-scoreboard {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    padding: 0 8px;
+    gap: 5px;
+    padding: 0 6px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-team-card {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-card {
     gap: 6px;
-    padding: 5px 7px;
+    padding: 4px 6px;
     border-radius: 10px;
     align-items: center;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-team-score-delta {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-score-delta {
     font-size: 0.55rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-team-name {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-name {
     font-size: 0.82rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-team-score {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-score {
     font-size: 0.84rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-team-meta {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-team-meta {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 4px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-score-actions > button {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-score-actions > button {
     min-height: 22px;
     padding: 2px 5px;
     font-size: 0.7rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-status,
-.quiz-game-widget-content.is-tight .quiz-game-control-bar {
-    margin: 0 8px;
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar {
+    margin: 0 6px;
     padding-left: 0;
     padding-right: 0;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-status {
-    padding: 6px 8px;
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-status {
+    padding: 5px 7px;
     font-size: 0.72rem;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions,
-.quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions {
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions {
     gap: 4px;
 }
 
-.quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions button,
-.quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions button {
-    min-height: 28px;
-    padding: 5px 8px;
-    font-size: 0.74rem;
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .primary-actions button,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-control-bar .secondary-actions button {
+    min-height: 26px;
+    padding: 4px 7px;
+    font-size: 0.72rem;
 }
 
 .quiz-game-widget-content.is-projector-mode,
