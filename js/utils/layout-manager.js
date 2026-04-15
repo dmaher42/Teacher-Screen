@@ -1205,6 +1205,16 @@ class LayoutManager {
       finalW *= widthScale;
       finalH *= heightScale;
 
+      if (widget.constructor.name === 'PomodoroWidget') {
+        const preferredW = rules.defaultW ? rules.defaultW * colW : finalW;
+        const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
+        finalW = Number.isFinite(finalW) && finalW > 0 ? finalW : preferredW;
+        finalH = Number.isFinite(finalH) && finalH > 0 ? finalH : preferredH;
+        // Pomodoro widgets should restore to the compact card shape, even if an older
+        // saved layout captured the previous oversized timer footprint.
+        finalH = preferredH;
+      }
+
       // Default fallback
       if (finalW == null) finalW = 320;
       if (finalH == null) finalH = 240;

@@ -62,7 +62,7 @@ class PomodoroWidget {
         this.resetButton = this.createControlButton('Reset', () => this.reset(), 'control-button control-button--ghost');
         this.actionsRow.append(this.startPauseButton, this.resetButton);
 
-        this.displayCard.append(this.displayHeader, this.displayTime, this.progressTrack, this.actionsRow, this.status);
+        this.displayCard.append(this.displayHeader, this.displayTime, this.actionsRow, this.progressTrack, this.status);
 
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls pomodoro-settings-controls';
