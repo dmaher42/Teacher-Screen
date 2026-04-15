@@ -3167,10 +3167,10 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
 
 .pomodoro-display {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     flex: 0 0 auto;
     min-height: 0;
-    padding: 10px 10px 8px;
+    padding: 10px 10px 10px;
     border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 82%, #ffffff 18%);
     border-radius: 20px;
     background:
@@ -3238,34 +3238,27 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     line-height: 1.25;
 }
 
-.pomodoro-control-bar {
-    position: static;
-    margin-top: 0;
-    padding: 0 2px;
-    background: transparent;
-    border-top: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 82%, #ffffff 18%);
-    box-shadow: none;
-}
-
-.pomodoro-control-bar .primary-actions,
-.pomodoro-control-bar .secondary-actions {
+.pomodoro-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     gap: 4px;
+    padding-top: 2px;
 }
 
-.pomodoro-control-bar .primary-actions button,
-.pomodoro-control-bar .secondary-actions button {
+.pomodoro-actions button {
     min-height: 26px;
     padding: 3px 8px;
     border-radius: 999px;
 }
 
-.pomodoro-control-bar .modal-primary {
+.pomodoro-actions .modal-primary {
     background: color-mix(in srgb, var(--primary-color, #2d81ff) 10%, #ffffff 90%);
     border: 1px solid color-mix(in srgb, var(--primary-color, #2d81ff) 30%, #ffffff 70%);
     color: var(--primary-color, #2d81ff);
 }
 
-.pomodoro-control-bar .control-button--ghost {
+.pomodoro-actions .control-button--ghost {
     background: transparent;
     border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 78%, #ffffff 22%);
     color: var(--text-color, #333);
@@ -3339,7 +3332,7 @@ body.projector-view .pomodoro-progress__fill {
 }
 
 body.projector-view .pomodoro-status,
-body.projector-view .pomodoro-control-bar,
+body.projector-view .pomodoro-actions,
 body.projector-view .pomodoro-settings-controls {
     display: none;
 }

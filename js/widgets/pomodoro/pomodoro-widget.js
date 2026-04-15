@@ -55,18 +55,14 @@ class PomodoroWidget {
         this.status.className = 'widget-status pomodoro-status';
         this.status.textContent = this.latestStatusMessage;
 
-        this.displayCard.append(this.displayHeader, this.displayTime, this.progressTrack, this.status);
-
-        this.controlBar = document.createElement('div');
-        this.controlBar.className = 'widget-control-bar pomodoro-control-bar';
-
-        this.primaryActions = document.createElement('div');
-        this.primaryActions.className = 'primary-actions';
+        this.actionsRow = document.createElement('div');
+        this.actionsRow.className = 'pomodoro-actions';
 
         this.startPauseButton = this.createControlButton('Start', () => this.toggleStartPause(), 'control-button modal-primary');
         this.resetButton = this.createControlButton('Reset', () => this.reset(), 'control-button control-button--ghost');
-        this.primaryActions.append(this.startPauseButton, this.resetButton);
-        this.controlBar.append(this.primaryActions);
+        this.actionsRow.append(this.startPauseButton, this.resetButton);
+
+        this.displayCard.append(this.displayHeader, this.displayTime, this.progressTrack, this.actionsRow, this.status);
 
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls pomodoro-settings-controls';
@@ -92,7 +88,7 @@ class PomodoroWidget {
 
         this.controlsOverlay.append(settingsTitle, settingsHelp, this.rhythmGroup);
 
-        this.element.append(this.displayCard, this.controlBar);
+        this.element.append(this.displayCard);
 
         this.render();
         this.subscribeToTimerEvents();
