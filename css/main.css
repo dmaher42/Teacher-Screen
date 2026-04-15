@@ -3271,6 +3271,18 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     color: var(--text-color, #333);
 }
 
+.pomodoro-settings-button {
+    width: 28px;
+    min-width: 28px;
+    padding: 0;
+    justify-content: center;
+}
+
+.pomodoro-settings-button i {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
 .pomodoro-settings-controls {
     display: flex;
     flex-direction: column;
