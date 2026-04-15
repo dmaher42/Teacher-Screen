@@ -3678,6 +3678,10 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     line-height: 1.4;
 }
 
+.quiz-game-direct-answer[hidden] {
+    display: none !important;
+}
+
 .quiz-game-direct-answer-label {
     font-size: 0.72rem;
     font-weight: 800;
