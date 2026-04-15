@@ -36,7 +36,7 @@ class QuizGameWidget {
 
         this.dragHandle = document.createElement('div');
         this.dragHandle.className = 'quiz-game-drag-handle';
-        this.dragHandle.textContent = 'Move';
+        this.dragHandle.innerHTML = '<span class="quiz-game-drag-icon" aria-hidden="true">|||</span><span>Move</span>';
         this.dragHandle.setAttribute('role', 'presentation');
 
         this.header = document.createElement('div');
@@ -70,7 +70,7 @@ class QuizGameWidget {
 
         this.timerLabel = document.createElement('div');
         this.timerLabel.className = 'quiz-game-timer-label';
-        this.timerLabel.textContent = 'Question Timer';
+        this.timerLabel.textContent = 'Timer';
 
         this.timerValue = document.createElement('div');
         this.timerValue.className = 'quiz-game-timer-value';
@@ -109,6 +109,7 @@ class QuizGameWidget {
 
         this.statusMessage = document.createElement('div');
         this.statusMessage.className = 'widget-status quiz-game-status';
+        this.statusMessage.hidden = true;
 
         this.controlBar = document.createElement('div');
         this.controlBar.className = 'widget-control-bar quiz-game-control-bar';
@@ -317,6 +318,7 @@ class QuizGameWidget {
 
     setStatus(message = '') {
         this.statusMessage.textContent = message;
+        this.statusMessage.hidden = !String(message || '').trim();
     }
 
     formatTimer(seconds = 0) {
@@ -438,7 +440,7 @@ class QuizGameWidget {
         this.element.classList.toggle('is-buzzing', this.questionBuzzActive);
         this.headerTitle.textContent = this.quizTitle || 'Quiz Game';
         this.headerProgress.textContent = totalQuestions ? `Question ${currentNumber} of ${totalQuestions}` : 'No questions';
-        this.headerStatus.textContent = this.answerRevealed ? 'Answer Revealed' : 'Question Live';
+        this.headerStatus.textContent = this.answerRevealed ? 'Revealed' : 'Live';
 
         const progressPercent = totalQuestions && totalQuestions > 0 ? ((this.currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
         if (this.progressBar) {

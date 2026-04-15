@@ -3488,15 +3488,39 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-drag-handle {
     flex: 0 0 auto;
-    padding: 2px 12px 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    align-self: center;
+    margin: 2px auto 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 80%, transparent);
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, var(--card-background, #ffffff) 16%);
     text-align: center;
     font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: color-mix(in srgb, var(--text-secondary, #64748b) 72%, transparent);
-    cursor: move;
+    cursor: grab;
     user-select: none;
+    opacity: 0.75;
+    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.quiz-game-widget-content:hover .quiz-game-drag-handle,
+.quiz-game-widget-content:focus-within .quiz-game-drag-handle {
+    opacity: 1;
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--border-color, #dfe4e2) 70%, var(--primary-color, #8e82ff) 30%);
+}
+
+.quiz-game-drag-icon {
+    font-size: 0.88rem;
+    letter-spacing: -0.04em;
+    line-height: 1;
 }
 
 .quiz-game-widget-content.is-projector-mode .quiz-game-drag-handle {
@@ -3507,7 +3531,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
     padding: 0 8px;
 }
 
@@ -3536,13 +3560,13 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-status-pill {
     flex: 0 0 auto;
-    padding: 4px 8px;
+    padding: 3px 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
     border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 20%, var(--border-color, #dfe4e2) 80%);
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
@@ -3551,7 +3575,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     justify-items: end;
     gap: 2px;
     min-width: 88px;
-    padding: 6px 10px;
+    padding: 5px 10px;
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
@@ -3582,9 +3606,9 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-question-card {
     display: grid;
-    gap: 12px;
-    padding: 14px 12px;
-    margin: 0 12px;
+    gap: 10px;
+    padding: 12px 12px;
+    margin: 0 10px;
     border-radius: 20px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 96%, var(--bg-surface, #f8fafc) 4%), color-mix(in srgb, var(--bg-surface, #f8fafc) 85%, var(--card-background, #ffffff) 15%));
@@ -3604,7 +3628,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-question-text {
-    font-size: 1.18rem;
+    font-size: 1.12rem;
     font-weight: 700;
     line-height: 1.35;
 }
@@ -3722,8 +3746,8 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-scoreboard {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 6px;
     padding: 0 10px;
 }
 
@@ -3732,7 +3756,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 7px 9px;
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 90%, var(--bg-surface, #f8fafc) 10%);
@@ -3782,9 +3806,12 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-status {
     margin: 0 10px;
-    padding: 8px 10px;
+    padding: 6px 10px;
     position: relative;
     z-index: 1;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 86%, var(--card-background, #ffffff) 14%);
 }
 
 .quiz-game-control-bar {
@@ -3803,8 +3830,8 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 
 .quiz-game-control-bar .primary-actions button,
 .quiz-game-control-bar .secondary-actions button {
-    min-height: 32px;
-    padding: 7px 10px;
+    min-height: 30px;
+    padding: 6px 9px;
 }
 
 .quiz-game-settings-controls {
