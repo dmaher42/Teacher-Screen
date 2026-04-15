@@ -3478,7 +3478,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 .quiz-game-widget-content {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     height: 100%;
     min-height: 0;
     padding: 0 0 8px;
@@ -3487,43 +3487,6 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-drag-handle {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    align-self: center;
-    margin: 2px auto 0;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 80%, transparent);
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, var(--card-background, #ffffff) 16%);
-    text-align: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: color-mix(in srgb, var(--text-secondary, #64748b) 72%, transparent);
-    cursor: grab;
-    user-select: none;
-    opacity: 0.75;
-    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-
-.quiz-game-widget-content:hover .quiz-game-drag-handle,
-.quiz-game-widget-content:focus-within .quiz-game-drag-handle {
-    opacity: 1;
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--border-color, #dfe4e2) 70%, var(--primary-color, #8e82ff) 30%);
-}
-
-.quiz-game-drag-icon {
-    font-size: 0.88rem;
-    letter-spacing: -0.04em;
-    line-height: 1;
-}
-
-.quiz-game-widget-content.is-projector-mode .quiz-game-drag-handle {
     display: none;
 }
 
