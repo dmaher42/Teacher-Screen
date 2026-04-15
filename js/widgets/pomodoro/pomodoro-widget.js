@@ -63,18 +63,10 @@ class PomodoroWidget {
         this.primaryActions = document.createElement('div');
         this.primaryActions.className = 'primary-actions';
 
-        this.secondaryActions = document.createElement('div');
-        this.secondaryActions.className = 'secondary-actions';
-
         this.startPauseButton = this.createControlButton('Start', () => this.toggleStartPause(), 'control-button modal-primary');
         this.resetButton = this.createControlButton('Reset', () => this.reset(), 'control-button control-button--ghost');
-        this.settingsButton = this.createControlButton('', () => this.openSettings(), 'control-button control-button--ghost pomodoro-settings-button');
-        this.settingsButton.setAttribute('aria-label', 'Pomodoro settings');
-        this.settingsButton.title = 'Pomodoro settings';
-        this.settingsButton.innerHTML = '<i class="fas fa-gear" aria-hidden="true"></i>';
         this.primaryActions.append(this.startPauseButton, this.resetButton);
-        this.secondaryActions.append(this.settingsButton);
-        this.controlBar.append(this.primaryActions, this.secondaryActions);
+        this.controlBar.append(this.primaryActions);
 
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls pomodoro-settings-controls';
