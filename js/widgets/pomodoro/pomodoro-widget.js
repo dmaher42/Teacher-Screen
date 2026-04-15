@@ -51,11 +51,11 @@ class PomodoroWidget {
         this.progressFill.className = 'pomodoro-progress__fill';
         this.progressTrack.appendChild(this.progressFill);
 
-        this.displayCard.append(this.displayHeader, this.displayTime, this.progressTrack);
-
         this.status = document.createElement('div');
         this.status.className = 'widget-status pomodoro-status';
         this.status.textContent = this.latestStatusMessage;
+
+        this.displayCard.append(this.displayHeader, this.displayTime, this.progressTrack, this.status);
 
         this.controlBar = document.createElement('div');
         this.controlBar.className = 'widget-control-bar pomodoro-control-bar';
@@ -97,7 +97,7 @@ class PomodoroWidget {
 
         this.controlsOverlay.append(settingsTitle, settingsHelp, this.rhythmGroup);
 
-        this.element.append(this.displayCard, this.status, this.controlBar);
+        this.element.append(this.displayCard, this.controlBar);
 
         this.render();
         this.subscribeToTimerEvents();

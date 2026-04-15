@@ -44,7 +44,7 @@ function isValidLayout(layout) {
 }
 
 const WIDGET_SIZE_RULES = {
-  PomodoroWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
+  PomodoroWidget: { minW: 4, minH: 2, defaultW: 4, defaultH: 2, maxW: 12, maxH: 4 },
   TimerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
