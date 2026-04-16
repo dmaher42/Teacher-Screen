@@ -1205,6 +1205,7 @@ class LayoutManager {
       finalW *= widthScale;
       finalH *= heightScale;
 
+      const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
       if (widget.constructor.name === 'PomodoroWidget') {
         const preferredW = rules.defaultW ? rules.defaultW * colW : finalW;
         const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
