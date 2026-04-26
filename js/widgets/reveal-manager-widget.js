@@ -1397,7 +1397,7 @@ class RevealManagerWidget {
             this.revealDeck = null;
             const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
             this.setStatus(externalRuntime?.canMirrorInApp
-                ? `${externalRuntime.sourceLabel} ready. Open Projector to mirror this deck.`
+                ? `${externalRuntime.sourceLabel} ready. Projector opens the live deck in a separate window.`
                 : `${this.getSourceTypeLabel(this.activeDeck.type)} link ready. Use an embeddable link to mirror it inside Teacher Screen and the projector.`);
             return null;
         }
@@ -1497,7 +1497,7 @@ class RevealManagerWidget {
         card.appendChild(heading);
 
         const message = document.createElement('p');
-        message.textContent = `${sourceLabel} can open externally, but this link needs an embeddable view before it can mirror inside Teacher Screen and the projector. Reveal Prev / Next controls still stay reserved for HTML decks.`;
+        message.textContent = `${sourceLabel} can preview here in an embeddable view, but Projector opens the live source window because external decks do not slide-sync through Teacher Screen. Reveal Prev / Next controls still stay reserved for HTML decks.`;
         card.appendChild(message);
 
         const link = document.createElement('a');
@@ -1814,10 +1814,7 @@ class RevealManagerWidget {
         }
 
         if (this.activeDeck.type !== 'html') {
-            const externalRuntime = this.getExternalPresentationRuntime(this.activeDeck);
-            if (!externalRuntime.canMirrorInApp) {
-                return this.openExternalSourceWindow(this.activeDeck);
-            }
+            return this.openExternalSourceWindow(this.activeDeck);
         }
 
         const projectorUrl = new URL('projector.html', window.location.href);
@@ -1874,7 +1871,7 @@ class RevealManagerWidget {
         }
 
         this.projectorWindow = externalWindow;
-        this.setStatus(`${this.getSourceTypeLabel(deck.type)} opening in a projector window...`);
+        this.setStatus(`${this.getSourceTypeLabel(deck.type)} opening in a live projector window...`);
         return true;
     }
 
