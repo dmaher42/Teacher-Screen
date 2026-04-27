@@ -433,11 +433,6 @@ class ProjectorApp {
 
         this.loadTheme();
         this.loadSavedState();
-
-        const root = document.getElementById('presentation-root');
-        if (root && !root.innerHTML.trim()) {
-            showProjectorStartupMessage('Projector ready. Open it from the teacher screen or load a saved Reveal layout.');
-        }
     }
 
     loadTheme() {
