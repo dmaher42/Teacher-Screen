@@ -407,9 +407,6 @@ class ProjectorApp {
 
         // Listen for storage events to update in real-time
         window.addEventListener('storage', (event) => {
-            if (event.key === 'classroomScreenState') {
-                this.loadSavedState();
-            }
             if (event.key === 'selectedTheme') {
                 this.loadTheme();
             }
@@ -418,27 +415,6 @@ class ProjectorApp {
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
             if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
-                return;
-            }
-
-            if (message.type === 'layout-update') {
-                if (message.source === 'projector') {
-                    return;
-                }
-
-                if (message.state && message.state.layout) {
-                    this.lastTeacherLayoutSnapshot = JSON.parse(JSON.stringify(message.state.layout));
-                }
-
-                this.rebuildLayout(message.state);
-                return;
-            }
-
-            if (message.type === 'layout-delta' && message.delta) {
-                if (message.source === 'projector') {
-                    return;
-                }
-                this.layoutManager.applyLayoutDelta(message.delta);
                 return;
             }
 
