@@ -55,6 +55,7 @@
                             <div class="sections-menu__actions" aria-label="Planner shortcuts">
                                 <button id="add-layout-btn" class="nav-dropdown-button" type="button">Add Layout</button>
                                 <button id="save-layout-btn" class="nav-dropdown-button" type="button">Save Layout</button>
+                                <button id="open-class-screens-btn" class="nav-dropdown-button" type="button">Screens</button>
                             </div>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
@@ -361,22 +362,20 @@
                             <h4>Class Screens &amp; Presets</h4>
                         </summary>
                         <div class="card-body">
-                            <div class="class-screen-panel">
-                                <div class="input-group">
-                                    <label for="class-profile-select">Current Class</label>
-                                    <select id="class-profile-select">
-                                        <option value="">Choose a class</option>
-                                    </select>
-                                </div>
-                                <div class="button-group">
-                                    <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Snapshot</button>
-                                    <button id="reset-layout" class="control-button" type="button">Reset Layout</button>
-                                </div>
-                                <p class="screen-helper">Pick a class to reopen its latest screen. Save Snapshot makes a dated copy you can look back on later.</p>
-                            </div>
-                            <details class="screen-manager-details">
+                            <details class="screen-manager-details" id="class-screens-details">
                                 <summary class="screen-manager-summary">Advanced / Manage Screens</summary>
                                 <div class="screen-manager-body">
+                                    <div class="input-group">
+                                        <label for="class-profile-select">Current Class</label>
+                                        <select id="class-profile-select">
+                                            <option value="">Choose a class</option>
+                                        </select>
+                                    </div>
+                                    <div class="button-group">
+                                        <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Snapshot</button>
+                                        <button id="reset-layout" class="control-button" type="button">Reset Layout</button>
+                                    </div>
+                                    <p class="screen-helper">Pick a class to reopen its latest screen. Save Snapshot makes a dated copy you can look back on later.</p>
                                     <div class="input-group">
                                         <label for="layout-preset">Quick Screen Layout</label>
                                         <select id="layout-preset">

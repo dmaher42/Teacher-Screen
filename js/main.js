@@ -147,6 +147,7 @@ class ClassroomScreenApp {
         this.currentSectionName = document.getElementById('current-section-name');
         this.sectionsToggleButton = document.getElementById('sections-toggle');
         this.sectionsMenu = document.getElementById('sections-menu');
+        this.openClassScreensButton = document.getElementById('open-class-screens-btn');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
@@ -577,6 +578,10 @@ class ClassroomScreenApp {
                     window.requestAnimationFrame(() => this.layoutNameInput.focus());
                 }
             });
+        }
+
+        if (this.openClassScreensButton) {
+            this.openClassScreensButton.addEventListener('click', () => this.openClassScreensManager());
         }
 
         if (this.openWeeklyPlannerButton) {
@@ -4197,6 +4202,24 @@ class ClassroomScreenApp {
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
         this.openWidgetPicker(focusWidgetType);
+    }
+
+    openClassScreensManager() {
+        this.closeSectionsMenu();
+        this.handleNavClick('classroom');
+        this.toggleTeacherPanel(true);
+
+        window.requestAnimationFrame(() => {
+            const details = document.getElementById('class-screens-details');
+            if (details) {
+                details.open = true;
+                details.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            }
+
+            if (this.classProfileSelect && typeof this.classProfileSelect.focus === 'function') {
+                this.classProfileSelect.focus({ preventScroll: true });
+            }
+        });
     }
 
     closeDialog(dialog) {
