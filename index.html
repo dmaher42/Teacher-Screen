@@ -361,57 +361,59 @@
                             <h4>Class Screens &amp; Presets</h4>
                         </summary>
                         <div class="card-body">
-                            <div class="input-group">
-                                <label for="layout-preset">Quick Screen Layout</label>
-                                <select id="layout-preset">
-                                    <option value="">None</option>
-                                    <option value="2x2">2×2 Grid</option>
-                                    <option value="full-timer">Full-width Timer</option>
-                                </select>
-                                <button id="apply-layout-preset" class="control-button">Apply</button>
-                            </div>
-                            <p class="screen-helper">Save the current screen for a class, then reopen or duplicate it for the next class later in the day.</p>
-                            <div class="input-group">
-                                <label for="preset-name">Screen Name</label>
-                                <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
-                            </div>
-                            <div class="input-group">
-                                <label for="preset-class-name">Class Name (optional)</label>
-                                <input type="text" id="preset-class-name" placeholder="e.g., 8A Maths">
-                            </div>
-                            <div class="input-group">
-                                <label for="preset-period">Period / Time Slot (optional)</label>
-                                <input type="text" id="preset-period" placeholder="e.g., Morning, Afternoon">
-                            </div>
-                            <div class="button-group">
-                                <button id="save-preset" class="control-button">Save Screen / Overwrite</button>
-                                <button id="reset-layout" class="control-button">Reset Layout</button>
-                            </div>
-                            <div class="button-group">
-                                <button id="export-layout" class="control-button">Export</button>
-                                <button id="import-layout" class="control-button">Import</button>
-                            </div>
-                            <div class="class-profile-panel">
+                            <div class="class-screen-panel">
                                 <div class="input-group">
-                                    <label for="class-profile-select">Class Screen</label>
+                                    <label for="class-profile-select">Current Class</label>
                                     <select id="class-profile-select">
-                                        <option value="">All classes</option>
+                                        <option value="">Choose a class</option>
                                     </select>
                                 </div>
                                 <div class="button-group">
-                                    <button id="load-class-profile-btn" class="control-button" type="button">Load Latest</button>
-                                    <button id="focus-class-profile-btn" class="control-button control-button--ghost" type="button">Focus Class</button>
+                                    <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Snapshot</button>
+                                    <button id="reset-layout" class="control-button" type="button">Reset Layout</button>
                                 </div>
+                                <p class="screen-helper">Pick a class to reopen its latest screen. Save Snapshot makes a dated copy you can look back on later.</p>
                             </div>
-                            <div class="preset-filters">
-                                <input type="text" id="preset-class-filter" placeholder="Filter by class name">
-                                <select id="preset-period-filter">
-                                    <option value="">All periods</option>
-                                    <option value="Morning">Morning</option>
-                                    <option value="Afternoon">Afternoon</option>
-                                </select>
-                            </div>
-                            <div id="preset-list" class="preset-list" aria-live="polite"></div>
+                            <details class="screen-manager-details">
+                                <summary class="screen-manager-summary">Advanced / Manage Screens</summary>
+                                <div class="screen-manager-body">
+                                    <div class="input-group">
+                                        <label for="layout-preset">Quick Screen Layout</label>
+                                        <select id="layout-preset">
+                                            <option value="">None</option>
+                                            <option value="2x2">2x2 Grid</option>
+                                            <option value="full-timer">Full-width Timer</option>
+                                        </select>
+                                        <button id="apply-layout-preset" class="control-button">Apply</button>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="preset-name">Screen Name</label>
+                                        <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="preset-class-name">Class Name (optional)</label>
+                                        <input type="text" id="preset-class-name" placeholder="e.g., 8A Maths">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="preset-period">Period / Time Slot (optional)</label>
+                                        <input type="text" id="preset-period" placeholder="e.g., Morning, Afternoon">
+                                    </div>
+                                    <div class="button-group">
+                                        <button id="save-preset" class="control-button">Save Screen / Overwrite</button>
+                                        <button id="export-layout" class="control-button">Export</button>
+                                        <button id="import-layout" class="control-button">Import</button>
+                                    </div>
+                                    <div class="preset-filters">
+                                        <input type="text" id="preset-class-filter" placeholder="Filter by class name">
+                                        <select id="preset-period-filter">
+                                            <option value="">All periods</option>
+                                            <option value="Morning">Morning</option>
+                                            <option value="Afternoon">Afternoon</option>
+                                        </select>
+                                    </div>
+                                    <div id="preset-list" class="preset-list" aria-live="polite"></div>
+                                </div>
+                            </details>
                         </div>
                     </details>
                 </section>
@@ -567,3 +569,6 @@
 
 </body>
 </html>
+
+
+

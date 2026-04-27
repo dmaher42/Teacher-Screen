@@ -156,8 +156,7 @@ class ClassroomScreenApp {
         this.presetClassInput = document.getElementById('preset-class-name');
         this.presetPeriodInput = document.getElementById('preset-period');
         this.classProfileSelect = document.getElementById('class-profile-select');
-        this.loadClassProfileButton = document.getElementById('load-class-profile-btn');
-        this.focusClassProfileButton = document.getElementById('focus-class-profile-btn');
+        this.saveSnapshotButton = document.getElementById('save-snapshot-btn');
         this.presetClassFilterInput = document.getElementById('preset-class-filter');
         this.presetPeriodFilterSelect = document.getElementById('preset-period-filter');
         this.layoutPresetSelect = document.getElementById('layout-preset');
@@ -759,22 +758,20 @@ class ClassroomScreenApp {
         document.getElementById('import-layout').addEventListener('click', () => this.openDialog(this.importDialog));
         this.confirmImportButton.addEventListener('click', () => this.handleConfirmImport());
 
-        // Preset Filters
+        // Class screens
         if (this.classProfileSelect) {
             this.classProfileSelect.addEventListener('change', () => {
                 this.syncPresetFilterFromClassProfile();
+                if (this.classProfileSelect.value) {
+                    this.loadLatestPresetForSelectedClass();
+                }
             });
         }
 
-        if (this.loadClassProfileButton) {
-            this.loadClassProfileButton.addEventListener('click', () => {
-                this.loadLatestPresetForSelectedClass();
-            });
-        }
-
-        if (this.focusClassProfileButton) {
-            this.focusClassProfileButton.addEventListener('click', () => {
-                this.focusPresetListOnSelectedClass();
+        if (this.saveSnapshotButton) {
+            this.saveSnapshotButton.addEventListener('click', () => {
+                this.syncPresetFilterFromClassProfile();
+                this.savePreset({ autoName: true });
             });
         }
 
@@ -2209,7 +2206,7 @@ class ClassroomScreenApp {
     }
 
     getPresetClassNames() {
-        const classCounts = new Map();
+        const classStats = new Map();
 
         this.presets
             .map((preset) => this.normalizePresetRecord(preset))
@@ -2219,12 +2216,29 @@ class ClassroomScreenApp {
                     return;
                 }
                 const key = preset.className.trim();
-                classCounts.set(key, (classCounts.get(key) || 0) + 1);
+                const latestStamp = Number(preset.lastUsedAt || preset.updatedAt || preset.createdAt || 0);
+                const existing = classStats.get(key);
+
+                if (!existing) {
+                    classStats.set(key, {
+                        name: key,
+                        count: 1,
+                        lastUsedAt: latestStamp
+                    });
+                    return;
+                }
+
+                existing.count += 1;
+                existing.lastUsedAt = Math.max(existing.lastUsedAt, latestStamp);
             });
 
-        return Array.from(classCounts.entries())
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([name, count]) => ({ name, count }));
+        return Array.from(classStats.values())
+            .sort((a, b) => {
+                if (b.lastUsedAt !== a.lastUsedAt) {
+                    return b.lastUsedAt - a.lastUsedAt;
+                }
+                return a.name.localeCompare(b.name);
+            });
     }
 
     renderClassProfileOptions() {
@@ -2235,7 +2249,7 @@ class ClassroomScreenApp {
         const currentValue = this.classProfileSelect.value || this.presetClassFilterInput?.value || '';
         const classProfiles = this.getPresetClassNames();
 
-        this.classProfileSelect.innerHTML = '<option value="">All classes</option>';
+        this.classProfileSelect.innerHTML = '<option value="">Choose a class</option>';
 
         classProfiles.forEach(({ name, count }) => {
             const option = document.createElement('option');
@@ -2248,6 +2262,28 @@ class ClassroomScreenApp {
             const matchedOption = classProfiles.find(({ name }) => name === currentValue);
             this.classProfileSelect.value = matchedOption ? currentValue : '';
         }
+    }
+
+    generateSnapshotName(className = '') {
+        const label = String(className || '').trim() || 'Screen';
+        const now = new Date();
+        const datePart = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const timePart = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${label} - ${datePart} ${timePart}`;
+    }
+
+    getUniquePresetName(baseName) {
+        const root = String(baseName || '').trim() || 'Screen';
+        if (!this.presets.some((preset) => preset.name === root)) {
+            return root;
+        }
+
+        let index = 2;
+        while (this.presets.some((preset) => preset.name === `${root} (${index})`)) {
+            index += 1;
+        }
+
+        return `${root} (${index})`;
     }
 
     getLatestPresetForClass(className = '') {
@@ -2270,11 +2306,17 @@ class ClassroomScreenApp {
     }
 
     syncPresetFilterFromClassProfile() {
-        if (!this.presetClassFilterInput || !this.classProfileSelect) {
+        if (!this.classProfileSelect) {
             return;
         }
 
-        this.presetClassFilterInput.value = this.classProfileSelect.value || '';
+        const selectedClass = this.classProfileSelect.value || '';
+        if (this.presetClassFilterInput) {
+            this.presetClassFilterInput.value = selectedClass;
+        }
+        if (this.presetClassInput) {
+            this.presetClassInput.value = selectedClass;
+        }
         this.renderPresetList();
     }
 
@@ -2427,8 +2469,16 @@ class ClassroomScreenApp {
         });
     }
 
-    savePreset() {
-        const name = this.presetNameInput ? this.presetNameInput.value.trim() : '';
+    savePreset(options = {}) {
+        const autoName = options.autoName === true;
+        const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
+        const suggestedName = this.generateSnapshotName(className);
+        let name = this.presetNameInput ? this.presetNameInput.value.trim() : '';
+
+        if (autoName || !name) {
+            name = this.getUniquePresetName(suggestedName);
+        }
+
         if (!name) {
             this.showNotification('Enter a screen name first.', 'error');
             return;
@@ -2442,7 +2492,7 @@ class ClassroomScreenApp {
         const now = Date.now();
         const preset = {
             name,
-            className: this.presetClassInput ? this.presetClassInput.value.trim() : '',
+            className,
             period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
@@ -2457,6 +2507,9 @@ class ClassroomScreenApp {
         this.presets.push(preset);
         this.savePresets();
         this.renderPresetList();
+        if (this.presetNameInput) {
+            this.presetNameInput.value = name;
+        }
         this.showNotification(`Screen "${name}" saved.`);
     }
 
@@ -2473,6 +2526,8 @@ class ClassroomScreenApp {
         if (this.presetNameInput) this.presetNameInput.value = preset.name || '';
         if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
         if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
+        if (this.classProfileSelect) this.classProfileSelect.value = preset.className || '';
+        if (this.presetClassFilterInput) this.presetClassFilterInput.value = preset.className || '';
 
         this.widgets = [];
         this.layoutManager.deserialize(preset.layout, (widgetData) => {

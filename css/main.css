@@ -5067,10 +5067,36 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     line-height: 1.45;
     color: var(--text-secondary, #64748b);
 }
-.class-profile-panel {
+
+.class-screen-panel {
     display: grid;
     gap: 10px;
     margin: 10px 0 12px;
+}
+
+.screen-manager-details {
+    margin-top: 12px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 10px);
+    background: var(--surface-2, rgba(255, 255, 255, 0.55));
+}
+
+.screen-manager-summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    list-style: none;
+}
+
+.screen-manager-summary::-webkit-details-marker {
+    display: none;
+}
+
+.screen-manager-body {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
 }
 
 .preset-list {
