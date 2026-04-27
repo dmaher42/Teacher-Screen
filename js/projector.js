@@ -382,21 +382,13 @@ class ProjectorApp {
         this.studentView = document.getElementById('student-view');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.widgets = [];
-        this.isEditMode = false;
+        this.isEditMode = true;
         this.lastTeacherLayoutSnapshot = null;
         this.preEditLayoutSnapshot = null;
 
-        this.editToggleButton = document.getElementById('projector-edit-toggle');
-        this.editControls = document.getElementById('projector-edit-controls');
-        this.editStatus = document.getElementById('projector-edit-status');
-        this.doneEditButton = document.getElementById('projector-edit-done');
-        this.resetLastChangeButton = document.getElementById('projector-reset-last-change');
-
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.layoutManager.setEditable(false);
-        // Disable editing in LayoutManager if possible, but we already hid controls with CSS.
-        // We can also override methods if needed.
+        this.layoutManager.setEditable(true);
 
         this.backgroundManager = new BackgroundManager(this.studentView);
 
@@ -499,36 +491,7 @@ class ProjectorApp {
 
 
     setupEditModeControls() {
-        const params = new URLSearchParams(window.location.search);
-        const startsInEditMode = params.get('edit') === '1';
-
-        if (this.editToggleButton) {
-            this.editToggleButton.addEventListener('click', () => this.toggleEditMode());
-        }
-
-        if (this.doneEditButton) {
-            this.doneEditButton.addEventListener('click', () => this.setEditMode(false));
-        }
-
-        if (this.resetLastChangeButton) {
-            this.resetLastChangeButton.addEventListener('click', () => this.resetLastChange());
-        }
-
-        document.addEventListener('keydown', (event) => {
-            const isModifierPressed = event.ctrlKey || event.metaKey;
-            if (!isModifierPressed || event.key.toLowerCase() !== 'e') {
-                return;
-            }
-
-            event.preventDefault();
-            this.toggleEditMode();
-        });
-
         this.layoutManager.onLayoutChange = (payload) => {
-            if (!this.isEditMode) {
-                return;
-            }
-
             if (!payload || payload.type !== 'widget-update') {
                 return;
             }
@@ -541,7 +504,7 @@ class ProjectorApp {
             });
         };
 
-        this.setEditMode(startsInEditMode);
+        this.setEditMode(true);
     }
 
     toggleEditMode() {
@@ -560,20 +523,6 @@ class ProjectorApp {
 
         this.layoutManager.setEditable(this.isEditMode);
         document.body.classList.toggle('edit-mode', this.isEditMode);
-
-        if (this.editToggleButton) {
-            this.editToggleButton.classList.toggle('is-active', this.isEditMode);
-            this.editToggleButton.setAttribute('aria-pressed', this.isEditMode ? 'true' : 'false');
-            this.editToggleButton.textContent = this.isEditMode ? 'Lock Layout' : 'Edit Layout';
-        }
-
-        if (this.editControls) {
-            this.editControls.hidden = !this.isEditMode;
-        }
-
-        if (this.editStatus) {
-            this.editStatus.textContent = this.isEditMode ? 'Edit: ON' : 'Edit: OFF';
-        }
     }
 
     resetLastChange() {
