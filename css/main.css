@@ -5077,6 +5077,11 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     line-height: 1.45;
     color: var(--text-secondary, #64748b);
 }
+.class-profile-panel {
+    display: grid;
+    gap: 10px;
+    margin: 10px 0 12px;
+}
 
 .preset-list {
     display: flex;

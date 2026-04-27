@@ -155,6 +155,9 @@ class ClassroomScreenApp {
         this.nameEntryDialog = document.getElementById('name-entry-dialog');
         this.presetClassInput = document.getElementById('preset-class-name');
         this.presetPeriodInput = document.getElementById('preset-period');
+        this.classProfileSelect = document.getElementById('class-profile-select');
+        this.loadClassProfileButton = document.getElementById('load-class-profile-btn');
+        this.focusClassProfileButton = document.getElementById('focus-class-profile-btn');
         this.presetClassFilterInput = document.getElementById('preset-class-filter');
         this.presetPeriodFilterSelect = document.getElementById('preset-period-filter');
         this.layoutPresetSelect = document.getElementById('layout-preset');
@@ -757,6 +760,24 @@ class ClassroomScreenApp {
         this.confirmImportButton.addEventListener('click', () => this.handleConfirmImport());
 
         // Preset Filters
+        if (this.classProfileSelect) {
+            this.classProfileSelect.addEventListener('change', () => {
+                this.syncPresetFilterFromClassProfile();
+            });
+        }
+
+        if (this.loadClassProfileButton) {
+            this.loadClassProfileButton.addEventListener('click', () => {
+                this.loadLatestPresetForSelectedClass();
+            });
+        }
+
+        if (this.focusClassProfileButton) {
+            this.focusClassProfileButton.addEventListener('click', () => {
+                this.focusPresetListOnSelectedClass();
+            });
+        }
+
         this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
         this.presetPeriodFilterSelect.addEventListener('change', () => this.renderPresetList());
 
@@ -2178,11 +2199,115 @@ class ClassroomScreenApp {
 
         this.renderPresetList();
         this.renderLayoutPresetOptions();
+        this.renderClassProfileOptions();
     }
 
     savePresets() {
         localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
         this.renderLayoutPresetOptions();
+        this.renderClassProfileOptions();
+    }
+
+    getPresetClassNames() {
+        const classCounts = new Map();
+
+        this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .forEach((preset) => {
+                if (!preset.className) {
+                    return;
+                }
+                const key = preset.className.trim();
+                classCounts.set(key, (classCounts.get(key) || 0) + 1);
+            });
+
+        return Array.from(classCounts.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, count]) => ({ name, count }));
+    }
+
+    renderClassProfileOptions() {
+        if (!this.classProfileSelect) {
+            return;
+        }
+
+        const currentValue = this.classProfileSelect.value || this.presetClassFilterInput?.value || '';
+        const classProfiles = this.getPresetClassNames();
+
+        this.classProfileSelect.innerHTML = '<option value="">All classes</option>';
+
+        classProfiles.forEach(({ name, count }) => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = `${name} (${count})`;
+            this.classProfileSelect.appendChild(option);
+        });
+
+        if (currentValue) {
+            const matchedOption = classProfiles.find(({ name }) => name === currentValue);
+            this.classProfileSelect.value = matchedOption ? currentValue : '';
+        }
+    }
+
+    getLatestPresetForClass(className = '') {
+        const target = String(className || '').trim().toLowerCase();
+        if (!target) {
+            return null;
+        }
+
+        const matchingPresets = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .filter((preset) => preset.className && preset.className.trim().toLowerCase() === target)
+            .sort((a, b) => {
+                const aStamp = Number.isFinite(a.lastUsedAt) ? a.lastUsedAt : Number.isFinite(a.updatedAt) ? a.updatedAt : a.createdAt || 0;
+                const bStamp = Number.isFinite(b.lastUsedAt) ? b.lastUsedAt : Number.isFinite(b.updatedAt) ? b.updatedAt : b.createdAt || 0;
+                return bStamp - aStamp;
+            });
+
+        return matchingPresets[0] || null;
+    }
+
+    syncPresetFilterFromClassProfile() {
+        if (!this.presetClassFilterInput || !this.classProfileSelect) {
+            return;
+        }
+
+        this.presetClassFilterInput.value = this.classProfileSelect.value || '';
+        this.renderPresetList();
+    }
+
+    focusPresetListOnSelectedClass() {
+        if (!this.classProfileSelect) {
+            return;
+        }
+
+        this.syncPresetFilterFromClassProfile();
+        const className = this.classProfileSelect.value || 'all classes';
+        this.showNotification(className === 'all classes'
+            ? 'Showing all saved class screens.'
+            : `Showing screens for ${className}.`);
+    }
+
+    loadLatestPresetForSelectedClass() {
+        const className = this.classProfileSelect?.value || this.presetClassFilterInput?.value || this.presetClassInput?.value || '';
+        const latestPreset = this.getLatestPresetForClass(className);
+
+        if (!latestPreset) {
+            this.showNotification(className
+                ? `No saved screen found for ${className}.`
+                : 'Choose a class first.', 'warning');
+            return;
+        }
+
+        this.loadPreset(latestPreset.name);
+        if (this.classProfileSelect) {
+            this.classProfileSelect.value = latestPreset.className || '';
+        }
+        if (this.presetClassFilterInput) {
+            this.presetClassFilterInput.value = latestPreset.className || '';
+        }
     }
 
     normalizePresetRecord(preset) {
@@ -2252,7 +2377,7 @@ class ClassroomScreenApp {
         const originalPreset = this.presets.find((preset) => preset.name === name);
         const normalizedOriginal = this.normalizePresetRecord(originalPreset);
         if (!normalizedOriginal) {
-            this.showNotification('Preset not found.', 'error');
+            this.showNotification('Screen not found.', 'error');
             return;
         }
 
@@ -2269,7 +2394,7 @@ class ClassroomScreenApp {
         }
 
         if (this.presets.some((preset) => preset.name === trimmedName)) {
-            this.showNotification(`Preset "${trimmedName}" already exists.`, 'error');
+            this.showNotification(`Screen "${trimmedName}" already exists.`, 'error');
             return;
         }
 
@@ -2310,7 +2435,7 @@ class ClassroomScreenApp {
         }
 
         if (this.presets.some((preset) => preset.name === name)) {
-            this.showNotification(`Preset "${name}" already exists. Use Overwrite.`, 'error');
+            this.showNotification(`Screen "${name}" already exists. Use Overwrite.`, 'error');
             return;
         }
 
@@ -2338,7 +2463,7 @@ class ClassroomScreenApp {
     loadPreset(name) {
         const preset = this.presets.find((item) => item.name === name);
         if (!preset) {
-            this.showNotification('Preset not found.', 'error');
+            this.showNotification('Screen not found.', 'error');
             return;
         }
 
@@ -2369,7 +2494,7 @@ class ClassroomScreenApp {
 
         const selectedName = this.layoutPresetSelect.value;
         if (!selectedName) {
-            this.showNotification('Select a preset first.', 'error');
+            this.showNotification('Select a screen first.', 'error');
             return;
         }
 
@@ -2384,7 +2509,7 @@ class ClassroomScreenApp {
 
         const presetIndex = this.presets.findIndex(preset => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Preset not found.', 'error');
+            this.showNotification('Screen not found.', 'error');
             return;
         }
         const existingPreset = this.normalizePresetRecord(this.presets[presetIndex]);
@@ -2411,16 +2536,16 @@ class ClassroomScreenApp {
     deletePreset(name) {
         const presetIndex = this.presets.findIndex(preset => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Preset not found.', 'error');
+            this.showNotification('Screen not found.', 'error');
             return;
         }
-        if (!confirm(`Delete preset "${name}"?`)) {
+        if (!confirm(`Delete screen "${name}"?`)) {
             return;
         }
         this.presets.splice(presetIndex, 1);
         this.savePresets();
         this.renderPresetList();
-        this.showNotification(`Preset "${name}" deleted.`);
+        this.showNotification(`Screen "${name}" deleted.`);
     }
 
     getSerializableState() {
@@ -2553,6 +2678,7 @@ class ClassroomScreenApp {
             const emptyState = document.createElement('p');
             emptyState.textContent = 'No class screens match your filters.';
             this.presetListElement.appendChild(emptyState);
+            this.renderClassProfileOptions();
             return;
         }
 
@@ -2576,7 +2702,7 @@ class ClassroomScreenApp {
             const usageInfo = Number.isFinite(preset.usageCount) && preset.usageCount > 0
                 ? `${preset.usageCount} open${preset.usageCount === 1 ? '' : 's'}`
                 : 'Saved only';
-            metaLine.textContent = `Last used ${lastUsed} · ${usageInfo}`;
+            metaLine.textContent = `Last used ${lastUsed} - ${usageInfo}`;
 
             const mainInfo = document.createElement('div');
             mainInfo.className = 'preset-main-info';
@@ -2615,7 +2741,6 @@ class ClassroomScreenApp {
             deleteButton.dataset.action = 'delete';
             deleteButton.dataset.name = preset.name;
 
-            // Event delegation for preset actions
             item.addEventListener('click', (e) => {
                 const button = e.target.closest('button');
                 if (!button) return;
@@ -2639,6 +2764,8 @@ class ClassroomScreenApp {
 
             this.presetListElement.appendChild(item);
         });
+
+        this.renderClassProfileOptions();
     }
 
     loadSavedState() {
@@ -4218,4 +4345,3 @@ if (document.readyState === 'loading') {
 } else {
     startApp();
 }
-
