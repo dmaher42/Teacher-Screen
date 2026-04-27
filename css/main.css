@@ -5071,6 +5071,56 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex-shrink: 0;
 }
 
+.screen-helper {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--text-secondary, #64748b);
+}
+
+.preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preset-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, #dfe4e2);
+    border-radius: var(--border-radius-medium, 10px);
+    background: var(--card-background, #ffffff);
+}
+
+.preset-main-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.preset-name {
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+
+.preset-subtext,
+.preset-meta {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.92rem;
+    line-height: 1.4;
+}
+
+.preset-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 @media (max-width: 720px) {
     .notes-panel__header,
     .planner-panel__header {
@@ -5084,7 +5134,8 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     }
 
     .saved-note-card,
-    .saved-layout-item {
+    .saved-layout-item,
+    .preset-item {
         flex-direction: column;
     }
 }

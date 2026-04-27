@@ -358,11 +358,11 @@
                     <details>
                         <summary role="button" tabindex="0">
                             <img src="assets/icons/preset.svg" alt="" class="card-icon">
-                            <h4>Layouts &amp; Presets</h4>
+                            <h4>Class Screens &amp; Presets</h4>
                         </summary>
                         <div class="card-body">
                             <div class="input-group">
-                                <label for="layout-preset">Quick Layout</label>
+                                <label for="layout-preset">Quick Screen Layout</label>
                                 <select id="layout-preset">
                                     <option value="">None</option>
                                     <option value="2x2">2×2 Grid</option>
@@ -370,9 +370,10 @@
                                 </select>
                                 <button id="apply-layout-preset" class="control-button">Apply</button>
                             </div>
+                            <p class="screen-helper">Save the current screen for a class, then reopen or duplicate it for the next class later in the day.</p>
                             <div class="input-group">
-                                <label for="preset-name">Preset Name</label>
-                                <input type="text" id="preset-name" placeholder="e.g., Morning Routine">
+                                <label for="preset-name">Screen Name</label>
+                                <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
                             </div>
                             <div class="input-group">
                                 <label for="preset-class-name">Class Name (optional)</label>
@@ -383,7 +384,7 @@
                                 <input type="text" id="preset-period" placeholder="e.g., Morning, Afternoon">
                             </div>
                             <div class="button-group">
-                                <button id="save-preset" class="control-button">Save / Overwrite</button>
+                                <button id="save-preset" class="control-button">Save Screen / Overwrite</button>
                                 <button id="reset-layout" class="control-button">Reset Layout</button>
                             </div>
                             <div class="button-group">
