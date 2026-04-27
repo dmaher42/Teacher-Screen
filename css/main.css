@@ -2882,6 +2882,30 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
     box-shadow: none;
 }
 
+body.projector-view .widget-control-bar,
+body.projector-view .widget-content-controls,
+body.projector-view .rich-text-inline-actions,
+body.projector-view .rich-text-editor-header,
+body.projector-view .ql-toolbar,
+body.projector-view .drawing-tool-controls,
+body.projector-view .widget-help-text,
+body.projector-view .drawing-tool-surface__hint {
+    display: none !important;
+}
+
+body.projector-view .rich-text-widget-inner .ql-container,
+body.projector-view .rich-text-widget-inner .ql-editor {
+    width: 100%;
+}
+
+body.projector-view .drawing-tool-widget-content {
+    gap: 0;
+}
+
+body.projector-view .drawing-tool-surface {
+    min-height: 0;
+}
+
 /* Background Selector Accessibility */
 .background-selector {
   display: flex;

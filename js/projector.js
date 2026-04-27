@@ -382,13 +382,13 @@ class ProjectorApp {
         this.studentView = document.getElementById('student-view');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.widgets = [];
-        this.isEditMode = true;
+        this.isEditMode = false;
         this.lastTeacherLayoutSnapshot = null;
         this.preEditLayoutSnapshot = null;
 
         // Managers
         this.layoutManager = new LayoutManager(this.widgetsContainer);
-        this.layoutManager.setEditable(true);
+        this.layoutManager.setEditable(false);
 
         this.backgroundManager = new BackgroundManager(this.studentView);
 
@@ -532,20 +532,7 @@ class ProjectorApp {
 
 
     setupEditModeControls() {
-        this.layoutManager.onLayoutChange = (payload) => {
-            if (!payload || payload.type !== 'widget-update') {
-                return;
-            }
-
-            this.projectorChannel.postMessage({
-                type: 'layout-delta-from-projector',
-                source: 'projector',
-                delta: payload,
-                syncToken: this.projectorSyncToken
-            });
-        };
-
-        this.setEditMode(true);
+        this.setEditMode(false);
     }
 
     toggleEditMode() {
