@@ -2402,12 +2402,39 @@ body.widget-resize-active {
 }
 
 
+.projector-edit-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 999;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(18, 24, 38, 0.72);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.projector-edit-toggle:hover {
+    background: rgba(18, 24, 38, 0.88);
+}
+
+.projector-edit-toggle.is-active {
+    background: rgba(45, 129, 255, 0.9);
+}
+
 .projector-edit-controls {
     position: fixed;
     top: 16px;
     right: 16px;
     z-index: 1000;
-    display: none !important;
+    display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px;
@@ -2807,7 +2834,7 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
 }
 
 body.projector-view .rich-text-widget-inner .ql-toolbar {
-    display: none !important;
+    display: flex;
 }
 
 .rich-text-widget-inner.display-mode .ql-editor {
@@ -3907,7 +3934,7 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
 }
 
 .quiz-game-direct-answer[hidden] {
-    display: none !important;
+    display: flex;
 }
 
 .quiz-game-direct-answer-label {
@@ -5773,7 +5800,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 }
 
 .reveal-manager-empty[hidden] {
-    display: none !important;
+    display: flex;
 }
 
 /* ==========================

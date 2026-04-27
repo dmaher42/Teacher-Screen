@@ -386,6 +386,7 @@ class ProjectorApp {
         this.lastTeacherLayoutSnapshot = null;
         this.preEditLayoutSnapshot = null;
 
+        this.editToggleButton = document.getElementById('projector-edit-toggle');
         this.editControls = document.getElementById('projector-edit-controls');
         this.editStatus = document.getElementById('projector-edit-status');
         this.doneEditButton = document.getElementById('projector-edit-done');
@@ -501,6 +502,10 @@ class ProjectorApp {
         const params = new URLSearchParams(window.location.search);
         const startsInEditMode = params.get('edit') === '1';
 
+        if (this.editToggleButton) {
+            this.editToggleButton.addEventListener('click', () => this.toggleEditMode());
+        }
+
         if (this.doneEditButton) {
             this.doneEditButton.addEventListener('click', () => this.setEditMode(false));
         }
@@ -556,8 +561,14 @@ class ProjectorApp {
         this.layoutManager.setEditable(this.isEditMode);
         document.body.classList.toggle('edit-mode', this.isEditMode);
 
+        if (this.editToggleButton) {
+            this.editToggleButton.classList.toggle('is-active', this.isEditMode);
+            this.editToggleButton.setAttribute('aria-pressed', this.isEditMode ? 'true' : 'false');
+            this.editToggleButton.textContent = this.isEditMode ? 'Lock Layout' : 'Edit Layout';
+        }
+
         if (this.editControls) {
-            this.editControls.hidden = true;
+            this.editControls.hidden = !this.isEditMode;
         }
 
         if (this.editStatus) {
