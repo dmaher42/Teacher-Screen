@@ -202,13 +202,15 @@ details:focus-visible,
     position: absolute;
     top: calc(100% + 8px);
     left: 0;
-    width: min(280px, calc(100vw - 24px));
+    width: min(420px, calc(100vw - 24px));
     padding: 10px;
     border: 1px solid var(--border-soft-2);
     border-radius: 18px;
     background: color-mix(in srgb, var(--card-background, #ffffff) 96%, var(--accent) 4%);
     box-shadow: var(--shadow-medium, 0 8px 20px rgba(0, 0, 0, 0.12));
     z-index: 1200;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
 }
 
 #widget-toolbar-wrapper {
@@ -304,6 +306,10 @@ details:focus-visible,
     gap: 6px;
     margin-top: -2px;
     padding: 0 0 2px 0;
+}
+
+.sections-menu__screen-manager {
+    margin: 10px 0 8px;
 }
 
 .button-group {

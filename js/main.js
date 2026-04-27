@@ -4207,10 +4207,11 @@ class ClassroomScreenApp {
     openClassScreensManager() {
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
-        this.toggleTeacherPanel(true);
+        this.toggleTeacherPanel(false);
+        this.toggleSectionsMenu(true);
 
         window.requestAnimationFrame(() => {
-            const details = document.getElementById('class-screens-details');
+            const details = document.getElementById('class-screens-menu-details');
             if (details) {
                 details.open = true;
                 details.scrollIntoView({ block: 'start', behavior: 'smooth' });
