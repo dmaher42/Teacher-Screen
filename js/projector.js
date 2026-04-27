@@ -418,6 +418,17 @@ class ProjectorApp {
                 return;
             }
 
+            if (message.type === 'layout-update' && message.state && message.state.layout) {
+                if (message.source === 'projector') {
+                    return;
+                }
+
+                if (this.shouldApplyTeacherLayoutUpdate(message.state.layout)) {
+                    this.rebuildLayout(message.state);
+                }
+                return;
+            }
+
             if (message.type === 'timer-sync' && message.timerState) {
                 if (message.source === 'projector') {
                     return;
@@ -458,6 +469,65 @@ class ProjectorApp {
             }
             this.rebuildLayout(state);
         }
+    }
+
+    shouldApplyTeacherLayoutUpdate(nextLayout) {
+        if (!nextLayout || !Array.isArray(nextLayout.widgets)) {
+            return false;
+        }
+
+        const currentWidgets = Array.isArray(this.layoutManager.widgets)
+            ? this.layoutManager.widgets.map((info) => ({
+                id: info.id,
+                type: info.widget?.constructor?.name || null,
+                x: info.x,
+                y: info.y,
+                width: info.width,
+                height: info.height,
+                visibleOnProjector: info.visibleOnProjector !== false,
+                data: info.widget && typeof info.widget.serialize === 'function' ? info.widget.serialize() : null
+            }))
+            : [];
+
+        const nextWidgets = nextLayout.widgets.map((widget) => ({
+            id: widget.id || null,
+            type: widget.type || null,
+            x: widget.x,
+            y: widget.y,
+            width: widget.width,
+            height: widget.height,
+            visibleOnProjector: widget.visibleOnProjector !== false,
+            data: widget.data ?? null
+        }));
+
+        if (currentWidgets.length !== nextWidgets.length) {
+            return true;
+        }
+
+        const currentById = new Map(currentWidgets.map((widget) => [widget.id, widget]));
+
+        for (const nextWidget of nextWidgets) {
+            const currentWidget = currentById.get(nextWidget.id);
+            if (!currentWidget) {
+                return true;
+            }
+
+            if (currentWidget.type !== nextWidget.type) {
+                return true;
+            }
+
+            if (currentWidget.visibleOnProjector !== nextWidget.visibleOnProjector) {
+                return true;
+            }
+
+            const nextData = JSON.stringify(nextWidget.data ?? null);
+            const currentData = JSON.stringify(currentWidget.data ?? null);
+            if (nextData !== currentData) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
