@@ -42,6 +42,7 @@ const TEACHER_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', required: false },
     { src: './js/utils/layout-manager.js', required: true },
     { src: './js/utils/background-manager.js', required: true },
     { src: './assets/sounds/sound-data.js', required: false },

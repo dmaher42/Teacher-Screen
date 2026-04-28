@@ -72,6 +72,7 @@ class RevealManagerWidget {
                             <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save Deck</button>
                             <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">Convert to Reveal</button>
                         </div>
+                        <input type="file" class="reveal-deck-file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
                     </details>
 
                     <details class="reveal-manager__section" open>
@@ -119,6 +120,7 @@ class RevealManagerWidget {
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
         this.saveButton = this.element.querySelector('.reveal-save-btn');
         this.convertButton = this.element.querySelector('.reveal-convert-btn');
+        this.deckFileInput = this.element.querySelector('.reveal-deck-file-input');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
         this.renameButton = this.element.querySelector('.reveal-rename-btn');
@@ -130,6 +132,8 @@ class RevealManagerWidget {
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
+        this.handleConvertButtonClick = this.handleConvertButtonClick.bind(this);
+        this.handleDeckFileSelection = this.handleDeckFileSelection.bind(this);
         this.handleConvertToRevealDeck = this.handleConvertToRevealDeck.bind(this);
         this.handleLaunchSaved = this.handleLaunchSaved.bind(this);
         this.handleRenameDeck = this.handleRenameDeck.bind(this);
@@ -145,7 +149,8 @@ class RevealManagerWidget {
         this.prevButton.addEventListener('click', this.handlePrevClick);
         this.nextButton.addEventListener('click', this.handleNextClick);
         this.saveButton.addEventListener('click', this.handleSaveDeck);
-        this.convertButton.addEventListener('click', this.handleConvertToRevealDeck);
+        this.convertButton.addEventListener('click', this.handleConvertButtonClick);
+        this.deckFileInput.addEventListener('change', this.handleDeckFileSelection);
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
         this.renameButton.addEventListener('click', this.handleRenameDeck);
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
@@ -1224,6 +1229,251 @@ class RevealManagerWidget {
         return deck;
     }
 
+    buildRevealDeckFromImportedSlides({ name = 'Imported Deck', slides = [] } = {}) {
+        const deckName = String(name || 'Imported Deck').trim() || 'Imported Deck';
+        const normalizedSlides = Array.isArray(slides) ? slides.filter(Boolean) : [];
+        const slideMarkup = normalizedSlides.length > 0
+            ? normalizedSlides.join('\n')
+            : '<section><h2>Imported Deck</h2><p>No slides were found in the selected file.</p></section>';
+
+        return {
+            id: Date.now(),
+            name: deckName,
+            type: 'html',
+            content: `
+                <div class="reveal">
+                    <div class="slides">
+                        ${slideMarkup}
+                    </div>
+                </div>
+            `.trim()
+        };
+    }
+
+    getImportedDeckBaseName(fileName = '') {
+        const raw = String(fileName || '').trim();
+        if (!raw) {
+            return 'Imported Deck';
+        }
+
+        return raw
+            .replace(/\.(pdf|pptx)$/i, '')
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim() || 'Imported Deck';
+    }
+
+    normalizeZipPath(value = '') {
+        return String(value || '')
+            .replace(/^\/+/, '')
+            .replace(/\\/g, '/')
+            .replace(/\/+/g, '/');
+    }
+
+    async getZipEntryText(zip, entryPath = '') {
+        if (!zip || !entryPath) {
+            return null;
+        }
+
+        const normalizedTarget = this.normalizeZipPath(entryPath);
+        const candidates = [
+            entryPath,
+            normalizedTarget,
+            normalizedTarget.replace(/\//g, '\\')
+        ];
+
+        for (const candidate of candidates) {
+            const entry = zip.file(candidate);
+            if (entry) {
+                return entry.async('text');
+            }
+        }
+
+        const matchName = Object.keys(zip.files || {}).find((name) => this.normalizeZipPath(name) === normalizedTarget);
+        if (!matchName) {
+            return null;
+        }
+
+        const entry = zip.file(matchName);
+        return entry ? entry.async('text') : null;
+    }
+
+    async handleConvertButtonClick() {
+        if (!this.deckFileInput) {
+            return;
+        }
+
+        this.deckFileInput.value = '';
+        this.deckFileInput.click();
+    }
+
+    async handleDeckFileSelection(event) {
+        const file = event?.target?.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        await this.importDeckFile(file);
+        this.deckFileInput.value = '';
+    }
+
+    async importDeckFile(file) {
+        if (!file) {
+            return null;
+        }
+
+        const fileName = file.name || 'Imported Deck';
+        const baseName = this.getImportedDeckBaseName(fileName);
+        const lowerName = fileName.toLowerCase();
+        const importedDeckName = `${baseName} Reveal`;
+
+        let deck = null;
+        if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
+            deck = await this.importPdfDeck(file, importedDeckName);
+        } else if (lowerName.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+            deck = await this.importPptxDeck(file, importedDeckName);
+        } else {
+            this.setStatus('Choose a PDF or PPTX file.');
+            return null;
+        }
+
+        if (!deck) {
+            return null;
+        }
+
+        const decks = this.getSavedDecks();
+        decks.push(deck);
+        this.saveDecks(decks);
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(deck.id);
+        this.sourceTypeSelect.value = 'html';
+        this.deckNameInput.value = deck.name;
+        this.externalUrlInput.value = '';
+        this.htmlInput.value = deck.content;
+        this.updateSourceFields();
+        this.launchDeck(deck, { preserveIndices: false });
+        this.setStatus(`Imported ${fileName} into Reveal.`);
+        return deck;
+    }
+
+    async importPdfDeck(file, deckName) {
+        if (typeof pdfjsLib === 'undefined' || !pdfjsLib?.getDocument) {
+            this.setStatus('PDF support is not available right now.');
+            return null;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer), isEvalSupported: false }).promise;
+        const slides = [];
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            const page = await pdf.getPage(pageNumber);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = Math.max(1, Math.floor(viewport.width));
+            canvas.height = Math.max(1, Math.floor(viewport.height));
+
+            await page.render({
+                canvasContext: context,
+                viewport
+            }).promise;
+
+            const imageData = canvas.toDataURL('image/png');
+            slides.push(`
+                <section>
+                    <img src="${imageData}" alt="Imported PDF page ${pageNumber}" style="width:100%;height:100%;object-fit:contain;">
+                </section>
+            `.trim());
+        }
+
+        return this.buildRevealDeckFromImportedSlides({
+            name: deckName,
+            slides
+        });
+    }
+
+    async importPptxDeck(file, deckName) {
+        if (typeof JSZip === 'undefined') {
+            this.setStatus('PPTX support is not available right now.');
+            return null;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const presentationXml = await this.getZipEntryText(zip, 'ppt/presentation.xml');
+        const relsXml = await this.getZipEntryText(zip, 'ppt/_rels/presentation.xml.rels');
+
+        if (!presentationXml || !relsXml) {
+            this.setStatus('That PPTX file could not be read.');
+            return null;
+        }
+
+        const relMap = new Map();
+        const relPattern = /<Relationship\b[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/gi;
+        let relMatch;
+        while ((relMatch = relPattern.exec(relsXml)) !== null) {
+            relMap.set(relMatch[1], relMatch[2]);
+        }
+
+        const slideIds = [];
+        const slidePattern = /<p:sldId\b[^>]*r:id="([^"]+)"/gi;
+        let slideMatch;
+        while ((slideMatch = slidePattern.exec(presentationXml)) !== null) {
+            slideIds.push(slideMatch[1]);
+        }
+
+        const slides = [];
+        for (let index = 0; index < slideIds.length; index += 1) {
+            const relId = slideIds[index];
+            const target = relMap.get(relId);
+            if (!target) {
+                continue;
+            }
+
+            const slidePath = `ppt/${target.replace(/^\/+/, '')}`;
+            const slideXml = await this.getZipEntryText(zip, slidePath);
+            if (!slideXml) {
+                continue;
+            }
+
+            const slideText = this.extractPptxSlideText(slideXml);
+            slides.push(this.buildRevealTextSlide(slideText, index + 1));
+        }
+
+        return this.buildRevealDeckFromImportedSlides({
+            name: deckName,
+            slides
+        });
+    }
+
+    extractPptxSlideText(slideXml = '') {
+        if (!slideXml) {
+            return [];
+        }
+
+        const doc = new DOMParser().parseFromString(slideXml, 'application/xml');
+        const nodes = Array.from(doc.getElementsByTagNameNS('*', 't'));
+        return nodes
+            .map((node) => String(node.textContent || '').trim())
+            .filter(Boolean);
+    }
+
+    buildRevealTextSlide(textParts = [], slideNumber = 1) {
+        const parts = Array.isArray(textParts) ? textParts.filter(Boolean) : [];
+        const title = parts.shift() || `Slide ${slideNumber}`;
+        const body = parts.length > 0
+            ? `<ul>${parts.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>`
+            : '<p>Imported from PPTX.</p>';
+
+        return `
+            <section>
+                <h2>${this.escapeHtml(title)}</h2>
+                ${body}
+            </section>
+        `.trim();
+    }
+
     async loadExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
         const validation = this.validateExternalSourceUrl({ type, sourceUrl });
         const sourceType = validation.detectedSourceType || (this.isExternalSourceType(type) ? type : 'google-slides');
@@ -2024,6 +2274,7 @@ class RevealManagerWidget {
         this.projectorButton.removeEventListener('click', this.openProjector);
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
         this.sourceTypeSelect.removeEventListener('change', this.handleSourceTypeChange);
+        this.deckFileInput.removeEventListener('change', this.handleDeckFileSelection);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
         document.removeEventListener('visibilitychange', this.handleDocumentVisibilityChange);
