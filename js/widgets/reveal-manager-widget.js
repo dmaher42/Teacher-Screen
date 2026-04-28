@@ -779,8 +779,6 @@ class RevealManagerWidget {
             prevButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             projectorButton.disabled = !this.activeDeck;
-            convertButton.hidden = !this.isExternalSourceType(settingsSourceTypeSelect.value);
-            convertButton.disabled = !this.isExternalSourceType(settingsSourceTypeSelect.value);
             syncSavedOptions();
             this.updateExternalSourceSettingsUI(
                 settingsSourceTypeSelect,
@@ -1166,16 +1164,32 @@ class RevealManagerWidget {
         };
     }
 
-    buildRevealDeckFromExternalSource() {
-        const sourceType = this.sourceTypeSelect?.value || 'google-slides';
-        if (!this.isExternalSourceType(sourceType)) {
-            this.setStatus('Choose a Google Slides or PowerPoint link first.');
+    promptForExternalSourceConversion() {
+        const currentUrl = (this.externalUrlInput?.value || this.activeDeck?.sourceUrl || '').trim();
+        const promptMessage = 'Paste the slide deck URL';
+        const response = window.prompt(promptMessage, currentUrl);
+        if (response === null) {
             return null;
         }
 
+        const sourceUrl = String(response || '').trim();
+        if (!sourceUrl) {
+            this.setStatus('Paste a slide deck URL first.');
+            return null;
+        }
+
+        const detectedSourceType = this.detectExternalSourceTypeFromUrl(sourceUrl) || 'google-slides';
+        return {
+            type: detectedSourceType,
+            sourceUrl
+        };
+    }
+
+    buildRevealDeckFromExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
+        const sourceType = this.isExternalSourceType(type) ? type : this.detectExternalSourceTypeFromUrl(sourceUrl) || 'google-slides';
         const validation = this.validateExternalSourceUrl({
             type: sourceType,
-            sourceUrl: this.externalUrlInput?.value || ''
+            sourceUrl
         });
         this.renderExternalValidationState(validation);
         if (!validation.canProceed) {
@@ -1183,9 +1197,9 @@ class RevealManagerWidget {
             return null;
         }
 
-        const deckName = (this.deckNameInput.value || `${this.getSourceTypeLabel(sourceType)} Reveal`).trim();
+        const deckName = (name || this.deckNameInput.value || `${this.getSourceTypeLabel(sourceType)} Reveal`).trim();
         const sourceLabel = this.getSourceTypeLabel(sourceType);
-        const sourceUrl = this.escapeHtml(validation.normalizedUrl);
+        const escapedSourceUrl = this.escapeHtml(validation.normalizedUrl);
         const deckTitle = this.escapeHtml(deckName);
         const deck = {
             id: Date.now(),
@@ -1196,7 +1210,7 @@ class RevealManagerWidget {
                     <div class="slides">
                         <section>
                             <h2>${deckTitle}</h2>
-                            <p><a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(sourceLabel)} source</a></p>
+                            <p><a href="${escapedSourceUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(sourceLabel)} source</a></p>
                         </section>
                         <section>
                             <h2>Reveal Deck</h2>
@@ -1726,7 +1740,15 @@ class RevealManagerWidget {
     }
 
     handleConvertToRevealDeck() {
-        const deck = this.buildRevealDeckFromExternalSource();
+        const promptSource = this.promptForExternalSourceConversion();
+        if (!promptSource) return;
+
+        const deckName = (this.deckNameInput?.value || '').trim();
+        const deck = this.buildRevealDeckFromExternalSource({
+            type: promptSource.type,
+            sourceUrl: promptSource.sourceUrl,
+            name: deckName
+        });
         if (!deck) return;
 
         const decks = this.getSavedDecks();
@@ -1736,7 +1758,7 @@ class RevealManagerWidget {
         this.savedSelect.value = String(deck.id);
         this.sourceTypeSelect.value = 'html';
         this.deckNameInput.value = deck.name;
-        this.externalUrlInput.value = '';
+        this.externalUrlInput.value = promptSource.sourceUrl;
         this.htmlInput.value = deck.content;
         this.updateSourceFields();
         this.launchDeck(deck, { preserveIndices: false });
