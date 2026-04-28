@@ -45,7 +45,12 @@
         <nav id="top-nav" aria-label="Main sections">
             <div class="top-nav-shell">
                 <div class="sections-menu-wrap">
-                    <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu">Sections</button>
+                    <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu" aria-label="Open sections menu" title="Open sections menu">
+                        <svg class="top-nav-toggle__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 10.5L12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.4H9.5V21H4a1 1 0 0 1-1-1v-9.5Z" fill="currentColor"/>
+                        </svg>
+                        <span class="visually-hidden">Sections</span>
+                    </button>
                     <div id="sections-menu" class="sections-menu" hidden>
                         <div class="nav-tabs" role="tablist" aria-orientation="vertical">
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>

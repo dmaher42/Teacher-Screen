@@ -176,19 +176,27 @@ details:focus-visible,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 34px;
-    padding: 0.45rem 0.95rem;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
     border-radius: 999px;
     border: 1px solid var(--border-soft-2);
     background: var(--bg-surface);
     color: var(--text-primary, #0f172a);
-    font-size: 0.88rem;
+    font-size: 0;
     font-weight: 700;
     cursor: pointer;
     box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.1));
     transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
                 border-color calc(200ms * (1 - var(--reduce-motion, 0))) ease,
                 box-shadow calc(200ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.top-nav-toggle__icon {
+    width: 18px;
+    height: 18px;
+    display: block;
 }
 
 .top-nav-toggle:hover,
