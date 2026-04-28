@@ -70,6 +70,7 @@ class RevealManagerWidget {
                         </div>
                         <div class="reveal-manager-row reveal-manager-actions">
                             <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save Deck</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">Convert to Reveal</button>
                         </div>
                     </details>
 
@@ -117,6 +118,7 @@ class RevealManagerWidget {
         this.externalRow = this.element.querySelector('.reveal-external-row');
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
         this.saveButton = this.element.querySelector('.reveal-save-btn');
+        this.convertButton = this.element.querySelector('.reveal-convert-btn');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
         this.renameButton = this.element.querySelector('.reveal-rename-btn');
@@ -128,6 +130,7 @@ class RevealManagerWidget {
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
+        this.handleConvertToRevealDeck = this.handleConvertToRevealDeck.bind(this);
         this.handleLaunchSaved = this.handleLaunchSaved.bind(this);
         this.handleRenameDeck = this.handleRenameDeck.bind(this);
         this.handleDeleteDeck = this.handleDeleteDeck.bind(this);
@@ -142,6 +145,7 @@ class RevealManagerWidget {
         this.prevButton.addEventListener('click', this.handlePrevClick);
         this.nextButton.addEventListener('click', this.handleNextClick);
         this.saveButton.addEventListener('click', this.handleSaveDeck);
+        this.convertButton.addEventListener('click', this.handleConvertToRevealDeck);
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
         this.renameButton.addEventListener('click', this.handleRenameDeck);
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
@@ -202,6 +206,15 @@ class RevealManagerWidget {
         this.statusLabel.textContent = message || '';
         this.statusLabel.hidden = !message;
         this.emitPresentationState();
+    }
+
+    escapeHtml(value = '') {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     getPresentationStateSnapshot() {
@@ -677,7 +690,11 @@ class RevealManagerWidget {
         saveButton.type = 'button';
         saveButton.className = 'control-button';
         saveButton.textContent = 'Save Deck';
-        sourceActions.append(openButton, saveButton);
+        const convertButton = document.createElement('button');
+        convertButton.type = 'button';
+        convertButton.className = 'control-button control-button--primary';
+        convertButton.textContent = 'Convert to Reveal';
+        sourceActions.append(openButton, saveButton, convertButton);
         sourceSection.appendChild(sourceActions);
         controls.appendChild(sourceSection);
 
@@ -762,6 +779,8 @@ class RevealManagerWidget {
             prevButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             projectorButton.disabled = !this.activeDeck;
+            convertButton.hidden = !this.isExternalSourceType(settingsSourceTypeSelect.value);
+            convertButton.disabled = !this.isExternalSourceType(settingsSourceTypeSelect.value);
             syncSavedOptions();
             this.updateExternalSourceSettingsUI(
                 settingsSourceTypeSelect,
@@ -799,6 +818,12 @@ class RevealManagerWidget {
         saveButton.addEventListener('click', () => {
             syncInputsToWidget();
             this.handleSaveDeck();
+            window.setTimeout(syncFromWidget, 0);
+        });
+
+        convertButton.addEventListener('click', () => {
+            syncInputsToWidget();
+            this.handleConvertToRevealDeck();
             window.setTimeout(syncFromWidget, 0);
         });
 
@@ -1139,6 +1164,50 @@ class RevealManagerWidget {
             type: 'html',
             content
         };
+    }
+
+    buildRevealDeckFromExternalSource() {
+        const sourceType = this.sourceTypeSelect?.value || 'google-slides';
+        if (!this.isExternalSourceType(sourceType)) {
+            this.setStatus('Choose a Google Slides or PowerPoint link first.');
+            return null;
+        }
+
+        const validation = this.validateExternalSourceUrl({
+            type: sourceType,
+            sourceUrl: this.externalUrlInput?.value || ''
+        });
+        this.renderExternalValidationState(validation);
+        if (!validation.canProceed) {
+            this.setStatus(validation.message || `Add a ${this.getSourceTypeLabel(sourceType)} URL first.`);
+            return null;
+        }
+
+        const deckName = (this.deckNameInput.value || `${this.getSourceTypeLabel(sourceType)} Reveal`).trim();
+        const sourceLabel = this.getSourceTypeLabel(sourceType);
+        const sourceUrl = this.escapeHtml(validation.normalizedUrl);
+        const deckTitle = this.escapeHtml(deckName);
+        const deck = {
+            id: Date.now(),
+            name: deckName,
+            type: 'html',
+            content: `
+                <div class="reveal">
+                    <div class="slides">
+                        <section>
+                            <h2>${deckTitle}</h2>
+                            <p><a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(sourceLabel)} source</a></p>
+                        </section>
+                        <section>
+                            <h2>Reveal Deck</h2>
+                            <p>Build the synced lesson slides here.</p>
+                        </section>
+                    </div>
+                </div>
+            `.trim()
+        };
+
+        return deck;
     }
 
     async loadExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
@@ -1654,6 +1723,24 @@ class RevealManagerWidget {
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.setStatus('Deck saved.');
+    }
+
+    handleConvertToRevealDeck() {
+        const deck = this.buildRevealDeckFromExternalSource();
+        if (!deck) return;
+
+        const decks = this.getSavedDecks();
+        decks.push(deck);
+        this.saveDecks(decks);
+        this.renderSavedDeckOptions();
+        this.savedSelect.value = String(deck.id);
+        this.sourceTypeSelect.value = 'html';
+        this.deckNameInput.value = deck.name;
+        this.externalUrlInput.value = '';
+        this.htmlInput.value = deck.content;
+        this.updateSourceFields();
+        this.launchDeck(deck, { preserveIndices: false });
+        this.setStatus('Converted to Reveal.');
     }
 
     handleLaunchSaved() {
