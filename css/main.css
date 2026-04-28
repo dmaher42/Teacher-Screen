@@ -312,6 +312,26 @@ details:focus-visible,
     margin: 10px 0 8px;
 }
 
+.sections-menu__screen-group {
+    display: grid;
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.sections-menu__screen-group + .sections-menu__screen-group {
+    border-top: 1px solid var(--border-soft-2);
+    padding-top: 14px;
+}
+
+.sections-menu__screen-group-title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #64748b);
+}
+
 .button-group {
     display: flex;
     flex-wrap: wrap;

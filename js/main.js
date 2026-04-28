@@ -147,7 +147,7 @@ class ClassroomScreenApp {
         this.currentSectionName = document.getElementById('current-section-name');
         this.sectionsToggleButton = document.getElementById('sections-toggle');
         this.sectionsMenu = document.getElementById('sections-menu');
-        this.openClassScreensButton = document.getElementById('open-class-screens-btn');
+        this.manageScreensButton = document.getElementById('manage-screens-btn');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
@@ -170,8 +170,6 @@ class ClassroomScreenApp {
         this.layoutNameInput = document.getElementById('planner-layout-name-input');
         this.saveLayoutButton = document.getElementById('planner-save-layout-btn');
         this.savedLayoutsList = document.getElementById('saved-layouts-list');
-        this.addLayoutShortcutButton = document.getElementById('add-layout-btn');
-        this.saveLayoutShortcutButton = document.getElementById('save-layout-btn');
         this.openWeeklyPlannerButton = document.getElementById('open-weekly-planner-btn');
         this.openAgendaButton = document.getElementById('open-agenda-btn');
         this.plannerModal = document.getElementById('planner-modal');
@@ -562,26 +560,8 @@ class ClassroomScreenApp {
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
 
-        if (this.addLayoutShortcutButton) {
-            this.addLayoutShortcutButton.addEventListener('click', () => {
-                this.closeSectionsMenu();
-                this.handleNavClick('classroom');
-                this.openWidgetPicker();
-            });
-        }
-
-        if (this.saveLayoutShortcutButton) {
-            this.saveLayoutShortcutButton.addEventListener('click', () => {
-                this.closeSectionsMenu();
-                this.handleNavClick('planner');
-                if (this.layoutNameInput && typeof this.layoutNameInput.focus === 'function') {
-                    window.requestAnimationFrame(() => this.layoutNameInput.focus());
-                }
-            });
-        }
-
-        if (this.openClassScreensButton) {
-            this.openClassScreensButton.addEventListener('click', () => this.openClassScreensManager());
+        if (this.manageScreensButton) {
+            this.manageScreensButton.addEventListener('click', () => this.openManageScreensMenu());
         }
 
         if (this.openWeeklyPlannerButton) {
@@ -4204,14 +4184,14 @@ class ClassroomScreenApp {
         this.openWidgetPicker(focusWidgetType);
     }
 
-    openClassScreensManager() {
+    openManageScreensMenu() {
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
         this.toggleTeacherPanel(false);
         this.toggleSectionsMenu(true);
 
         window.requestAnimationFrame(() => {
-            const details = document.getElementById('class-screens-menu-details');
+            const details = document.getElementById('manage-screens-menu-details');
             if (details) {
                 details.open = true;
                 details.scrollIntoView({ block: 'start', behavior: 'smooth' });
