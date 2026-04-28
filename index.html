@@ -286,14 +286,19 @@
                                 <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Project pages"></div>
                             </div>
                             <div class="button-group button-group--stack-gap project-page-actions" aria-label="Project page actions">
-                                <button id="new-project-btn" class="control-button" type="button">New Project</button>
                                 <button id="new-page-btn" class="control-button" type="button">New Page</button>
-                                <button id="move-page-left-btn" class="control-button" type="button">Move Left</button>
-                                <button id="move-page-right-btn" class="control-button" type="button">Move Right</button>
-                                <button id="duplicate-page-btn" class="control-button" type="button">Duplicate Page</button>
-                                <button id="rename-page-btn" class="control-button" type="button">Rename Page</button>
-                                <button id="delete-page-btn" class="control-button modal-danger-btn" type="button">Delete Page</button>
                             </div>
+                            <details class="project-page-advanced">
+                                <summary class="project-page-advanced__summary">More page actions</summary>
+                                <div class="button-group button-group--stack-gap project-page-actions project-page-actions--advanced" aria-label="Advanced project page actions">
+                                    <button id="new-project-btn" class="control-button" type="button">New Project</button>
+                                    <button id="move-page-left-btn" class="control-button" type="button">Move Left</button>
+                                    <button id="move-page-right-btn" class="control-button" type="button">Move Right</button>
+                                    <button id="duplicate-page-btn" class="control-button" type="button">Duplicate Page</button>
+                                    <button id="rename-page-btn" class="control-button" type="button">Rename Page</button>
+                                    <button id="delete-page-btn" class="control-button modal-danger-btn" type="button">Delete Page</button>
+                                </div>
+                            </details>
                             <p class="screen-helper screen-helper--compact">Use the page chips above to switch pages.</p>
                         </div>
                     </details>
@@ -425,52 +430,70 @@
                     </details>
                 </section>
 
-                <p class="panel-section-label">Appearance</p>
-                <section class="control-card">
-                    <details>
-                        <summary role="button" tabindex="0">
-                            <img src="assets/icons/theme.svg" alt="" class="card-icon">
-                            <h4>Theme</h4>
-                        </summary>
-                        <div class="card-body">
-                            <div class="theme-selector" id="theme-selector">
-                                <!-- Radio buttons will be populated by JS -->
-                            </div>
-                            <div class="input-group">
-                                <label class="panel-toggle-label" for="reduce-motion-toggle">
-                                    <input type="checkbox" id="reduce-motion-toggle">
-                                    <span>Reduce Motion (limit animations)</span>
-                                </label>
-                            </div>
-                        </div>
-                    </details>
-                </section>
-                <section class="control-card">
-                    <details>
-                        <summary role="button" tabindex="0">
-                            <img src="assets/icons/background.svg" alt="" class="card-icon">
-                            <h4>Background</h4>
-                        </summary>
-                        <div class="card-body">
-                            <div id="background-selector" class="background-selector">
-                                <!-- Background swatches will be populated by JS -->
-                            </div>
-                        </div>
-                    </details>
-                </section>
-
-                <p class="panel-section-label">Planning</p>
-                <section class="control-card control-card--lesson-plan">
-                    <details>
-                        <summary role="button" tabindex="0">
-                            <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
-                            <h4>Lesson Plan</h4>
-                        </summary>
-                        <div class="card-body lesson-plan-body">
-                            <div id="lesson-plan-editor"></div>
-                        </div>
-                    </details>
-                </section>
+                <details class="teacher-controls-advanced">
+                    <summary class="teacher-controls-advanced__summary">Advanced</summary>
+                    <div class="teacher-controls-advanced__body">
+                        <section class="control-card">
+                            <details>
+                                <summary role="button" tabindex="0">
+                                    <img src="assets/icons/theme.svg" alt="" class="card-icon">
+                                    <h4>Theme</h4>
+                                </summary>
+                                <div class="card-body">
+                                    <div class="theme-selector" id="theme-selector">
+                                        <!-- Radio buttons will be populated by JS -->
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="panel-toggle-label" for="reduce-motion-toggle">
+                                            <input type="checkbox" id="reduce-motion-toggle">
+                                            <span>Reduce motion</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </details>
+                        </section>
+                        <section class="control-card">
+                            <details>
+                                <summary role="button" tabindex="0">
+                                    <img src="assets/icons/background.svg" alt="" class="card-icon">
+                                    <h4>Background</h4>
+                                </summary>
+                                <div class="card-body">
+                                    <div id="background-selector" class="background-selector">
+                                        <!-- Background swatches will be populated by JS -->
+                                    </div>
+                                </div>
+                            </details>
+                        </section>
+                        <section class="control-card">
+                            <details>
+                                <summary role="button" tabindex="0">
+                                    <img src="assets/icons/name-picker.svg" alt="" class="card-icon">
+                                    <h4>Student List</h4>
+                                </summary>
+                                <div class="card-body">
+                                    <ul id="student-list-display" class="student-list-display"></ul>
+                                    <div class="button-group button-group--stack-gap">
+                                        <button id="export-students-btn" class="control-button">Export Students</button>
+                                        <button id="import-students-btn" class="control-button">Import Students</button>
+                                    </div>
+                                    <input type="file" id="file-input" accept=".txt" style="display: none;">
+                                </div>
+                            </details>
+                        </section>
+                        <section class="control-card control-card--lesson-plan">
+                            <details>
+                                <summary role="button" tabindex="0">
+                                    <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
+                                    <h4>Lesson Plan</h4>
+                                </summary>
+                                <div class="card-body lesson-plan-body">
+                                    <div id="lesson-plan-editor"></div>
+                                </div>
+                            </details>
+                        </section>
+                    </div>
+                </details>
             </div>
         </div>
     </div><!-- #app-container -->
