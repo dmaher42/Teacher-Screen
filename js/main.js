@@ -3545,6 +3545,53 @@ class ClassroomScreenApp {
         this.showNotification(`Duplicated "${normalizedOriginal.name}" as "${trimmedName}".`);
     }
 
+    renamePreset(name) {
+        const presetIndex = this.presets.findIndex((preset) => preset.name === name);
+        if (presetIndex === -1) {
+            this.showNotification('Screen not found.', 'error');
+            return;
+        }
+
+        const currentPreset = this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!currentPreset) {
+            this.showNotification('Screen not found.', 'error');
+            return;
+        }
+
+        const nextName = window.prompt('Rename screen deck', currentPreset.name || 'Untitled Screen');
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Screen name cannot be blank.', 'error');
+            return;
+        }
+
+        const duplicate = this.presets.find((preset) => preset.name === trimmedName);
+        if (duplicate && duplicate.name !== currentPreset.name) {
+            this.showNotification(`Screen "${trimmedName}" already exists.`, 'error');
+            return;
+        }
+
+        const now = Date.now();
+        this.presets[presetIndex] = {
+            ...currentPreset,
+            name: trimmedName,
+            updatedAt: now
+        };
+
+        if (this.presetNameInput && this.presetNameInput.value === currentPreset.name) {
+            this.presetNameInput.value = trimmedName;
+        }
+
+        this.savePresets();
+        this.renderPresetList();
+        this.renderDashboard();
+        this.showNotification(`Screen renamed to "${trimmedName}".`);
+    }
+
     renderLayoutPresetOptions() {
         if (!this.layoutPresetSelect) return;
 
@@ -3945,6 +3992,13 @@ class ClassroomScreenApp {
             duplicateButton.dataset.action = 'duplicate';
             duplicateButton.dataset.name = preset.name;
 
+            const renameButton = document.createElement('button');
+            renameButton.type = 'button';
+            renameButton.className = 'control-button';
+            renameButton.textContent = 'Rename Deck';
+            renameButton.dataset.action = 'rename';
+            renameButton.dataset.name = preset.name;
+
             const moveButton = document.createElement('button');
             moveButton.type = 'button';
             moveButton.className = 'control-button';
@@ -3968,6 +4022,7 @@ class ClassroomScreenApp {
 
                 if (action === 'load') this.loadPreset(presetName);
                 if (action === 'overwrite') this.overwritePreset(presetName);
+                if (action === 'rename') this.renamePreset(presetName);
                 if (action === 'duplicate') this.clonePreset(presetName);
                 if (action === 'move') this.movePresetToFolder(presetName);
                 if (action === 'delete') this.deletePreset(presetName);
@@ -3975,6 +4030,7 @@ class ClassroomScreenApp {
 
             actions.appendChild(loadButton);
             actions.appendChild(overwriteButton);
+            actions.appendChild(renameButton);
             actions.appendChild(duplicateButton);
             actions.appendChild(moveButton);
             actions.appendChild(deleteButton);
@@ -5437,6 +5493,12 @@ class ClassroomScreenApp {
                     duplicateButton.textContent = 'Duplicate';
                     duplicateButton.addEventListener('click', () => this.clonePreset(preset.name));
 
+                    const renameButton = document.createElement('button');
+                    renameButton.type = 'button';
+                    renameButton.className = 'control-button';
+                    renameButton.textContent = 'Rename Deck';
+                    renameButton.addEventListener('click', () => this.renamePreset(preset.name));
+
                     const moveButton = document.createElement('button');
                     moveButton.type = 'button';
                     moveButton.className = 'dashboard-link-btn';
@@ -5444,6 +5506,7 @@ class ClassroomScreenApp {
                     moveButton.addEventListener('click', () => this.movePresetToFolder(preset.name));
 
                     actions.appendChild(loadButton);
+                    actions.appendChild(renameButton);
                     actions.appendChild(duplicateButton);
                     actions.appendChild(moveButton);
                     card.appendChild(actions);
