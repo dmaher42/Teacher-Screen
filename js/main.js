@@ -3597,7 +3597,7 @@ class ClassroomScreenApp {
         const preset = this.presets.find((item) => item.name === name);
         if (!preset) {
             this.showNotification('Screen not found.', 'error');
-            return;
+            return false;
         }
 
         if (preset.theme) this.switchTheme(preset.theme);
@@ -3623,6 +3623,14 @@ class ClassroomScreenApp {
         this.saveState();
         this.touchPresetUsage(preset.name);
         this.showNotification(`Screen "${preset.name}" loaded.`);
+        return true;
+    }
+
+    loadPresetFromDashboard(name) {
+        const loaded = this.loadPreset(name);
+        if (loaded) {
+            this.handleNavClick('classroom');
+        }
     }
 
     applyLayoutPreset() {
@@ -5410,7 +5418,7 @@ class ClassroomScreenApp {
                     loadButton.type = 'button';
                     loadButton.className = 'control-button control-button--primary';
                     loadButton.textContent = 'Load';
-                    loadButton.addEventListener('click', () => this.loadPreset(preset.name));
+                    loadButton.addEventListener('click', () => this.loadPresetFromDashboard(preset.name));
 
                     const duplicateButton = document.createElement('button');
                     duplicateButton.type = 'button';
@@ -5473,12 +5481,23 @@ class ClassroomScreenApp {
         if (loadLatestButton) {
             loadLatestButton.addEventListener('click', () => {
                 if (selectedFolderId) {
-                    this.loadLatestPresetForSelectedFolder(selectedFolderId);
+                    const latestPreset = selectedFolderId
+                        ? this.getLatestPresetForFolder(selectedFolderId)
+                        : heroPreset;
+
+                    if (!latestPreset) {
+                        this.showNotification(selectedFolderId
+                            ? `No saved screen found in ${this.getFolderLabel(selectedFolderId) || 'that folder'}.`
+                            : 'No saved screen found.', 'warning');
+                        return;
+                    }
+
+                    this.loadPresetFromDashboard(latestPreset.name);
                     return;
                 }
 
                 if (heroPreset?.name) {
-                    this.loadPreset(heroPreset.name);
+                    this.loadPresetFromDashboard(heroPreset.name);
                 }
             });
         }
