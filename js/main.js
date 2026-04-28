@@ -638,6 +638,10 @@ class ClassroomScreenApp {
             });
             console.log('Add widget button handler attached');
         }
+        const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
+        if (widgetPickerTeacherControlsButton) {
+            widgetPickerTeacherControlsButton.addEventListener('click', () => this.openTeacherControls());
+        }
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
 
@@ -5449,7 +5453,7 @@ class ClassroomScreenApp {
 
         const teacherControlsButton = this.dashboardRoot.querySelector('#dashboard-teacher-controls-btn');
         if (teacherControlsButton) {
-            teacherControlsButton.addEventListener('click', () => this.openTeacherControlsFromDashboard());
+            teacherControlsButton.addEventListener('click', () => this.openTeacherControls());
         }
 
         const openClassroomButton = this.dashboardRoot.querySelector('#dashboard-open-classroom-btn');
@@ -5597,7 +5601,8 @@ class ClassroomScreenApp {
         this.handleNavClick('dashboard');
     }
 
-    openTeacherControlsFromDashboard() {
+    openTeacherControls() {
+        this.closeDialog(this.widgetModal);
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
     }

@@ -1707,6 +1707,25 @@ dialog::backdrop {
     border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
+.modal-header__title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.modal-header__title-group h3 {
+    margin: 0;
+}
+
+.control-button--compact {
+    min-height: 34px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.9rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
 .modal-body {
     padding: var(--spacing-xl, 24px);
     display: grid;
@@ -2204,6 +2223,10 @@ dialog::backdrop {
     padding: 0;
     max-height: min(70vh, 640px);
     overflow-y: auto;
+}
+
+#widget-modal .modal-header--widget-picker {
+    gap: 12px;
 }
 
 .widget-categories {
