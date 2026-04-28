@@ -145,6 +145,15 @@ function cloneSerializableData(value) {
     }
 }
 
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -163,6 +172,8 @@ class ClassroomScreenApp {
         this.presetListElement = document.getElementById('preset-list');
         this.currentProjectName = document.getElementById('current-project-name');
         this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
+        this.dashboardView = document.getElementById('dashboard-view');
+        this.dashboardRoot = document.getElementById('dashboard-root');
         this.mainPagePrev = document.getElementById('main-page-prev');
         this.mainPageCurrent = document.getElementById('main-page-current');
         this.mainPageNext = document.getElementById('main-page-next');
@@ -250,6 +261,8 @@ class ClassroomScreenApp {
         this.isTeacherPanelOpen = false;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
+        this.dashboardSelectedClass = '';
+        this.dashboardSearchQuery = '';
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
@@ -557,7 +570,7 @@ class ClassroomScreenApp {
         // Navigation and Panel
         this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
         if (this.sectionsToggleButton) {
-            this.sectionsToggleButton.addEventListener('click', () => this.toggleSectionsMenu());
+            this.sectionsToggleButton.addEventListener('click', () => this.openDashboardHome());
         }
         document.addEventListener('click', (event) => {
             if (!this.sectionsMenu || this.sectionsMenu.hidden) return;
@@ -910,6 +923,10 @@ class ClassroomScreenApp {
             this.displaySavedLayouts();
         }
 
+        if (tab === 'dashboard') {
+            this.renderDashboard();
+        }
+
         if (tab !== 'planner' && this.plannerModal?.classList.contains('visible')) {
             this.closePlannerModal();
         }
@@ -943,8 +960,8 @@ class ClassroomScreenApp {
         }
 
         if (this.sectionsToggleButton) {
-            this.sectionsToggleButton.setAttribute('aria-label', `Sections menu, current section ${sectionLabel}`);
-            this.sectionsToggleButton.title = `Current section: ${sectionLabel}`;
+            this.sectionsToggleButton.setAttribute('aria-label', 'Home');
+            this.sectionsToggleButton.title = 'Home';
         }
     }
 
@@ -4801,6 +4818,212 @@ class ClassroomScreenApp {
         }
     }
 
+    formatDashboardDate(value) {
+        if (!value) {
+            return 'Recently saved';
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return 'Recently saved';
+        }
+
+        return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    renderDashboard() {
+        if (!this.dashboardRoot) {
+            return;
+        }
+
+        const projectState = this.normalizeProjectState(this.projectState);
+        const pages = Array.isArray(projectState.pages) ? projectState.pages : [];
+        const activePage = this.getActiveProjectPage(projectState);
+        const activePageIndex = this.getActiveProjectPageIndex(projectState);
+        const projectName = projectState.projectName || DEFAULT_PROJECT_NAME;
+        const pageSummary = pages.length > 0
+            ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
+            : 'Page 1 of 1';
+        const selectedClass = String(this.dashboardSelectedClass || '').trim();
+        const searchQuery = String(this.dashboardSearchQuery || '').trim().toLowerCase();
+        const classProfiles = this.getPresetClassNames();
+        const sortedPresets = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .sort((a, b) => {
+                const aStamp = Number.isFinite(a.lastUsedAt) ? a.lastUsedAt : Number.isFinite(a.updatedAt) ? a.updatedAt : a.createdAt || 0;
+                const bStamp = Number.isFinite(b.lastUsedAt) ? b.lastUsedAt : Number.isFinite(b.updatedAt) ? b.updatedAt : b.createdAt || 0;
+                return bStamp - aStamp;
+            });
+
+        const visiblePresets = sortedPresets.filter((preset) => {
+            const presetClass = String(preset.className || '').trim();
+            const matchesClass = !selectedClass || presetClass.toLowerCase() === selectedClass.toLowerCase();
+            const searchText = `${preset.name || ''} ${presetClass} ${preset.period || ''}`.toLowerCase();
+            const matchesSearch = !searchQuery || searchText.includes(searchQuery);
+            return matchesClass && matchesSearch;
+        });
+
+        const currentLabel = selectedClass || 'Recent screens';
+        const heroPreset = visiblePresets[0] || sortedPresets[0] || null;
+
+        const folderItems = [
+            { label: 'All screens', count: sortedPresets.length, className: '' },
+            ...classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }))
+        ];
+
+        this.dashboardRoot.innerHTML = `
+            <div class="dashboard-layout">
+                <aside class="dashboard-sidebar">
+                    <div class="dashboard-brand">
+                        <div class="dashboard-brand__mark" aria-hidden="true">C</div>
+                        <div>
+                            <p class="dashboard-brand__eyebrow">Classroomscreen</p>
+                            <h2>Home</h2>
+                        </div>
+                    </div>
+                    <button id="dashboard-sections-btn" class="dashboard-sidebar__action" type="button">Open Sections</button>
+                    <div class="dashboard-sidebar__section">
+                        <h3>Folders</h3>
+                        <div class="dashboard-folder-list" id="dashboard-folder-list"></div>
+                    </div>
+                    <div class="dashboard-sidebar__footer">
+                        <button id="dashboard-settings-btn" class="dashboard-sidebar__ghost" type="button">Settings</button>
+                        <button id="dashboard-updates-btn" class="dashboard-sidebar__ghost" type="button">Updates</button>
+                        <button id="dashboard-help-btn" class="dashboard-sidebar__ghost" type="button">Help</button>
+                    </div>
+                </aside>
+                <main class="dashboard-main">
+                    <header class="dashboard-hero">
+                        <div class="dashboard-hero__content">
+                            <p class="dashboard-hero__eyebrow">Current Project</p>
+                            <h1>${escapeHtml(projectName)}</h1>
+                            <p class="dashboard-hero__summary">${escapeHtml(pageSummary)}${activePage?.name ? ` &middot; ${escapeHtml(activePage.name)}` : ''}</p>
+                        </div>
+                        <div class="dashboard-hero__actions">
+                            <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create New</button>
+                            <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
+                        </div>
+                    </header>
+
+                    <section class="dashboard-toolbar" aria-label="Screen tools">
+                        <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search screen decks" value="${escapeHtml(this.dashboardSearchQuery)}">
+                        <div class="dashboard-toolbar__meta">
+                            <span class="dashboard-chip">${visiblePresets.length} shown</span>
+                            <span class="dashboard-chip">${classProfiles.length} folders</span>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-card-section">
+                        <div class="dashboard-card-section__header">
+                            <div>
+                                <h2>${escapeHtml(currentLabel)}</h2>
+                                <p>${heroPreset ? `Top result: ${escapeHtml(heroPreset.name || 'Untitled Screen')}` : 'No screens saved yet.'}</p>
+                            </div>
+                            <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
+                        </div>
+                        <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
+                    </section>
+                </main>
+            </div>
+        `;
+
+        const folderList = this.dashboardRoot.querySelector('#dashboard-folder-list');
+        if (folderList) {
+            folderItems.forEach((folder) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `dashboard-folder${folder.className && folder.className === selectedClass ? ' is-active' : ''}`;
+                button.dataset.className = folder.className;
+                button.innerHTML = `<span>${escapeHtml(folder.label)}</span><span class="dashboard-folder__count">${folder.count}</span>`;
+                button.addEventListener('click', () => {
+                    this.dashboardSelectedClass = folder.className;
+                    this.renderDashboard();
+                });
+                folderList.appendChild(button);
+            });
+        }
+
+        const screenGrid = this.dashboardRoot.querySelector('#dashboard-screen-grid');
+        if (screenGrid) {
+            if (visiblePresets.length === 0) {
+                screenGrid.innerHTML = '<div class="dashboard-empty">No saved screens yet. Create one from Manage Screens.</div>';
+            } else {
+                visiblePresets.slice(0, 6).forEach((preset) => {
+                    const card = document.createElement('article');
+                    card.className = 'dashboard-screen-card';
+                    card.innerHTML = `
+                        <div class="dashboard-screen-card__header">
+                            <h3>${escapeHtml(preset.name || 'Untitled Screen')}</h3>
+                            <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
+                        </div>
+                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}</p>
+                    `;
+
+                    const actions = document.createElement('div');
+                    actions.className = 'dashboard-screen-card__actions';
+
+                    const loadButton = document.createElement('button');
+                    loadButton.type = 'button';
+                    loadButton.className = 'control-button control-button--primary';
+                    loadButton.textContent = 'Load';
+                    loadButton.addEventListener('click', () => this.loadPreset(preset.name));
+
+                    const duplicateButton = document.createElement('button');
+                    duplicateButton.type = 'button';
+                    duplicateButton.className = 'control-button';
+                    duplicateButton.textContent = 'Duplicate';
+                    duplicateButton.addEventListener('click', () => this.clonePreset(preset.name));
+
+                    actions.appendChild(loadButton);
+                    actions.appendChild(duplicateButton);
+                    card.appendChild(actions);
+                    screenGrid.appendChild(card);
+                });
+            }
+        }
+
+        const sectionsButton = this.dashboardRoot.querySelector('#dashboard-sections-btn');
+        if (sectionsButton) {
+            sectionsButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.toggleSectionsMenu(true);
+            });
+        }
+
+        const createButton = this.dashboardRoot.querySelector('#dashboard-create-btn');
+        if (createButton) {
+            createButton.addEventListener('click', () => this.createNewProject());
+        }
+
+        const openClassroomButton = this.dashboardRoot.querySelector('#dashboard-open-classroom-btn');
+        if (openClassroomButton) {
+            openClassroomButton.addEventListener('click', () => this.handleNavClick('classroom'));
+        }
+
+        const searchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (event) => {
+                this.dashboardSearchQuery = event.target.value || '';
+                this.renderDashboard();
+            });
+        }
+
+        const loadLatestButton = this.dashboardRoot.querySelector('#dashboard-load-latest-btn');
+        if (loadLatestButton) {
+            loadLatestButton.addEventListener('click', () => {
+                if (selectedClass) {
+                    this.loadLatestPresetForSelectedClass();
+                    return;
+                }
+
+                if (heroPreset?.name) {
+                    this.loadPreset(heroPreset.name);
+                }
+            });
+        }
+    }
+
     handleCustomBackgroundUpload(file) {
         if (!file || !file.type.startsWith('image/')) {
             this.showNotification('Choose an image file for the classroom background.', 'warning');
@@ -4911,6 +5134,11 @@ class ClassroomScreenApp {
         this.closeSectionsMenu();
         this.handleNavClick('classroom');
         this.openWidgetPicker(focusWidgetType);
+    }
+
+    openDashboardHome() {
+        this.closeSectionsMenu();
+        this.handleNavClick('dashboard');
     }
 
     openManageScreensMenu() {
