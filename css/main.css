@@ -1976,9 +1976,9 @@ body.widget-resize-active {
 
 .widget:focus-within,
 .widget.selected {
-    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline: 3px solid color-mix(in srgb, var(--primary-color, #8e82ff) 28%, #ffffff 72%);
     outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color, #8e82ff) 10%, transparent);
 }
 
 /* Clean-on-hover controls */
