@@ -3127,6 +3127,44 @@ class ClassroomScreenApp {
         return folder;
     }
 
+    createBlankScreenInFolder(folderId = '') {
+        const folder = this.getFolderById(folderId);
+        if (!folder) {
+            this.showNotification('Folder not found.', 'error');
+            return;
+        }
+
+        const baseName = `${folder.name} - New Screen`;
+        const screenName = this.getUniquePresetName(baseName);
+        const now = Date.now();
+        const preset = {
+            name: screenName,
+            className: folder.name,
+            period: '',
+            folderId: folder.id,
+            theme: document.body.className || 'theme-professional',
+            background: this.backgroundManager && typeof this.backgroundManager.getThemeDefaultBackground === 'function'
+                ? this.backgroundManager.getThemeDefaultBackground(document.body.className || 'theme-professional')
+                : null,
+            layout: {
+                widgets: []
+            },
+            lessonPlan: null,
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: now,
+            usageCount: 0
+        };
+
+        this.presets.push(preset);
+        this.savePresets();
+        this.renderPresetList();
+        this.renderDashboard();
+        this.handleNavClick('classroom');
+        this.loadPreset(screenName);
+        this.showNotification(`Created "${screenName}" in "${folder.name}".`);
+    }
+
     renameFolder(folderId = '') {
         const folder = this.getFolderById(folderId);
         if (!folder) {
@@ -5307,6 +5345,15 @@ class ClassroomScreenApp {
                     const actions = document.createElement('div');
                     actions.className = 'dashboard-folder-row__actions';
 
+                    const newScreenButton = document.createElement('button');
+                    newScreenButton.type = 'button';
+                    newScreenButton.className = 'dashboard-folder-row__action dashboard-folder-row__action--primary';
+                    newScreenButton.textContent = 'New Screen';
+                    newScreenButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.createBlankScreenInFolder(folder.folderId);
+                    });
+
                     const renameButton = document.createElement('button');
                     renameButton.type = 'button';
                     renameButton.className = 'dashboard-folder-row__action';
@@ -5325,6 +5372,7 @@ class ClassroomScreenApp {
                         this.deleteFolder(folder.folderId);
                     });
 
+                    actions.appendChild(newScreenButton);
                     actions.appendChild(renameButton);
                     actions.appendChild(deleteButton);
                     row.appendChild(actions);

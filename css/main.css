@@ -589,6 +589,11 @@ details:focus-visible,
     cursor: pointer;
 }
 
+.dashboard-folder-row__action--primary {
+    color: color-mix(in srgb, var(--primary-color, #6d7cff) 78%, #ffffff 22%);
+    border-color: color-mix(in srgb, var(--primary-color, #6d7cff) 34%, var(--border-color, #dfe4e2) 66%);
+}
+
 .dashboard-folder-row__action--danger {
     color: color-mix(in srgb, #b91c1c 78%, #ffffff 22%);
     border-color: color-mix(in srgb, #ef4444 34%, var(--border-color, #dfe4e2) 66%);
