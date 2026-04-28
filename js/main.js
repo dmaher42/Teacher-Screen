@@ -163,6 +163,9 @@ class ClassroomScreenApp {
         this.presetListElement = document.getElementById('preset-list');
         this.currentProjectName = document.getElementById('current-project-name');
         this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
+        this.mainCurrentProjectName = document.getElementById('main-current-project-name');
+        this.mainCurrentProjectPageSummary = document.getElementById('main-current-project-page-summary');
+        this.mainPageSwitcher = document.getElementById('main-page-switcher');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
@@ -2680,6 +2683,7 @@ class ClassroomScreenApp {
 
         [
             [this.currentProjectName, projectName],
+            [this.mainCurrentProjectName, projectName],
             [this.teacherCurrentProjectName, projectName]
         ].forEach(([node, value]) => {
             if (node) {
@@ -2689,6 +2693,7 @@ class ClassroomScreenApp {
 
         [
             [this.currentProjectPageSummary, pageSummary],
+            [this.mainCurrentProjectPageSummary, pageSummary],
             [this.teacherCurrentProjectPageSummary, pageSummary]
         ].forEach(([node, value]) => {
             if (node) {
@@ -2696,7 +2701,7 @@ class ClassroomScreenApp {
             }
         });
 
-        [this.teacherPageSwitcher].forEach((container) => {
+        [this.mainPageSwitcher, this.teacherPageSwitcher].forEach((container) => {
             if (!container) {
                 return;
             }
