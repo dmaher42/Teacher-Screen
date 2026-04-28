@@ -339,43 +339,46 @@
                                     <span id="presentation-status-badge" class="presentation-status-badge" data-state="empty">No Presentation</span>
                                 </div>
                                 <p id="presentation-status-display" class="presentation-status-display">Reveal Manager</p>
-                                <p id="presentation-status-context" class="presentation-status-context">Add a Reveal Manager widget to load Reveal HTML, Google Slides, or PowerPoint.</p>
-                                <p id="presentation-status-meta" class="presentation-status-meta">Teacher Controls mirrors the Reveal widget instead of creating a second slide system.</p>
+                                <p id="presentation-status-context" class="presentation-status-context">Add Reveal Manager to load a deck.</p>
+                                <p id="presentation-status-meta" class="presentation-status-meta">Reveal Manager stays in sync with Teacher Controls.</p>
                             </div>
                             <button id="presentation-last-btn" class="control-button" type="button">Present Last Deck</button>
-                            <div class="presentation-link-panel">
-                                <div class="presentation-link-row">
-                                    <select id="presentation-source-type" aria-label="Presentation source type">
-                                        <option value="google-slides">Google Slides</option>
-                                        <option value="powerpoint">PowerPoint</option>
-                                    </select>
-                                    <input id="presentation-source-name" type="text" placeholder="Optional deck name">
+                            <details class="presentation-advanced">
+                                <summary>Advanced link and saved decks</summary>
+                                <div class="presentation-advanced__body">
+                                    <div class="presentation-link-panel">
+                                        <div class="presentation-link-row">
+                                            <select id="presentation-source-type" aria-label="Presentation source type">
+                                                <option value="google-slides">Google Slides</option>
+                                                <option value="powerpoint">PowerPoint</option>
+                                            </select>
+                                            <input id="presentation-source-name" type="text" placeholder="Optional deck name">
+                                        </div>
+                                        <input id="presentation-source-url" type="text" placeholder="Paste the Google Slides share or present URL" autocomplete="off">
+                                        <p id="presentation-link-validation" class="presentation-link-validation" hidden></p>
+                                        <div class="button-group presentation-link-actions">
+                                            <button id="presentation-save-link-btn" class="control-button" type="button">Save Link</button>
+                                            <button id="presentation-open-link-btn" class="control-button" type="button">Open Google Slides Link</button>
+                                            <button id="presentation-open-projector-link-btn" class="control-button" type="button">Open And Project</button>
+                                        </div>
+                                    </div>
+                                    <div class="presentation-saved-panel">
+                                        <div class="presentation-saved-row">
+                                            <select id="presentation-saved-select" aria-label="Saved presentations">
+                                                <option value="">Select saved presentation</option>
+                                            </select>
+                                        </div>
+                                        <div class="button-group presentation-link-actions">
+                                            <button id="presentation-open-saved-btn" class="control-button" type="button">Open Saved</button>
+                                            <button id="presentation-open-saved-projector-btn" class="control-button" type="button">Open Saved And Project</button>
+                                        </div>
+                                        <div class="button-group presentation-link-actions">
+                                            <button id="presentation-rename-saved-btn" class="control-button" type="button">Rename Saved</button>
+                                            <button id="presentation-delete-saved-btn" class="control-button" type="button">Delete Saved</button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <input id="presentation-source-url" type="text" placeholder="Paste the Google Slides share or present URL" autocomplete="off">
-                                <p id="presentation-link-hint" class="presentation-link-hint">Paste a Google Slides or embeddable PowerPoint link here and Teacher Controls will route it through Reveal Manager.</p>
-                                <p id="presentation-link-validation" class="presentation-link-validation" hidden></p>
-                                <div class="button-group presentation-link-actions">
-                                    <button id="presentation-save-link-btn" class="control-button" type="button">Save Link</button>
-                                    <button id="presentation-open-link-btn" class="control-button" type="button">Open Google Slides Link</button>
-                                    <button id="presentation-open-projector-link-btn" class="control-button" type="button">Open And Project</button>
-                                </div>
-                            </div>
-                            <div class="presentation-saved-panel">
-                                <div class="presentation-saved-row">
-                                    <select id="presentation-saved-select" aria-label="Saved presentations">
-                                        <option value="">Select saved presentation</option>
-                                    </select>
-                                </div>
-                                <p id="presentation-saved-hint" class="presentation-link-hint">Saved decks from Reveal Manager appear here so you can reopen them from Teacher Controls.</p>
-                                <div class="button-group presentation-link-actions">
-                                    <button id="presentation-open-saved-btn" class="control-button" type="button">Open Saved</button>
-                                    <button id="presentation-open-saved-projector-btn" class="control-button" type="button">Open Saved And Project</button>
-                                </div>
-                                <div class="button-group presentation-link-actions">
-                                    <button id="presentation-rename-saved-btn" class="control-button" type="button">Rename Saved</button>
-                                    <button id="presentation-delete-saved-btn" class="control-button" type="button">Delete Saved</button>
-                                </div>
-                            </div>
+                            </details>
                             <div class="button-group">
                                 <button id="presentation-manage-btn" class="control-button" type="button">Add Reveal Manager</button>
                                 <button id="presentation-projector-btn" class="control-button" type="button">Open Projector</button>

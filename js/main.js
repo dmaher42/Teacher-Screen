@@ -4742,8 +4742,8 @@ class ClassroomScreenApp {
         let badgeText = 'No Presentation';
         let badgeState = 'empty';
         let displayText = deckName || 'Reveal Manager';
-        let contextText = 'Add a Reveal Manager widget to load Reveal HTML, Google Slides, or PowerPoint.';
-        let metaText = 'Teacher Controls mirrors the Reveal widget instead of creating a second slide system.';
+        let contextText = 'Add Reveal Manager to load a deck.';
+        let metaText = 'Reveal Manager stays in sync with Teacher Controls.';
         let manageLabel = 'Add Reveal Manager';
 
         if (hasWidget) {
@@ -4751,7 +4751,7 @@ class ClassroomScreenApp {
             badgeState = 'idle';
             displayText = 'Reveal Manager';
             contextText = 'No presentation is loaded yet.';
-            metaText = statusMessage || 'Open the Reveal Manager widget to load Reveal HTML or link a Google Slides / PowerPoint deck.';
+            metaText = statusMessage || 'Open Reveal Manager to load HTML or a linked deck.';
             manageLabel = 'Open Presentation Controls';
         }
 
@@ -4762,8 +4762,8 @@ class ClassroomScreenApp {
             displayText = deckName || sourceLabel || 'Presentation';
             contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
             metaText = statusMessage || (isHtmlDeck
-                ? 'Prev / Next controls stay available here and in the Reveal widget.'
-                : 'This external presentation is linked in Reveal Manager. Embeddable links can mirror in Teacher Screen and the projector.');
+                ? 'Prev / Next stay available here and in Reveal Manager.'
+                : 'Linked in Reveal Manager.');
         }
 
         if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {

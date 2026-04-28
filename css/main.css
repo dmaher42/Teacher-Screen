@@ -1359,10 +1359,64 @@ details:focus-visible,
     color: color-mix(in srgb, var(--text-color, #333) 72%, #64748b 28%);
 }
 
+.presentation-advanced {
+    margin-top: 2px;
+    padding: 10px 12px 12px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 72%, #ffffff 28%);
+}
+
+.presentation-advanced > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #64748b);
+}
+
+.presentation-advanced > summary::-webkit-details-marker {
+    display: none;
+}
+
+.presentation-advanced > summary::after {
+    content: "+";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    background: var(--card-background, #ffffff);
+    font-size: 0.9rem;
+    line-height: 1;
+    color: var(--text-secondary, #64748b);
+    transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.presentation-advanced[open] > summary::after {
+    content: "–";
+}
+
+.presentation-advanced[open] > summary {
+    margin-bottom: 10px;
+}
+
+.presentation-advanced__body {
+    display: grid;
+    gap: 10px;
+}
+
 .presentation-link-panel {
     display: grid;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
     border-radius: 16px;
     background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
