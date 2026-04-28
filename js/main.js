@@ -205,6 +205,7 @@ class ClassroomScreenApp {
         this.nameEntryDialog = document.getElementById('name-entry-dialog');
         this.presetClassInput = document.getElementById('preset-class-name');
         this.presetPeriodInput = document.getElementById('preset-period');
+        this.presetFolderSelect = document.getElementById('preset-folder-select');
         this.classProfileSelect = document.getElementById('class-profile-select');
         this.saveSnapshotButton = document.getElementById('save-snapshot-btn');
         this.presetClassFilterInput = document.getElementById('preset-class-filter');
@@ -261,7 +262,9 @@ class ClassroomScreenApp {
         this.isTeacherPanelOpen = false;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
-        this.dashboardSelectedClass = '';
+        this.foldersKey = 'classroomLayoutFolders';
+        this.folders = [];
+        this.dashboardSelectedFolderId = '';
         this.dashboardSearchQuery = '';
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
         this.lessonPlanEditor = null;
@@ -2942,6 +2945,7 @@ class ClassroomScreenApp {
             this.savePresets();
         }
 
+        this.loadFolders();
         this.renderPresetList();
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
@@ -2951,6 +2955,176 @@ class ClassroomScreenApp {
         localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
+        this.renderFolderOptions();
+    }
+
+    normalizeFolderRecord(folder) {
+        if (!folder || typeof folder !== 'object') {
+            return null;
+        }
+
+        const name = typeof folder.name === 'string' ? folder.name.trim() : '';
+        const id = typeof folder.id === 'string' ? folder.id.trim() : '';
+        if (!name || !id) {
+            return null;
+        }
+
+        const now = Date.now();
+        const createdAt = Number.isFinite(folder.createdAt) ? folder.createdAt : now;
+        const updatedAt = Number.isFinite(folder.updatedAt) ? folder.updatedAt : createdAt;
+
+        return {
+            ...folder,
+            id,
+            name,
+            createdAt,
+            updatedAt
+        };
+    }
+
+    loadFolders() {
+        const storedFolders = safeParseLocalStorage(this.foldersKey);
+        this.folders = Array.isArray(storedFolders)
+            ? storedFolders.map((folder) => this.normalizeFolderRecord(folder)).filter(Boolean)
+            : [];
+
+        const hasLegacyFields = Array.isArray(storedFolders)
+            && storedFolders.some((folder) => folder && typeof folder === 'object' && (!Number.isFinite(folder.createdAt) || !Number.isFinite(folder.updatedAt)));
+        if (hasLegacyFields) {
+            this.saveFolders();
+        }
+
+        this.renderFolderOptions();
+    }
+
+    saveFolders() {
+        localStorage.setItem(this.foldersKey, JSON.stringify(this.folders));
+        this.renderFolderOptions();
+    }
+
+    getFolderById(folderId = '') {
+        const target = String(folderId || '').trim();
+        if (!target) {
+            return null;
+        }
+
+        return this.folders.find((folder) => folder.id === target) || null;
+    }
+
+    getFolderByName(folderName = '') {
+        const target = String(folderName || '').trim().toLowerCase();
+        if (!target) {
+            return null;
+        }
+
+        return this.folders.find((folder) => folder.name.toLowerCase() === target) || null;
+    }
+
+    getFolderLabel(folderId = '') {
+        const folder = this.getFolderById(folderId);
+        return folder ? folder.name : '';
+    }
+
+    getFolderStats() {
+        const folderStats = new Map();
+
+        this.folders
+            .map((folder) => this.normalizeFolderRecord(folder))
+            .filter(Boolean)
+            .forEach((folder) => {
+                folderStats.set(folder.id, {
+                    ...folder,
+                    count: 0,
+                    lastUsedAt: 0
+                });
+            });
+
+        this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .forEach((preset) => {
+                if (!preset.folderId) {
+                    return;
+                }
+
+                const folder = folderStats.get(preset.folderId);
+                if (!folder) {
+                    return;
+                }
+
+                folder.count += 1;
+                folder.lastUsedAt = Math.max(folder.lastUsedAt, Number.isFinite(preset.lastUsedAt) ? preset.lastUsedAt : preset.updatedAt || preset.createdAt || 0);
+            });
+
+        return Array.from(folderStats.values())
+            .sort((a, b) => {
+                if (b.lastUsedAt !== a.lastUsedAt) {
+                    return b.lastUsedAt - a.lastUsedAt;
+                }
+                return a.name.localeCompare(b.name);
+            });
+    }
+
+    renderFolderOptions() {
+        if (!this.presetFolderSelect) {
+            return;
+        }
+
+        const currentValue = this.presetFolderSelect.value || '';
+        const folderStats = this.getFolderStats();
+
+        this.presetFolderSelect.innerHTML = '<option value="">No folder</option>';
+
+        folderStats.forEach((folder) => {
+            const option = document.createElement('option');
+            option.value = folder.id;
+            option.textContent = `${folder.name}${folder.count ? ` (${folder.count})` : ''}`;
+            this.presetFolderSelect.appendChild(option);
+        });
+
+        if (currentValue) {
+            const matched = folderStats.find((folder) => folder.id === currentValue);
+            this.presetFolderSelect.value = matched ? currentValue : '';
+        }
+    }
+
+    createFolder(folderName = '', { selectAfterCreate = false, showNotice = true } = {}) {
+        const trimmedName = String(folderName || '').trim();
+        if (!trimmedName) {
+            this.showNotification('Enter a folder name first.', 'error');
+            return null;
+        }
+
+        const existing = this.getFolderByName(trimmedName);
+        if (existing) {
+            if (selectAfterCreate) {
+                this.dashboardSelectedFolderId = existing.id;
+                this.renderDashboard();
+            }
+            return existing;
+        }
+
+        const now = Date.now();
+        const folder = {
+            id: `folder-${now}-${Math.random().toString(36).slice(2, 8)}`,
+            name: trimmedName,
+            createdAt: now,
+            updatedAt: now
+        };
+
+        this.folders.push(folder);
+        this.saveFolders();
+        this.renderDashboard();
+        if (showNotice) {
+            this.showNotification(`Folder "${trimmedName}" created.`);
+        }
+
+        if (selectAfterCreate) {
+            this.dashboardSelectedFolderId = folder.id;
+            this.renderDashboard();
+        }
+
+        return folder;
     }
 
     getPresetClassNames() {
@@ -3053,6 +3227,25 @@ class ClassroomScreenApp {
         return matchingPresets[0] || null;
     }
 
+    getLatestPresetForFolder(folderId = '') {
+        const target = String(folderId || '').trim();
+        if (!target) {
+            return null;
+        }
+
+        const matchingPresets = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .filter((preset) => String(preset.folderId || '').trim() === target)
+            .sort((a, b) => {
+                const aStamp = Number.isFinite(a.lastUsedAt) ? a.lastUsedAt : Number.isFinite(a.updatedAt) ? a.updatedAt : a.createdAt || 0;
+                const bStamp = Number.isFinite(b.lastUsedAt) ? b.lastUsedAt : Number.isFinite(b.updatedAt) ? b.updatedAt : b.createdAt || 0;
+                return bStamp - aStamp;
+            });
+
+        return matchingPresets[0] || null;
+    }
+
     syncPresetFilterFromClassProfile() {
         if (!this.classProfileSelect) {
             return;
@@ -3100,6 +3293,28 @@ class ClassroomScreenApp {
         }
     }
 
+    loadLatestPresetForSelectedFolder(folderId = '') {
+        const latestPreset = this.getLatestPresetForFolder(folderId);
+
+        if (!latestPreset) {
+            this.showNotification(folderId
+                ? `No saved screen found in ${this.getFolderLabel(folderId) || 'that folder'}.`
+                : 'Choose a folder first.', 'warning');
+            return;
+        }
+
+        this.loadPreset(latestPreset.name);
+        if (this.presetFolderSelect) {
+            this.presetFolderSelect.value = latestPreset.folderId || '';
+        }
+        if (this.presetClassFilterInput) {
+            this.presetClassFilterInput.value = latestPreset.className || '';
+        }
+        if (this.presetClassInput) {
+            this.presetClassInput.value = latestPreset.className || '';
+        }
+    }
+
     normalizePresetRecord(preset) {
         if (!preset || typeof preset !== 'object') {
             return null;
@@ -3124,6 +3339,7 @@ class ClassroomScreenApp {
             name,
             className: typeof preset.className === 'string' ? preset.className.trim() : '',
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
+            folderId: typeof preset.folderId === 'string' ? preset.folderId.trim() : '',
             theme: typeof preset.theme === 'string' && preset.theme.trim() ? preset.theme : document.body.className,
             background: preset.background && typeof preset.background === 'object'
                 ? preset.background
@@ -3238,10 +3454,12 @@ class ClassroomScreenApp {
         }
 
         const now = Date.now();
+        const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : '';
         const preset = {
             name,
             className,
             period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
+            folderId,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -3274,6 +3492,7 @@ class ClassroomScreenApp {
         if (this.presetNameInput) this.presetNameInput.value = preset.name || '';
         if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
         if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
+        if (this.presetFolderSelect) this.presetFolderSelect.value = preset.folderId || '';
         if (this.classProfileSelect) this.classProfileSelect.value = preset.className || '';
         if (this.presetClassFilterInput) this.presetClassFilterInput.value = preset.className || '';
 
@@ -3316,12 +3535,14 @@ class ClassroomScreenApp {
             return;
         }
         const existingPreset = this.normalizePresetRecord(this.presets[presetIndex]);
+        const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : (existingPreset?.folderId || '');
         const now = Date.now();
         this.presets[presetIndex] = {
             ...existingPreset,
             name,
             className,
             period,
+            folderId: folderId || existingPreset?.folderId || '',
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
@@ -3351,6 +3572,52 @@ class ClassroomScreenApp {
         this.showNotification(`Screen "${name}" deleted.`);
     }
 
+    movePresetToFolder(name) {
+        const presetIndex = this.presets.findIndex((preset) => preset.name === name);
+        if (presetIndex === -1) {
+            this.showNotification('Screen not found.', 'error');
+            return;
+        }
+
+        const currentPreset = this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!currentPreset) {
+            this.showNotification('Screen not found.', 'error');
+            return;
+        }
+
+        const existingFolders = this.getFolderStats().map((folder) => folder.name);
+        const promptMessage = existingFolders.length
+            ? `Move "${currentPreset.name}" to which folder?\n\nType a folder name, or leave blank for No folder.\nExisting folders: ${existingFolders.join(', ')}`
+            : `Move "${currentPreset.name}" to which folder?\n\nType a folder name, or leave blank for No folder.`;
+        const nextFolderName = window.prompt(promptMessage, this.getFolderLabel(currentPreset.folderId) || '');
+        if (nextFolderName === null) {
+            return;
+        }
+
+        const trimmedFolderName = nextFolderName.trim();
+        let folderId = '';
+
+        if (trimmedFolderName) {
+            const folder = this.getFolderByName(trimmedFolderName) || this.createFolder(trimmedFolderName, { showNotice: false });
+            folderId = folder ? folder.id : '';
+        }
+
+        this.presets[presetIndex] = {
+            ...currentPreset,
+            folderId,
+            updatedAt: Date.now()
+        };
+        if (this.presetFolderSelect) {
+            this.presetFolderSelect.value = folderId || '';
+        }
+        this.savePresets();
+        this.renderPresetList();
+        this.renderDashboard();
+        this.showNotification(folderId
+            ? `Moved "${currentPreset.name}" to "${this.getFolderLabel(folderId)}".`
+            : `Removed "${currentPreset.name}" from its folder.`);
+    }
+
     getSerializableState() {
         return this.buildStateSnapshot();
     }
@@ -3360,7 +3627,8 @@ class ClassroomScreenApp {
             schemaVersion: this.schemaVersion,
             appVersion: this.appVersion,
             state: this.getSerializableState(),
-            presets: this.presets || []
+            presets: this.presets || [],
+            folders: this.folders || []
         };
 
         const jsonString = JSON.stringify(exportPayload, null, 2);
@@ -3408,6 +3676,12 @@ class ClassroomScreenApp {
             this.presets = parsed.presets
                 .map((preset) => this.normalizePresetRecord(preset))
                 .filter(Boolean);
+            if (Array.isArray(parsed.folders)) {
+                this.folders = parsed.folders
+                    .map((folder) => this.normalizeFolderRecord(folder))
+                    .filter(Boolean);
+                this.saveFolders();
+            }
             this.savePresets();
             this.renderPresetList();
 
@@ -3496,8 +3770,9 @@ class ClassroomScreenApp {
             const subtext = document.createElement('span');
             subtext.className = 'preset-subtext';
             const classInfo = preset.className || 'No Class';
+            const folderInfo = this.getFolderLabel(preset.folderId) || 'No Folder';
             const periodInfo = preset.period || 'Any Period';
-            subtext.textContent = `${classInfo} - ${periodInfo}`;
+            subtext.textContent = `${classInfo} - ${folderInfo} - ${periodInfo}`;
 
             const metaLine = document.createElement('span');
             metaLine.className = 'preset-meta';
@@ -3537,6 +3812,13 @@ class ClassroomScreenApp {
             duplicateButton.dataset.action = 'duplicate';
             duplicateButton.dataset.name = preset.name;
 
+            const moveButton = document.createElement('button');
+            moveButton.type = 'button';
+            moveButton.className = 'control-button';
+            moveButton.textContent = 'Move';
+            moveButton.dataset.action = 'move';
+            moveButton.dataset.name = preset.name;
+
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 'control-button';
@@ -3554,12 +3836,14 @@ class ClassroomScreenApp {
                 if (action === 'load') this.loadPreset(presetName);
                 if (action === 'overwrite') this.overwritePreset(presetName);
                 if (action === 'duplicate') this.clonePreset(presetName);
+                if (action === 'move') this.movePresetToFolder(presetName);
                 if (action === 'delete') this.deletePreset(presetName);
             });
 
             actions.appendChild(loadButton);
             actions.appendChild(overwriteButton);
             actions.appendChild(duplicateButton);
+            actions.appendChild(moveButton);
             actions.appendChild(deleteButton);
 
             item.appendChild(mainInfo);
@@ -4844,9 +5128,9 @@ class ClassroomScreenApp {
         const pageSummary = pages.length > 0
             ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
             : 'Page 1 of 1';
-        const selectedClass = String(this.dashboardSelectedClass || '').trim();
+        const selectedFolderId = String(this.dashboardSelectedFolderId || '').trim();
         const searchQuery = String(this.dashboardSearchQuery || '').trim().toLowerCase();
-        const classProfiles = this.getPresetClassNames();
+        const folderStats = this.getFolderStats();
         const sortedPresets = this.presets
             .map((preset) => this.normalizePresetRecord(preset))
             .filter(Boolean)
@@ -4858,18 +5142,18 @@ class ClassroomScreenApp {
 
         const visiblePresets = sortedPresets.filter((preset) => {
             const presetClass = String(preset.className || '').trim();
-            const matchesClass = !selectedClass || presetClass.toLowerCase() === selectedClass.toLowerCase();
-            const searchText = `${preset.name || ''} ${presetClass} ${preset.period || ''}`.toLowerCase();
+            const matchesFolder = !selectedFolderId || preset.folderId === selectedFolderId;
+            const searchText = `${preset.name || ''} ${presetClass} ${preset.period || ''} ${this.getFolderLabel(preset.folderId) || ''}`.toLowerCase();
             const matchesSearch = !searchQuery || searchText.includes(searchQuery);
-            return matchesClass && matchesSearch;
+            return matchesFolder && matchesSearch;
         });
 
-        const currentLabel = selectedClass || 'Recent screens';
+        const currentLabel = selectedFolderId ? (this.getFolderLabel(selectedFolderId) || 'Folder') : 'Recent screens';
         const heroPreset = visiblePresets[0] || sortedPresets[0] || null;
 
         const folderItems = [
-            { label: 'All screens', count: sortedPresets.length, className: '' },
-            ...classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }))
+            { label: 'All screens', count: sortedPresets.length, folderId: '' },
+            ...folderStats.map((item) => ({ label: item.name, count: item.count, folderId: item.id }))
         ];
 
         this.dashboardRoot.innerHTML = `
@@ -4882,6 +5166,7 @@ class ClassroomScreenApp {
                             <h2>Home</h2>
                         </div>
                     </div>
+                    <button id="dashboard-create-folder-btn" class="dashboard-sidebar__action" type="button">Create Folder</button>
                     <button id="dashboard-sections-btn" class="dashboard-sidebar__action" type="button">Open Sections</button>
                     <div class="dashboard-sidebar__section">
                         <h3>Folders</h3>
@@ -4910,7 +5195,7 @@ class ClassroomScreenApp {
                         <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search screen decks" value="${escapeHtml(this.dashboardSearchQuery)}">
                         <div class="dashboard-toolbar__meta">
                             <span class="dashboard-chip">${visiblePresets.length} shown</span>
-                            <span class="dashboard-chip">${classProfiles.length} folders</span>
+                            <span class="dashboard-chip">${folderStats.length} folders</span>
                         </div>
                     </section>
 
@@ -4933,11 +5218,11 @@ class ClassroomScreenApp {
             folderItems.forEach((folder) => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = `dashboard-folder${folder.className && folder.className === selectedClass ? ' is-active' : ''}`;
-                button.dataset.className = folder.className;
+                button.className = `dashboard-folder${folder.folderId === selectedFolderId ? ' is-active' : ''}`;
+                button.dataset.folderId = folder.folderId;
                 button.innerHTML = `<span>${escapeHtml(folder.label)}</span><span class="dashboard-folder__count">${folder.count}</span>`;
                 button.addEventListener('click', () => {
-                    this.dashboardSelectedClass = folder.className;
+                    this.dashboardSelectedFolderId = folder.folderId;
                     this.renderDashboard();
                 });
                 folderList.appendChild(button);
@@ -4957,7 +5242,7 @@ class ClassroomScreenApp {
                             <h3>${escapeHtml(preset.name || 'Untitled Screen')}</h3>
                             <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
                         </div>
-                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}</p>
+                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}${this.getFolderLabel(preset.folderId) ? ` &middot; ${escapeHtml(this.getFolderLabel(preset.folderId))}` : ''}</p>
                     `;
 
                     const actions = document.createElement('div');
@@ -4975,8 +5260,15 @@ class ClassroomScreenApp {
                     duplicateButton.textContent = 'Duplicate';
                     duplicateButton.addEventListener('click', () => this.clonePreset(preset.name));
 
+                    const moveButton = document.createElement('button');
+                    moveButton.type = 'button';
+                    moveButton.className = 'dashboard-link-btn';
+                    moveButton.textContent = 'Move';
+                    moveButton.addEventListener('click', () => this.movePresetToFolder(preset.name));
+
                     actions.appendChild(loadButton);
                     actions.appendChild(duplicateButton);
+                    actions.appendChild(moveButton);
                     card.appendChild(actions);
                     screenGrid.appendChild(card);
                 });
@@ -4989,6 +5281,11 @@ class ClassroomScreenApp {
                 event.stopPropagation();
                 this.toggleSectionsMenu(true);
             });
+        }
+
+        const createFolderButton = this.dashboardRoot.querySelector('#dashboard-create-folder-btn');
+        if (createFolderButton) {
+            createFolderButton.addEventListener('click', () => this.createFolderFromDashboard());
         }
 
         const createButton = this.dashboardRoot.querySelector('#dashboard-create-btn');
@@ -5012,8 +5309,8 @@ class ClassroomScreenApp {
         const loadLatestButton = this.dashboardRoot.querySelector('#dashboard-load-latest-btn');
         if (loadLatestButton) {
             loadLatestButton.addEventListener('click', () => {
-                if (selectedClass) {
-                    this.loadLatestPresetForSelectedClass();
+                if (selectedFolderId) {
+                    this.loadLatestPresetForSelectedFolder(selectedFolderId);
                     return;
                 }
 
@@ -5139,6 +5436,15 @@ class ClassroomScreenApp {
     openDashboardHome() {
         this.closeSectionsMenu();
         this.handleNavClick('dashboard');
+    }
+
+    createFolderFromDashboard() {
+        const nextName = window.prompt('Name the new folder', '');
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        this.createFolder(nextName);
     }
 
     openManageScreensMenu() {
