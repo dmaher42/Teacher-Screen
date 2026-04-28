@@ -2317,7 +2317,7 @@ class ClassroomScreenApp {
                 activePageId: blankPage.id,
                 pages: [blankPage]
             };
-            return blankPage;
+            return this.getActiveProjectState();
         }
 
         const activePageIndex = this.getActiveProjectPageIndex(normalizedState);
@@ -2338,7 +2338,7 @@ class ClassroomScreenApp {
             pages: cloneSerializableData(nextPages)
         };
 
-        return this.getActiveProjectPage(this.projectState);
+        return this.getActiveProjectState();
     }
 
     createNewProject(projectName = null) {
