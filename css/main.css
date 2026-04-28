@@ -1128,13 +1128,13 @@ details:focus-visible,
 
 .project-switcher.project-switcher--corner {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     z-index: 8;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
+    gap: 3px;
+    padding: 3px 4px;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 90%, rgba(255, 255, 255, 0.1) 10%);
@@ -1144,8 +1144,8 @@ details:focus-visible,
 
 @media (max-width: 768px) {
     .project-switcher.project-switcher--corner {
-        top: 10px;
-        right: 10px;
+        top: 8px;
+        right: 8px;
     }
 }
 
@@ -1155,11 +1155,11 @@ details:focus-visible,
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
     color: var(--text-primary, #0f172a);
-    height: 32px;
-    min-height: 32px;
-    padding: 0 10px;
+    height: 18px;
+    min-height: 18px;
+    padding: 0 5px;
     border-radius: 999px;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
     font-weight: 700;
     line-height: 1;
     display: inline-flex;
@@ -1169,13 +1169,13 @@ details:focus-visible,
 }
 
 .project-switcher.project-switcher--corner .page-switcher__nav {
-    width: 32px;
+    width: 18px;
     padding: 0;
-    font-size: 1rem;
+    font-size: 0.8rem;
 }
 
 .project-switcher.project-switcher--corner .page-switcher__current {
-    min-width: 40px;
+    min-width: 22px;
     cursor: pointer;
 }
 
