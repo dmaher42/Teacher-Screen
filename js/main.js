@@ -3127,6 +3127,78 @@ class ClassroomScreenApp {
         return folder;
     }
 
+    renameFolder(folderId = '') {
+        const folder = this.getFolderById(folderId);
+        if (!folder) {
+            this.showNotification('Folder not found.', 'error');
+            return;
+        }
+
+        const nextName = window.prompt('Rename folder', folder.name || '');
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Folder name cannot be blank.', 'error');
+            return;
+        }
+
+        const duplicate = this.getFolderByName(trimmedName);
+        if (duplicate && duplicate.id !== folder.id) {
+            this.showNotification(`Folder "${trimmedName}" already exists.`, 'error');
+            return;
+        }
+
+        const now = Date.now();
+        this.folders = this.folders.map((item) => item.id === folder.id
+            ? { ...item, name: trimmedName, updatedAt: now }
+            : item);
+        this.saveFolders();
+        this.renderDashboard();
+        this.showNotification(`Folder renamed to "${trimmedName}".`);
+    }
+
+    deleteFolder(folderId = '') {
+        const folder = this.getFolderById(folderId);
+        if (!folder) {
+            this.showNotification('Folder not found.', 'error');
+            return;
+        }
+
+        const confirmed = window.confirm(`Delete folder "${folder.name}"? Screens inside it will stay saved and just move back to All screens.`);
+        if (!confirmed) {
+            return;
+        }
+
+        this.folders = this.folders.filter((item) => item.id !== folder.id);
+        this.presets = this.presets.map((preset) => {
+            const normalizedPreset = this.normalizePresetRecord(preset);
+            if (!normalizedPreset || normalizedPreset.folderId !== folder.id) {
+                return normalizedPreset || preset;
+            }
+
+            return {
+                ...normalizedPreset,
+                folderId: ''
+            };
+        });
+
+        if (this.dashboardSelectedFolderId === folder.id) {
+            this.dashboardSelectedFolderId = '';
+        }
+        if (this.presetFolderSelect && this.presetFolderSelect.value === folder.id) {
+            this.presetFolderSelect.value = '';
+        }
+
+        this.saveFolders();
+        this.savePresets();
+        this.renderPresetList();
+        this.renderDashboard();
+        this.showNotification(`Folder "${folder.name}" deleted.`);
+    }
+
     getPresetClassNames() {
         const classStats = new Map();
 
@@ -5216,6 +5288,9 @@ class ClassroomScreenApp {
         const folderList = this.dashboardRoot.querySelector('#dashboard-folder-list');
         if (folderList) {
             folderItems.forEach((folder) => {
+                const row = document.createElement('div');
+                row.className = 'dashboard-folder-row';
+
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `dashboard-folder${folder.folderId === selectedFolderId ? ' is-active' : ''}`;
@@ -5225,7 +5300,37 @@ class ClassroomScreenApp {
                     this.dashboardSelectedFolderId = folder.folderId;
                     this.renderDashboard();
                 });
-                folderList.appendChild(button);
+
+                row.appendChild(button);
+
+                if (folder.folderId) {
+                    const actions = document.createElement('div');
+                    actions.className = 'dashboard-folder-row__actions';
+
+                    const renameButton = document.createElement('button');
+                    renameButton.type = 'button';
+                    renameButton.className = 'dashboard-folder-row__action';
+                    renameButton.textContent = 'Rename';
+                    renameButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.renameFolder(folder.folderId);
+                    });
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'dashboard-folder-row__action dashboard-folder-row__action--danger';
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.deleteFolder(folder.folderId);
+                    });
+
+                    actions.appendChild(renameButton);
+                    actions.appendChild(deleteButton);
+                    row.appendChild(actions);
+                }
+
+                folderList.appendChild(row);
             });
         }
 
