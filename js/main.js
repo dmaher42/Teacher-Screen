@@ -168,6 +168,8 @@ class ClassroomScreenApp {
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
         this.newProjectButton = document.getElementById('new-project-btn');
         this.newPageButton = document.getElementById('new-page-btn');
+        this.movePageLeftButton = document.getElementById('move-page-left-btn');
+        this.movePageRightButton = document.getElementById('move-page-right-btn');
         this.duplicatePageButton = document.getElementById('duplicate-page-btn');
         this.renamePageButton = document.getElementById('rename-page-btn');
         this.deletePageButton = document.getElementById('delete-page-btn');
@@ -812,6 +814,14 @@ class ClassroomScreenApp {
 
         if (this.newPageButton) {
             this.newPageButton.addEventListener('click', () => this.createNewPage());
+        }
+
+        if (this.movePageLeftButton) {
+            this.movePageLeftButton.addEventListener('click', () => this.moveCurrentPage(-1));
+        }
+
+        if (this.movePageRightButton) {
+            this.movePageRightButton.addEventListener('click', () => this.moveCurrentPage(1));
         }
 
         if (this.duplicatePageButton) {
@@ -2341,6 +2351,44 @@ class ClassroomScreenApp {
         return this.getActiveProjectState();
     }
 
+    moveCurrentPage(offset = 0) {
+        if (!Number.isFinite(offset) || offset === 0) {
+            return;
+        }
+
+        const normalizedState = this.saveCurrentPageSnapshot();
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        if (pages.length < 2) {
+            this.renderProjectControls();
+            return;
+        }
+
+        const activeIndex = this.getActiveProjectPageIndex(normalizedState);
+        if (activeIndex < 0) {
+            return;
+        }
+
+        const targetIndex = activeIndex + offset;
+        if (targetIndex < 0 || targetIndex >= pages.length) {
+            this.renderProjectControls();
+            return;
+        }
+
+        const reorderedPages = [...pages];
+        const [movedPage] = reorderedPages.splice(activeIndex, 1);
+        reorderedPages.splice(targetIndex, 0, movedPage);
+
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: movedPage.id,
+            pages: cloneSerializableData(reorderedPages)
+        };
+
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Moved "${movedPage.name || DEFAULT_PAGE_NAME}" ${offset < 0 ? 'left' : 'right'}.`);
+    }
+
     createNewProject(projectName = null) {
         const requestedName = typeof projectName === 'string' && projectName.trim()
             ? projectName.trim()
@@ -2627,6 +2675,8 @@ class ClassroomScreenApp {
         const pageSummary = pages.length > 0
             ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
             : 'Page 1 of 1';
+        const canMoveLeft = activePageIndex > 0;
+        const canMoveRight = activePageIndex >= 0 && activePageIndex < pages.length - 1;
 
         [
             [this.currentProjectName, projectName],
@@ -2684,6 +2734,14 @@ class ClassroomScreenApp {
                 container.appendChild(button);
             });
         });
+
+        if (this.movePageLeftButton) {
+            this.movePageLeftButton.disabled = !canMoveLeft;
+        }
+
+        if (this.movePageRightButton) {
+            this.movePageRightButton.disabled = !canMoveRight;
+        }
     }
 
     applyPageSnapshot(snapshot = {}) {
