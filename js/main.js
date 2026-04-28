@@ -3138,8 +3138,19 @@ class ClassroomScreenApp {
             return;
         }
 
-        const baseName = `${folder.name} - New Screen`;
-        const screenName = this.getUniquePresetName(baseName);
+        const baseName = this.getUniquePresetName(`${folder.name} - Screen`);
+        const nextName = window.prompt(`Name the new screen deck for "${folder.name}"`, baseName);
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Enter a screen name first.', 'error');
+            return;
+        }
+
+        const screenName = this.getUniquePresetName(trimmedName);
         const now = Date.now();
         const preset = {
             name: screenName,
