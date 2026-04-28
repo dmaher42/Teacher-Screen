@@ -1118,25 +1118,70 @@ details:focus-visible,
     width: 100%;
 }
 
-.project-switcher--corner {
+.project-switcher.project-switcher--corner {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    top: 12px;
+    right: 12px;
     z-index: 8;
-    width: min(320px, calc(100vw - 32px));
-    max-width: 320px;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 90%, rgba(255, 255, 255, 0.1) 10%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
     backdrop-filter: blur(10px);
 }
 
 @media (max-width: 768px) {
-    .project-switcher--corner {
-        top: 12px;
-        right: 12px;
-        left: 12px;
-        width: auto;
-        max-width: none;
+    .project-switcher.project-switcher--corner {
+        top: 10px;
+        right: 10px;
     }
+}
+
+.project-switcher.project-switcher--corner .page-switcher__nav,
+.project-switcher.project-switcher--corner .page-switcher__current {
+    appearance: none;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    color: var(--text-primary, #0f172a);
+    height: 32px;
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+}
+
+.project-switcher.project-switcher--corner .page-switcher__nav {
+    width: 32px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.project-switcher.project-switcher--corner .page-switcher__current {
+    min-width: 40px;
+    cursor: pointer;
+}
+
+.project-switcher.project-switcher--corner .page-switcher__nav:not(:disabled):hover,
+.project-switcher.project-switcher--corner .page-switcher__current:hover {
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 40%, #ffffff 60%);
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
+}
+
+.project-switcher.project-switcher--corner .page-switcher__nav:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .teacher-panel .background-selector {

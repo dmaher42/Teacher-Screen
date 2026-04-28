@@ -163,9 +163,9 @@ class ClassroomScreenApp {
         this.presetListElement = document.getElementById('preset-list');
         this.currentProjectName = document.getElementById('current-project-name');
         this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
-        this.mainCurrentProjectName = document.getElementById('main-current-project-name');
-        this.mainCurrentProjectPageSummary = document.getElementById('main-current-project-page-summary');
-        this.mainPageSwitcher = document.getElementById('main-page-switcher');
+        this.mainPagePrev = document.getElementById('main-page-prev');
+        this.mainPageCurrent = document.getElementById('main-page-current');
+        this.mainPageNext = document.getElementById('main-page-next');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
@@ -808,6 +808,36 @@ class ClassroomScreenApp {
                 }
 
                 this.switchToPage(button.dataset.pageId);
+            });
+        }
+
+        if (this.mainPagePrev) {
+            this.mainPagePrev.addEventListener('click', () => {
+                const normalizedState = this.getActiveProjectState();
+                const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+                const activeIndex = this.getActiveProjectPageIndex(normalizedState);
+                const targetPage = activeIndex > 0 ? pages[activeIndex - 1] : null;
+                if (targetPage && targetPage.id) {
+                    this.switchToPage(targetPage.id);
+                }
+            });
+        }
+
+        if (this.mainPageCurrent) {
+            this.mainPageCurrent.addEventListener('click', () => {
+                this.openManageScreensMenu();
+            });
+        }
+
+        if (this.mainPageNext) {
+            this.mainPageNext.addEventListener('click', () => {
+                const normalizedState = this.getActiveProjectState();
+                const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+                const activeIndex = this.getActiveProjectPageIndex(normalizedState);
+                const targetPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
+                if (targetPage && targetPage.id) {
+                    this.switchToPage(targetPage.id);
+                }
             });
         }
 
@@ -2678,12 +2708,12 @@ class ClassroomScreenApp {
         const pageSummary = pages.length > 0
             ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
             : 'Page 1 of 1';
+        const currentPageLabel = activePageIndex >= 0 ? `${activePageIndex + 1}` : '1';
         const canMoveLeft = activePageIndex > 0;
         const canMoveRight = activePageIndex >= 0 && activePageIndex < pages.length - 1;
 
         [
             [this.currentProjectName, projectName],
-            [this.mainCurrentProjectName, projectName],
             [this.teacherCurrentProjectName, projectName]
         ].forEach(([node, value]) => {
             if (node) {
@@ -2693,7 +2723,6 @@ class ClassroomScreenApp {
 
         [
             [this.currentProjectPageSummary, pageSummary],
-            [this.mainCurrentProjectPageSummary, pageSummary],
             [this.teacherCurrentProjectPageSummary, pageSummary]
         ].forEach(([node, value]) => {
             if (node) {
@@ -2701,7 +2730,13 @@ class ClassroomScreenApp {
             }
         });
 
-        [this.mainPageSwitcher, this.teacherPageSwitcher].forEach((container) => {
+        if (this.mainPageCurrent) {
+            this.mainPageCurrent.textContent = currentPageLabel;
+            this.mainPageCurrent.title = pageSummary;
+            this.mainPageCurrent.setAttribute('aria-label', `${pageSummary}. Open screen controls.`);
+        }
+
+        [this.teacherPageSwitcher].forEach((container) => {
             if (!container) {
                 return;
             }
@@ -2746,6 +2781,16 @@ class ClassroomScreenApp {
 
         if (this.movePageRightButton) {
             this.movePageRightButton.disabled = !canMoveRight;
+        }
+
+        if (this.mainPagePrev) {
+            this.mainPagePrev.disabled = !canMoveLeft;
+            this.mainPagePrev.title = canMoveLeft ? 'Previous page' : 'No previous page';
+        }
+
+        if (this.mainPageNext) {
+            this.mainPageNext.disabled = !canMoveRight;
+            this.mainPageNext.title = canMoveRight ? 'Next page' : 'No next page';
         }
     }
 
