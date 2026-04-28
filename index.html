@@ -113,6 +113,18 @@
                                         </div>
                                         <div id="preset-list" class="preset-list" aria-live="polite"></div>
                                     </div>
+                                    <div class="sections-menu__screen-group">
+                                        <p class="sections-menu__screen-group-title">Project Pages</p>
+                                        <div class="project-switcher">
+                                            <div class="project-switcher__meta">
+                                                <p class="project-switcher__project-label">Current Project</p>
+                                                <p id="current-project-name" class="project-switcher__project-name">Weekly Project</p>
+                                                <p id="current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
+                                            </div>
+                                            <div id="project-page-switcher" class="page-switcher" role="group" aria-label="Project pages"></div>
+                                        </div>
+                                        <p class="screen-helper">This shows the loaded project and its pages. Switching pages will be added in a later pass.</p>
+                                    </div>
                                 </div>
                             </details>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
@@ -251,6 +263,25 @@
                         </summary>
                         <div class="card-body">
                             <p>Use the floating action button (+) to add widgets.</p>
+                        </div>
+                    </details>
+                </section>
+                <section class="control-card control-card--project-pages">
+                    <details>
+                        <summary role="button" tabindex="0">
+                            <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
+                            <h4>Project Pages</h4>
+                        </summary>
+                        <div class="card-body">
+                            <div class="project-switcher project-switcher--compact">
+                                <div class="project-switcher__meta">
+                                    <p class="project-switcher__project-label">Current Project</p>
+                                    <p id="teacher-current-project-name" class="project-switcher__project-name">Weekly Project</p>
+                                    <p id="teacher-current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
+                                </div>
+                                <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Project pages"></div>
+                            </div>
+                            <p class="screen-helper screen-helper--compact">Project pages are shown here so you can see the active selection quickly.</p>
                         </div>
                     </details>
                 </section>

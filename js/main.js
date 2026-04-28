@@ -161,6 +161,12 @@ class ClassroomScreenApp {
         this.backgroundSelector = document.getElementById('background-selector');
         this.presetNameInput = document.getElementById('preset-name');
         this.presetListElement = document.getElementById('preset-list');
+        this.currentProjectName = document.getElementById('current-project-name');
+        this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
+        this.projectPageSwitcher = document.getElementById('project-page-switcher');
+        this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
+        this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
+        this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
         this.helpDialog = document.getElementById('help-dialog');
         this.tourDialog = document.getElementById('tour-dialog');
         this.fab = document.getElementById('add-widget-btn');
@@ -359,6 +365,7 @@ class ClassroomScreenApp {
         this.initializeSavedNotes();
         this.syncTimerControlsFromWidget();
         this.syncPresentationControlsFromWidget();
+        this.renderProjectControls();
         this.renderPresentationSavedDeckOptions();
         this.updatePresentationLastDeckAction();
 
@@ -2283,6 +2290,77 @@ class ClassroomScreenApp {
         };
     }
 
+    renderProjectControls() {
+        const normalizedState = this.normalizeProjectState(this.projectState);
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        const activePageId = normalizedState.activePageId || (pages[0] && pages[0].id) || DEFAULT_PAGE_ID;
+        const activePageIndex = pages.findIndex((page) => page && page.id === activePageId);
+        const projectName = normalizedState.projectName || DEFAULT_PROJECT_NAME;
+        const pageSummary = pages.length > 0
+            ? `Active page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
+            : 'Active page 1 of 1';
+
+        [
+            [this.currentProjectName, projectName],
+            [this.teacherCurrentProjectName, projectName]
+        ].forEach(([node, value]) => {
+            if (node) {
+                node.textContent = value;
+            }
+        });
+
+        [
+            [this.currentProjectPageSummary, pageSummary],
+            [this.teacherCurrentProjectPageSummary, pageSummary]
+        ].forEach(([node, value]) => {
+            if (node) {
+                node.textContent = value;
+            }
+        });
+
+        [
+            this.projectPageSwitcher,
+            this.teacherPageSwitcher
+        ].forEach((container) => {
+            if (!container) {
+                return;
+            }
+
+            container.innerHTML = '';
+
+            pages.forEach((page, index) => {
+                if (!page || typeof page.id !== 'string') {
+                    return;
+                }
+
+                const button = document.createElement('button');
+                const pageName = typeof page.name === 'string' && page.name.trim()
+                    ? page.name.trim()
+                    : `${DEFAULT_PAGE_NAME} ${index + 1}`;
+                const isActive = page.id === activePageId;
+
+                button.type = 'button';
+                button.className = 'page-switcher__button';
+                button.textContent = pageName;
+                button.disabled = true;
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                if (isActive) {
+                    button.setAttribute('aria-current', 'page');
+                } else {
+                    button.removeAttribute('aria-current');
+                }
+                button.title = 'Page switching will be added in a later pass.';
+                button.dataset.pageId = page.id;
+
+                if (isActive) {
+                    button.classList.add('is-active');
+                }
+
+                container.appendChild(button);
+            });
+        });
+    }
+
     applyPageSnapshot(snapshot = {}) {
         if (snapshot.theme) {
             this.switchTheme(snapshot.theme);
@@ -2890,6 +2968,7 @@ class ClassroomScreenApp {
 
             this.updateProjectorVisibility();
             this.saveState();
+            this.renderProjectControls();
             this.closeDialog(this.importDialog);
             this.showNotification('Layout and presets imported successfully.');
 
@@ -3058,6 +3137,7 @@ class ClassroomScreenApp {
             if (activePage && activePage.snapshot) {
                 this.applyPageSnapshot(activePage.snapshot);
             }
+            this.renderProjectControls();
         } catch (err) {
             console.error('State load failed; resetting.', err);
             localStorage.removeItem('classroomScreenState');
