@@ -2374,11 +2374,6 @@ class ClassroomScreenApp {
             return;
         }
 
-        const existingState = safeParseLocalStorage('classroomScreenState');
-
-        const mergedState = existingState && typeof existingState === 'object' ? existingState : this.buildStateSnapshot();
-        mergedState.layout = layout;
-
         this.widgets = [];
         this.layoutManager.deserialize(layout, (widgetData) => {
                     const widget = createWidgetByType(widgetData.type);
@@ -2815,14 +2810,7 @@ class ClassroomScreenApp {
     }
 
     getSerializableState() {
-        return {
-            version: this.appVersion,
-            schemaVersion: this.schemaVersion,
-            theme: document.body.className,
-            background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize(),
-            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
-        };
+        return this.buildStateSnapshot();
     }
 
     handleExportLayout() {
@@ -2863,7 +2851,7 @@ class ClassroomScreenApp {
                 throw new Error('Invalid JSON structure.');
             }
 
-            let state = runMigrations(parsed.state, this.schemaVersion);
+            const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion));
 
             const summary = `
                 Ready to import:
@@ -2884,6 +2872,12 @@ class ClassroomScreenApp {
             if (state.theme) this.switchTheme(state.theme);
             if (state.background) this.backgroundManager.deserialize(state.background);
             if (state.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(state.lessonPlan);
+
+            this.projectState = {
+                projectName: state.projectName,
+                activePageId: state.activePageId,
+                pages: cloneSerializableData(state.pages)
+            };
 
             this.widgets = [];
             this.layoutManager.deserialize(state.layout, (widgetData) => {
