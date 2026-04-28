@@ -1633,60 +1633,6 @@ details:focus-visible,
     margin-bottom: 10px;
 }
 
-.teacher-panel .teacher-controls-advanced {
-    margin-top: 10px;
-    padding: 10px 12px 12px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 68%, #ffffff 32%);
-}
-
-.teacher-panel .teacher-controls-advanced > summary {
-    list-style: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-secondary, #64748b);
-}
-
-.teacher-panel .teacher-controls-advanced > summary::-webkit-details-marker {
-    display: none;
-}
-
-.teacher-panel .teacher-controls-advanced > summary::after {
-    content: "+";
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
-    background: var(--card-background, #ffffff);
-    font-size: 0.9rem;
-    line-height: 1;
-    color: var(--text-secondary, #64748b);
-    transition: transform 160ms ease, background-color 160ms ease;
-}
-
-.teacher-panel .teacher-controls-advanced[open] > summary::after {
-    content: "-";
-}
-
-.teacher-panel .teacher-controls-advanced[open] > summary {
-    margin-bottom: 10px;
-}
-
-.teacher-panel .teacher-controls-advanced__body {
-    display: grid;
-    gap: 8px;
-}
-
 .project-switcher.project-switcher--corner {
     position: absolute;
     top: 10px;
