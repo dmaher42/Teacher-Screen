@@ -133,6 +133,19 @@ details:focus-visible,
     color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
 }
 
+.control-button--teacher-controls {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 18%, #ffffff 82%), color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%));
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 32%, var(--border-soft-2, #d6dae6) 68%);
+    color: color-mix(in srgb, var(--primary-color, #8e82ff) 60%, var(--text-primary, #0f172a) 40%);
+    box-shadow: 0 8px 18px rgba(142, 130, 255, 0.12);
+}
+
+.control-button--teacher-controls:hover {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 24%, #ffffff 76%), color-mix(in srgb, var(--primary-color, #8e82ff) 14%, #ffffff 86%));
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 42%, var(--border-soft-2, #d6dae6) 58%);
+    box-shadow: 0 10px 22px rgba(142, 130, 255, 0.16);
+}
+
 .widget-status {
     color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
 }

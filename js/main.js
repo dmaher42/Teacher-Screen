@@ -5297,7 +5297,7 @@ class ClassroomScreenApp {
                         </div>
                         <div class="dashboard-hero__actions">
                             <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create New</button>
-                            <button id="dashboard-teacher-controls-btn" class="control-button" type="button">Teacher Controls</button>
+                            <button id="dashboard-teacher-controls-btn" class="control-button control-button--teacher-controls" type="button">Teacher Controls</button>
                             <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
                         </div>
                     </header>
