@@ -5297,6 +5297,7 @@ class ClassroomScreenApp {
                         </div>
                         <div class="dashboard-hero__actions">
                             <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create New</button>
+                            <button id="dashboard-teacher-controls-btn" class="control-button" type="button">Teacher Controls</button>
                             <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
                         </div>
                     </header>
@@ -5446,6 +5447,11 @@ class ClassroomScreenApp {
             createButton.addEventListener('click', () => this.createNewProject());
         }
 
+        const teacherControlsButton = this.dashboardRoot.querySelector('#dashboard-teacher-controls-btn');
+        if (teacherControlsButton) {
+            teacherControlsButton.addEventListener('click', () => this.openTeacherControlsFromDashboard());
+        }
+
         const openClassroomButton = this.dashboardRoot.querySelector('#dashboard-open-classroom-btn');
         if (openClassroomButton) {
             openClassroomButton.addEventListener('click', () => this.handleNavClick('classroom'));
@@ -5589,6 +5595,11 @@ class ClassroomScreenApp {
     openDashboardHome() {
         this.closeSectionsMenu();
         this.handleNavClick('dashboard');
+    }
+
+    openTeacherControlsFromDashboard() {
+        this.closeSectionsMenu();
+        this.handleNavClick('classroom');
     }
 
     createFolderFromDashboard() {
