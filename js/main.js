@@ -163,7 +163,6 @@ class ClassroomScreenApp {
         this.presetListElement = document.getElementById('preset-list');
         this.currentProjectName = document.getElementById('current-project-name');
         this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
-        this.projectPageSwitcher = document.getElementById('project-page-switcher');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
@@ -2318,10 +2317,7 @@ class ClassroomScreenApp {
             }
         });
 
-        [
-            this.projectPageSwitcher,
-            this.teacherPageSwitcher
-        ].forEach((container) => {
+        [this.teacherPageSwitcher].forEach((container) => {
             if (!container) {
                 return;
             }
