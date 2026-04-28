@@ -80,6 +80,9 @@ function resetAppState() {
 
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
+const DEFAULT_PROJECT_NAME = 'Weekly Project';
+const DEFAULT_PAGE_ID = 'page-1';
+const DEFAULT_PAGE_NAME = 'Page 1';
 const WIDGET_PICKER_SHORTCUTS = {
     q: 'quiz-game',
     r: 'reveal-manager',
@@ -120,6 +123,26 @@ function isShortcutEditableTarget(target) {
     }
 
     return target.isContentEditable || Boolean(target.closest('[contenteditable="true"]'));
+}
+
+function cloneSerializableData(value) {
+    if (value === null || value === undefined) {
+        return value;
+    }
+
+    if (typeof structuredClone === 'function') {
+        try {
+            return structuredClone(value);
+        } catch (error) {
+            // Fall through to JSON cloning for values that do not clone cleanly.
+        }
+    }
+
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+        return value;
+    }
 }
 
 class ClassroomScreenApp {
@@ -216,6 +239,7 @@ class ClassroomScreenApp {
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
+        this.projectState = this.getDefaultProjectState();
         this.widgetPickerStateKey = 'teacherScreenWidgetPickerState';
         this.quickAddWidgetKeys = ['rich-text', 'reveal-manager', 'timer', 'drawing-tool'];
         this.savedNotes = [];
@@ -2104,15 +2128,217 @@ class ClassroomScreenApp {
     }
 
     buildStateSnapshot() {
-        return {
+        const normalizedProjectState = this.normalizeProjectState(this.projectState);
+        const activePageId = normalizedProjectState.activePageId || DEFAULT_PAGE_ID;
+        const pages = Array.isArray(normalizedProjectState.pages) ? normalizedProjectState.pages : [];
+        const activePageIndex = pages.findIndex((page) => page && page.id === activePageId);
+        const activePage = activePageIndex >= 0 ? pages[activePageIndex] : null;
+        const activePageSnapshot = this.createPageSnapshot();
+        const nextActivePageId = activePage && activePage.id ? activePage.id : activePageId;
+        const nextPages = activePageIndex >= 0
+            ? pages.map((page, index) => (index === activePageIndex
+                ? this.createPageRecord({
+                    id: nextActivePageId,
+                    name: activePage.name || DEFAULT_PAGE_NAME,
+                    snapshot: activePageSnapshot
+                })
+                : this.normalizePageRecord(page, index, normalizedProjectState)))
+            : [...pages.map((page, index) => this.normalizePageRecord(page, index, normalizedProjectState)), this.createPageRecord({
+                id: nextActivePageId,
+                name: DEFAULT_PAGE_NAME,
+                snapshot: activePageSnapshot
+            })];
+        const projectName = typeof normalizedProjectState.projectName === 'string' && normalizedProjectState.projectName.trim()
+            ? normalizedProjectState.projectName.trim()
+            : DEFAULT_PROJECT_NAME;
+        const snapshot = {
             version: this.appVersion,
             schemaVersion: this.schemaVersion,
+            projectName,
+            activePageId: nextActivePageId,
+            pages: nextPages,
             theme: document.body.className,
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
             timerStates: this.collectTimerStateSnapshots(),
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null
         };
+        snapshot.theme = activePageSnapshot.theme;
+        snapshot.background = cloneSerializableData(activePageSnapshot.background);
+        snapshot.layout = cloneSerializableData(activePageSnapshot.layout);
+        snapshot.timerStates = cloneSerializableData(activePageSnapshot.timerStates);
+        snapshot.lessonPlan = cloneSerializableData(activePageSnapshot.lessonPlan);
+        this.projectState = {
+            projectName,
+            activePageId: nextActivePageId,
+            pages: cloneSerializableData(nextPages)
+        };
+        return snapshot;
+    }
+
+    getDefaultProjectState() {
+        return {
+            projectName: DEFAULT_PROJECT_NAME,
+            activePageId: DEFAULT_PAGE_ID,
+            pages: []
+        };
+    }
+
+    createPageSnapshot(source = {}) {
+        const layout = source.layout && isValidLayout(source.layout)
+            ? source.layout
+            : (this.layoutManager ? this.layoutManager.serialize() : { mode: 'dashboard', widgets: [] });
+        const background = source.background
+            || (this.backgroundManager ? this.backgroundManager.serialize() : null);
+        const lessonPlan = source.lessonPlan !== undefined
+            ? source.lessonPlan
+            : (this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null);
+        const timerStates = Array.isArray(source.timerStates)
+            ? source.timerStates
+            : this.collectTimerStateSnapshots();
+
+        return {
+            theme: typeof source.theme === 'string' && source.theme.trim()
+                ? source.theme
+                : document.body.className || 'theme-professional',
+            background: cloneSerializableData(background),
+            layout: cloneSerializableData(layout),
+            timerStates: cloneSerializableData(timerStates),
+            lessonPlan: cloneSerializableData(lessonPlan)
+        };
+    }
+
+    createPageRecord({ id, name, snapshot } = {}) {
+        const pageId = typeof id === 'string' && id.trim() ? id.trim() : DEFAULT_PAGE_ID;
+        const pageName = typeof name === 'string' && name.trim() ? name.trim() : DEFAULT_PAGE_NAME;
+
+        return {
+            id: pageId,
+            name: pageName,
+            snapshot: this.createPageSnapshot(snapshot)
+        };
+    }
+
+    normalizePageRecord(page, index = 0, fallbackState = {}) {
+        if (!page || typeof page !== 'object') {
+            return this.createPageRecord({
+                id: `${DEFAULT_PAGE_ID}-${index + 1}`,
+                name: `${DEFAULT_PAGE_NAME} ${index + 1}`,
+                snapshot: fallbackState
+            });
+        }
+
+        const pageSource = page.snapshot && typeof page.snapshot === 'object' ? page.snapshot : page;
+        const pageId = typeof page.id === 'string' && page.id.trim()
+            ? page.id.trim()
+            : `${DEFAULT_PAGE_ID}-${index + 1}`;
+        const pageName = typeof page.name === 'string' && page.name.trim()
+            ? page.name.trim()
+            : `${DEFAULT_PAGE_NAME} ${index + 1}`;
+
+        return {
+            id: pageId,
+            name: pageName,
+            snapshot: this.createPageSnapshot({
+                ...fallbackState,
+                ...pageSource
+            })
+        };
+    }
+
+    normalizeProjectState(state = {}) {
+        const sourceState = state && typeof state === 'object' ? state : {};
+        const projectName = typeof sourceState.projectName === 'string' && sourceState.projectName.trim()
+            ? sourceState.projectName.trim()
+            : DEFAULT_PROJECT_NAME;
+        const hasPages = Array.isArray(sourceState.pages) && sourceState.pages.length > 0;
+        const pages = hasPages
+            ? sourceState.pages.map((page, index) => this.normalizePageRecord(page, index, sourceState))
+            : [this.createPageRecord({
+                id: DEFAULT_PAGE_ID,
+                name: DEFAULT_PAGE_NAME,
+                snapshot: {
+                    theme: sourceState.theme,
+                    background: sourceState.background,
+                    layout: sourceState.layout,
+                    timerStates: sourceState.timerStates,
+                    lessonPlan: sourceState.lessonPlan
+                }
+            })];
+        const activePageId = typeof sourceState.activePageId === 'string' && sourceState.activePageId.trim()
+            ? sourceState.activePageId.trim()
+            : pages[0].id;
+        const activePage = pages.find((page) => page.id === activePageId) || pages[0];
+
+        return {
+            ...sourceState,
+            projectName,
+            activePageId: activePage.id,
+            pages,
+            theme: activePage.snapshot.theme,
+            background: cloneSerializableData(activePage.snapshot.background),
+            layout: cloneSerializableData(activePage.snapshot.layout),
+            timerStates: cloneSerializableData(activePage.snapshot.timerStates),
+            lessonPlan: cloneSerializableData(activePage.snapshot.lessonPlan)
+        };
+    }
+
+    applyPageSnapshot(snapshot = {}) {
+        if (snapshot.theme) {
+            this.switchTheme(snapshot.theme);
+        }
+
+        if (snapshot.background) {
+            this.backgroundManager.deserialize(snapshot.background);
+        }
+
+        if (snapshot.layout && snapshot.layout.widgets) {
+            this.widgets = [];
+            this.layoutManager.deserialize(snapshot.layout, (widgetData) => {
+                const widget = createWidgetByType(widgetData.type);
+                if (widget) {
+                    this.widgets.push(widget);
+                }
+                return widget;
+            });
+            this.updateProjectorVisibility();
+        }
+
+        if (Array.isArray(snapshot.timerStates) && snapshot.timerStates.length) {
+            this.restoreTimerStateSnapshots(snapshot.timerStates);
+        }
+
+        if (snapshot.lessonPlan && this.lessonPlanEditor) {
+            this.lessonPlanEditor.setContents(snapshot.lessonPlan);
+        }
+    }
+
+    restoreTimerStateSnapshots(timerStates = []) {
+        if (!Array.isArray(timerStates) || !timerStates.length || !Array.isArray(this.widgets)) {
+            return;
+        }
+
+        timerStates.forEach((timerState) => {
+            if (!timerState || typeof timerState !== 'object') {
+                return;
+            }
+
+            const targetWidget = this.widgets.find((widget) => {
+                if (!widget || typeof widget.applySyncedState !== 'function') {
+                    return false;
+                }
+
+                if (timerState.widgetId && widget.widgetId) {
+                    return widget.widgetId === timerState.widgetId;
+                }
+
+                return true;
+            });
+
+            if (targetWidget && typeof targetWidget.applySyncedState === 'function') {
+                targetWidget.applySyncedState(timerState);
+            }
+        });
     }
 
     saveState(source = 'teacher') {
@@ -2821,6 +3047,12 @@ class ClassroomScreenApp {
         try {
             // Run migration pipeline
             state = runMigrations(state, this.schemaVersion);
+            state = this.normalizeProjectState(state);
+            this.projectState = {
+                projectName: state.projectName,
+                activePageId: state.activePageId,
+                pages: cloneSerializableData(state.pages)
+            };
 
             if (!isValidLayout(state.layout)) {
                 console.warn('Invalid layout detected. Resetting layout state.');
@@ -2828,33 +3060,9 @@ class ClassroomScreenApp {
                 return;
             }
 
-            // Restore theme
-            if (state.theme) {
-                this.switchTheme(state.theme);
-            }
-
-            // Restore background
-            if (state.background) {
-                this.backgroundManager.deserialize(state.background);
-            }
-
-            // Restore layout and widgets
-            if (state.layout && state.layout.widgets) {
-                this.widgets = [];
-                this.layoutManager.deserialize(state.layout, (widgetData) => {
-                    // This factory function recreates widgets from saved data
-                    const widget = createWidgetByType(widgetData.type);
-                    if (widget) {
-                        this.widgets.push(widget);
-                    }
-                    return widget;
-                });
-                this.updateProjectorVisibility();
-            }
-
-            // Restore lesson plan
-            if (state.lessonPlan && this.lessonPlanEditor) {
-                this.lessonPlanEditor.setContents(state.lessonPlan);
+            const activePage = state.pages.find((page) => page.id === state.activePageId) || state.pages[0];
+            if (activePage && activePage.snapshot) {
+                this.applyPageSnapshot(activePage.snapshot);
             }
         } catch (err) {
             console.error('State load failed; resetting.', err);
