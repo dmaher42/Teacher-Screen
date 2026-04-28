@@ -122,7 +122,7 @@
                                                 <p id="current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
                                             </div>
                                         </div>
-                                        <p class="screen-helper">This shows the loaded project and its pages. Switching pages will be added in a later pass.</p>
+                                        <p class="screen-helper">Project pages are managed from Teacher Controls.</p>
                                     </div>
                                 </div>
                             </details>
@@ -280,7 +280,14 @@
                                 </div>
                                 <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Project pages"></div>
                             </div>
-                            <p class="screen-helper screen-helper--compact">Project pages are shown here so you can see the active selection quickly.</p>
+                            <div class="button-group button-group--stack-gap project-page-actions" aria-label="Project page actions">
+                                <button id="new-project-btn" class="control-button" type="button">New Project</button>
+                                <button id="new-page-btn" class="control-button" type="button">New Page</button>
+                                <button id="duplicate-page-btn" class="control-button" type="button">Duplicate Page</button>
+                                <button id="rename-page-btn" class="control-button" type="button">Rename Page</button>
+                                <button id="delete-page-btn" class="control-button modal-danger-btn" type="button">Delete Page</button>
+                            </div>
+                            <p class="screen-helper screen-helper--compact">Use the page chips above to switch pages.</p>
                         </div>
                     </details>
                 </section>

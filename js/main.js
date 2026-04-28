@@ -166,6 +166,11 @@ class ClassroomScreenApp {
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
+        this.newProjectButton = document.getElementById('new-project-btn');
+        this.newPageButton = document.getElementById('new-page-btn');
+        this.duplicatePageButton = document.getElementById('duplicate-page-btn');
+        this.renamePageButton = document.getElementById('rename-page-btn');
+        this.deletePageButton = document.getElementById('delete-page-btn');
         this.helpDialog = document.getElementById('help-dialog');
         this.tourDialog = document.getElementById('tour-dialog');
         this.fab = document.getElementById('add-widget-btn');
@@ -788,6 +793,37 @@ class ClassroomScreenApp {
                 this.syncPresetFilterFromClassProfile();
                 this.savePreset({ autoName: true });
             });
+        }
+
+        if (this.teacherPageSwitcher) {
+            this.teacherPageSwitcher.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-page-id]');
+                if (!button || !button.dataset.pageId) {
+                    return;
+                }
+
+                this.switchToPage(button.dataset.pageId);
+            });
+        }
+
+        if (this.newProjectButton) {
+            this.newProjectButton.addEventListener('click', () => this.createNewProject());
+        }
+
+        if (this.newPageButton) {
+            this.newPageButton.addEventListener('click', () => this.createNewPage());
+        }
+
+        if (this.duplicatePageButton) {
+            this.duplicatePageButton.addEventListener('click', () => this.duplicateCurrentPage());
+        }
+
+        if (this.renamePageButton) {
+            this.renamePageButton.addEventListener('click', () => this.renameCurrentPage());
+        }
+
+        if (this.deletePageButton) {
+            this.deletePageButton.addEventListener('click', () => this.deleteCurrentPage());
         }
 
         this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
@@ -2190,6 +2226,299 @@ class ClassroomScreenApp {
         };
     }
 
+    getActiveProjectState() {
+        return this.normalizeProjectState(this.projectState);
+    }
+
+    getActiveProjectPage(state = this.getActiveProjectState()) {
+        const pages = Array.isArray(state.pages) ? state.pages : [];
+        return pages.find((page) => page && page.id === state.activePageId) || pages[0] || null;
+    }
+
+    getActiveProjectPageIndex(state = this.getActiveProjectState()) {
+        const pages = Array.isArray(state.pages) ? state.pages : [];
+        const activePageId = state.activePageId || (pages[0] && pages[0].id) || DEFAULT_PAGE_ID;
+        return pages.findIndex((page) => page && page.id === activePageId);
+    }
+
+    createBlankPageSnapshot() {
+        const themeName = document.body.className || 'theme-professional';
+
+        return {
+            theme: themeName,
+            background: this.backgroundManager && typeof this.backgroundManager.getThemeDefaultBackground === 'function'
+                ? this.backgroundManager.getThemeDefaultBackground(themeName)
+                : null,
+            layout: { mode: 'dashboard', widgets: [] },
+            timerStates: [],
+            lessonPlan: []
+        };
+    }
+
+    makeUniquePageId(pages = []) {
+        const existingIds = new Set((Array.isArray(pages) ? pages : []).map((page) => page && page.id).filter(Boolean));
+
+        for (let index = 1; index < 1000; index += 1) {
+            const candidate = `page-${index}`;
+            if (!existingIds.has(candidate)) {
+                return candidate;
+            }
+        }
+
+        return `page-${Date.now()}`;
+    }
+
+    makeUniquePageName(baseName = DEFAULT_PAGE_NAME, pages = [], currentPageId = null) {
+        const existingNames = new Set(
+            (Array.isArray(pages) ? pages : [])
+                .filter((page) => page && page.id !== currentPageId)
+                .map((page) => (typeof page.name === 'string' && page.name.trim() ? page.name.trim() : ''))
+                .filter(Boolean)
+        );
+
+        const base = typeof baseName === 'string' && baseName.trim() ? baseName.trim() : DEFAULT_PAGE_NAME;
+        if (!existingNames.has(base)) {
+            return base;
+        }
+
+        for (let index = 2; index < 100; index += 1) {
+            const candidate = `${base} ${index}`;
+            if (!existingNames.has(candidate)) {
+                return candidate;
+            }
+        }
+
+        return `${base} ${Date.now()}`;
+    }
+
+    ensureWidgetPlaceholder() {
+        if (!this.widgetsContainer) {
+            return;
+        }
+
+        if (this.widgetsContainer.querySelector('.widget-placeholder')) {
+            return;
+        }
+
+        this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+    }
+
+    saveCurrentPageSnapshot() {
+        const normalizedState = this.normalizeProjectState(this.projectState);
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        if (!pages.length) {
+            const blankPage = this.createPageRecord({
+                id: DEFAULT_PAGE_ID,
+                name: DEFAULT_PAGE_NAME,
+                snapshot: this.createBlankPageSnapshot()
+            });
+            this.projectState = {
+                projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+                activePageId: blankPage.id,
+                pages: [blankPage]
+            };
+            return blankPage;
+        }
+
+        const activePageIndex = this.getActiveProjectPageIndex(normalizedState);
+        const resolvedIndex = activePageIndex >= 0 ? activePageIndex : 0;
+        const activePage = pages[resolvedIndex] || pages[0];
+        const snapshot = this.createPageSnapshot();
+        const nextPages = pages.map((page, index) => (index === resolvedIndex
+            ? this.createPageRecord({
+                id: page.id,
+                name: page.name,
+                snapshot
+            })
+            : this.normalizePageRecord(page, index, normalizedState)));
+
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: activePage.id,
+            pages: cloneSerializableData(nextPages)
+        };
+
+        return this.getActiveProjectPage(this.projectState);
+    }
+
+    createNewProject(projectName = null) {
+        const requestedName = typeof projectName === 'string' && projectName.trim()
+            ? projectName.trim()
+            : window.prompt('Enter a project name', DEFAULT_PROJECT_NAME);
+        if (requestedName === null) {
+            return;
+        }
+
+        const resolvedProjectName = requestedName && requestedName.trim() ? requestedName.trim() : DEFAULT_PROJECT_NAME;
+        const blankPage = this.createPageRecord({
+            id: this.makeUniquePageId(),
+            name: DEFAULT_PAGE_NAME,
+            snapshot: this.createBlankPageSnapshot()
+        });
+
+        this.projectState = {
+            projectName: resolvedProjectName,
+            activePageId: blankPage.id,
+            pages: [blankPage]
+        };
+
+        this.applyPageSnapshot(blankPage.snapshot);
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Created project "${resolvedProjectName}".`);
+    }
+
+    createNewPage(pageName = '') {
+        const normalizedState = this.saveCurrentPageSnapshot();
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        const page = this.createPageRecord({
+            id: this.makeUniquePageId(pages),
+            name: this.makeUniquePageName(pageName || `Page ${pages.length + 1}`, pages),
+            snapshot: this.createBlankPageSnapshot()
+        });
+
+        const nextPages = [...pages, page];
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: page.id,
+            pages: cloneSerializableData(nextPages)
+        };
+
+        this.applyPageSnapshot(page.snapshot);
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Created page "${page.name}".`);
+    }
+
+    switchToPage(pageId) {
+        const normalizedState = this.saveCurrentPageSnapshot();
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        const targetPage = pages.find((page) => page && page.id === pageId);
+
+        if (!targetPage) {
+            return;
+        }
+
+        if (normalizedState.activePageId === targetPage.id) {
+            this.renderProjectControls();
+            return;
+        }
+
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: targetPage.id,
+            pages: cloneSerializableData(pages)
+        };
+
+        this.applyPageSnapshot(targetPage.snapshot);
+        this.renderProjectControls();
+        this.saveState();
+    }
+
+    duplicateCurrentPage() {
+        const normalizedState = this.saveCurrentPageSnapshot();
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        const activePage = this.getActiveProjectPage(normalizedState);
+        if (!activePage) {
+            return;
+        }
+
+        const currentIndex = this.getActiveProjectPageIndex(normalizedState);
+        const duplicate = this.createPageRecord({
+            id: this.makeUniquePageId(pages),
+            name: this.makeUniquePageName(`${activePage.name || DEFAULT_PAGE_NAME} Copy`, pages),
+            snapshot: cloneSerializableData(activePage.snapshot)
+        });
+        const insertIndex = currentIndex >= 0 ? currentIndex + 1 : pages.length;
+        const nextPages = [...pages.slice(0, insertIndex), duplicate, ...pages.slice(insertIndex)];
+
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: duplicate.id,
+            pages: cloneSerializableData(nextPages)
+        };
+
+        this.applyPageSnapshot(duplicate.snapshot);
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Duplicated "${activePage.name || DEFAULT_PAGE_NAME}".`);
+    }
+
+    renameCurrentPage() {
+        const normalizedState = this.getActiveProjectState();
+        const activePage = this.getActiveProjectPage(normalizedState);
+        if (!activePage) {
+            return;
+        }
+
+        const nextName = window.prompt('Enter a new page title', activePage.name || DEFAULT_PAGE_NAME);
+        if (nextName === null) {
+            return;
+        }
+
+        const resolvedName = nextName.trim();
+        if (!resolvedName) {
+            this.showNotification('Page title cannot be blank.', 'warning');
+            return;
+        }
+
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: activePage.id,
+            pages: pages.map((page) => (page.id === activePage.id
+                ? this.createPageRecord({
+                    id: page.id,
+                    name: resolvedName,
+                    snapshot: page.snapshot
+                })
+                : this.normalizePageRecord(page, pages.indexOf(page), normalizedState)))
+        };
+
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Renamed page to "${resolvedName}".`);
+    }
+
+    deleteCurrentPage() {
+        const normalizedState = this.saveCurrentPageSnapshot();
+        const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
+        if (!pages.length) {
+            return;
+        }
+
+        const activePage = this.getActiveProjectPage(normalizedState);
+        const activeIndex = this.getActiveProjectPageIndex(normalizedState);
+        const pageLabel = activePage && activePage.name ? activePage.name : DEFAULT_PAGE_NAME;
+
+        if (!window.confirm(`Delete page "${pageLabel}"? The project will keep at least one blank page.`)) {
+            return;
+        }
+
+        let nextPages = pages.filter((page) => page && page.id !== activePage.id);
+        let nextActivePage = nextPages[activeIndex] || nextPages[activeIndex - 1] || nextPages[0] || null;
+
+        if (nextPages.length === 0) {
+            nextActivePage = this.createPageRecord({
+                id: this.makeUniquePageId(),
+                name: DEFAULT_PAGE_NAME,
+                snapshot: this.createBlankPageSnapshot()
+            });
+            nextPages = [nextActivePage];
+        }
+
+        this.projectState = {
+            projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
+            activePageId: nextActivePage.id,
+            pages: cloneSerializableData(nextPages)
+        };
+
+        this.applyPageSnapshot(nextActivePage.snapshot);
+        this.renderProjectControls();
+        this.saveState();
+        this.showNotification(`Deleted "${pageLabel}".`);
+    }
+
     createPageSnapshot(source = {}) {
         const layout = source.layout && isValidLayout(source.layout)
             ? source.layout
@@ -2296,8 +2625,8 @@ class ClassroomScreenApp {
         const activePageIndex = pages.findIndex((page) => page && page.id === activePageId);
         const projectName = normalizedState.projectName || DEFAULT_PROJECT_NAME;
         const pageSummary = pages.length > 0
-            ? `Active page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
-            : 'Active page 1 of 1';
+            ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
+            : 'Page 1 of 1';
 
         [
             [this.currentProjectName, projectName],
@@ -2338,15 +2667,15 @@ class ClassroomScreenApp {
                 button.type = 'button';
                 button.className = 'page-switcher__button';
                 button.textContent = pageName;
-                button.disabled = true;
                 button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
                 if (isActive) {
                     button.setAttribute('aria-current', 'page');
                 } else {
                     button.removeAttribute('aria-current');
                 }
-                button.title = 'Page switching will be added in a later pass.';
+                button.title = isActive ? 'Current page' : `Switch to ${pageName}`;
                 button.dataset.pageId = page.id;
+                button.addEventListener('click', () => this.switchToPage(page.id));
 
                 if (isActive) {
                     button.classList.add('is-active');
@@ -2364,9 +2693,11 @@ class ClassroomScreenApp {
 
         if (snapshot.background) {
             this.backgroundManager.deserialize(snapshot.background);
+        } else if (this.backgroundManager && typeof this.backgroundManager.reset === 'function') {
+            this.backgroundManager.reset(snapshot.theme || document.body.className || 'theme-professional');
         }
 
-        if (snapshot.layout && snapshot.layout.widgets) {
+        if (snapshot.layout && Array.isArray(snapshot.layout.widgets)) {
             this.widgets = [];
             this.layoutManager.deserialize(snapshot.layout, (widgetData) => {
                 const widget = createWidgetByType(widgetData.type);
@@ -2375,15 +2706,27 @@ class ClassroomScreenApp {
                 }
                 return widget;
             });
+            if (this.widgets.length === 0) {
+                this.ensureWidgetPlaceholder();
+            }
             this.updateProjectorVisibility();
+        } else {
+            this.widgets = [];
+            if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
+                this.layoutManager.widgets = [];
+            }
+            if (this.widgetsContainer) {
+                this.widgetsContainer.innerHTML = '';
+            }
+            this.ensureWidgetPlaceholder();
         }
 
-        if (Array.isArray(snapshot.timerStates) && snapshot.timerStates.length) {
+        if (Array.isArray(snapshot.timerStates)) {
             this.restoreTimerStateSnapshots(snapshot.timerStates);
         }
 
-        if (snapshot.lessonPlan && this.lessonPlanEditor) {
-            this.lessonPlanEditor.setContents(snapshot.lessonPlan);
+        if (snapshot.lessonPlan !== undefined && this.lessonPlanEditor) {
+            this.lessonPlanEditor.setContents(snapshot.lessonPlan || []);
         }
     }
 
