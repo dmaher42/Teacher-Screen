@@ -94,9 +94,7 @@ class RevealManagerWidget {
                     <div class="reveal-container">
                         <div class="reveal-manager-frame-wrap">
                             <div class="reveal-inline-deck"></div>
-                            <div class="reveal-manager-empty">
-                                Paste Reveal HTML or import a file.
-                            </div>
+                            <div class="reveal-manager-empty" aria-hidden="true"></div>
                         </div>
                     </div>
                 </div>
@@ -595,9 +593,7 @@ class RevealManagerWidget {
         }
 
         if (this.emptyState && !this.activeDeck) {
-            this.emptyState.textContent = isExternal
-                ? `Add a ${this.getSourceTypeLabel(sourceType)} link, then press Load.`
-                : 'Paste Reveal HTML or import a file.';
+            this.emptyState.textContent = '';
         }
 
         this.renderExternalValidationState(
@@ -634,7 +630,7 @@ class RevealManagerWidget {
         this.launchButton.textContent = hasDeck ? 'Stop' : 'Open';
         this.prevButton.disabled = !isLiveRevealDeck;
         this.nextButton.disabled = !isLiveRevealDeck;
-        this.emptyState.hidden = hasDeck;
+        this.emptyState.hidden = true;
     }
 
     getControls() {

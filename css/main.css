@@ -6572,7 +6572,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 }
 
 .reveal-manager-empty[hidden] {
-    display: flex;
+    display: none;
 }
 
 /* ==========================
