@@ -45,12 +45,12 @@ class RevealManagerWidget {
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-btn" title="Open the projector window">Projector</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle deck controls" title="Show deck controls">Details</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle deck controls" title="Show deck controls">More</button>
                 </div>
 
                 <div class="reveal-manager__panel advanced-controls" hidden>
                     <details class="reveal-manager__section" open>
-                        <summary>Deck Source</summary>
+                        <summary>Import</summary>
                         <div class="reveal-manager-row">
                             <select class="reveal-source-type" aria-label="Select presentation source type">
                                 <option value="html">Reveal HTML</option>
@@ -69,19 +69,19 @@ class RevealManagerWidget {
                             <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
                         </div>
                         <div class="reveal-manager-row reveal-manager-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save Deck</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">Convert to Reveal</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">Import Slides</button>
                         </div>
                         <input type="file" class="reveal-deck-file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
                     </details>
 
                     <details class="reveal-manager__section" open>
-                        <summary>Saved Decks</summary>
+                        <summary>Saved</summary>
                         <div class="reveal-manager-row">
                             <select class="reveal-saved-select" aria-label="Select saved deck">
                                 <option value="">Select saved deck</option>
                             </select>
-                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Launch Saved</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Open</button>
                         </div>
                         <div class="reveal-manager-row reveal-manager-actions">
                             <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
@@ -95,7 +95,7 @@ class RevealManagerWidget {
                         <div class="reveal-manager-frame-wrap">
                             <div class="reveal-inline-deck"></div>
                             <div class="reveal-manager-empty">
-                                Paste Reveal HTML, then press Open.
+                                Paste Reveal HTML or import a file.
                             </div>
                         </div>
                     </div>
@@ -596,8 +596,8 @@ class RevealManagerWidget {
 
         if (this.emptyState && !this.activeDeck) {
             this.emptyState.textContent = isExternal
-                ? `Add a ${this.getSourceTypeLabel(sourceType)} link, then press Open.`
-                : 'Paste Reveal HTML, then press Open.';
+                ? `Add a ${this.getSourceTypeLabel(sourceType)} link, then press Load.`
+                : 'Paste Reveal HTML or import a file.';
         }
 
         this.renderExternalValidationState(
@@ -694,11 +694,11 @@ class RevealManagerWidget {
         const saveButton = document.createElement('button');
         saveButton.type = 'button';
         saveButton.className = 'control-button';
-        saveButton.textContent = 'Save Deck';
+        saveButton.textContent = 'Save';
         const convertButton = document.createElement('button');
         convertButton.type = 'button';
         convertButton.className = 'control-button control-button--primary';
-        convertButton.textContent = 'Convert to Reveal';
+        convertButton.textContent = 'Import Slides';
         sourceActions.append(openButton, saveButton, convertButton);
         sourceSection.appendChild(sourceActions);
         controls.appendChild(sourceSection);
@@ -706,7 +706,7 @@ class RevealManagerWidget {
         const savedSection = document.createElement('div');
         savedSection.className = 'widget-settings-section';
         const savedHeading = document.createElement('h3');
-        savedHeading.textContent = 'Saved Decks';
+        savedHeading.textContent = 'Saved';
         savedSection.appendChild(savedHeading);
 
         const savedLabel = document.createElement('label');
@@ -720,15 +720,15 @@ class RevealManagerWidget {
         const launchSavedButton = document.createElement('button');
         launchSavedButton.type = 'button';
         launchSavedButton.className = 'control-button';
-        launchSavedButton.textContent = 'Load Saved Deck';
+        launchSavedButton.textContent = 'Open';
         const renameButton = document.createElement('button');
         renameButton.type = 'button';
         renameButton.className = 'control-button';
-        renameButton.textContent = 'Rename Deck';
+        renameButton.textContent = 'Rename';
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
         deleteButton.className = 'control-button modal-danger-btn';
-        deleteButton.textContent = 'Delete Deck';
+        deleteButton.textContent = 'Delete';
         savedActions.append(launchSavedButton, renameButton, deleteButton);
         savedSection.appendChild(savedActions);
         controls.appendChild(savedSection);
@@ -780,7 +780,7 @@ class RevealManagerWidget {
             settingsDeckNameInput.value = this.deckNameInput.value;
             settingsExternalUrlInput.value = this.externalUrlInput.value;
             settingsHtmlInput.value = this.htmlInput.value;
-            openButton.textContent = this.activeDeck ? 'Stop Deck' : 'Load Deck';
+            openButton.textContent = this.activeDeck ? 'Stop' : 'Load';
             prevButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
             projectorButton.disabled = !this.activeDeck;
@@ -907,7 +907,7 @@ class RevealManagerWidget {
         this.isCompact = compact;
         this.element.classList.toggle('reveal-manager--compact', compact);
         this.panelContainer.hidden = compact;
-        this.toggleControlsButton.textContent = compact ? 'Details' : 'Close';
+        this.toggleControlsButton.textContent = compact ? 'More' : 'Hide';
         this.toggleControlsButton.title = compact ? 'Show deck controls' : 'Hide deck controls';
     }
 
@@ -1352,7 +1352,7 @@ class RevealManagerWidget {
         this.htmlInput.value = deck.content;
         this.updateSourceFields();
         this.launchDeck(deck, { preserveIndices: false });
-        this.setStatus(`Imported ${fileName} into Reveal.`);
+        this.setStatus(`Imported ${fileName}.`);
         return deck;
     }
 
