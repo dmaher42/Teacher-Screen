@@ -1433,8 +1433,8 @@ class RevealManagerWidget {
                 continue;
             }
 
-            const slideText = this.extractPptxSlideText(slideXml);
-            slides.push(this.buildRevealTextSlide(slideText, index + 1));
+            const slideContent = await this.extractPptxSlideContent(zip, slidePath, slideXml, index + 1);
+            slides.push(this.buildRevealPptxSlide(slideContent, index + 1));
         }
 
         return this.buildRevealDeckFromImportedSlides({
@@ -1443,29 +1443,303 @@ class RevealManagerWidget {
         });
     }
 
-    extractPptxSlideText(slideXml = '') {
-        if (!slideXml) {
+    async extractPptxSlideContent(zip, slidePath = '', slideXml = '', slideNumber = 1) {
+        const doc = slideXml ? new DOMParser().parseFromString(slideXml, 'application/xml') : null;
+        const textBlocks = this.extractPptxSlideTextBlocks(doc, slideNumber);
+        const backgroundColor = this.extractPptxSlideBackgroundColor(doc);
+        const images = zip ? await this.extractPptxSlideImages(zip, slidePath, doc) : [];
+
+        return {
+            slideNumber,
+            backgroundColor,
+            textBlocks,
+            images
+        };
+    }
+
+    extractPptxSlideBackgroundColor(doc = null) {
+        if (!doc) {
+            return '';
+        }
+
+        const bgNode = doc.getElementsByTagNameNS('*', 'bg')[0];
+        const bgColor = this.extractPptxColorFromNode(bgNode);
+        return bgColor || '';
+    }
+
+    extractPptxSlideTextBlocks(doc = null, slideNumber = 1) {
+        if (!doc) {
             return [];
         }
 
-        const doc = new DOMParser().parseFromString(slideXml, 'application/xml');
-        const nodes = Array.from(doc.getElementsByTagNameNS('*', 't'));
-        return nodes
-            .map((node) => String(node.textContent || '').trim())
-            .filter(Boolean);
+        const paragraphs = Array.from(doc.getElementsByTagNameNS('*', 'p'));
+        const blocks = [];
+
+        paragraphs.forEach((paragraph, index) => {
+            if (!paragraph || !paragraph.children) {
+                return;
+            }
+
+            const runs = Array.from(paragraph.children).filter((child) => child && child.localName === 'r');
+            if (!runs.length) {
+                return;
+            }
+
+            const runHtml = runs
+                .map((run) => this.extractPptxRunHtml(run))
+                .filter(Boolean)
+                .join('');
+
+            if (!runHtml) {
+                return;
+            }
+
+            blocks.push(index === 0
+                ? `<h2>${runHtml}</h2>`
+                : `<p>${runHtml}</p>`);
+        });
+
+        if (!blocks.length) {
+            blocks.push(`<h2>Slide ${slideNumber}</h2>`);
+        }
+
+        return blocks;
     }
 
-    buildRevealTextSlide(textParts = [], slideNumber = 1) {
-        const parts = Array.isArray(textParts) ? textParts.filter(Boolean) : [];
-        const title = parts.shift() || `Slide ${slideNumber}`;
-        const body = parts.length > 0
-            ? `<ul>${parts.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>`
-            : '<p>Imported from PPTX.</p>';
+    extractPptxRunHtml(run = null) {
+        if (!run) {
+            return '';
+        }
+
+        const textParts = Array.from(run.getElementsByTagNameNS('*', 't'))
+            .map((node) => String(node.textContent || '').trim())
+            .filter(Boolean);
+
+        if (!textParts.length) {
+            return '';
+        }
+
+        const text = this.escapeHtml(textParts.join(' '));
+        const rPr = Array.from(run.children || []).find((child) => child && child.localName === 'rPr') || null;
+        const styles = [];
+
+        const color = this.extractPptxColorFromNode(rPr);
+        if (color) {
+            styles.push(`color:${color}`);
+        }
+
+        if (rPr?.getAttribute('b') === '1' || rPr?.getAttribute('b') === 'true') {
+            styles.push('font-weight:700');
+        }
+
+        if (rPr?.getAttribute('i') === '1' || rPr?.getAttribute('i') === 'true') {
+            styles.push('font-style:italic');
+        }
+
+        if (rPr?.getAttribute('u') && rPr.getAttribute('u') !== 'none') {
+            styles.push('text-decoration:underline');
+        }
+
+        return styles.length
+            ? `<span style="${styles.join(';')}">${text}</span>`
+            : text;
+    }
+
+    extractPptxColorFromNode(node = null) {
+        if (!node) {
+            return '';
+        }
+
+        const solidFill = Array.from(node.children || []).find((child) => child && child.localName === 'solidFill')
+            || node.getElementsByTagNameNS('*', 'solidFill')[0]
+            || null;
+        if (!solidFill) {
+            return '';
+        }
+
+        const srgbClr = solidFill.getElementsByTagNameNS('*', 'srgbClr')[0];
+        if (srgbClr) {
+            const value = String(srgbClr.getAttribute('val') || '').trim();
+            if (value) {
+                const alpha = solidFill.getElementsByTagNameNS('*', 'alpha')[0]?.getAttribute('val');
+                return alpha && Number(alpha) < 100000
+                    ? `color-mix(in srgb, #${value} ${Math.max(0, Math.min(100, Math.round((Number(alpha) / 100000) * 100)))}%, transparent)`
+                    : `#${value}`;
+            }
+        }
+
+        const schemeClr = solidFill.getElementsByTagNameNS('*', 'schemeClr')[0];
+        if (schemeClr) {
+            const scheme = String(schemeClr.getAttribute('val') || '').trim().toLowerCase();
+            const schemeMap = {
+                dk1: '#111827',
+                lt1: '#ffffff',
+                dk2: '#1f2937',
+                lt2: '#f8fafc',
+                accent1: '#3b82f6',
+                accent2: '#10b981',
+                accent3: '#f59e0b',
+                accent4: '#8b5cf6',
+                accent5: '#ef4444',
+                accent6: '#06b6d4',
+                hlink: '#2563eb',
+                folhlink: '#7c3aed'
+            };
+            return schemeMap[scheme] || '';
+        }
+
+        return '';
+    }
+
+    async extractPptxSlideImages(zip, slidePath = '', doc = null) {
+        if (!zip || !slidePath || !doc) {
+            return [];
+        }
+
+        const slideRelsPath = slidePath
+            .replace(/ppt\/slides\/([^/]+)$/i, 'ppt/slides/_rels/$1.rels')
+            .replace(/\/+/g, '/');
+        const relsXml = await this.getZipEntryText(zip, slideRelsPath);
+        if (!relsXml) {
+            return [];
+        }
+
+        const relMap = new Map();
+        const relPattern = /<Relationship\b[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/gi;
+        let relMatch;
+        while ((relMatch = relPattern.exec(relsXml)) !== null) {
+            relMap.set(relMatch[1], relMatch[2]);
+        }
+
+        const blips = Array.from(doc.getElementsByTagNameNS('*', 'blip'));
+        const embedIds = [...new Set(blips
+            .map((node) => node.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed')
+                || node.getAttribute('r:embed')
+                || node.getAttribute('embed'))
+            .filter(Boolean))];
+
+        const images = [];
+        for (const embedId of embedIds) {
+            const target = relMap.get(embedId);
+            if (!target) {
+                continue;
+            }
+
+            const imagePath = this.resolvePptxRelativePath(slidePath, target);
+            const mimeType = this.getMimeTypeForPath(imagePath);
+            const dataUrl = await this.getZipEntryDataUrl(zip, imagePath, mimeType);
+            if (dataUrl) {
+                images.push({
+                    src: dataUrl,
+                    alt: String(imagePath || 'image').split('/').pop() || 'image'
+                });
+            }
+        }
+
+        return images;
+    }
+
+    resolvePptxRelativePath(basePath = '', targetPath = '') {
+        const normalizedTarget = this.normalizeZipPath(targetPath);
+        if (!normalizedTarget) {
+            return '';
+        }
+
+        if (/^[a-z]+:/i.test(normalizedTarget)) {
+            return normalizedTarget;
+        }
+
+        const baseDir = this.normalizeZipPath(basePath).replace(/[^/]+$/, '');
+        const stack = baseDir.split('/').filter(Boolean);
+
+        normalizedTarget.split('/').forEach((part) => {
+            if (!part || part === '.') {
+                return;
+            }
+            if (part === '..') {
+                stack.pop();
+                return;
+            }
+            stack.push(part);
+        });
+
+        return stack.join('/');
+    }
+
+    getMimeTypeForPath(filePath = '') {
+        const extension = String(filePath || '').split('.').pop().toLowerCase();
+        const mimeMap = {
+            png: 'image/png',
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            gif: 'image/gif',
+            webp: 'image/webp',
+            bmp: 'image/bmp',
+            svg: 'image/svg+xml'
+        };
+
+        return mimeMap[extension] || 'application/octet-stream';
+    }
+
+    async getZipEntryDataUrl(zip, entryPath = '', mimeType = 'application/octet-stream') {
+        if (!zip || !entryPath) {
+            return null;
+        }
+
+        const normalizedTarget = this.normalizeZipPath(entryPath);
+        const candidates = [
+            entryPath,
+            normalizedTarget,
+            normalizedTarget.replace(/\//g, '\\')
+        ];
+
+        for (const candidate of candidates) {
+            const entry = zip.file(candidate);
+            if (entry) {
+                const base64 = await entry.async('base64');
+                return `data:${mimeType};base64,${base64}`;
+            }
+        }
+
+        const matchName = Object.keys(zip.files || {}).find((name) => this.normalizeZipPath(name) === normalizedTarget);
+        if (!matchName) {
+            return null;
+        }
+
+        const entry = zip.file(matchName);
+        if (!entry) {
+            return null;
+        }
+
+        const base64 = await entry.async('base64');
+        return `data:${mimeType};base64,${base64}`;
+    }
+
+    buildRevealPptxSlide({ slideNumber = 1, backgroundColor = '', textBlocks = [], images = [] } = {}) {
+        const slideBackground = backgroundColor ? `background:${backgroundColor};` : '';
+        const bodyBlocks = Array.isArray(textBlocks) && textBlocks.length > 0
+            ? textBlocks.join('')
+            : `<h2>Slide ${slideNumber}</h2>`;
+        const imageMarkup = Array.isArray(images) && images.length > 0
+            ? `
+                <div style="display:grid; gap:0.6rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items:start;">
+                    ${images.map((image) => `
+                        <figure style="margin:0; padding:0.5rem; border:1px solid rgba(148,163,184,0.25); border-radius:12px; background:rgba(255,255,255,0.65);">
+                            <img src="${image.src}" alt="${this.escapeHtml(image.alt || `Slide ${slideNumber} image`)}" style="display:block; width:100%; height:auto; object-fit:contain;">
+                        </figure>
+                    `).join('')}
+                </div>
+            `
+            : '';
 
         return `
-            <section>
-                <h2>${this.escapeHtml(title)}</h2>
-                ${body}
+            <section style="${slideBackground} padding: 1rem;">
+                <div style="display:grid; gap:1rem; align-content:start; text-align:left; max-width: 100%; height: 100%;">
+                    <div style="display:grid; gap:0.6rem;">
+                        ${bodyBlocks}
+                    </div>
+                    ${imageMarkup}
+                </div>
             </section>
         `.trim();
     }
