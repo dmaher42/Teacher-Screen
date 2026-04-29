@@ -7,7 +7,8 @@ class PresentationWidget {
         this.presentations = [
             { value: 'cyber-safety', label: 'Cyber Safety' },
             { value: 'roman-empire', label: 'Roman Empire' },
-            { value: 'athletics-training', label: 'Athletics Training' }
+            { value: 'athletics-training', label: 'Athletics Training' },
+            { value: 'human-migration-theories-civilisations', label: 'Human Migration & Civilisations' }
         ];
 
         this.element = document.createElement('div');
