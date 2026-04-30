@@ -1579,6 +1579,30 @@ body:not(.dashboard-mode) .dashboard-layout {
     border-radius: 12px;
 }
 
+.teacher-panel .project-page-name-panel {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.teacher-panel .project-page-name-panel label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary, #64748b);
+}
+
+.teacher-panel .project-page-name-panel input {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    color: var(--text-primary, #0f172a);
+    padding: 0.7rem 0.85rem;
+}
+
 .teacher-panel .page-switcher {
     gap: 6px;
 }

@@ -179,6 +179,9 @@ class ClassroomScreenApp {
         this.mainPageNext = document.getElementById('main-page-next');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
+        this.projectScreenNameInput = document.getElementById('project-screen-name-input');
+        this.saveProjectScreenButton = document.getElementById('save-project-screen-btn');
+        this.renameProjectScreenButton = document.getElementById('rename-project-screen-btn');
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
         this.newProjectButton = document.getElementById('new-project-btn');
         this.newPageButton = document.getElementById('new-page-btn');
@@ -868,6 +871,14 @@ class ClassroomScreenApp {
 
         if (this.newPageButton) {
             this.newPageButton.addEventListener('click', () => this.createNewPage());
+        }
+
+        if (this.saveProjectScreenButton) {
+            this.saveProjectScreenButton.addEventListener('click', () => this.saveCurrentProjectScreen());
+        }
+
+        if (this.renameProjectScreenButton) {
+            this.renameProjectScreenButton.addEventListener('click', () => this.renameCurrentProjectScreen());
         }
 
         if (this.movePageLeftButton) {
@@ -2474,6 +2485,98 @@ class ClassroomScreenApp {
         this.showNotification(`Created project "${resolvedProjectName}".`);
     }
 
+    saveCurrentProjectScreen() {
+        const normalizedState = this.normalizeProjectState(this.projectState);
+        const requestedName = this.projectScreenNameInput?.value.trim() || normalizedState.projectName || DEFAULT_PROJECT_NAME;
+        if (!requestedName) {
+            this.showNotification('Enter a screen name first.', 'warning');
+            return;
+        }
+
+        this.projectState = {
+            ...normalizedState,
+            projectName: requestedName
+        };
+
+        this.saveState();
+
+        if (this.projectScreenNameInput) {
+            this.projectScreenNameInput.value = requestedName;
+        }
+
+        const existingPreset = this.presets.find((preset) => preset && preset.name === requestedName);
+        if (existingPreset) {
+            this.overwritePreset(requestedName);
+        } else {
+            if (this.presetNameInput) {
+                this.presetNameInput.value = requestedName;
+            }
+            this.savePreset();
+        }
+
+        this.renderProjectControls();
+        this.renderDashboard();
+    }
+
+    renameCurrentProjectScreen() {
+        const normalizedState = this.normalizeProjectState(this.projectState);
+        const currentName = normalizedState.projectName || DEFAULT_PROJECT_NAME;
+        const nextName = window.prompt('Rename current screen', currentName);
+        if (typeof nextName !== 'string') {
+            return;
+        }
+
+        const trimmedName = nextName.trim();
+        if (!trimmedName) {
+            this.showNotification('Screen name cannot be blank.', 'warning');
+            return;
+        }
+
+        const duplicate = this.presets.find((preset) => preset && preset.name === trimmedName);
+        if (duplicate && duplicate.name !== currentName) {
+            this.showNotification(`Screen "${trimmedName}" already exists.`, 'warning');
+            return;
+        }
+
+        const now = Date.now();
+        this.projectState = {
+            ...normalizedState,
+            projectName: trimmedName
+        };
+
+        this.saveState();
+
+        const presetIndex = this.presets.findIndex((preset) => preset && preset.name === currentName);
+        if (presetIndex !== -1) {
+            const preset = this.normalizePresetRecord(this.presets[presetIndex]);
+            if (preset) {
+                this.presets[presetIndex] = {
+                    ...preset,
+                    name: trimmedName,
+                    projectState: cloneSerializableData({
+                        ...(preset.projectState || this.buildPresetProjectState(preset)),
+                        projectName: trimmedName
+                    }),
+                    updatedAt: now
+                };
+                this.savePresets();
+                this.renderPresetList();
+                this.renderDashboard();
+            }
+        }
+
+        if (this.projectScreenNameInput) {
+            this.projectScreenNameInput.value = trimmedName;
+        }
+
+        if (this.presetNameInput && this.presetNameInput.value === currentName) {
+            this.presetNameInput.value = trimmedName;
+        }
+
+        this.renderProjectControls();
+        this.showNotification(`Screen renamed to "${trimmedName}".`);
+    }
+
     createNewPage(pageName = '') {
         const normalizedState = this.saveCurrentPageSnapshot();
         const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
@@ -2791,6 +2894,11 @@ class ClassroomScreenApp {
                 node.textContent = value;
             }
         });
+
+        if (this.projectScreenNameInput) {
+            this.projectScreenNameInput.value = projectName;
+            this.projectScreenNameInput.title = `Current screen: ${projectName}`;
+        }
 
         [
             [this.currentProjectPageSummary, pageSummary],
