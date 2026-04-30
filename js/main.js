@@ -395,6 +395,7 @@ class ClassroomScreenApp {
         this.updatePresentationLastDeckAction();
 
         this.showWelcomeTourIfNeeded();
+        this.handleNavClick('dashboard');
 
         const savedRM = localStorage.getItem('reduceMotion');
         if (savedRM === '1') {
@@ -5448,6 +5449,7 @@ class ClassroomScreenApp {
                         <div class="dashboard-hero__actions">
                             <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create New</button>
                             <button id="dashboard-teacher-controls-btn" class="control-button control-button--teacher-controls" type="button">Teacher Controls</button>
+                            <a id="dashboard-open-projector-btn" class="control-button" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer">Open Projector</a>
                             <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
                         </div>
                     </header>

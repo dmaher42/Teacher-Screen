@@ -44,8 +44,8 @@
     <header>
         <nav id="top-nav" aria-label="Main sections">
             <div class="top-nav-shell">
-                <div class="sections-menu-wrap">
-                    <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu" aria-label="Open sections menu" title="Open sections menu">
+                    <div class="sections-menu-wrap">
+                        <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu" aria-label="Open sections menu" title="Open sections menu">
                         <svg class="top-nav-toggle__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                             <path d="M3 10.5L12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.4H9.5V21H4a1 1 0 0 1-1-1v-9.5Z" fill="currentColor"/>
                         </svg>
@@ -53,8 +53,8 @@
                     </button>
                     <div id="sections-menu" class="sections-menu" hidden>
                         <div class="nav-tabs" role="tablist" aria-orientation="vertical">
-                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
-                            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
+                            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
+                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
                             <div class="sections-menu__actions" aria-label="Screen shortcuts">
@@ -141,23 +141,23 @@
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </nav>
-    </header>
+                        </div>
+                    </div>
+                </nav>
+            </header>
 
     <div id="app-container" class="app-container" tabindex="-1">
         <!-- =====================================================
              DASHBOARD VIEW (Placeholder)
              ===================================================== -->
-        <section id="dashboard-view" class="view" role="tabpanel" aria-labelledby="dashboard-tab" hidden>
+        <section id="dashboard-view" class="view" role="tabpanel" aria-labelledby="dashboard-tab">
             <div id="dashboard-root" class="dashboard-shell"></div>
         </section>
 
         <!-- =====================================================
              STUDENT VIEW (Classroom)
              ===================================================== -->
-        <section id="classroom-view" class="view" role="tabpanel" aria-labelledby="classroom-tab">
+        <section id="classroom-view" class="view" role="tabpanel" aria-labelledby="classroom-tab" hidden>
             <section id="student-view" class="student-view" role="main" aria-label="Student view">
                 <div id="widgets-container" class="widgets-grid">
                     <!-- Widgets are dynamically added here by JavaScript -->
