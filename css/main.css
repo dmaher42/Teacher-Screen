@@ -473,8 +473,9 @@ details:focus-visible,
     height: 100%;
     padding: 18px;
     background:
-        radial-gradient(circle at top right, rgba(145, 158, 255, 0.18), transparent 34%),
-        linear-gradient(180deg, color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%), color-mix(in srgb, var(--bg-surface, #f8fafc) 96%, #eef2ff 4%));
+        radial-gradient(circle at 18% 14%, rgba(124, 92, 255, 0.10), transparent 24%),
+        radial-gradient(circle at 88% 12%, rgba(34, 197, 94, 0.12), transparent 18%),
+        linear-gradient(180deg, #f5f7fb 0%, #edf1f8 100%);
 }
 
 .dashboard-sidebar {
@@ -482,10 +483,12 @@ details:focus-visible,
     flex-direction: column;
     gap: 18px;
     padding: 20px 18px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+    border: 1px solid rgba(79, 94, 124, 0.18);
     border-radius: 24px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #eef2ff 6%);
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    background:
+        linear-gradient(180deg, rgba(14, 22, 41, 0.98), rgba(19, 28, 49, 0.96)),
+        radial-gradient(circle at top left, rgba(124, 92, 255, 0.18), transparent 36%);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
     overflow: hidden;
 }
 
@@ -512,13 +515,14 @@ details:focus-visible,
     font-size: 0.72rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-secondary, #64748b);
+    color: rgba(255, 255, 255, 0.62);
 }
 
 .dashboard-brand h2 {
     margin: 2px 0 0;
     font-size: 1.25rem;
     letter-spacing: -0.02em;
+    color: #f8fbff;
 }
 
 .dashboard-sidebar__action,
@@ -536,9 +540,10 @@ details:focus-visible,
 .dashboard-sidebar__action {
     min-height: 40px;
     padding: 0.7rem 1rem;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 82%, #ffffff 18%), color-mix(in srgb, var(--primary-color, #8e82ff) 66%, #ffffff 34%));
-    color: var(--text-on-accent, #ffffff);
-    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 55%, #ffffff 45%);
+    background: linear-gradient(135deg, #7c61ff 0%, #5e86ff 100%);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 24px rgba(94, 134, 255, 0.22);
 }
 
 .dashboard-sidebar__section {
@@ -552,7 +557,7 @@ details:focus-visible,
     font-size: 0.82rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-secondary, #64748b);
+    color: rgba(226, 232, 240, 0.72);
 }
 
 .dashboard-folder-list {
@@ -576,9 +581,9 @@ details:focus-visible,
     width: 100%;
     padding: 0.78rem 0.9rem;
     border-radius: 16px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
-    color: var(--text-primary, #0f172a);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: #eef4ff;
     cursor: pointer;
     text-align: left;
 }
@@ -592,10 +597,10 @@ details:focus-visible,
 
 .dashboard-folder-row__action {
     appearance: none;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
-    color: var(--text-secondary, #64748b);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.86);
     font-size: 0.72rem;
     font-weight: 700;
     padding: 0.25rem 0.6rem;
@@ -613,9 +618,9 @@ details:focus-visible,
 }
 
 .dashboard-folder.is-active {
-    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 40%, #ffffff 60%);
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
-    box-shadow: 0 8px 20px rgba(76, 81, 191, 0.12);
+    border-color: rgba(124, 92, 255, 0.45);
+    background: linear-gradient(135deg, rgba(124, 92, 255, 0.18), rgba(94, 134, 255, 0.10));
+    box-shadow: 0 8px 20px rgba(76, 81, 191, 0.14);
 }
 
 .dashboard-folder__count,
@@ -625,9 +630,9 @@ details:focus-visible,
     justify-content: center;
     padding: 0.3rem 0.65rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 82%, var(--bg-surface, #f8fafc) 18%);
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
-    color: var(--text-secondary, #64748b);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    color: rgba(226, 232, 240, 0.72);
     font-size: 0.75rem;
     font-weight: 700;
 }
@@ -643,6 +648,9 @@ details:focus-visible,
     min-height: 40px;
     padding: 0.65rem 0.75rem;
     font-size: 0.84rem;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(226, 232, 240, 0.9);
+    border-color: rgba(148, 163, 184, 0.22);
 }
 
 .dashboard-main {
@@ -651,6 +659,8 @@ details:focus-visible,
     min-width: 0;
     overflow: auto;
     padding-right: 4px;
+    border-radius: 30px;
+    padding: 16px 4px 4px 0;
 }
 
 .dashboard-hero {
@@ -661,11 +671,11 @@ details:focus-visible,
     min-height: 170px;
     padding: 24px 26px;
     border-radius: 28px;
-    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    border: 1px solid rgba(79, 94, 124, 0.14);
     background:
-        radial-gradient(circle at 82% 14%, rgba(160, 159, 248, 0.75) 0 10%, transparent 11%),
-        radial-gradient(circle at 70% 42%, rgba(114, 221, 77, 0.86) 0 6%, transparent 7%),
-        linear-gradient(135deg, color-mix(in srgb, var(--card-background, #ffffff) 96%, #eef2ff 4%), color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%));
+        radial-gradient(circle at 82% 14%, rgba(160, 159, 248, 0.42) 0 10%, transparent 11%),
+        radial-gradient(circle at 70% 42%, rgba(114, 221, 77, 0.64) 0 6%, transparent 7%),
+        linear-gradient(135deg, #f4f7fc 0%, #e8edf8 100%);
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
     overflow: hidden;
 }
@@ -682,7 +692,7 @@ details:focus-visible,
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-secondary, #64748b);
+    color: #7c8496;
 }
 
 .dashboard-hero h1 {
@@ -694,7 +704,7 @@ details:focus-visible,
 
 .dashboard-hero__summary {
     margin: 0;
-    color: var(--text-secondary, #64748b);
+    color: #7c8496;
     font-size: 0.98rem;
 }
 
@@ -720,7 +730,7 @@ details:focus-visible,
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
-    color: var(--text-primary, #0f172a);
+    color: #0f172a;
 }
 
 .dashboard-search:focus {
@@ -741,7 +751,7 @@ details:focus-visible,
     padding: 18px;
     border-radius: 26px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
-    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #eef2ff 6%);
+    background: linear-gradient(180deg, #fefeff 0%, #f3f6fb 100%);
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
 }
 
@@ -780,8 +790,14 @@ details:focus-visible,
     padding: 16px;
     border-radius: 22px;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
-    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #ffffff 6%);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+body:not(.dashboard-mode) .dashboard-layout {
+    background:
+        radial-gradient(circle at top right, rgba(145, 158, 255, 0.18), transparent 34%),
+        linear-gradient(180deg, color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%), color-mix(in srgb, var(--bg-surface, #f8fafc) 96%, #eef2ff 4%));
 }
 
 .dashboard-screen-card__header h3 {
