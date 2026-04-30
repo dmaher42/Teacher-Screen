@@ -873,6 +873,29 @@ class ClassroomScreenApp {
             this.newPageButton.addEventListener('click', () => this.createNewPage());
         }
 
+        if (this.projectScreenNameInput) {
+            this.projectScreenNameInput.addEventListener('input', () => {
+                const typedName = this.projectScreenNameInput.value.trim();
+                const normalizedState = this.normalizeProjectState(this.projectState);
+                const resolvedName = typedName || normalizedState.projectName || DEFAULT_PROJECT_NAME;
+
+                this.projectState = {
+                    ...normalizedState,
+                    projectName: resolvedName
+                };
+
+                if (this.currentProjectName) {
+                    this.currentProjectName.textContent = resolvedName;
+                }
+                if (this.teacherCurrentProjectName) {
+                    this.teacherCurrentProjectName.textContent = resolvedName;
+                }
+
+                this.projectScreenNameInput.title = `Current screen: ${resolvedName}`;
+                this.saveState();
+            });
+        }
+
         if (this.saveProjectScreenButton) {
             this.saveProjectScreenButton.addEventListener('click', () => this.saveCurrentProjectScreen());
         }
