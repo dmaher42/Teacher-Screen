@@ -901,6 +901,7 @@ class ClassroomScreenApp {
 
     handleNavClick(tab) {
         eventBus.emit('scene:changed', { tab });
+        document.body.classList.toggle('dashboard-mode', tab === 'dashboard');
 
         // Update tab states
         this.navTabs.forEach(t => {
