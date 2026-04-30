@@ -2659,6 +2659,52 @@ class ClassroomScreenApp {
         };
     }
 
+    buildPresetProjectState(preset = {}) {
+        const source = preset && typeof preset === 'object' ? preset : {};
+        const projectName = typeof source.projectName === 'string' && source.projectName.trim()
+            ? source.projectName.trim()
+            : typeof source.name === 'string' && source.name.trim()
+                ? source.name.trim()
+                : DEFAULT_PROJECT_NAME;
+
+        if (source.projectState && typeof source.projectState === 'object') {
+            const normalized = this.normalizeProjectState(source.projectState);
+            return {
+                projectName: normalized.projectName || projectName,
+                activePageId: normalized.activePageId || DEFAULT_PAGE_ID,
+                pages: cloneSerializableData(normalized.pages)
+            };
+        }
+
+        const legacyState = this.normalizeProjectState({
+            projectName,
+            activePageId: DEFAULT_PAGE_ID,
+            pages: [{
+                id: DEFAULT_PAGE_ID,
+                name: DEFAULT_PAGE_NAME,
+                snapshot: {
+                    theme: typeof source.theme === 'string' && source.theme.trim()
+                        ? source.theme
+                        : document.body.className || 'theme-professional',
+                    background: source.background && typeof source.background === 'object'
+                        ? source.background
+                        : this.backgroundManager.serialize(),
+                    layout: source.layout && typeof source.layout === 'object'
+                        ? source.layout
+                        : { widgets: [] },
+                    timerStates: Array.isArray(source.timerStates) ? source.timerStates : [],
+                    lessonPlan: source.lessonPlan ?? null
+                }
+            }]
+        });
+
+        return {
+            projectName: legacyState.projectName || projectName,
+            activePageId: legacyState.activePageId || DEFAULT_PAGE_ID,
+            pages: cloneSerializableData(legacyState.pages)
+        };
+    }
+
     normalizePageRecord(page, index = 0, fallbackState = {}) {
         if (!page || typeof page !== 'object') {
             return this.createPageRecord({
@@ -2939,13 +2985,15 @@ class ClassroomScreenApp {
 
     setupPresetControls() {
         const storedPresets = safeParseLocalStorage(this.presetsKey);
+        const hadLegacyProjectState = Array.isArray(storedPresets)
+            && storedPresets.some((preset) => preset && typeof preset === 'object' && (!preset.projectState || typeof preset.projectState !== 'object'));
         this.presets = Array.isArray(storedPresets)
             ? storedPresets.map((preset) => this.normalizePresetRecord(preset)).filter(Boolean)
             : [];
 
         const hasLegacyFields = Array.isArray(storedPresets)
             && storedPresets.some((preset) => preset && typeof preset === 'object' && (!Number.isFinite(preset.createdAt) || !Number.isFinite(preset.updatedAt) || !Number.isFinite(preset.lastUsedAt)));
-        if (hasLegacyFields) {
+        if (hasLegacyFields || hadLegacyProjectState) {
             this.savePresets();
         }
 
@@ -3152,11 +3200,21 @@ class ClassroomScreenApp {
 
         const screenName = this.getUniquePresetName(trimmedName);
         const now = Date.now();
+        const blankPage = this.createPageRecord({
+            id: DEFAULT_PAGE_ID,
+            name: DEFAULT_PAGE_NAME,
+            snapshot: this.createBlankPageSnapshot()
+        });
         const preset = {
             name: screenName,
             className: folder.name,
             period: '',
             folderId: folder.id,
+            projectState: {
+                projectName: screenName,
+                activePageId: blankPage.id,
+                pages: [blankPage]
+            },
             theme: document.body.className || 'theme-professional',
             background: this.backgroundManager && typeof this.backgroundManager.getThemeDefaultBackground === 'function'
                 ? this.backgroundManager.getThemeDefaultBackground(document.body.className || 'theme-professional')
@@ -3458,6 +3516,7 @@ class ClassroomScreenApp {
                 : now;
         const updatedAt = Number.isFinite(preset.updatedAt) ? preset.updatedAt : createdAt;
         const lastUsedAt = Number.isFinite(preset.lastUsedAt) ? preset.lastUsedAt : updatedAt;
+        const projectState = this.buildPresetProjectState(preset);
 
         return {
             ...preset,
@@ -3465,6 +3524,7 @@ class ClassroomScreenApp {
             className: typeof preset.className === 'string' ? preset.className.trim() : '',
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
             folderId: typeof preset.folderId === 'string' ? preset.folderId.trim() : '',
+            projectState,
             theme: typeof preset.theme === 'string' && preset.theme.trim() ? preset.theme : document.body.className,
             background: preset.background && typeof preset.background === 'object'
                 ? preset.background
@@ -3627,15 +3687,17 @@ class ClassroomScreenApp {
 
         const now = Date.now();
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : '';
+        const projectState = this.buildStateSnapshot();
         const preset = {
             name,
             className,
             period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
             folderId,
-            theme: document.body.className,
-            background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize(),
-            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
+            projectState: cloneSerializableData(projectState),
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.layout),
+            lessonPlan: cloneSerializableData(projectState.lessonPlan),
             createdAt: now,
             updatedAt: now,
             lastUsedAt: now,
@@ -3658,24 +3720,31 @@ class ClassroomScreenApp {
             return false;
         }
 
-        if (preset.theme) this.switchTheme(preset.theme);
-        if (preset.background) this.backgroundManager.deserialize(preset.background);
-        if (preset.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(preset.lessonPlan);
+        const projectState = preset.projectState && typeof preset.projectState === 'object'
+            ? this.normalizeProjectState(preset.projectState)
+            : this.buildPresetProjectState(preset);
+
+        if (!preset.projectState || typeof preset.projectState !== 'object') {
+            const presetIndex = this.presets.findIndex((item) => item.name === preset.name);
+            if (presetIndex !== -1) {
+                this.presets[presetIndex] = {
+                    ...preset,
+                    projectState: cloneSerializableData(projectState),
+                    theme: projectState.theme,
+                    background: cloneSerializableData(projectState.background),
+                    layout: cloneSerializableData(projectState.layout),
+                    lessonPlan: cloneSerializableData(projectState.lessonPlan)
+                };
+                this.savePresets();
+            }
+        }
+        this.applyState(cloneSerializableData(projectState));
         if (this.presetNameInput) this.presetNameInput.value = preset.name || '';
         if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
         if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
         if (this.presetFolderSelect) this.presetFolderSelect.value = preset.folderId || '';
         if (this.classProfileSelect) this.classProfileSelect.value = preset.className || '';
         if (this.presetClassFilterInput) this.presetClassFilterInput.value = preset.className || '';
-
-        this.widgets = [];
-        this.layoutManager.deserialize(preset.layout, (widgetData) => {
-            const widget = createWidgetByType(widgetData.type);
-            if (widget) {
-                this.widgets.push(widget);
-            }
-            return widget;
-        });
 
         this.updateProjectorVisibility();
         this.saveState();
@@ -3717,16 +3786,18 @@ class ClassroomScreenApp {
         const existingPreset = this.normalizePresetRecord(this.presets[presetIndex]);
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : (existingPreset?.folderId || '');
         const now = Date.now();
+        const projectState = this.buildStateSnapshot();
         this.presets[presetIndex] = {
             ...existingPreset,
             name,
             className,
             period,
             folderId: folderId || existingPreset?.folderId || '',
-            theme: document.body.className,
-            background: this.backgroundManager.serialize(),
-            layout: this.layoutManager.serialize(),
-            lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
+            projectState: cloneSerializableData(projectState),
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.layout),
+            lessonPlan: cloneSerializableData(projectState.lessonPlan),
             createdAt: Number.isFinite(existingPreset?.createdAt) ? existingPreset.createdAt : now,
             updatedAt: now,
             lastUsedAt: Number.isFinite(existingPreset?.lastUsedAt) ? existingPreset.lastUsedAt : now,
