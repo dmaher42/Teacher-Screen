@@ -4578,8 +4578,8 @@ class ClassroomScreenApp {
 
         this.presentationLastButton.disabled = !lastDeck;
         this.presentationLastButton.textContent = lastDeck
-            ? `Present Last ${sourceLabel}`
-            : 'Present Last Deck';
+            ? `Resume Last ${sourceLabel}`
+            : 'Resume Last Deck';
     }
 
     renderPresentationSavedDeckOptions(rawDecks = null) {
@@ -4973,7 +4973,7 @@ class ClassroomScreenApp {
                 hasDeck: false,
                 sourceType: null,
                 sourceLabel: '',
-                deckName: 'Reveal Manager',
+                deckName: 'Slides',
                 currentIndices: { h: 0, v: 0 },
                 statusMessage: '',
                 sourceUrl: ''
@@ -4996,7 +4996,7 @@ class ClassroomScreenApp {
             hasDeck: !!activeDeck,
             sourceType,
             sourceLabel,
-            deckName: activeDeck?.name || 'Reveal Manager',
+            deckName: activeDeck?.name || 'Slides',
             currentIndices,
             statusMessage: payload.statusMessage || widget.statusLabel?.textContent || '',
             sourceUrl: payload.sourceUrl || activeDeck?.sourceUrl || ''
@@ -5008,7 +5008,7 @@ class ClassroomScreenApp {
         hasDeck = false,
         sourceType = null,
         sourceLabel = '',
-        deckName = 'Reveal Manager',
+        deckName = 'Slides',
         currentIndices = { h: 0, v: 0 },
         statusMessage = '',
         sourceUrl = ''
@@ -5017,31 +5017,31 @@ class ClassroomScreenApp {
             return;
         }
 
-        let badgeText = 'No Presentation';
+        let badgeText = 'No Slides';
         let badgeState = 'empty';
-        let displayText = deckName || 'Reveal Manager';
-        let contextText = 'Add Reveal Manager to load a deck.';
-        let metaText = 'Reveal Manager stays in sync with Teacher Controls.';
-        let manageLabel = 'Add Reveal Manager';
+        let displayText = deckName || 'Slides';
+        let contextText = 'Open Slides Controls to load a deck.';
+        let metaText = 'Slides stay in sync with the projector.';
+        let manageLabel = 'Open Slides Controls';
 
         if (hasWidget) {
-            badgeText = 'Widget Ready';
+            badgeText = 'Slides Ready';
             badgeState = 'idle';
-            displayText = 'Reveal Manager';
-            contextText = 'No presentation is loaded yet.';
-            metaText = statusMessage || 'Open Reveal Manager to load HTML or a linked deck.';
-            manageLabel = 'Open Presentation Controls';
+            displayText = 'Slides';
+            contextText = 'No slide deck is loaded yet.';
+            metaText = statusMessage || 'Open Slides Controls to load HTML or a linked deck.';
+            manageLabel = 'Open Slides Controls';
         }
 
         if (hasWidget && hasDeck) {
             const isHtmlDeck = sourceType === 'html';
-            badgeText = sourceLabel || 'Presentation';
+            badgeText = sourceLabel || 'Slides';
             badgeState = isHtmlDeck ? 'live' : 'external';
-            displayText = deckName || sourceLabel || 'Presentation';
+            displayText = deckName || sourceLabel || 'Slides';
             contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
             metaText = statusMessage || (isHtmlDeck
-                ? 'Prev / Next stay available here and in Reveal Manager.'
-                : 'Linked in Reveal Manager.');
+                ? 'Previous and Next are available here and in Slides Controls.'
+                : 'Linked in Slides Controls.');
         }
 
         if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {
@@ -5278,7 +5278,7 @@ class ClassroomScreenApp {
     async presentLastDeckFromPanel() {
         const lastDeck = this.getLastPresentationDeck();
         if (!lastDeck) {
-            this.showNotification('No last presentation is available yet.', 'warning');
+            this.showNotification('No last slide deck is available yet.', 'warning');
             return;
         }
 
@@ -5295,7 +5295,7 @@ class ClassroomScreenApp {
 
         const loaded = await presentationWidget.loadLastDeck();
         if (!loaded) {
-            this.showNotification('Unable to load the last presentation.', 'error');
+            this.showNotification('Unable to load the last slide deck.', 'error');
             return;
         }
 
@@ -5311,7 +5311,7 @@ class ClassroomScreenApp {
             }
         }
 
-        this.showNotification('Last presentation opened on the projector.', 'success');
+        this.showNotification('Last slide deck opened on the projector.', 'success');
     }
 
     async renameSavedPresentationFromPanel() {
@@ -5396,7 +5396,7 @@ class ClassroomScreenApp {
     openPresentationProjectorFromPanel() {
         const presentationWidget = this.getPrimaryRevealManagerWidget();
         if (!presentationWidget || !presentationWidget.activeDeck || typeof presentationWidget.openProjector !== 'function') {
-            this.showNotification('Load a presentation in Reveal Manager before opening the projector.', 'warning');
+            this.showNotification('Load a slide deck before opening the projector.', 'warning');
             return;
         }
 
@@ -5407,7 +5407,7 @@ class ClassroomScreenApp {
     navigatePresentationFromPanel(direction) {
         const presentationWidget = this.getPrimaryRevealManagerWidget();
         if (!presentationWidget || !presentationWidget.activeDeck) {
-            this.showNotification('Load a presentation in Reveal Manager first.', 'warning');
+            this.showNotification('Load a slide deck first.', 'warning');
             return;
         }
 
@@ -5993,6 +5993,7 @@ class ClassroomScreenApp {
             Notes: 'Quick Notes',
             Presentation: 'Presentation Loader',
             QRCode: 'QR Code',
+            RevealManager: 'Slides',
             RichText: 'Rich Text Board',
             UrlViewer: 'URL Viewer',
             Wellbeing: 'Well-being'

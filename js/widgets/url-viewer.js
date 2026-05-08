@@ -1,6 +1,6 @@
 /**
  * UrlViewerWidget
- * Simple web page viewer with URL bar, reload, and presentation mode.
+ * Simple web page viewer with URL bar, reload, and fullscreen view.
  */
 class UrlViewerWidget {
     constructor() {
@@ -27,8 +27,8 @@ class UrlViewerWidget {
                 <div class="primary-actions">
                     <button type="button" class="control-button load-url-button">Load</button>
                     <button type="button" class="control-button reload-url-button" disabled>Reload</button>
-                    <button type="button" class="control-button present-button">Present</button>
-                    <button type="button" class="control-button exit-present-button" style="display:none;">Exit</button>
+                    <button type="button" class="control-button present-button">Fullscreen</button>
+                    <button type="button" class="control-button exit-present-button" style="display:none;">Exit Fullscreen</button>
                 </div>
                 <div class="secondary-actions">
                     <button type="button" class="control-button open-newtab-button" title="Open in new tab" disabled>
@@ -201,8 +201,8 @@ class UrlViewerWidget {
         presentToggleButton.type = 'button';
         presentToggleButton.className = 'control-button';
         presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
-            ? 'Exit Presentation Mode'
-            : 'Enter Presentation Mode';
+            ? 'Exit Fullscreen View'
+            : 'Enter Fullscreen View';
 
         viewActions.append(openNewTabButton, presentToggleButton);
         viewSection.appendChild(viewActions);
@@ -222,8 +222,8 @@ class UrlViewerWidget {
             reloadButton.disabled = !activeUrl;
             openNewTabButton.disabled = !activeUrl;
             presentToggleButton.textContent = this.element.classList.contains('presentation-mode')
-                ? 'Exit Presentation Mode'
-                : 'Enter Presentation Mode';
+                ? 'Exit Fullscreen View'
+                : 'Enter Fullscreen View';
             statusText.textContent = activeUrl || 'No page loaded yet.';
         };
 

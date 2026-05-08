@@ -2,9 +2,20 @@ import './utils/app-mode.js';
 import './utils/app-bus.js';
 import './core/event-bus.js';
 
+const LOCAL_ASSET_VERSION = '10';
+
+const withLocalAssetVersion = (src) => {
+    if (!src.startsWith('./')) {
+        return src;
+    }
+
+    const separator = src.includes('?') ? '&' : '?';
+    return `${src}${separator}v=${LOCAL_ASSET_VERSION}`;
+};
+
 const loadClassicScript = (src) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = src;
+    script.src = withLocalAssetVersion(src);
     script.defer = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error(`Failed to load script: ${src}`));

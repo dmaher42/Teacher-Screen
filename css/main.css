@@ -1859,6 +1859,29 @@ dialog::backdrop {
     gap: var(--spacing-md, 12px);
 }
 
+#tour-dialog .modal-body {
+    display: block;
+    overflow: auto;
+}
+
+#tour-dialog .modal-body p {
+    margin: 0 0 0.85rem;
+}
+
+#tour-dialog .modal-body ol {
+    margin: 0;
+    padding-left: 1.35rem;
+}
+
+#tour-dialog .modal-body li {
+    margin-bottom: 0.65rem;
+    color: var(--text-primary);
+}
+
+#tour-dialog .modal-body li:last-child {
+    margin-bottom: 0;
+}
+
 #widget-settings-modal .modal-content {
     width: min(680px, 92vw);
     border-radius: 24px;
@@ -2392,7 +2415,7 @@ dialog::backdrop {
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-md, 10px);
-    padding: var(--spacing-lg, 15px);
+    padding: 18px 15px 16px;
     border-radius: var(--border-radius-large, 12px);
     border: 1px solid var(--border-color, #e0e0e0);
     cursor: pointer;
@@ -2425,11 +2448,11 @@ dialog::backdrop {
 
 .widget-favorite-btn {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 12px;
+    right: 12px;
     z-index: 1;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border: 1px solid color-mix(in srgb, var(--border-color, #e0e0e0) 82%, transparent);
     border-radius: 999px;
     background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
@@ -3379,6 +3402,187 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
 
 .rich-text-widget-inner .ql-toolbar .ql-picker {
     font-size: 0.72rem;
+}
+
+.rich-text-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.45rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 74%, transparent);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 90%, var(--bg-surface, #f8fafc) 10%);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+}
+
+.rich-text-toolbar-field {
+    flex: 0 0 auto;
+    display: inline-grid;
+    gap: 0.12rem;
+    min-width: 82px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #475569;
+    text-transform: uppercase;
+}
+
+.rich-text-toolbar-field--format {
+    min-width: 88px;
+}
+
+.rich-text-toolbar-field select {
+    min-height: 28px;
+    width: 100%;
+    padding: 0.22rem 1.35rem 0.22rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    border-radius: 7px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: none;
+}
+
+.rich-text-toolbar-field select:focus-visible,
+.rich-text-toolbar-actions button:focus-visible {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
+}
+
+.rich-text-toolbar-actions {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: end;
+    gap: 0.2rem;
+    margin-left: 0.1rem;
+}
+
+.rich-text-toolbar-actions button {
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0.2rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.rich-text-toolbar-actions button:hover,
+.rich-text-toolbar-actions button.is-active {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 28%, transparent);
+    color: #111827;
+    transform: none;
+}
+
+.rich-text-editor-surface {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-header,
+.rich-text-widget-inner .ql-toolbar button.ql-size {
+    min-width: 28px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color,
+.rich-text-widget-inner .ql-toolbar button.ql-background {
+    position: relative;
+    min-width: 24px;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color::after,
+.rich-text-widget-inner .ql-toolbar button.ql-background::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    bottom: 3px;
+    height: 4px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color[value="#111827"] {
+    color: #111827;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color[value="#dc2626"] {
+    color: #dc2626;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color[value="#2563eb"] {
+    color: #2563eb;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-color[value="#16a34a"] {
+    color: #16a34a;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-background::before {
+    content: "H";
+    position: absolute;
+    inset: 3px 5px 7px;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    color: #111827;
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-background[value="#fef08a"]::before {
+    background: #fef08a;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-background[value="#bbf7d0"]::before {
+    background: #bbf7d0;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-background[value="#bfdbfe"]::before {
+    background: #bfdbfe;
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-background[value="false"]::before {
+    content: "H";
+    background:
+        linear-gradient(135deg, transparent 45%, #dc2626 47%, #dc2626 53%, transparent 55%),
+        #ffffff;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-header[value="false"]::after {
+    content: "N";
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-size[value="small"]::after {
+    content: "S";
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-size:not([value])::after,
+.rich-text-widget-inner .ql-toolbar button.ql-size[value=""]::after,
+.rich-text-widget-inner .ql-toolbar button.ql-size[value="false"]::after {
+    content: "N";
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-size[value="large"]::after {
+    content: "L";
+}
+
+.rich-text-widget-inner .ql-toolbar button.ql-size[value="huge"]::after {
+    content: "XL";
 }
 
 .rich-text-widget-inner .ql-container {
@@ -6301,6 +6505,11 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     width: 100%;
     height: 100%;
     min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
 }
 
 .reveal-manager {
@@ -6319,6 +6528,9 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .reveal-manager__topbar {
     flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 2;
     align-items: center;
     gap: 0.45rem;
     padding: 0.45rem 0.5rem;
@@ -6327,12 +6539,6 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     background: color-mix(in srgb, var(--bg-elevated) 94%, var(--accent) 6%);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     overflow: hidden;
-}
-
-.reveal-manager--compact .reveal-manager__topbar {
-    position: sticky;
-    top: 0;
-    z-index: 2;
 }
 
 .reveal-presenter-status {
@@ -6385,11 +6591,12 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .reveal-manager__panel {
     flex-direction: column;
+    flex: 0 0 auto;
 }
 
 .reveal-manager__topbar .reveal-toggle-controls-btn {
-    min-width: 34px;
-    padding-inline: 0;
+    min-width: 92px;
+    padding-inline: 0.8rem;
 }
 
 .reveal-manager__section {
@@ -6415,6 +6622,16 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     min-height: 0;
     position: relative;
     display: flex;
+}
+
+.reveal-manager-widget-content:not(.reveal-manager--compact) .reveal-manager {
+    height: auto;
+    min-height: 100%;
+}
+
+.reveal-manager-widget-content:not(.reveal-manager--compact) .reveal-manager__stage {
+    flex: 0 0 min(320px, 48vh);
+    min-height: 220px;
 }
 
 .reveal-manager--compact .advanced-controls {

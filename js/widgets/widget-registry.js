@@ -66,7 +66,7 @@ export const WidgetRegistry = {
     'reveal-manager': {
         key: 'reveal-manager',
         className: 'RevealManagerWidget',
-        label: 'Reveal Manager',
+        label: 'Slides',
         icon: '🖥️',
         category: 'Secondary',
         create: () => new RevealManagerWidget()
@@ -77,6 +77,7 @@ export const WidgetRegistry = {
         label: 'Presentation Loader',
         icon: '📽️',
         category: 'Secondary',
+        hiddenFromPicker: true,
         create: () => new PresentationWidget()
     },
     mask: {
@@ -168,12 +169,14 @@ export function getWidgetMeta(type) {
         className: definition.className,
         label: definition.label,
         icon: definition.icon,
-        category: definition.category
+        category: definition.category,
+        hiddenFromPicker: definition.hiddenFromPicker === true
     };
 }
 
-export function listAvailableWidgets() {
-    return Object.values(WidgetRegistry);
+export function listAvailableWidgets({ includeHidden = false } = {}) {
+    return Object.values(WidgetRegistry)
+        .filter((definition) => includeHidden || definition.hiddenFromPicker !== true);
 }
 
 export function createWidgetInstance(type) {

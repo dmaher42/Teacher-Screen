@@ -44,8 +44,7 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide">Next</button>
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-btn" title="Open the projector window">Projector</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Toggle deck controls" title="Show deck controls">More</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Open deck setup" title="Open deck setup">Deck Setup</button>
                 </div>
 
                 <div class="reveal-manager__panel advanced-controls" hidden>
@@ -106,7 +105,6 @@ class RevealManagerWidget {
         this.nextButton = this.element.querySelector('.reveal-next-btn');
         this.deckIndicator = this.element.querySelector('.reveal-deck-indicator');
         this.statusLabel = this.element.querySelector('.reveal-presenter-status');
-        this.projectorButton = this.element.querySelector('.reveal-projector-btn');
         this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
         this.panelContainer = this.element.querySelector('.reveal-manager__panel');
         this.sourceTypeSelect = this.element.querySelector('.reveal-source-type');
@@ -152,7 +150,6 @@ class RevealManagerWidget {
         this.launchSavedButton.addEventListener('click', this.handleLaunchSaved);
         this.renameButton.addEventListener('click', this.handleRenameDeck);
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
-        this.projectorButton.addEventListener('click', this.openProjector);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.sourceTypeSelect.addEventListener('change', this.handleSourceTypeChange);
         this.externalUrlInput.addEventListener('input', () => this.updateSourceFields());
@@ -729,30 +726,6 @@ class RevealManagerWidget {
         savedSection.appendChild(savedActions);
         controls.appendChild(savedSection);
 
-        const liveSection = document.createElement('div');
-        liveSection.className = 'widget-settings-section';
-        const liveHeading = document.createElement('h3');
-        liveHeading.textContent = 'Actions';
-        liveSection.appendChild(liveHeading);
-
-        const liveActions = document.createElement('div');
-        liveActions.className = 'widget-settings-actions';
-        const prevButton = document.createElement('button');
-        prevButton.type = 'button';
-        prevButton.className = 'control-button';
-        prevButton.textContent = 'Previous Slide';
-        const nextButton = document.createElement('button');
-        nextButton.type = 'button';
-        nextButton.className = 'control-button';
-        nextButton.textContent = 'Next Slide';
-        const projectorButton = document.createElement('button');
-        projectorButton.type = 'button';
-        projectorButton.className = 'control-button';
-        projectorButton.textContent = 'Open Projector';
-        liveActions.append(prevButton, nextButton, projectorButton);
-        liveSection.appendChild(liveActions);
-        controls.appendChild(liveSection);
-
         const statusCard = document.createElement('div');
         statusCard.className = 'widget-settings-meta';
         const statusLabel = document.createElement('strong');
@@ -777,9 +750,6 @@ class RevealManagerWidget {
             settingsExternalUrlInput.value = this.externalUrlInput.value;
             settingsHtmlInput.value = this.htmlInput.value;
             openButton.textContent = this.activeDeck ? 'Stop' : 'Load';
-            prevButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
-            nextButton.disabled = !this.activeDeck || this.activeDeck.type !== 'html';
-            projectorButton.disabled = !this.activeDeck;
             syncSavedOptions();
             this.updateExternalSourceSettingsUI(
                 settingsSourceTypeSelect,
@@ -844,21 +814,6 @@ class RevealManagerWidget {
             window.setTimeout(syncFromWidget, 0);
         });
 
-        prevButton.addEventListener('click', () => {
-            this.navigate('prev');
-            window.setTimeout(syncFromWidget, 0);
-        });
-
-        nextButton.addEventListener('click', () => {
-            this.navigate('next');
-            window.setTimeout(syncFromWidget, 0);
-        });
-
-        projectorButton.addEventListener('click', () => {
-            this.openProjector();
-            syncFromWidget();
-        });
-
         settingsSavedSelect.addEventListener('change', () => {
             this.savedSelect.value = settingsSavedSelect.value;
         });
@@ -903,8 +858,9 @@ class RevealManagerWidget {
         this.isCompact = compact;
         this.element.classList.toggle('reveal-manager--compact', compact);
         this.panelContainer.hidden = compact;
-        this.toggleControlsButton.textContent = compact ? 'More' : 'Hide';
-        this.toggleControlsButton.title = compact ? 'Show deck controls' : 'Hide deck controls';
+        this.toggleControlsButton.textContent = compact ? 'Deck Setup' : 'Hide Setup';
+        this.toggleControlsButton.title = compact ? 'Open deck setup' : 'Hide deck setup';
+        this.toggleControlsButton.setAttribute('aria-label', compact ? 'Open deck setup' : 'Hide deck setup');
     }
 
     handleToggleControls(event) {
@@ -2541,7 +2497,6 @@ class RevealManagerWidget {
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);
         this.renameButton.removeEventListener('click', this.handleRenameDeck);
         this.deleteButton.removeEventListener('click', this.handleDeleteDeck);
-        this.projectorButton.removeEventListener('click', this.openProjector);
         this.toggleControlsButton.removeEventListener('click', this.handleToggleControls);
         this.sourceTypeSelect.removeEventListener('change', this.handleSourceTypeChange);
         this.deckFileInput.removeEventListener('change', this.handleDeckFileSelection);

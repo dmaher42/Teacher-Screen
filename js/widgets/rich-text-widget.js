@@ -30,6 +30,9 @@ class RichTextWidget {
     this.handleTemplateButtonClick = this.handleTemplateButtonClick.bind(this);
     this.handleModeButtonClick = this.handleModeButtonClick.bind(this);
     this.handleTemplateBuilderClick = this.handleTemplateBuilderClick.bind(this);
+    this.handleEditorToolbarChange = this.handleEditorToolbarChange.bind(this);
+    this.handleEditorToolbarClick = this.handleEditorToolbarClick.bind(this);
+    this.syncToolbarState = this.syncToolbarState.bind(this);
     this.syncEditorLayout = this.syncEditorLayout.bind(this);
 
     this.controlsOverlay = document.createElement('div');
@@ -51,7 +54,7 @@ class RichTextWidget {
 
     this.modeLabel = document.createElement('p');
     this.modeLabel.className = 'rich-text-controls-label';
-    this.modeLabel.textContent = 'Presentation';
+    this.modeLabel.textContent = 'Display';
 
     this.modeControls = document.createElement('div');
     this.modeControls.className = 'rich-text-controls rich-text-controls--modes';
@@ -84,9 +87,7 @@ class RichTextWidget {
 
     this.modeButtons = [
       ['normal', 'Normal'],
-      ['large', 'Large Text'],
-      ['focus', 'Focus'],
-      ['fullscreen', 'Full Screen']
+      ['large', 'Large Text']
     ].map(([modeKey, label]) => {
       const button = document.createElement('button');
       button.className = 'control-button control-button--ghost';
@@ -114,6 +115,10 @@ class RichTextWidget {
 
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
+    this.editorToolbar = this.createEditorToolbar();
+    this.editorSurface = document.createElement('div');
+    this.editorSurface.className = 'rich-text-editor-surface';
+    this.editorContainer.append(this.editorToolbar, this.editorSurface);
 
     this.element.appendChild(this.editorContainer);
 
@@ -128,23 +133,11 @@ class RichTextWidget {
       const BackgroundStyle = Quill.import('attributors/style/background');
       Quill.register(BackgroundStyle, true);
 
-      const toolbarOptions = [
-        [{ header: [2, 3, false] }],
-        [{ size: ['small', false, 'large', 'huge'] }],
-        ['bold', 'italic', 'underline'],
-        ['link'],
-        [{ color: [] }],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        ['clean']
-      ];
-
-      this.quill = new Quill(this.editorContainer, {
+      this.quill = new Quill(this.editorSurface, {
         theme: 'snow',
         placeholder: '',
         modules: {
-          toolbar: {
-            container: toolbarOptions
-          }
+          toolbar: false
         }
       });
 
@@ -153,13 +146,163 @@ class RichTextWidget {
       }
 
       this.quill.on('text-change', this.handleTextChange);
+      this.quill.on('selection-change', this.syncToolbarState);
+      this.editorToolbar.addEventListener('change', this.handleEditorToolbarChange);
+      this.editorToolbar.addEventListener('click', this.handleEditorToolbarClick);
+      this.syncToolbarState();
       this.updateDisplayModeUI();
       requestAnimationFrame(this.syncEditorLayout);
     }, 0);
   }
 
+  createEditorToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'rich-text-editor-toolbar';
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', 'Rich text formatting');
+
+    toolbar.innerHTML = `
+      <label class="rich-text-toolbar-field">
+        <span>Style</span>
+        <select data-format="header" aria-label="Text style">
+          <option value="">Normal</option>
+          <option value="2">Heading</option>
+          <option value="3">Subheading</option>
+        </select>
+      </label>
+      <label class="rich-text-toolbar-field">
+        <span>Size</span>
+        <select data-format="size" aria-label="Text size">
+          <option value="">Normal</option>
+          <option value="small">Small</option>
+          <option value="large">Large</option>
+          <option value="huge">Huge</option>
+        </select>
+      </label>
+      <label class="rich-text-toolbar-field">
+        <span>Text</span>
+        <select data-format="color" aria-label="Text colour">
+          <option value="">Auto</option>
+          <option value="#111827">Black</option>
+          <option value="#dc2626">Red</option>
+          <option value="#2563eb">Blue</option>
+          <option value="#16a34a">Green</option>
+        </select>
+      </label>
+      <label class="rich-text-toolbar-field">
+        <span>Highlight</span>
+        <select data-format="background" aria-label="Highlight colour">
+          <option value="">None</option>
+          <option value="#fef08a">Yellow</option>
+          <option value="#bbf7d0">Green</option>
+          <option value="#bfdbfe">Blue</option>
+        </select>
+      </label>
+      <label class="rich-text-toolbar-field rich-text-toolbar-field--format">
+        <span>Format</span>
+        <select data-toggle-format aria-label="Toggle bold, italic, or underline">
+          <option value="">Choose</option>
+          <option value="bold">Bold</option>
+          <option value="italic">Italic</option>
+          <option value="underline">Underline</option>
+        </select>
+      </label>
+      <div class="rich-text-toolbar-actions" aria-label="Text actions">
+        <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
+        <button type="button" data-list="ordered" aria-label="Numbered list" title="Numbered list">1.</button>
+        <button type="button" data-list="bullet" aria-label="Bullet list" title="Bullet list">•</button>
+        <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear</button>
+      </div>
+    `;
+
+    return toolbar;
+  }
+
   getControls() {
     return this.controlsOverlay;
+  }
+
+  handleEditorToolbarChange(event) {
+    if (!this.quill || event.target.tagName !== 'SELECT') {
+      return;
+    }
+
+    const toggleFormat = event.target.dataset.toggleFormat !== undefined
+      ? event.target.value
+      : '';
+    if (toggleFormat) {
+      const current = this.quill.getFormat(this.quill.getSelection(true));
+      this.quill.focus();
+      this.quill.format(toggleFormat, !current[toggleFormat], 'user');
+      event.target.value = '';
+      this.syncToolbarState();
+      return;
+    }
+
+    const format = event.target.dataset.format;
+    let value = event.target.value || false;
+    if (format === 'header' && value) {
+      value = Number(value);
+    }
+
+    this.quill.focus();
+    this.quill.format(format, value, 'user');
+    this.syncToolbarState();
+  }
+
+  handleEditorToolbarClick(event) {
+    const button = event.target.closest('button');
+    if (!this.quill || !button || !this.editorToolbar.contains(button)) {
+      return;
+    }
+
+    const range = this.quill.getSelection(true);
+    const current = this.quill.getFormat(range);
+
+    if (button.dataset.format) {
+      const format = button.dataset.format;
+      this.quill.format(format, !current[format], 'user');
+    } else if (button.dataset.list) {
+      const listType = button.dataset.list;
+      this.quill.format('list', current.list === listType ? false : listType, 'user');
+    } else if (button.dataset.action === 'clean') {
+      this.quill.removeFormat(range.index, Math.max(range.length, 1), 'user');
+    } else if (button.dataset.action === 'link') {
+      const existingLink = typeof current.link === 'string' ? current.link : '';
+      const url = window.prompt('Paste a link', existingLink);
+      if (url !== null) {
+        this.quill.format('link', url.trim() || false, 'user');
+      }
+    }
+
+    this.quill.focus();
+    this.syncToolbarState();
+  }
+
+  syncToolbarState() {
+    if (!this.quill || !this.editorToolbar) {
+      return;
+    }
+
+    const current = this.quill.getFormat(this.quill.getSelection());
+    this.editorToolbar.querySelectorAll('select[data-format]').forEach((select) => {
+      const format = select.dataset.format;
+      const value = current[format];
+      select.value = value === true || value == null ? '' : String(value);
+    });
+
+    this.editorToolbar.querySelectorAll('button[data-format]').forEach((button) => {
+      const format = button.dataset.format;
+      const active = !!current[format];
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    this.editorToolbar.querySelectorAll('button[data-list]').forEach((button) => {
+      const active = current.list === button.dataset.list;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
   }
 
   handleDisplayModeClick() {
@@ -643,7 +786,7 @@ class RichTextWidget {
       return;
     }
 
-    const toolbar = this.editorContainer.querySelector('.ql-toolbar');
+    const toolbar = this.editorContainer.querySelector('.rich-text-editor-toolbar, .ql-toolbar');
     const editorShell = this.editorContainer.querySelector('.ql-container');
     const editor = this.editorContainer.querySelector('.ql-editor');
 
@@ -671,9 +814,9 @@ class RichTextWidget {
 
     const modeLabels = {
       normal: 'Normal display layout',
-      large: 'Large text presentation mode',
-      focus: 'Focused reading mode',
-      fullscreen: 'Full screen presentation mode'
+      large: 'Large text display layout',
+      focus: 'Focused reading layout',
+      fullscreen: 'Full screen display layout'
     };
 
     this.modeButtons.forEach((button) => {
@@ -685,7 +828,7 @@ class RichTextWidget {
     if (this.modeHint) {
       this.modeHint.textContent = this.isDisplayMode
         ? modeLabels[this.presentationMode] || modeLabels.normal
-        : 'Choose a format, then switch to Display when you are ready to present.';
+        : 'Choose a display size, then switch to Display when you want a read-only class view.';
     }
 
     if (this.editorStatus) {
@@ -719,6 +862,12 @@ class RichTextWidget {
 
     if (this.quill && typeof this.quill.off === 'function') {
       this.quill.off('text-change', this.handleTextChange);
+      this.quill.off('selection-change', this.syncToolbarState);
+    }
+
+    if (this.editorToolbar) {
+      this.editorToolbar.removeEventListener('change', this.handleEditorToolbarChange);
+      this.editorToolbar.removeEventListener('click', this.handleEditorToolbarClick);
     }
 
     if (this.templateDialog) {

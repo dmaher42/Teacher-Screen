@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="css/tokens.css?v=2">
-    <link rel="stylesheet" href="css/main.css?v=2">
+    <link rel="stylesheet" href="css/main.css?v=11">
     <link rel="stylesheet" href="css/themes.css">
     <link rel="stylesheet" href="css/notes.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css">
@@ -315,60 +315,24 @@
                     <details open>
                         <summary role="button" tabindex="0">
                             <img src="assets/icons/reveal-manager.svg" alt="" class="card-icon">
-                            <h4>Presentation</h4>
+                            <h4>Slides</h4>
                         </summary>
                         <div class="card-body">
                             <div class="presentation-status-panel" aria-live="polite">
                                 <div class="presentation-status-panel__top">
-                                    <span id="presentation-status-badge" class="presentation-status-badge" data-state="empty">No Presentation</span>
+                                    <span id="presentation-status-badge" class="presentation-status-badge" data-state="empty">No Slides</span>
                                 </div>
-                                <p id="presentation-status-display" class="presentation-status-display">Reveal Manager</p>
-                                <p id="presentation-status-context" class="presentation-status-context">Add Reveal Manager to load a deck.</p>
-                                <p id="presentation-status-meta" class="presentation-status-meta">Reveal Manager stays in sync with Teacher Controls.</p>
+                                <p id="presentation-status-display" class="presentation-status-display">Slides</p>
+                                <p id="presentation-status-context" class="presentation-status-context">Open Slides Controls to load a deck.</p>
+                                <p id="presentation-status-meta" class="presentation-status-meta">Slides stay in sync with the projector.</p>
                             </div>
-                            <button id="presentation-last-btn" class="control-button" type="button">Present Last Deck</button>
-                            <details class="presentation-advanced">
-                                <summary>Advanced link and saved decks</summary>
-                                <div class="presentation-advanced__body">
-                                    <div class="presentation-link-panel">
-                                        <div class="presentation-link-row">
-                                            <select id="presentation-source-type" aria-label="Presentation source type">
-                                                <option value="google-slides">Google Slides</option>
-                                                <option value="powerpoint">PowerPoint</option>
-                                            </select>
-                                            <input id="presentation-source-name" type="text" placeholder="Optional deck name">
-                                        </div>
-                                        <input id="presentation-source-url" type="text" placeholder="Paste the Google Slides share or present URL" autocomplete="off">
-                                        <p id="presentation-link-validation" class="presentation-link-validation" hidden></p>
-                                        <div class="button-group presentation-link-actions">
-                                            <button id="presentation-save-link-btn" class="control-button" type="button">Save Link</button>
-                                            <button id="presentation-open-link-btn" class="control-button" type="button">Open Google Slides Link</button>
-                                            <button id="presentation-open-projector-link-btn" class="control-button" type="button">Open And Project</button>
-                                        </div>
-                                    </div>
-                                    <div class="presentation-saved-panel">
-                                        <div class="presentation-saved-row">
-                                            <select id="presentation-saved-select" aria-label="Saved presentations">
-                                                <option value="">Select saved presentation</option>
-                                            </select>
-                                        </div>
-                                        <div class="button-group presentation-link-actions">
-                                            <button id="presentation-open-saved-btn" class="control-button" type="button">Open Saved</button>
-                                            <button id="presentation-open-saved-projector-btn" class="control-button" type="button">Open Saved And Project</button>
-                                        </div>
-                                        <div class="button-group presentation-link-actions">
-                                            <button id="presentation-rename-saved-btn" class="control-button" type="button">Rename Saved</button>
-                                            <button id="presentation-delete-saved-btn" class="control-button" type="button">Delete Saved</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </details>
+                            <button id="presentation-last-btn" class="control-button" type="button">Resume Last Deck</button>
                             <div class="button-group">
-                                <button id="presentation-manage-btn" class="control-button" type="button">Add Reveal Manager</button>
+                                <button id="presentation-manage-btn" class="control-button" type="button">Open Slides Controls</button>
                                 <button id="presentation-projector-btn" class="control-button" type="button">Open Projector</button>
                             </div>
                             <div class="button-group button-group--stack-gap">
-                                <button id="presentation-prev-btn" class="control-button" type="button">Prev Slide</button>
+                                <button id="presentation-prev-btn" class="control-button" type="button">Previous Slide</button>
                                 <button id="presentation-next-btn" class="control-button" type="button">Next Slide</button>
                             </div>
                         </div>
@@ -574,7 +538,7 @@
          ===================================================== -->
     <!-- Bootstrap loader must be the only app script entrypoint (no direct script.js/main.js tags). -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
-    <script type="module" src="js/index.js"></script>
+    <script type="module" src="js/index.js?v=10"></script>
 
 </body>
 </html>
