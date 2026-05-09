@@ -231,8 +231,9 @@ class RichTextWidget {
       ? event.target.value
       : '';
     if (toggleFormat) {
-      const current = this.quill.getFormat(this.quill.getSelection(true));
       this.quill.focus();
+      const range = this.quill.getSelection(true) || { index: this.quill.getLength(), length: 0 };
+      const current = this.quill.getFormat(range);
       this.quill.format(toggleFormat, !current[toggleFormat], 'user');
       event.target.value = '';
       this.syncToolbarState();
@@ -256,7 +257,8 @@ class RichTextWidget {
       return;
     }
 
-    const range = this.quill.getSelection(true);
+    this.quill.focus();
+    const range = this.quill.getSelection(true) || { index: this.quill.getLength(), length: 0 };
     const current = this.quill.getFormat(range);
 
     if (button.dataset.format) {
@@ -275,7 +277,6 @@ class RichTextWidget {
       }
     }
 
-    this.quill.focus();
     this.syncToolbarState();
   }
 
@@ -284,7 +285,8 @@ class RichTextWidget {
       return;
     }
 
-    const current = this.quill.getFormat(this.quill.getSelection());
+    const range = this.quill.getSelection() || { index: this.quill.getLength(), length: 0 };
+    const current = this.quill.getFormat(range);
     this.editorToolbar.querySelectorAll('select[data-format]').forEach((select) => {
       const format = select.dataset.format;
       const value = current[format];

@@ -2,7 +2,7 @@ import './utils/app-mode.js';
 import './utils/app-bus.js';
 import './core/event-bus.js';
 
-const LOCAL_ASSET_VERSION = '10';
+const LOCAL_ASSET_VERSION = '13';
 
 const withLocalAssetVersion = (src) => {
     if (!src.startsWith('./')) {
@@ -66,7 +66,6 @@ const TEACHER_DEPENDENCIES = [
     { src: './js/widgets/url-viewer.js', required: false },
     { src: './js/widgets/reveal-manager-widget.js', required: false },
     { src: './js/widgets/quiz-game-widget.js', required: false },
-    { src: './js/widgets/presentation-widget.js', required: false },
     { src: './js/widgets/mask-widget.js', required: false },
     { src: './js/widgets/notes-widget.js', required: false },
     { src: './js/widgets/wellbeing-widget.js', required: false },

@@ -232,30 +232,6 @@ class ClassroomScreenApp {
         this.timerStatusDisplay = document.getElementById('timer-status-display');
         this.timerStatusMeta = document.getElementById('timer-status-meta');
         this.resetTimerButton = document.getElementById('reset-timer');
-        this.presentationStatusBadge = document.getElementById('presentation-status-badge');
-        this.presentationStatusDisplay = document.getElementById('presentation-status-display');
-        this.presentationStatusContext = document.getElementById('presentation-status-context');
-        this.presentationStatusMeta = document.getElementById('presentation-status-meta');
-        this.presentationLastButton = document.getElementById('presentation-last-btn');
-        this.presentationSourceTypeSelect = document.getElementById('presentation-source-type');
-        this.presentationSourceNameInput = document.getElementById('presentation-source-name');
-        this.presentationSourceUrlInput = document.getElementById('presentation-source-url');
-        this.presentationLinkHint = document.getElementById('presentation-link-hint');
-        this.presentationLinkValidation = document.getElementById('presentation-link-validation');
-        this.presentationSaveLinkButton = document.getElementById('presentation-save-link-btn');
-        this.presentationOpenLinkButton = document.getElementById('presentation-open-link-btn');
-        this.presentationOpenProjectorLinkButton = document.getElementById('presentation-open-projector-link-btn');
-        this.presentationSavedSelect = document.getElementById('presentation-saved-select');
-        this.presentationSavedHint = document.getElementById('presentation-saved-hint');
-        this.presentationOpenSavedButton = document.getElementById('presentation-open-saved-btn');
-        this.presentationOpenSavedProjectorButton = document.getElementById('presentation-open-saved-projector-btn');
-        this.presentationRenameSavedButton = document.getElementById('presentation-rename-saved-btn');
-        this.presentationDeleteSavedButton = document.getElementById('presentation-delete-saved-btn');
-        this.presentationManageButton = document.getElementById('presentation-manage-btn');
-        this.presentationProjectorButton = document.getElementById('presentation-projector-btn');
-        this.presentationPrevButton = document.getElementById('presentation-prev-btn');
-        this.presentationNextButton = document.getElementById('presentation-next-btn');
-
         this.agendaModal = document.getElementById('agenda-modal');
         this.agendaList = document.getElementById('agenda-list');
         this.agendaModalCloseBtn = this.agendaModal ? this.agendaModal.querySelector('.modal-close-btn') : null;
@@ -392,10 +368,7 @@ class ClassroomScreenApp {
         this.displaySavedLayouts();
         this.initializeSavedNotes();
         this.syncTimerControlsFromWidget();
-        this.syncPresentationControlsFromWidget();
         this.renderProjectControls();
-        this.renderPresentationSavedDeckOptions();
-        this.updatePresentationLastDeckAction();
 
         this.showWelcomeTourIfNeeded();
         this.handleNavClick('dashboard');
@@ -442,14 +415,6 @@ class ClassroomScreenApp {
         this.subscribeToEventBus('timer:updated', (payload = {}) => {
             this.syncTimerControlsFromPayload(payload);
             this.syncTimerStateToProjector(payload);
-        });
-
-        this.subscribeToEventBus('presentation:state-changed', (payload = {}) => {
-            this.syncPresentationControlsFromPayload(payload);
-        });
-
-        this.subscribeToEventBus('presentation:saved-decks-changed', ({ decks = null } = {}) => {
-            this.renderPresentationSavedDeckOptions(decks);
         });
 
         this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
@@ -681,83 +646,6 @@ class ClassroomScreenApp {
         document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
         if (this.resetTimerButton) {
             this.resetTimerButton.addEventListener('click', () => this.resetTimerFromControls());
-        }
-
-        if (this.presentationManageButton) {
-            this.presentationManageButton.addEventListener('click', () => this.openPresentationControlsFromPanel());
-        }
-
-        if (this.presentationSourceTypeSelect) {
-            this.presentationSourceTypeSelect.addEventListener('change', () => this.updatePresentationLinkInputs());
-        }
-
-        if (this.presentationSourceUrlInput) {
-            this.presentationSourceUrlInput.addEventListener('input', () => this.syncPresentationSourceTypeFromUrl());
-            this.presentationSourceUrlInput.addEventListener('blur', () => this.syncPresentationSourceTypeFromUrl());
-        }
-
-        if (this.presentationSaveLinkButton) {
-            this.presentationSaveLinkButton.addEventListener('click', () => {
-                void this.savePresentationLinkFromPanel();
-            });
-        }
-
-        if (this.presentationLastButton) {
-            this.presentationLastButton.addEventListener('click', () => {
-                void this.presentLastDeckFromPanel();
-            });
-        }
-
-        if (this.presentationOpenLinkButton) {
-            this.presentationOpenLinkButton.addEventListener('click', () => {
-                void this.openPresentationLinkFromPanel();
-            });
-        }
-
-        if (this.presentationOpenProjectorLinkButton) {
-            this.presentationOpenProjectorLinkButton.addEventListener('click', () => {
-                void this.openPresentationLinkFromPanel({ openProjector: true });
-            });
-        }
-
-        if (this.presentationSavedSelect) {
-            this.presentationSavedSelect.addEventListener('change', () => this.updatePresentationSavedActions());
-        }
-
-        if (this.presentationOpenSavedButton) {
-            this.presentationOpenSavedButton.addEventListener('click', () => {
-                void this.openSavedPresentationFromPanel();
-            });
-        }
-
-        if (this.presentationOpenSavedProjectorButton) {
-            this.presentationOpenSavedProjectorButton.addEventListener('click', () => {
-                void this.openSavedPresentationFromPanel({ openProjector: true });
-            });
-        }
-
-        if (this.presentationRenameSavedButton) {
-            this.presentationRenameSavedButton.addEventListener('click', () => {
-                void this.renameSavedPresentationFromPanel();
-            });
-        }
-
-        if (this.presentationDeleteSavedButton) {
-            this.presentationDeleteSavedButton.addEventListener('click', () => {
-                void this.deleteSavedPresentationFromPanel();
-            });
-        }
-
-        if (this.presentationProjectorButton) {
-            this.presentationProjectorButton.addEventListener('click', () => this.openPresentationProjectorFromPanel());
-        }
-
-        if (this.presentationPrevButton) {
-            this.presentationPrevButton.addEventListener('click', () => this.navigatePresentationFromPanel('prev'));
-        }
-
-        if (this.presentationNextButton) {
-            this.presentationNextButton.addEventListener('click', () => this.navigatePresentationFromPanel('next'));
         }
 
         // Widget Settings Modal Logic
@@ -1065,7 +953,6 @@ class ClassroomScreenApp {
                 panelContent.scrollTop = 0;
             }
             this.syncTimerControlsFromWidget();
-            this.syncPresentationControlsFromWidget();
         }
     }
 
@@ -1381,10 +1268,6 @@ class ClassroomScreenApp {
             this.widgets.push(widget);
             eventBus.emit('widget:created', { type, widget, element: widgetElement });
 
-            if (this.isRevealManagerWidget(widget)) {
-                this.syncPresentationControlsFromWidget(widget);
-            }
-            
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
             this.recordWidgetPickerUsage(type);
@@ -4313,9 +4196,6 @@ class ClassroomScreenApp {
         if (widget instanceof TimerWidget) {
             this.syncTimerControlsFromWidget();
         }
-        if (this.isRevealManagerWidget(widget)) {
-            this.syncPresentationControlsFromWidget();
-        }
         this.saveState();
     }
 
@@ -5991,7 +5871,6 @@ class ClassroomScreenApp {
         const widgetTitleMap = {
             NamePicker: 'Random Name Picker',
             Notes: 'Quick Notes',
-            Presentation: 'Presentation Loader',
             QRCode: 'QR Code',
             RevealManager: 'Slides',
             RichText: 'Rich Text Board',

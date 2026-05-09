@@ -71,15 +71,6 @@ export const WidgetRegistry = {
         category: 'Secondary',
         create: () => new RevealManagerWidget()
     },
-    presentation: {
-        key: 'presentation',
-        className: 'PresentationWidget',
-        label: 'Presentation Loader',
-        icon: '📽️',
-        category: 'Secondary',
-        hiddenFromPicker: true,
-        create: () => new PresentationWidget()
-    },
     mask: {
         key: 'mask',
         className: 'MaskWidget',
@@ -125,7 +116,6 @@ const widgetTypeAliases = {
     DocumentViewerWidget: 'document-viewer',
     UrlViewerWidget: 'url-viewer',
     RevealManagerWidget: 'reveal-manager',
-    PresentationWidget: 'presentation',
     MaskWidget: 'mask',
     NotesWidget: 'notes',
     WellbeingWidget: 'wellbeing',
@@ -139,7 +129,6 @@ const widgetTypeAliases = {
     'document-viewer': 'document-viewer',
     'url-viewer': 'url-viewer',
     'reveal-manager': 'reveal-manager',
-    presentation: 'presentation',
     mask: 'mask',
     notes: 'notes',
     wellbeing: 'wellbeing',
