@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pathos, Logos, Ethos: Protecting Marine Turtles</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23087f8c'/%3E%3Cpath d='M7 17c3-6 15-6 18 0-3 5-15 5-18 0Z' fill='%23fff6d8'/%3E%3Ccircle cx='21' cy='15' r='1.4' fill='%23102033'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --ink: #102033;
+      --muted: #526276;
+      --paper: #f8fbff;
+      --teal: #087f8c;
+      --reef: #1f9d8f;
+      --coral: #f26d5b;
+      --sun: #ffd166;
+      --indigo: #4257b2;
+      --line: rgba(16, 32, 51, 0.14);
+      --shadow: 0 24px 70px rgba(16, 32, 51, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 16% 18%, rgba(255, 209, 102, 0.36), transparent 22rem),
+        radial-gradient(circle at 82% 16%, rgba(66, 87, 178, 0.18), transparent 18rem),
+        linear-gradient(135deg, #edfaff 0%, #f7fbff 46%, #fff6e8 100%);
+    }
+
+    body {
+      display: grid;
+      min-height: 100vh;
+      padding: clamp(12px, 2vw, 28px);
+    }
+
+    .deck {
+      position: relative;
+      display: grid;
+      min-height: calc(100vh - clamp(24px, 4vw, 56px));
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.84);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+      gap: clamp(20px, 4vw, 58px);
+      align-items: center;
+      padding: clamp(26px, 5vw, 64px);
+      opacity: 0;
+      transform: translateX(26px) scale(0.985);
+      pointer-events: none;
+      transition: opacity 260ms ease, transform 260ms ease;
+    }
+
+    .slide.is-active {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .slide--center {
+      grid-template-columns: minmax(0, 1fr);
+      align-content: center;
+      text-align: center;
+    }
+
+    .slide--wide {
+      grid-template-columns: minmax(0, 1fr);
+      align-content: center;
+    }
+
+    .kicker {
+      margin: 0 0 14px;
+      color: var(--teal);
+      font-size: clamp(0.78rem, 1.4vw, 1rem);
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      color: #0b2538;
+      letter-spacing: 0;
+      line-height: 0.98;
+    }
+
+    h1 { max-width: 11ch; font-size: clamp(3.2rem, 8vw, 7.2rem); }
+    h2 { max-width: 16ch; font-size: clamp(2.4rem, 5.6vw, 5.2rem); }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: clamp(1.25rem, 2.4vw, 1.95rem);
+      line-height: 1.05;
+    }
+
+    p,
+    li {
+      font-size: clamp(1.12rem, 2vw, 1.7rem);
+      line-height: 1.45;
+    }
+
+    p {
+      max-width: 34ch;
+      margin: 22px 0 0;
+      color: var(--muted);
+    }
+
+    strong { color: var(--ink); }
+
+    .hero-copy p { color: #29465f; }
+
+    .photo-card {
+      position: relative;
+      min-height: min(62vh, 540px);
+      overflow: hidden;
+      border-radius: 26px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      background: #d7f4ef;
+      box-shadow: 0 28px 70px rgba(8, 127, 140, 0.24);
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 100%;
+      min-height: min(62vh, 540px);
+      display: block;
+      object-fit: cover;
+    }
+
+    .photo-card figcaption {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: white;
+      background: rgba(6, 28, 43, 0.68);
+      font-size: 0.78rem;
+    }
+
+    .idea-grid,
+    .appeal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(12px, 2vw, 22px);
+      margin-top: clamp(24px, 4vw, 44px);
+    }
+
+    .card,
+    .appeal {
+      min-height: 230px;
+      padding: clamp(18px, 2.8vw, 30px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 16px 40px rgba(16, 32, 51, 0.09);
+    }
+
+    .appeal[data-kind="pathos"] { border-top: 8px solid var(--coral); }
+    .appeal[data-kind="logos"] { border-top: 8px solid var(--indigo); }
+    .appeal[data-kind="ethos"] { border-top: 8px solid var(--teal); }
+
+    .card p,
+    .appeal p {
+      margin-top: 12px;
+      font-size: clamp(1.03rem, 1.7vw, 1.35rem);
+    }
+
+    .mini-label {
+      display: inline-flex;
+      width: fit-content;
+      margin-bottom: 16px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      color: #0b2538;
+      background: rgba(255, 209, 102, 0.74);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .example-strip {
+      display: grid;
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .example {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 18px;
+      align-items: start;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.76);
+    }
+
+    .example span {
+      font-weight: 900;
+      color: var(--teal);
+    }
+
+    .example p {
+      margin: 0;
+      max-width: none;
+      font-size: clamp(1rem, 1.8vw, 1.42rem);
+    }
+
+    .task-panel {
+      max-width: 980px;
+      margin: 34px auto 0;
+      padding: clamp(22px, 4vw, 40px);
+      text-align: left;
+      border-radius: 28px;
+      color: white;
+      background: linear-gradient(135deg, #083344 0%, #0f766e 58%, #4257b2 100%);
+      box-shadow: 0 26px 70px rgba(8, 51, 68, 0.28);
+    }
+
+    .task-panel p,
+    .task-panel li {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .task-panel strong { color: #ffefb0; }
+
+    .sentence-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 26px;
+    }
+
+    .sentence-list div {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .sentence-list p {
+      margin: 8px 0 0;
+      font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+    }
+
+    .controls {
+      position: absolute;
+      right: 24px;
+      bottom: 22px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .controls button {
+      min-width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: #102033;
+      font: 800 1rem/1 Inter, "Segoe UI", Arial, sans-serif;
+      cursor: pointer;
+    }
+
+    .controls button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .counter {
+      min-width: 62px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 7px;
+      background: rgba(16, 32, 51, 0.08);
+      z-index: 4;
+    }
+
+    .progress span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--coral), var(--sun), var(--teal));
+      transition: width 240ms ease;
+    }
+
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .deck { min-height: 720px; }
+      .slide {
+        grid-template-columns: 1fr;
+        align-content: start;
+        overflow: auto;
+      }
+      h1 { font-size: clamp(3rem, 15vw, 5.5rem); }
+      h2 { font-size: clamp(2.2rem, 11vw, 4.2rem); }
+      .photo-card { min-height: 260px; }
+      .photo-card img { min-height: 260px; }
+      .idea-grid,
+      .appeal-grid,
+      .sentence-list { grid-template-columns: 1fr; }
+      .controls { right: 16px; bottom: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <section class="slide is-active">
+      <div class="hero-copy">
+        <p class="kicker">Year 7 English</p>
+        <h1>Rhetoric</h1>
+        <p><strong>Pathos, Logos, Ethos</strong> are three ways writers and speakers persuade an audience.</p>
+        <p>Today you will choose one appeal and use it to argue why we should protect marine turtles.</p>
+      </div>
+      <figure class="photo-card">
+        <img src="assets/green-sea-turtle.jpg" alt="Green sea turtle swimming above a reef">
+        <figcaption>Public domain image: USGS / NOAA, green sea turtle near Oahu.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide">
+      <div>
+        <p class="kicker">Where it began</p>
+        <h2>Ancient idea. Modern power.</h2>
+      </div>
+      <div class="card">
+        <span class="mini-label">Origin</span>
+        <p>More than 2,000 years ago, the Greek philosopher Aristotle studied how public speakers changed people&apos;s minds.</p>
+        <p>He described three persuasive appeals: <strong>pathos</strong>, <strong>logos</strong>, and <strong>ethos</strong>.</p>
+        <p>They still appear in speeches, ads, social media, campaigns, documentaries, and persuasive writing.</p>
+      </div>
+    </section>
+
+    <section class="slide slide--wide">
+      <div>
+        <p class="kicker">The three appeals</p>
+        <h2>Head, heart, trust.</h2>
+      </div>
+      <div class="appeal-grid">
+        <article class="appeal" data-kind="pathos">
+          <span class="mini-label">Pathos</span>
+          <h3>Emotion</h3>
+          <p>Uses feeling, imagination, empathy, fear, hope, or urgency to make the audience care.</p>
+        </article>
+        <article class="appeal" data-kind="logos">
+          <span class="mini-label">Logos</span>
+          <h3>Logic</h3>
+          <p>Uses facts, statistics, evidence, cause and effect, or clear reasoning to make an argument make sense.</p>
+        </article>
+        <article class="appeal" data-kind="ethos">
+          <span class="mini-label">Ethos</span>
+          <h3>Trust</h3>
+          <p>Builds credibility by showing expertise, fairness, responsibility, or shared values.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide slide--wide">
+      <div>
+        <p class="kicker">Marine turtle examples</p>
+        <h2>Same topic. Different appeal.</h2>
+      </div>
+      <div class="example-strip">
+        <div class="example">
+          <span>Pathos</span>
+          <p>Imagine a hatchling crossing the sand, only to meet plastic, bright lights, and danger before it reaches the sea.</p>
+        </div>
+        <div class="example">
+          <span>Logos</span>
+          <p>Marine turtles help keep seagrass and reef ecosystems healthy, so protecting turtles helps protect ocean habitats.</p>
+        </div>
+        <div class="example">
+          <span>Ethos</span>
+          <p>Scientists, Traditional Owners, and conservation groups show that long-term care is needed to protect turtle populations.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--center">
+      <div>
+        <p class="kicker">Choose your move</p>
+        <h2>Which appeal will you use?</h2>
+        <div class="task-panel">
+          <p><strong>Your task:</strong> choose <strong>pathos</strong>, <strong>logos</strong>, or <strong>ethos</strong>.</p>
+          <p>Write <strong>2-3 sentences</strong> for your current project explaining why we should protect marine turtles.</p>
+          <p>Make your chosen appeal obvious through your word choice, evidence, or voice.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide--wide">
+      <div>
+        <p class="kicker">Sentence starters</p>
+        <h2>Start strong.</h2>
+      </div>
+      <div class="sentence-list">
+        <div>
+          <span class="mini-label">Pathos</span>
+          <p>Imagine a young turtle...</p>
+        </div>
+        <div>
+          <span class="mini-label">Logos</span>
+          <p>Protecting marine turtles matters because...</p>
+        </div>
+        <div>
+          <span class="mini-label">Ethos</span>
+          <p>Conservation experts and local communities show us that...</p>
+        </div>
+      </div>
+      <p>Challenge: blend two appeals, but keep your main one clear.</p>
+    </section>
+
+    <div class="controls" aria-label="Slide controls">
+      <button type="button" id="prev-slide" aria-label="Previous slide">‹</button>
+      <span class="counter" id="slide-counter">1 / 6</span>
+      <button type="button" id="next-slide" aria-label="Next slide">›</button>
+    </div>
+    <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const prevButton = document.getElementById('prev-slide');
+    const nextButton = document.getElementById('next-slide');
+    const counter = document.getElementById('slide-counter');
+    const progressBar = document.getElementById('progress-bar');
+    let currentIndex = 0;
+
+    function showSlide(index) {
+      currentIndex = Math.max(0, Math.min(slides.length - 1, index));
+      slides.forEach((slide, slideIndex) => {
+        slide.classList.toggle('is-active', slideIndex === currentIndex);
+      });
+      prevButton.disabled = currentIndex === 0;
+      nextButton.disabled = currentIndex === slides.length - 1;
+      counter.textContent = `${currentIndex + 1} / ${slides.length}`;
+      progressBar.style.width = `${((currentIndex + 1) / slides.length) * 100}%`;
+    }
+
+    prevButton.addEventListener('click', () => showSlide(currentIndex - 1));
+    nextButton.addEventListener('click', () => showSlide(currentIndex + 1));
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft') showSlide(currentIndex - 1);
+      if (event.key === 'ArrowRight' || event.key === ' ') {
+        event.preventDefault();
+        showSlide(currentIndex + 1);
+      }
+    });
+    showSlide(0);
+  </script>
+</body>
+</html>

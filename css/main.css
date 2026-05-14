@@ -6304,6 +6304,26 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     height: 100%;
 }
 
+.widget.url-viewer-widget .widget-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.widget.url-viewer-widget {
+    display: flex !important;
+}
+
+.url-viewer-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+}
+
 .url-viewer-controls {
     display: flex;
     flex-wrap: wrap;
@@ -6321,6 +6341,23 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 1 1 auto;
     position: relative;
     overflow: hidden;
+    min-height: 0;
+}
+
+.url-viewer-widget-content--chromeless .url-viewer-input-row,
+.url-viewer-widget-content--chromeless .widget-control-bar {
+    display: none;
+}
+
+.url-viewer-widget-content--chromeless .url-viewer-body,
+.url-viewer-widget-content--chromeless .url-viewer-content,
+.url-viewer-widget-content--chromeless .url-viewer-iframe {
+    width: 100%;
+    height: 100%;
+}
+
+.url-viewer-widget-content--chromeless .url-viewer-iframe {
+    display: block;
 }
 
 /* Presentation mode full-screen */

@@ -9,6 +9,7 @@ class UrlViewerWidget {
         this.element.className = 'url-viewer-widget-content';
 
         this.currentUrl = '';
+        this.chromeless = false;
 
         this.element.innerHTML = `
             <div class="url-viewer-body">
@@ -129,6 +130,11 @@ class UrlViewerWidget {
 
         this.reloadBtn.disabled = false;
         this.openNewTabBtn.disabled = false;
+    }
+
+    setChromeless(enabled) {
+        this.chromeless = enabled === true;
+        this.element.classList.toggle('url-viewer-widget-content--chromeless', this.chromeless);
     }
 
     enterPresentationMode() {
@@ -278,11 +284,13 @@ class UrlViewerWidget {
     serialize() {
         return {
             type: 'UrlViewerWidget',
-            url: this.currentUrl || null
+            url: this.currentUrl || null,
+            chromeless: this.chromeless
         };
     }
 
     deserialize(data) {
+        this.setChromeless(data && data.chromeless === true);
         if (data && data.url) {
             this.loadUrl(data.url, { keepInput: true });
         }

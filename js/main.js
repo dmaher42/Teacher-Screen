@@ -2804,39 +2804,7 @@ class ClassroomScreenApp {
     buildRhetoricLessonPreset() {
         const presetName = 'Year 7 English - Rhetoric: Pathos, Logos, Ethos';
         const now = Date.now();
-        const overviewBoardContent = `
-            <h2>Rhetoric: Pathos, Logos, Ethos</h2>
-            <p><strong>Big question:</strong> How do speakers and writers move people from "I hear you" to "I agree"?</p>
-            <h3>Origin</h3>
-            <p>More than 2,000 years ago, the Greek philosopher Aristotle studied how public speakers persuaded an audience.</p>
-            <p>He described three powerful appeals: <strong>pathos</strong>, <strong>logos</strong>, and <strong>ethos</strong>. Writers, advertisers, leaders, and campaigners still use them today.</p>
-            <h3>Today's goal</h3>
-            <p>Spot the three appeals, choose one, and use it in a short argument about protecting marine turtles.</p>
-        `.trim();
-        const taskBoardContent = `
-            <h2>Year 7 English: Rhetoric</h2>
-            <p><strong>Focus:</strong> pathos, logos, ethos.</p>
-            <p><strong>Big idea:</strong> persuasive writers choose the appeal that will move their audience.</p>
-            <h3>Quick meanings</h3>
-            <ul>
-                <li><strong>Pathos</strong> = emotion, care, empathy, urgency.</li>
-                <li><strong>Logos</strong> = logic, facts, evidence, cause and effect.</li>
-                <li><strong>Ethos</strong> = trust, credibility, fairness, expertise.</li>
-            </ul>
-            <h3>Writing task</h3>
-            <p>Choose <strong>one</strong> appeal and write <strong>2-3 sentences</strong> for your marine turtles project: why should we protect marine turtles?</p>
-        `.trim();
-        const writingFrameContent = `
-            <h2>Write It: Marine Turtles</h2>
-            <p><strong>I am choosing:</strong> Pathos / Logos / Ethos</p>
-            <p><strong>My 2-3 sentence draft:</strong></p>
-            <ol>
-                <li>We should protect marine turtles because...</li>
-                <li>This matters because...</li>
-                <li>My strongest persuasive appeal is...</li>
-            </ol>
-            <p><strong>Check:</strong> Can a reader tell which appeal you used?</p>
-        `.trim();
+        const presentationUrl = 'presentations/year7-rhetoric-marine-turtles/slides.html';
         const projectState = {
             version: this.appVersion,
             schemaVersion: this.schemaVersion,
@@ -2853,55 +2821,23 @@ class ClassroomScreenApp {
                         source: 'custom'
                     },
                     layout: {
-                        mode: 'dashboard',
+                        mode: 'stage',
                         viewport: { width: 820, height: 720 },
                         widgets: [
                             {
-                                id: 'rhetoric-overview',
-                                type: 'RichTextWidget',
-                                layoutType: 'grid',
+                                id: 'rhetoric-presentation',
+                                type: 'UrlViewerWidget',
+                                layoutType: 'stage',
                                 x: 20,
                                 y: 20,
-                                width: 440,
+                                width: 780,
                                 height: 620,
                                 visibleOnProjector: true,
                                 projectorVisibilityConfigured: true,
                                 data: {
-                                    content: overviewBoardContent,
-                                    displayMode: true,
-                                    presentationMode: 'normal'
-                                }
-                            },
-                            {
-                                id: 'rhetoric-task-board',
-                                type: 'RichTextWidget',
-                                layoutType: 'grid',
-                                x: 480,
-                                y: 20,
-                                width: 320,
-                                height: 300,
-                                visibleOnProjector: true,
-                                projectorVisibilityConfigured: true,
-                                data: {
-                                    content: taskBoardContent,
-                                    displayMode: true,
-                                    presentationMode: 'normal'
-                                }
-                            },
-                            {
-                                id: 'rhetoric-writing-frame',
-                                type: 'RichTextWidget',
-                                layoutType: 'grid',
-                                x: 480,
-                                y: 340,
-                                width: 320,
-                                height: 300,
-                                visibleOnProjector: true,
-                                projectorVisibilityConfigured: true,
-                                data: {
-                                    content: writingFrameContent,
-                                    displayMode: true,
-                                    presentationMode: 'normal'
+                                    type: 'UrlViewerWidget',
+                                    url: presentationUrl,
+                                    chromeless: true
                                 }
                             }
                         ]
@@ -2911,7 +2847,7 @@ class ClassroomScreenApp {
                         { insert: 'Year 7 English - Pathos, Logos, Ethos\\n', attributes: { header: 1 } },
                         { insert: 'Overview: where rhetoric comes from, what each appeal means, and how students can use one appeal in their marine turtles project.\\n\\n' },
                         { insert: 'Flow\\n', attributes: { header: 2 } },
-                        { insert: 'Hook: Where do we see persuasion?\\nOrigin: Aristotle and ancient Greek rhetoric.\\nMini teach: pathos, logos, ethos.\\nApplication: choose one appeal and write 2-3 sentences on why we should protect marine turtles.\\n' }
+                        { insert: 'Hook: Where do we see persuasion?\\nOrigin: Aristotle and ancient Greek rhetoric.\\nMini teach: pathos, logos, ethos.\\nApplication: choose one appeal and write 2-3 sentences on why we should protect marine turtles.\\n\\nPresentation: presentations/year7-rhetoric-marine-turtles/slides.html\\n' }
                     ]
                 }
             }],
