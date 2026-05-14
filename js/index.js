@@ -2,7 +2,7 @@ import './utils/app-mode.js';
 import './utils/app-bus.js';
 import './core/event-bus.js';
 
-const LOCAL_ASSET_VERSION = '14';
+const LOCAL_ASSET_VERSION = '16';
 
 const withLocalAssetVersion = (src) => {
     if (!src.startsWith('./')) {
