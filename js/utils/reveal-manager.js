@@ -285,7 +285,6 @@ export async function initializeReveal(container) {
         deck.on('ready', () => {
             revealState.ready = true;
             setActiveRevealState(revealState);
-            console.log('[Reveal] ready');
         });
     }
 
@@ -298,7 +297,6 @@ export async function initializeReveal(container) {
     revealState.ready = true;
     setActiveRevealState(revealState);
 
-    console.log('[Reveal] initialized');
     return deck;
 }
 

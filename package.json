@@ -1,0 +1,19 @@
+{
+  "name": "teacher-screen",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Static classroom screen and projector display for teachers.",
+  "scripts": {
+    "serve": "http-server -p 4173 -a 127.0.0.1 -c-1",
+    "check": "npm run check:syntax && npm run check:structure",
+    "check:all": "npm run check && npm run check:smoke",
+    "check:syntax": "node --check js/index.js && node --check js/main.js && node --check js/projector.js && node --check js/utils/layout-manager.js && node --check js/utils/theme-manager.js && node --check js/utils/widget-picker-renderer.js && node --check js/services/state-manager.js && node --check js/widgets/widget-registry.js",
+    "check:structure": "node verify_accessibility.js",
+    "check:smoke": "node tests/smoke-app.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "jsdom": "^24.1.3",
+    "playwright-core": "^1.57.0"
+  }
+}

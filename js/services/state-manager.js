@@ -11,7 +11,6 @@ const STATE_MIGRATIONS = [
             state.layout.widgets = state.layout.widgets.map((widget) => normalizeMigratedWidget(widget));
 
             state.schemaVersion = 1;
-            console.log('Migrated state from schema v0 to v1');
             return state;
         }
     }
@@ -210,7 +209,6 @@ export function loadSavedState(options = {}) {
     for (const key of backupKeys) {
         state = attemptLoad(key);
         if (state) {
-            console.log(`Restoring state from ${key}`);
             applyState(state);
             showNotification('Your layout was restored from a backup.');
             return;
@@ -223,5 +221,4 @@ export function loadSavedState(options = {}) {
         resetAppState();
     }
 
-    console.log('No saved layout found — loading default layout');
 }

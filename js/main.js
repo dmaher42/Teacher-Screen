@@ -10,24 +10,21 @@ import {
     runMigrations
 } from './services/state-manager.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
+import { renderWidgetPicker } from './utils/widget-picker-renderer.js';
+import {
+    THEME_OPTIONS,
+    applyTheme,
+    renderThemeSelector as renderThemeSelectorControl,
+    syncThemeSelectorSelection as syncThemeSelectorControlSelection
+} from './utils/theme-manager.js';
 
-const mainResolvedAppMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.APP_MODE : 'teacher';
-console.log('Teacher-Screen App Mode:', mainResolvedAppMode);
 const mainAppBus = window.TeacherScreenAppBus ? window.TeacherScreenAppBus.appBus : null;
-const mainIsTeacherMode = window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode : () => mainResolvedAppMode === 'teacher';
 
 if (mainAppBus) {
     mainAppBus.init();
-    console.log('AppBus initialised');
 }
 
 startPresentationDiagnostics();
-
-if (mainAppBus && mainIsTeacherMode()) {
-    window.testBroadcast = () => {
-        mainAppBus.emit('debug-event', { message: 'Hello from teacher' });
-    };
-}
 
 /**
  * Main application class for the Custom Classroom Screen.
@@ -40,34 +37,6 @@ function debounce(fn, delay = 250) {
         clearTimeout(timer);
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
-}
-
-const THEMES = [
-    'theme-ocean',
-    'theme-professional',
-    'theme-light'
-];
-
-const THEME_META_COLORS = {
-    'theme-light': '#ffffff',
-    'theme-ocean': '#0f172a',
-    'theme-professional': '#111827'
-};
-
-function syncDocumentThemeColor(themeName) {
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-        metaTheme.setAttribute('content', THEME_META_COLORS[themeName] || THEME_META_COLORS['theme-professional']);
-    }
-}
-
-function applyTheme(themeName) {
-    const nextTheme = THEMES.includes(themeName) ? themeName : 'theme-professional';
-    THEMES.forEach(theme => document.body.classList.remove(theme));
-    document.body.classList.add(nextTheme);
-    document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';
-    syncDocumentThemeColor(nextTheme);
-    localStorage.setItem('selectedTheme', nextTheme);
 }
 
 function resetAppState() {
@@ -283,11 +252,7 @@ class ClassroomScreenApp {
         };
         this.backgroundManager = new BackgroundManager(this.studentView);
 
-        this.themes = [
-            { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
-            { name: 'Ocean', id: 'theme-ocean', swatch: '#38bdf8' },
-            { name: 'Light', id: 'theme-light', swatch: '#2563eb' }
-        ];
+        this.themes = THEME_OPTIONS;
 
         this.defaultPresets = [
             {
@@ -601,11 +566,7 @@ class ClassroomScreenApp {
         const addBtn = document.getElementById('add-widget-btn');
 
         if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                console.log('Add widget clicked');
-                this.openWidgetPicker();
-            });
-            console.log('Add widget button handler attached');
+            addBtn.addEventListener('click', () => this.openWidgetPicker());
         }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
@@ -1357,186 +1318,28 @@ class ClassroomScreenApp {
         this.renderWidgetModal(key);
     }
 
-    createWidgetPickerButton(widget, { focusWidgetType = null, favorites = [] } = {}) {
-        const card = document.createElement('div');
-        card.className = 'widget-picker-card';
-
-        const button = document.createElement('button');
-        button.className = 'widget-category-btn';
-        button.dataset.widget = widget.key;
-        if (focusWidgetType && widget.key === focusWidgetType) {
-            button.classList.add('is-target');
-        }
-        button.innerHTML = `
-            <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
-            <span>${widget.label}</span>
-        `;
-        button.addEventListener('click', () => this.addWidget(widget.key));
-
-        const isFavorite = favorites.includes(widget.key);
-        const favoriteButton = document.createElement('button');
-        favoriteButton.type = 'button';
-        favoriteButton.className = 'widget-favorite-btn';
-        favoriteButton.dataset.favorite = isFavorite ? 'true' : 'false';
-        favoriteButton.setAttribute('aria-label', isFavorite ? `Remove ${widget.label} from favorites` : `Add ${widget.label} to favorites`);
-        favoriteButton.title = isFavorite ? 'Remove favorite' : 'Add favorite';
-        favoriteButton.textContent = '\u2605';
-        favoriteButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            this.toggleWidgetPickerFavorite(widget.key);
-        });
-
-        card.appendChild(button);
-        card.appendChild(favoriteButton);
-        return card;
-    }
-
-    appendWidgetSection(container, title, widgets, { focusWidgetType = null, accent = false, favorites = [] } = {}) {
-        if (!container || !Array.isArray(widgets) || widgets.length === 0) {
-            return;
-        }
-
-        const section = document.createElement('section');
-        section.className = `widget-category-section${accent ? ' widget-category-section--accent' : ''}`;
-
-        const heading = document.createElement('h4');
-        heading.className = 'widget-category-title';
-        heading.textContent = title;
-        section.appendChild(heading);
-
-        widgets.forEach((widget) => {
-            section.appendChild(this.createWidgetPickerButton(widget, { focusWidgetType, favorites }));
-        });
-
-        container.appendChild(section);
-    }
-
-    renderSmartWidgetModal(container, focusWidgetType = null) {
-        const widgetPickerState = this.getWidgetPickerState();
-        const availableWidgets = listAvailableWidgets();
-        const widgetMap = new Map(availableWidgets.map((widget) => [widget.key, widget]));
-
-        const quickAddWidgets = this.quickAddWidgetKeys
-            .map((key) => widgetMap.get(key))
-            .filter(Boolean);
-        this.appendWidgetSection(container, 'Quick Add', quickAddWidgets, {
-            focusWidgetType,
-            accent: true,
-            favorites: widgetPickerState.favorites
-        });
-
-        const favoriteWidgets = widgetPickerState.favorites
-            .map((key) => widgetMap.get(key))
-            .filter(Boolean)
-            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key));
-        this.appendWidgetSection(container, 'Favorites', favoriteWidgets, {
-            focusWidgetType,
-            favorites: widgetPickerState.favorites
-        });
-
-        const recentWidgets = widgetPickerState.recent
-            .map((key) => widgetMap.get(key))
-            .filter(Boolean)
-            .filter((widget) => !this.quickAddWidgetKeys.includes(widget.key) && !widgetPickerState.favorites.includes(widget.key));
-        this.appendWidgetSection(container, 'Recent', recentWidgets, {
-            focusWidgetType,
-            favorites: widgetPickerState.favorites
-        });
-
-        const categories = {};
-        availableWidgets.forEach((widget) => {
-            const categoryName = widget.category || 'Secondary';
-            if (!categories[categoryName]) {
-                categories[categoryName] = [];
-            }
-            categories[categoryName].push(widget);
-        });
-
-        ['Primary', 'Secondary'].forEach((categoryName) => {
-            const widgets = (categories[categoryName] || []).slice().sort((a, b) => a.label.localeCompare(b.label));
-            this.appendWidgetSection(container, categoryName, widgets, {
-                focusWidgetType,
-                favorites: widgetPickerState.favorites
-            });
-        });
-    }
-
     renderWidgetModal(focusWidgetType = null) {
         const container = this.widgetModal.querySelector('.widget-categories');
         container.innerHTML = '';
-        this.renderSmartWidgetModal(container, focusWidgetType);
-        return;
-
-        const categories = {};
-        listAvailableWidgets().forEach((widget) => {
-            const categoryName = widget.category || 'Secondary';
-            if (!categories[categoryName]) {
-                categories[categoryName] = [];
-            }
-            categories[categoryName].push(widget);
-        });
-
-        Object.entries(categories).forEach(([categoryName, widgets]) => {
-            const section = document.createElement('section');
-            section.className = 'widget-category-section';
-
-            const heading = document.createElement('h4');
-            heading.className = 'widget-category-title';
-            heading.textContent = categoryName;
-            section.appendChild(heading);
-
-            widgets.forEach((widget) => {
-                const button = document.createElement('button');
-                button.className = 'widget-category-btn';
-                button.dataset.widget = widget.key;
-                if (focusWidgetType && widget.key === focusWidgetType) {
-                    button.classList.add('is-target');
-                }
-                button.innerHTML = `
-                    <span class="category-icon" aria-hidden="true">${widget.icon || '🧩'}</span>
-                    <span>${widget.label}</span>
-                `;
-                button.addEventListener('click', () => this.addWidget(widget.key));
-                section.appendChild(button);
-            });
-
-            container.appendChild(section);
+        renderWidgetPicker({
+            container,
+            focusWidgetType,
+            quickAddWidgetKeys: this.quickAddWidgetKeys,
+            widgetPickerState: this.getWidgetPickerState(),
+            onAddWidget: (type) => this.addWidget(type),
+            onToggleFavorite: (type) => this.toggleWidgetPickerFavorite(type)
         });
     }
 
     renderThemeSelector() {
-        if (!this.themeSelector) {
-            return;
-        }
-
-        this.themeSelector.innerHTML = '';
-        this.themes.forEach(theme => {
-            const label = document.createElement('label');
-            label.className = 'theme-option';
-            label.innerHTML = `
-                <input type="radio" name="theme" value="${theme.id}">
-                <span class="theme-swatch" style="background-color: ${theme.swatch};"></span>
-                <span>${theme.name}</span>
-            `;
-            const input = label.querySelector('input');
-            input.checked = document.body.classList.contains(theme.id);
-            input.addEventListener('change', () => {
-                this.switchTheme(theme.id);
-                this.saveState();
-            });
-            this.themeSelector.appendChild(label);
+        renderThemeSelectorControl(this.themeSelector, this.themes, (themeId) => {
+            this.switchTheme(themeId);
+            this.saveState();
         });
     }
 
     syncThemeSelectorSelection(themeName) {
-        if (!this.themeSelector) {
-            return;
-        }
-
-        this.themeSelector.querySelectorAll('input[name="theme"]').forEach((input) => {
-            input.checked = input.value === themeName;
-        });
+        syncThemeSelectorControlSelection(this.themeSelector, themeName);
     }
 
     switchTheme(themeName) {

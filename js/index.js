@@ -99,8 +99,6 @@ const bootstrapTeacherDependencies = async () => {
 };
 
 const init = async () => {
-    console.log('[bootstrap] Starting app initialization');
-
     try {
         const failures = await bootstrapTeacherDependencies();
         if (failures.length > 0) {
@@ -118,8 +116,6 @@ const init = async () => {
         console.error('[bootstrap] Failed to load main application scripts:', error);
         throw error;
     }
-
-    console.log('[bootstrap] App initialized successfully');
 };
 
 if (document.readyState === 'loading') {

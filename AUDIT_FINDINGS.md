@@ -1,47 +1,46 @@
 # Bootstrap Audit Findings
 
-## Root cause
-The app bootstrap (`js/index.js`) loads many dependency scripts before dynamically importing `js/script.js` and `js/main.js`. By the time those imports run, `DOMContentLoaded` has already fired. Both imported files only initialize inside a `DOMContentLoaded` listener, so their `init()` functions never run.
+## Status
+Resolved.
 
-## Exact stop point
-Initialization stops at the DOM-ready gate in `js/main.js`:
-
-- `document.addEventListener('DOMContentLoaded', ...)` in `js/main.js` line 2407.
-
-Because this listener is registered after DOMContentLoaded has already happened, the callback that creates `new ClassroomScreenApp()` and calls `app.init()` never executes.
-
-The same pattern appears in `js/script.js` lines 209-213.
-
-## Evidence
-- `index.html` uses only `js/index.js` as the entrypoint.
-- `js/index.js` logs successful bootstrap and successfully imports `./script.js` and `./main.js`.
-- Network requests return `200` for `js/index.js`, `js/script.js`, and `js/main.js`.
-- UI remains inert (e.g., floating `+` button has no behavior) because event listeners are installed by `ClassroomScreenApp.init()`, which never runs.
-
-## CSP warning
-A repository-wide search found no local usage of `eval()`, `new Function()`, or `Function(...)`. The CSP warning is likely emitted by an external CDN dependency loaded during bootstrap (for example Quill/PDF/other bundled libs) and is not the direct cause of initialization failure.
-
-## Recommended fix
-Use the same ready-state-safe pattern in `js/main.js` already used in `js/index.js` and `js/script.js`:
+The original bootstrap issue described here has been fixed. `js/main.js` now
+uses a ready-state-safe startup gate:
 
 ```js
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', startApp);
+    document.addEventListener('DOMContentLoaded', startApp);
 } else {
-  startApp();
+    startApp();
 }
 ```
 
-Where `startApp()` contains:
+## What was fixed
+The app previously loaded `js/script.js` and `js/main.js` after
+`DOMContentLoaded` had already fired. Those scripts only initialized from a
+`DOMContentLoaded` listener, so the listener could be registered too late and
+the classroom app could remain inert.
 
-```js
-const studentMain = document.getElementById('student-view');
-if (!studentMain) {
-  console.error('Layout container #student-view not found');
-  return;
-}
-const app = new ClassroomScreenApp();
-app.init();
+`js/main.js` now starts immediately when the document is already ready, while
+still waiting for `DOMContentLoaded` during normal early loading.
+
+## Current verification
+Run the full verification pass with:
+
+```bash
+npm run check:all
 ```
 
-Apply the same strategy to any module loaded asynchronously that currently assumes DOMContentLoaded has not fired yet.
+That command checks syntax, validates the static app structure, and runs a
+browser smoke test covering:
+
+- Dashboard startup
+- Classroom opening
+- Pomodoro and Drawing Tool widget creation
+- saved screen reload
+- projector rendering of saved widgets
+- absence of browser page errors and console errors in the smoke path
+
+## Remaining follow-up
+This audit only covered bootstrap behavior. Wider runtime areas still worth
+testing separately include drag/resize, Notes, Planner scheduling, Quiz Game,
+Rich Text, Reveal slides, mobile layout, and presentation links.

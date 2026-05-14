@@ -6,8 +6,6 @@ window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 
-console.log('Projector Mode:', PROJECTOR_APP_MODE);
-
 window.__ProjectorConnection = {
     window: window,
     connected: true
@@ -320,8 +318,6 @@ const handleSlideSyncPayload = async (data = {}) => {
     if (!data || data.type !== 'slideSync') {
         return;
     }
-
-    console.log('Projector received slide:', data.h, data.v);
 
     const syncedRevealWidgets = await syncRevealWidgetsOnProjector(data);
     if (syncedRevealWidgets) {
