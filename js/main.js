@@ -2998,6 +2998,227 @@ class ClassroomScreenApp {
         this.showNotification('Layout updated from projector.');
     }
 
+    buildRhetoricLessonPreset() {
+        const presetName = 'Year 7 English - Rhetoric: Pathos, Logos, Ethos';
+        const now = Date.now();
+        const deck = {
+            id: 2026051501,
+            name: 'Pathos, Logos, Ethos - Marine Turtles',
+            type: 'html',
+            content: `
+                <div class="reveal rhetoric-deck">
+                    <style>
+                        .rhetoric-deck { color: #102033; font-family: Inter, Arial, sans-serif; }
+                        .rhetoric-deck .slides { text-align: left; }
+                        .rhetoric-deck section {
+                            min-height: 100%;
+                            padding: 2rem;
+                            border-radius: 24px;
+                            color: #102033;
+                            background: linear-gradient(135deg, #e8fff6 0%, #d8f0ff 48%, #fff4d6 100%);
+                        }
+                        .rhetoric-deck h1, .rhetoric-deck h2 { color: #083344; margin-bottom: 0.55em; }
+                        .rhetoric-deck p, .rhetoric-deck li { font-size: 0.74em; line-height: 1.35; }
+                        .rhetoric-deck .big { font-size: 1.05em; font-weight: 800; color: #0f766e; }
+                        .rhetoric-deck .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+                        .rhetoric-deck .card {
+                            background: rgba(255,255,255,0.72);
+                            border: 2px solid rgba(15,118,110,0.22);
+                            border-radius: 18px;
+                            padding: 0.8rem;
+                        }
+                        .rhetoric-deck .tag { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; background: #0f766e; color: white; font-size: 0.48em; font-weight: 700; }
+                        .rhetoric-deck .prompt { background: rgba(8,47,73,0.9); color: white; border-radius: 18px; padding: 1rem; }
+                        .rhetoric-deck .prompt strong { color: #fde68a; }
+                    </style>
+                    <div class="slides">
+                        <section>
+                            <p class="tag">Today's English</p>
+                            <h1>Rhetoric: Pathos, Logos, Ethos</h1>
+                            <p class="big">How do speakers and writers move people from "I hear you" to "I agree"?</p>
+                            <p>Today we will spot three classic persuasive appeals, then choose one to strengthen an argument about protecting marine turtles.</p>
+                        </section>
+                        <section>
+                            <h2>Where did these ideas come from?</h2>
+                            <p>More than 2,000 years ago, the Greek philosopher Aristotle studied how public speakers persuaded an audience.</p>
+                            <p>He described three powerful appeals: <strong>pathos</strong>, <strong>logos</strong>, and <strong>ethos</strong>. Writers, advertisers, leaders, and campaigners still use them today.</p>
+                        </section>
+                        <section>
+                            <h2>The three appeals</h2>
+                            <div class="three">
+                                <div class="card"><h3>Pathos</h3><p>Appeals to emotion. It makes people care, imagine, worry, hope, or feel responsible.</p></div>
+                                <div class="card"><h3>Logos</h3><p>Appeals to logic. It uses facts, statistics, clear reasons, and evidence.</p></div>
+                                <div class="card"><h3>Ethos</h3><p>Appeals to trust. It shows the speaker is fair, knowledgeable, and worth listening to.</p></div>
+                            </div>
+                        </section>
+                        <section>
+                            <h2>Marine turtle example</h2>
+                            <div class="three">
+                                <div class="card"><h3>Pathos</h3><p>A hatchling starts life by racing across the sand, but plastic and bright lights can stop it reaching the sea.</p></div>
+                                <div class="card"><h3>Logos</h3><p>Marine turtles help keep seagrass and reef ecosystems healthy, so protecting them also protects ocean habitats.</p></div>
+                                <div class="card"><h3>Ethos</h3><p>Scientists, Traditional Owners, and conservation groups work together because long-term care is needed.</p></div>
+                            </div>
+                        </section>
+                        <section>
+                            <h2>Choose your strongest appeal</h2>
+                            <div class="prompt">
+                                <p><strong>Your task:</strong> choose pathos, logos, or ethos.</p>
+                                <p>Write 2-3 sentences for your current project explaining why we should protect marine turtles.</p>
+                                <p>Make your chosen appeal obvious through your word choice, evidence, or voice.</p>
+                            </div>
+                        </section>
+                        <section>
+                            <h2>Sentence starters</h2>
+                            <ul>
+                                <li><strong>Pathos:</strong> Imagine a young turtle...</li>
+                                <li><strong>Logos:</strong> Protecting marine turtles matters because...</li>
+                                <li><strong>Ethos:</strong> Conservation experts and local communities show us that...</li>
+                            </ul>
+                            <p>Challenge: blend two appeals without losing control of your main one.</p>
+                        </section>
+                    </div>
+                </div>
+            `.trim()
+        };
+        const taskBoardContent = `
+            <h2>Year 7 English: Rhetoric</h2>
+            <p><strong>Focus:</strong> pathos, logos, ethos.</p>
+            <p><strong>Big idea:</strong> persuasive writers choose the appeal that will move their audience.</p>
+            <h3>Quick meanings</h3>
+            <ul>
+                <li><strong>Pathos</strong> = emotion, care, empathy, urgency.</li>
+                <li><strong>Logos</strong> = logic, facts, evidence, cause and effect.</li>
+                <li><strong>Ethos</strong> = trust, credibility, fairness, expertise.</li>
+            </ul>
+            <h3>Writing task</h3>
+            <p>Choose <strong>one</strong> appeal and write <strong>2-3 sentences</strong> for your marine turtles project: why should we protect marine turtles?</p>
+        `.trim();
+        const writingFrameContent = `
+            <h2>Write It: Marine Turtles</h2>
+            <p><strong>I am choosing:</strong> Pathos / Logos / Ethos</p>
+            <p><strong>My 2-3 sentence draft:</strong></p>
+            <ol>
+                <li>We should protect marine turtles because...</li>
+                <li>This matters because...</li>
+                <li>My strongest persuasive appeal is...</li>
+            </ol>
+            <p><strong>Check:</strong> Can a reader tell which appeal you used?</p>
+        `.trim();
+        const projectState = {
+            version: this.appVersion,
+            schemaVersion: this.schemaVersion,
+            projectName: presetName,
+            activePageId: DEFAULT_PAGE_ID,
+            pages: [{
+                id: DEFAULT_PAGE_ID,
+                name: 'Rhetoric Overview',
+                snapshot: {
+                    theme: 'theme-light',
+                    background: {
+                        type: 'gradient',
+                        value: 'linear-gradient(135deg, #ecfeff 0%, #eef2ff 48%, #fff7ed 100%)',
+                        source: 'custom'
+                    },
+                    layout: {
+                        mode: 'dashboard',
+                        viewport: { width: 1280, height: 720 },
+                        widgets: [
+                            {
+                                id: 'rhetoric-slides',
+                                type: 'RevealManagerWidget',
+                                layoutType: 'grid',
+                                x: 20,
+                                y: 20,
+                                width: 760,
+                                height: 620,
+                                visibleOnProjector: true,
+                                projectorVisibilityConfigured: true,
+                                data: {
+                                    type: 'RevealManagerWidget',
+                                    activeDeck: deck,
+                                    currentIndices: { h: 0, v: 0 }
+                                }
+                            },
+                            {
+                                id: 'rhetoric-task-board',
+                                type: 'RichTextWidget',
+                                layoutType: 'grid',
+                                x: 800,
+                                y: 20,
+                                width: 440,
+                                height: 300,
+                                visibleOnProjector: true,
+                                projectorVisibilityConfigured: true,
+                                data: {
+                                    content: taskBoardContent,
+                                    displayMode: true,
+                                    presentationMode: 'large'
+                                }
+                            },
+                            {
+                                id: 'rhetoric-writing-frame',
+                                type: 'RichTextWidget',
+                                layoutType: 'grid',
+                                x: 800,
+                                y: 340,
+                                width: 440,
+                                height: 300,
+                                visibleOnProjector: true,
+                                projectorVisibilityConfigured: true,
+                                data: {
+                                    content: writingFrameContent,
+                                    displayMode: true,
+                                    presentationMode: 'large'
+                                }
+                            }
+                        ]
+                    },
+                    timerStates: [],
+                    lessonPlan: [
+                        { insert: 'Year 7 English - Pathos, Logos, Ethos\\n', attributes: { header: 1 } },
+                        { insert: 'Overview: where rhetoric comes from, what each appeal means, and how students can use one appeal in their marine turtles project.\\n\\n' },
+                        { insert: 'Flow\\n', attributes: { header: 2 } },
+                        { insert: 'Hook: Where do we see persuasion?\\nOrigin: Aristotle and ancient Greek rhetoric.\\nMini teach: pathos, logos, ethos.\\nApplication: choose one appeal and write 2-3 sentences on why we should protect marine turtles.\\n' }
+                    ]
+                }
+            }],
+            theme: 'theme-light',
+            background: {
+                type: 'gradient',
+                value: 'linear-gradient(135deg, #ecfeff 0%, #eef2ff 48%, #fff7ed 100%)',
+                source: 'custom'
+            }
+        };
+
+        return {
+            name: presetName,
+            className: 'Year 7 English',
+            period: "Today's English",
+            folderId: '',
+            projectState,
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.pages[0].snapshot.layout),
+            lessonPlan: cloneSerializableData(projectState.pages[0].snapshot.lessonPlan),
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: now,
+            usageCount: 0,
+            seededLessonId: 'year7-rhetoric-marine-turtles-2026-05-15'
+        };
+    }
+
+    ensureSeededLessonPresets() {
+        const lessonPreset = this.buildRhetoricLessonPreset();
+        if (this.presets.some((preset) => preset && preset.name === lessonPreset.name)) {
+            return false;
+        }
+
+        this.presets.push(lessonPreset);
+        this.savePresets();
+        return true;
+    }
+
     setupPresetControls() {
         const storedPresets = safeParseLocalStorage(this.presetsKey);
         const hadLegacyProjectState = Array.isArray(storedPresets)
@@ -3013,6 +3234,7 @@ class ClassroomScreenApp {
         }
 
         this.loadFolders();
+        this.ensureSeededLessonPresets();
         this.renderPresetList();
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
