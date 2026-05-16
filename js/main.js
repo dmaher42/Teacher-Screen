@@ -2803,11 +2803,11 @@ class ClassroomScreenApp {
         this.showNotification('Layout updated from projector.');
     }
 
-    buildGoogleSlidesRevealWidget({ id, name, sourceUrl, x = 20, y = 20, width = 760, height = 560 } = {}) {
+    buildGoogleSlidesRevealWidget({ id, name, sourceUrl, x = 20, y = 20, width = 920, height = 620 } = {}) {
         return {
             id,
             type: 'RevealManagerWidget',
-            layoutType: 'stage',
+            layoutType: 'grid',
             x,
             y,
             width,
@@ -2828,7 +2828,7 @@ class ClassroomScreenApp {
         };
     }
 
-    buildUrlReferenceWidget({ id, url, x = 40, y = 600, width = 720, height = 100 } = {}) {
+    buildUrlReferenceWidget({ id, url, x = 960, y = 20, width = 360, height = 180 } = {}) {
         return {
             id,
             type: 'UrlViewerWidget',
@@ -2843,25 +2843,6 @@ class ClassroomScreenApp {
                 type: 'UrlViewerWidget',
                 url,
                 chromeless: false
-            }
-        };
-    }
-
-    buildLessonNoteWidget({ id, content, x = 560, y = 20, width = 240, height = 560 } = {}) {
-        return {
-            id,
-            type: 'RichTextWidget',
-            layoutType: 'grid',
-            x,
-            y,
-            width,
-            height,
-            visibleOnProjector: false,
-            projectorVisibilityConfigured: true,
-            data: {
-                content,
-                displayMode: true,
-                presentationMode: 'normal'
             }
         };
     }
@@ -2882,8 +2863,8 @@ class ClassroomScreenApp {
                 source: 'custom'
             },
             layout: {
-                mode: 'stage',
-                viewport: { width: 820, height: 720 },
+                mode: 'dashboard',
+                viewport: { width: 1360, height: 760 },
                 widgets
             },
             timerStates: [],
@@ -2900,12 +2881,8 @@ class ClassroomScreenApp {
                     id: 'persuasion-week-2-reveal',
                     name: week2DeckName,
                     sourceUrl: PERSUASION_WEEK_2_SLIDES_URL,
-                    width: 520,
+                    width: 920,
                     height: 620
-                }),
-                this.buildLessonNoteWidget({
-                    id: 'persuasion-week-2-flow',
-                    content: '<h2>Week 2 flow</h2><p>Open the deck in Reveal Manager, then use the slide prompts for persuasion in the media, the useless item activity, rhetoric categories, the card sort, #BookThemOut analysis, drafting, and reflection.</p><p><strong>Drive source:</strong> 2.0 Persuasion Week 2 (2)</p>'
                 }),
                 this.buildUrlReferenceWidget({
                     id: 'persuasion-week-2-drive-link',
@@ -2926,18 +2903,18 @@ class ClassroomScreenApp {
                 id: 'persuasion-week-3-reveal',
                 name: 'Persuasion Week 3',
                 sourceUrl: PERSUASION_WEEK_3_PLACEHOLDER_URL,
-                width: 520,
+                width: 920,
                 height: 620
             }));
         }
         week3Widgets.push(
-            this.buildLessonNoteWidget({
-                id: 'persuasion-week-3-flow',
-                content: `<h2>Week 3 flow</h2><p>${week3Status}</p><p>Use this page as the reusable Week 3 slot: load the confirmed Drive deck or document through the URL viewer, then save/overwrite this screen.</p>`
-            }),
             this.buildUrlReferenceWidget({
                 id: 'persuasion-week-3-drive-link',
-                url: PERSUASION_WEEK_3_PLACEHOLDER_URL || 'https://drive.google.com/'
+                url: PERSUASION_WEEK_3_PLACEHOLDER_URL || 'https://drive.google.com/',
+                x: 20,
+                y: 20,
+                width: 920,
+                height: 620
             })
         );
 
