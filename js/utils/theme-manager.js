@@ -1,6 +1,6 @@
 export const THEME_OPTIONS = [
-    { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
     { name: 'Ocean', id: 'theme-ocean', swatch: '#38bdf8' },
+    { name: 'Professional', id: 'theme-professional', swatch: '#6366f1' },
     { name: 'Light', id: 'theme-light', swatch: '#2563eb' }
 ];
 
@@ -20,7 +20,7 @@ function syncDocumentThemeColor(themeName) {
 }
 
 export function applyTheme(themeName) {
-    const nextTheme = THEME_IDS.includes(themeName) ? themeName : 'theme-professional';
+    const nextTheme = THEME_IDS.includes(themeName) ? themeName : 'theme-ocean';
     THEME_IDS.forEach((theme) => document.body.classList.remove(theme));
     document.body.classList.add(nextTheme);
     document.documentElement.style.colorScheme = nextTheme === 'theme-light' ? 'light' : 'dark';

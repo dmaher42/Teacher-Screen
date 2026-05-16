@@ -274,10 +274,10 @@ class ClassroomScreenApp {
                 name: 'Default',
                 className: '',
                 period: '',
-                theme: 'theme-professional',
+                theme: 'theme-ocean',
                 background: {
-                    type: 'gradient',
-                    value: 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
+                    type: 'solid',
+                    value: '#0f172a'
                 },
                 layout: { widgets: [] },
                 lessonPlan: null
@@ -335,7 +335,12 @@ class ClassroomScreenApp {
             console.error('State restore failed. Resetting application state.', error);
             resetAppState();
         }
-        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-professional';
+        const storedTheme = localStorage.getItem('selectedTheme');
+        const hasMigratedThemeDefault = localStorage.getItem('teacherScreenOceanDefaultMigrated') === '1';
+        const savedTheme = !storedTheme || (storedTheme === 'theme-professional' && !hasMigratedThemeDefault)
+            ? 'theme-ocean'
+            : storedTheme;
+        localStorage.setItem('teacherScreenOceanDefaultMigrated', '1');
         this.switchTheme(savedTheme);
         this.backgroundManager.init(savedTheme);
         this.layoutManager.init();
@@ -811,6 +816,7 @@ class ClassroomScreenApp {
     handleNavClick(tab, options = {}) {
         const { openTeacherPanel = false } = options;
         eventBus.emit('scene:changed', { tab });
+        document.body.classList.toggle('is-dashboard-active', tab === 'dashboard');
         document.body.classList.toggle('is-classroom-active', tab === 'classroom');
 
         // Update tab states
@@ -1369,11 +1375,17 @@ class ClassroomScreenApp {
         syncThemeSelectorControlSelection(this.themeSelector, themeName);
     }
 
+    getCurrentThemeName() {
+        const activeTheme = this.themes.find((theme) => document.body.classList.contains(theme.id));
+        return activeTheme?.id || 'theme-ocean';
+    }
+
     switchTheme(themeName) {
         applyTheme(themeName);
-        this.syncThemeSelectorSelection(themeName);
+        const activeTheme = this.getCurrentThemeName();
+        this.syncThemeSelectorSelection(activeTheme);
         if (this.backgroundManager && typeof this.backgroundManager.syncTheme === 'function') {
-            this.backgroundManager.syncTheme(themeName);
+            this.backgroundManager.syncTheme(activeTheme);
         }
     }
 
@@ -1793,7 +1805,7 @@ class ClassroomScreenApp {
         const payload = {
             name: layoutName,
             savedAt: Date.now(),
-            theme: document.body.className,
+            theme: this.getCurrentThemeName(),
             background: this.backgroundManager.serialize(),
             layout: layoutData,
             lessonPlan: this.lessonPlanEditor ? this.lessonPlanEditor.getContents() : null,
@@ -2014,7 +2026,7 @@ class ClassroomScreenApp {
             projectName,
             activePageId: nextActivePageId,
             pages: nextPages,
-            theme: document.body.className,
+            theme: this.getCurrentThemeName(),
             background: this.backgroundManager.serialize(),
             layout: this.layoutManager.serialize(),
             timerStates: this.collectTimerStateSnapshots(),
@@ -2057,7 +2069,7 @@ class ClassroomScreenApp {
     }
 
     createBlankPageSnapshot() {
-        const themeName = document.body.className || 'theme-professional';
+        const themeName = this.getCurrentThemeName();
 
         return {
             theme: themeName,
@@ -2480,7 +2492,7 @@ class ClassroomScreenApp {
         return {
             theme: typeof source.theme === 'string' && source.theme.trim()
                 ? source.theme
-                : document.body.className || 'theme-professional',
+                : this.getCurrentThemeName(),
             background: cloneSerializableData(background),
             layout: cloneSerializableData(layout),
             timerStates: cloneSerializableData(timerStates),
@@ -2525,7 +2537,7 @@ class ClassroomScreenApp {
                 snapshot: {
                     theme: typeof source.theme === 'string' && source.theme.trim()
                         ? source.theme
-                        : document.body.className || 'theme-professional',
+                        : this.getCurrentThemeName(),
                     background: source.background && typeof source.background === 'object'
                         ? source.background
                         : this.backgroundManager.serialize(),
@@ -2717,7 +2729,7 @@ class ClassroomScreenApp {
         if (snapshot.background) {
             this.backgroundManager.deserialize(snapshot.background);
         } else if (this.backgroundManager && typeof this.backgroundManager.reset === 'function') {
-            this.backgroundManager.reset(snapshot.theme || document.body.className || 'theme-professional');
+            this.backgroundManager.reset(snapshot.theme || this.getCurrentThemeName());
         }
 
         if (snapshot.layout && Array.isArray(snapshot.layout.widgets)) {
@@ -3396,9 +3408,9 @@ class ClassroomScreenApp {
                 activePageId: blankPage.id,
                 pages: [blankPage]
             },
-            theme: document.body.className || 'theme-professional',
+            theme: this.getCurrentThemeName(),
             background: this.backgroundManager && typeof this.backgroundManager.getThemeDefaultBackground === 'function'
-                ? this.backgroundManager.getThemeDefaultBackground(document.body.className || 'theme-professional')
+                ? this.backgroundManager.getThemeDefaultBackground(this.getCurrentThemeName())
                 : null,
             layout: {
                 widgets: []
@@ -3706,7 +3718,7 @@ class ClassroomScreenApp {
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
             folderId: typeof preset.folderId === 'string' ? preset.folderId.trim() : '',
             projectState,
-            theme: typeof preset.theme === 'string' && preset.theme.trim() ? preset.theme : document.body.className,
+            theme: typeof preset.theme === 'string' && preset.theme.trim() ? preset.theme : this.getCurrentThemeName(),
             background: preset.background && typeof preset.background === 'object'
                 ? preset.background
                 : this.backgroundManager.serialize(),
@@ -5598,16 +5610,24 @@ class ClassroomScreenApp {
             <div class="dashboard-layout">
                 <aside class="dashboard-sidebar">
                     <div class="dashboard-brand">
-                        <div class="dashboard-brand__mark" aria-hidden="true">C</div>
+                        <div class="dashboard-brand__mark" aria-hidden="true">TS</div>
                         <div>
-                            <p class="dashboard-brand__eyebrow">Classroomscreen</p>
-                            <h2>Home</h2>
+                            <p class="dashboard-brand__eyebrow">Teacher Screen</p>
+                            <h2>Menu Desk</h2>
                         </div>
                     </div>
-                    <button id="dashboard-create-folder-btn" class="dashboard-sidebar__action" type="button">Create Folder</button>
-                    <button id="dashboard-sections-btn" class="dashboard-sidebar__action" type="button">Open Sections</button>
+                    <div class="dashboard-sidebar__actions">
+                        <button id="dashboard-create-folder-btn" class="dashboard-sidebar__action" type="button">
+                            <span class="dashboard-action-icon" aria-hidden="true"><i class="fa-solid fa-folder-plus"></i></span>
+                            <span>Create Folder</span>
+                        </button>
+                        <button id="dashboard-sections-btn" class="dashboard-sidebar__action dashboard-sidebar__action--quiet" type="button">
+                            <span class="dashboard-action-icon" aria-hidden="true"><i class="fa-solid fa-compass"></i></span>
+                            <span>Open Sections</span>
+                        </button>
+                    </div>
                     <div class="dashboard-sidebar__section">
-                        <h3>Folders</h3>
+                        <h3>Deck Shelves</h3>
                         <div class="dashboard-folder-list" id="dashboard-folder-list"></div>
                     </div>
                     <div class="dashboard-sidebar__footer">
@@ -5617,34 +5637,57 @@ class ClassroomScreenApp {
                     </div>
                 </aside>
                 <main class="dashboard-main">
-                    <header class="dashboard-hero">
-                        <div class="dashboard-hero__content">
-                            <p class="dashboard-hero__eyebrow">Current Deck</p>
+                    <section class="dashboard-command-panel" aria-label="Main menu actions">
+                        <div class="dashboard-command-panel__header">
+                            <p class="dashboard-command-panel__label">Current deck</p>
                             <h1>${escapeHtml(projectName)}</h1>
-                            <p class="dashboard-hero__summary">${escapeHtml(pageSummary)}${activePage?.name ? ` &middot; ${escapeHtml(activePage.name)}` : ''}</p>
+                            <p>${escapeHtml(pageSummary)}${activePage?.name ? ` - ${escapeHtml(activePage.name)}` : ''}</p>
                         </div>
-                        <div class="dashboard-hero__actions">
-                            <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create Deck</button>
-                            <button id="dashboard-teacher-controls-btn" class="control-button control-button--teacher-controls" type="button">Teacher Controls</button>
-                            <a id="dashboard-open-projector-btn" class="control-button" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer">Open Projector</a>
-                            <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
-                        </div>
-                    </header>
-
-                    <section class="dashboard-toolbar" aria-label="Deck tools">
-                        <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search decks" value="${escapeHtml(this.dashboardSearchQuery)}">
-                        <div class="dashboard-toolbar__meta">
-                            <span class="dashboard-chip">${visiblePresets.length} shown</span>
-                            <span class="dashboard-chip">${folderStats.length} folders</span>
+                        <div class="dashboard-command-grid">
+                            <button id="dashboard-open-classroom-btn" class="dashboard-launch-card dashboard-launch-card--primary" type="button">
+                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
+                                <span class="dashboard-launch-card__text">
+                                    <strong>Open Classroom</strong>
+                                    <small>Return to the live teaching screen</small>
+                                </span>
+                            </button>
+                            <button id="dashboard-create-btn" class="dashboard-launch-card" type="button">
+                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-plus"></i></span>
+                                <span class="dashboard-launch-card__text">
+                                    <strong>Create Deck</strong>
+                                    <small>Start a new classroom screen</small>
+                                </span>
+                            </button>
+                            <button id="dashboard-teacher-controls-btn" class="dashboard-launch-card" type="button">
+                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
+                                <span class="dashboard-launch-card__text">
+                                    <strong>Teacher Controls</strong>
+                                    <small>Edit pages, theme, and widgets</small>
+                                </span>
+                            </button>
+                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer">
+                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
+                                <span class="dashboard-launch-card__text">
+                                    <strong>Open Projector</strong>
+                                    <small>Launch the student display window</small>
+                                </span>
+                            </a>
                         </div>
                     </section>
 
-                    <section class="dashboard-card-section">
-                        <div class="dashboard-card-section__header">
+                    <section class="dashboard-library-panel" aria-label="Deck library">
+                        <div class="dashboard-toolbar">
                             <div>
+                                <p class="dashboard-toolbar__label">Deck Library</p>
                                 <h2>${escapeHtml(currentLabel)}</h2>
-                                <p>${heroPreset ? `Top result: ${escapeHtml(heroPreset.name || 'Untitled Deck')}` : 'No decks saved yet.'}</p>
                             </div>
+                            <div class="dashboard-toolbar__meta">
+                                <span class="dashboard-chip">${visiblePresets.length} shown</span>
+                                <span class="dashboard-chip">${folderStats.length} folders</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-search-row">
+                            <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search decks, classes, or periods" value="${escapeHtml(this.dashboardSearchQuery)}">
                             <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>

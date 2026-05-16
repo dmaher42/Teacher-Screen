@@ -1,7 +1,7 @@
 class BackgroundManager {
   constructor(containerElement) {
     this.container = containerElement;
-    this.currentTheme = 'theme-professional';
+    this.currentTheme = 'theme-ocean';
     this.themeDefaults = {
       'theme-light': { type: 'solid', value: '#ffffff', source: 'theme-default' },
       'theme-ocean': { type: 'solid', value: '#0f172a', source: 'theme-default' },
@@ -28,8 +28,8 @@ class BackgroundManager {
     this.currentBackground = { ...this.defaultBackground };
   }
 
-  getThemeDefaultBackground(themeName = 'theme-professional') {
-    const defaultBackground = this.themeDefaults[themeName] || this.themeDefaults['theme-professional'];
+  getThemeDefaultBackground(themeName = 'theme-ocean') {
+    const defaultBackground = this.themeDefaults[themeName] || this.themeDefaults['theme-ocean'];
     return {
       ...defaultBackground,
       theme: themeName
