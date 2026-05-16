@@ -33,10 +33,21 @@ startPresentationDiagnostics();
 
 function debounce(fn, delay = 250) {
     let timer = null;
-    return function (...args) {
+    const debounced = function (...args) {
         clearTimeout(timer);
-        timer = setTimeout(() => fn.apply(this, args), delay);
+        timer = setTimeout(() => {
+            timer = null;
+            fn.apply(this, args);
+        }, delay);
     };
+
+    debounced.flush = function (...args) {
+        clearTimeout(timer);
+        timer = null;
+        return fn.apply(this, args);
+    };
+
+    return debounced;
 }
 
 function resetAppState() {
@@ -52,6 +63,7 @@ const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
 const DEFAULT_PROJECT_NAME = 'Weekly Project';
 const DEFAULT_PAGE_ID = 'page-1';
 const DEFAULT_PAGE_NAME = 'Page 1';
+const EMPTY_WIDGET_PLACEHOLDER_HTML = '<div class="widget-placeholder"><p>Use the quick actions below to add Text, Timer, Draw, or Pick.</p></div>';
 const PERSUASION_WEEK_2_SLIDES_URL = 'https://docs.google.com/presentation/d/1NOf1lzIqOJNSCcSIKxhKGbBgrZ3TkBZDJ8peCLPgFLo';
 const PERSUASION_WEEK_3_PLACEHOLDER_URL = '';
 const WIDGET_PICKER_SHORTCUTS = {
@@ -137,6 +149,7 @@ class ClassroomScreenApp {
         this.teacherPanel = document.getElementById('teacher-panel');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.closeTeacherPanelBtn = document.getElementById('close-teacher-panel');
+        this.lessonQuickActions = document.getElementById('lesson-quick-actions');
         this.themeSelector = document.getElementById('theme-selector');
         this.backgroundSelector = document.getElementById('background-selector');
         this.presetNameInput = document.getElementById('preset-name');
@@ -163,7 +176,7 @@ class ClassroomScreenApp {
         this.deletePageButton = document.getElementById('delete-page-btn');
         this.helpDialog = document.getElementById('help-dialog');
         this.tourDialog = document.getElementById('tour-dialog');
-        this.fab = document.getElementById('add-widget-btn');
+        this.teacherControlsQuickButton = document.getElementById('teacher-controls-quick-btn');
         this.widgetModal = document.getElementById('widget-modal');
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
@@ -564,11 +577,22 @@ class ClassroomScreenApp {
             this.openAgendaButton.addEventListener('click', () => this.openAgendaModal());
         }
 
-        // FAB and Modals
+        // Quick actions and modals
         const addBtn = document.getElementById('add-widget-btn');
 
         if (addBtn) {
             addBtn.addEventListener('click', () => this.openWidgetPicker());
+        }
+        this.lessonQuickActions?.querySelectorAll('[data-quick-widget]').forEach((button) => {
+            button.addEventListener('click', () => {
+                this.closeSectionsMenu();
+                this.closeDialog(this.widgetModal);
+                this.handleNavClick('classroom');
+                this.addWidget(button.dataset.quickWidget);
+            });
+        });
+        if (this.teacherControlsQuickButton) {
+            this.teacherControlsQuickButton.addEventListener('click', () => this.openTeacherControls());
         }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
@@ -658,7 +682,7 @@ class ClassroomScreenApp {
         document.getElementById('import-layout').addEventListener('click', () => this.openDialog(this.importDialog));
         this.confirmImportButton.addEventListener('click', () => this.handleConfirmImport());
 
-        // Class screens
+        // Screen decks
         if (this.classProfileSelect) {
             this.classProfileSelect.addEventListener('change', () => {
                 this.syncPresetFilterFromClassProfile();
@@ -784,8 +808,10 @@ class ClassroomScreenApp {
 
     }
 
-    handleNavClick(tab) {
+    handleNavClick(tab, options = {}) {
+        const { openTeacherPanel = false } = options;
         eventBus.emit('scene:changed', { tab });
+        document.body.classList.toggle('is-classroom-active', tab === 'classroom');
 
         // Update tab states
         this.navTabs.forEach(t => {
@@ -826,8 +852,7 @@ class ClassroomScreenApp {
 
         // Teacher Panel Logic
         if (tab === 'classroom') {
-            // Ensure student view is ready
-            this.toggleTeacherPanel(true);
+            this.toggleTeacherPanel(openTeacherPanel);
         } else {
             // For other views, close the teacher panel or keep it?
             // Usually dashboard etc might not need the floating teacher panel.
@@ -1421,7 +1446,7 @@ class ClassroomScreenApp {
         select.className = 'layout-dropdown';
 
         const defaultOption = document.createElement('option');
-        defaultOption.text = 'Select a layout...';
+        defaultOption.text = 'Select a planner template...';
         defaultOption.value = '';
         defaultOption.disabled = true;
         defaultOption.selected = true;
@@ -1526,7 +1551,7 @@ class ClassroomScreenApp {
         saveBtn.addEventListener('click', () => {
             const selectedLayout = select.value;
             if (!selectedLayout || selectedLayout === '__CLEAR__' || selectedLayout === '__CANCEL__') {
-                this.showNotification('Please select a layout first.', 'warning');
+                this.showNotification('Please select a planner template first.', 'warning');
                 return;
             }
 
@@ -1759,7 +1784,7 @@ class ClassroomScreenApp {
     saveLayoutFromModal() {
         const layoutName = this.layoutNameInput ? this.layoutNameInput.value.trim() : '';
         if (!layoutName) {
-            this.showNotification('Please enter a layout name.', 'warning');
+            this.showNotification('Please enter a planner template name.', 'warning');
             return;
         }
 
@@ -1780,7 +1805,7 @@ class ClassroomScreenApp {
         if (this.layoutNameInput) {
             this.layoutNameInput.value = '';
         }
-        this.showNotification('Layout saved.');
+        this.showNotification('Planner template saved.');
     }
 
     loadLayout(layoutName) {
@@ -1846,10 +1871,10 @@ class ClassroomScreenApp {
 
             this.updateProjectorVisibility();
             this.saveState();
-            this.showNotification(`Loaded layout "${layoutName}".`);
+            this.showNotification(`Loaded planner template "${layoutName}".`);
         } catch (error) {
             console.error('Failed to load layout', error);
-            this.showNotification('Unable to load that layout.', 'error');
+            this.showNotification('Unable to load that planner template.', 'error');
         }
     }
 
@@ -1865,7 +1890,7 @@ class ClassroomScreenApp {
 
         const layoutKeys = Object.keys(localStorage).filter(key => key.startsWith('layouts_'));
         if (layoutKeys.length === 0) {
-            this.savedLayoutsList.innerHTML = '<p>No saved layouts yet. Create one to get started.</p>';
+            this.savedLayoutsList.innerHTML = '<p>No saved planner templates yet. Create one to get started.</p>';
             return;
         }
 
@@ -1890,7 +1915,7 @@ class ClassroomScreenApp {
             const title = document.createElement('strong');
             title.textContent = name;
             const date = document.createElement('span');
-            date.textContent = data?.savedAt ? `Saved ${new Date(data.savedAt).toLocaleString()}` : 'Saved layout';
+            date.textContent = data?.savedAt ? `Saved ${new Date(data.savedAt).toLocaleString()}` : 'Saved planner template';
             meta.appendChild(title);
             meta.appendChild(date);
 
@@ -2090,7 +2115,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+        this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
     }
 
     saveCurrentPageSnapshot() {
@@ -2165,7 +2190,7 @@ class ClassroomScreenApp {
         };
 
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
         this.showNotification(`Moved "${movedPage.name || DEFAULT_PAGE_NAME}" ${offset < 0 ? 'left' : 'right'}.`);
     }
 
@@ -2192,15 +2217,15 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(blankPage.snapshot);
         this.renderProjectControls();
-        this.saveState();
-        this.showNotification(`Created project "${resolvedProjectName}".`);
+        this.saveStateImmediately();
+        this.showNotification(`Created deck "${resolvedProjectName}".`);
     }
 
     saveCurrentProjectScreen() {
         const normalizedState = this.normalizeProjectState(this.projectState);
         const requestedName = this.projectScreenNameInput?.value.trim() || normalizedState.projectName || DEFAULT_PROJECT_NAME;
         if (!requestedName) {
-            this.showNotification('Enter a screen name first.', 'warning');
+            this.showNotification('Enter a deck name first.', 'warning');
             return;
         }
 
@@ -2239,13 +2264,13 @@ class ClassroomScreenApp {
 
         const trimmedName = nextName.trim();
         if (!trimmedName) {
-            this.showNotification('Screen name cannot be blank.', 'warning');
+            this.showNotification('Deck name cannot be blank.', 'warning');
             return;
         }
 
         const duplicate = this.presets.find((preset) => preset && preset.name === trimmedName);
         if (duplicate && duplicate.name !== currentName) {
-            this.showNotification(`Screen "${trimmedName}" already exists.`, 'warning');
+            this.showNotification(`Deck "${trimmedName}" already exists.`, 'warning');
             return;
         }
 
@@ -2285,7 +2310,7 @@ class ClassroomScreenApp {
         }
 
         this.renderProjectControls();
-        this.showNotification(`Screen renamed to "${trimmedName}".`);
+        this.showNotification(`Deck renamed to "${trimmedName}".`);
     }
 
     createNewPage(pageName = '') {
@@ -2306,7 +2331,7 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(page.snapshot);
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
         this.showNotification(`Created page "${page.name}".`);
     }
 
@@ -2332,7 +2357,7 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(targetPage.snapshot);
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
     }
 
     duplicateCurrentPage() {
@@ -2360,7 +2385,7 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(duplicate.snapshot);
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
         this.showNotification(`Duplicated "${activePage.name || DEFAULT_PAGE_NAME}".`);
     }
 
@@ -2396,7 +2421,7 @@ class ClassroomScreenApp {
         };
 
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
         this.showNotification(`Renamed page to "${resolvedName}".`);
     }
 
@@ -2435,7 +2460,7 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(nextActivePage.snapshot);
         this.renderProjectControls();
-        this.saveState();
+        this.saveStateImmediately();
         this.showNotification(`Deleted "${pageLabel}".`);
     }
 
@@ -2765,6 +2790,15 @@ class ClassroomScreenApp {
         });
     }
 
+    saveStateImmediately(source = 'teacher') {
+        if (this.saveState && typeof this.saveState.flush === 'function') {
+            this.saveState.flush(source);
+            return;
+        }
+
+        this.saveState(source);
+    }
+
     applyProjectorLayoutDelta(delta, source = 'teacher') {
         if (!delta || delta.type !== 'widget-update') {
             return;
@@ -2925,7 +2959,7 @@ class ClassroomScreenApp {
                 { insert: 'Reusable lesson screen for the Week 3 persuasion material.\n\n' },
                 { insert: 'Status\n', attributes: { header: 2 } },
                 { insert: `${week3Status}\n\n` },
-                { insert: 'Next step once the Drive file is confirmed: paste the Week 3 URL into the URL viewer or Reveal Manager, then Save Screen / Overwrite to keep it available in saved screens and the weekly planner.\n' }
+                { insert: 'Next step once the Drive file is confirmed: paste the Week 3 URL into the URL viewer or Reveal Manager, then Save Deck / Overwrite to keep it available in saved decks and the weekly planner.\n' }
             ]
         });
 
@@ -3333,15 +3367,15 @@ class ClassroomScreenApp {
             return;
         }
 
-        const baseName = this.getUniquePresetName(`${folder.name} - Screen`);
-        const nextName = window.prompt(`Name the new screen deck for "${folder.name}"`, baseName);
+        const baseName = this.getUniquePresetName(`${folder.name} - Deck`);
+        const nextName = window.prompt(`Name the new deck for "${folder.name}"`, baseName);
         if (typeof nextName !== 'string') {
             return;
         }
 
         const trimmedName = nextName.trim();
         if (!trimmedName) {
-            this.showNotification('Enter a screen name first.', 'error');
+            this.showNotification('Enter a deck name first.', 'error');
             return;
         }
 
@@ -3425,7 +3459,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        const confirmed = window.confirm(`Delete folder "${folder.name}"? Screens inside it will stay saved and just move back to All screens.`);
+        const confirmed = window.confirm(`Delete folder "${folder.name}"? Decks inside it will stay saved and just move back to All decks.`);
         if (!confirmed) {
             return;
         }
@@ -3525,7 +3559,7 @@ class ClassroomScreenApp {
     }
 
     getUniquePresetName(baseName) {
-        const root = String(baseName || '').trim() || 'Screen';
+        const root = String(baseName || '').trim() || 'Deck';
         if (!this.presets.some((preset) => preset.name === root)) {
             return root;
         }
@@ -3599,7 +3633,7 @@ class ClassroomScreenApp {
         this.syncPresetFilterFromClassProfile();
         const className = this.classProfileSelect.value || 'all classes';
         this.showNotification(className === 'all classes'
-            ? 'Showing all saved class screens.'
+            ? 'Showing all saved decks.'
             : `Showing screens for ${className}.`);
     }
 
@@ -3609,7 +3643,7 @@ class ClassroomScreenApp {
 
         if (!latestPreset) {
             this.showNotification(className
-                ? `No saved screen found for ${className}.`
+                ? `No saved deck found for ${className}.`
                 : 'Choose a class first.', 'warning');
             return;
         }
@@ -3628,7 +3662,7 @@ class ClassroomScreenApp {
 
         if (!latestPreset) {
             this.showNotification(folderId
-                ? `No saved screen found in ${this.getFolderLabel(folderId) || 'that folder'}.`
+                ? `No saved deck found in ${this.getFolderLabel(folderId) || 'that folder'}.`
                 : 'Choose a folder first.', 'warning');
             return;
         }
@@ -3715,7 +3749,7 @@ class ClassroomScreenApp {
         const originalPreset = this.presets.find((preset) => preset.name === name);
         const normalizedOriginal = this.normalizePresetRecord(originalPreset);
         if (!normalizedOriginal) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
 
@@ -3727,12 +3761,12 @@ class ClassroomScreenApp {
 
         const trimmedName = nextName.trim();
         if (!trimmedName) {
-            this.showNotification('Enter a screen name first.', 'error');
+            this.showNotification('Enter a deck name first.', 'error');
             return;
         }
 
         if (this.presets.some((preset) => preset.name === trimmedName)) {
-            this.showNotification(`Screen "${trimmedName}" already exists.`, 'error');
+            this.showNotification(`Deck "${trimmedName}" already exists.`, 'error');
             return;
         }
 
@@ -3755,30 +3789,30 @@ class ClassroomScreenApp {
     renamePreset(name) {
         const presetIndex = this.presets.findIndex((preset) => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
 
         const currentPreset = this.normalizePresetRecord(this.presets[presetIndex]);
         if (!currentPreset) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
 
-        const nextName = window.prompt('Rename screen deck', currentPreset.name || 'Untitled Screen');
+        const nextName = window.prompt('Rename deck', currentPreset.name || 'Untitled Deck');
         if (typeof nextName !== 'string') {
             return;
         }
 
         const trimmedName = nextName.trim();
         if (!trimmedName) {
-            this.showNotification('Screen name cannot be blank.', 'error');
+            this.showNotification('Deck name cannot be blank.', 'error');
             return;
         }
 
         const duplicate = this.presets.find((preset) => preset.name === trimmedName);
         if (duplicate && duplicate.name !== currentPreset.name) {
-            this.showNotification(`Screen "${trimmedName}" already exists.`, 'error');
+            this.showNotification(`Deck "${trimmedName}" already exists.`, 'error');
             return;
         }
 
@@ -3796,13 +3830,13 @@ class ClassroomScreenApp {
         this.savePresets();
         this.renderPresetList();
         this.renderDashboard();
-        this.showNotification(`Screen renamed to "${trimmedName}".`);
+        this.showNotification(`Deck renamed to "${trimmedName}".`);
     }
 
     renderLayoutPresetOptions() {
         if (!this.layoutPresetSelect) return;
 
-        this.layoutPresetSelect.innerHTML = '<option value="">Select preset</option>';
+        this.layoutPresetSelect.innerHTML = '<option value="">Select deck</option>';
 
         this.presets.forEach((preset) => {
             const option = document.createElement('option');
@@ -3823,12 +3857,12 @@ class ClassroomScreenApp {
         }
 
         if (!name) {
-            this.showNotification('Enter a screen name first.', 'error');
+            this.showNotification('Enter a deck name first.', 'error');
             return;
         }
 
         if (this.presets.some((preset) => preset.name === name)) {
-            this.showNotification(`Screen "${name}" already exists. Use Overwrite.`, 'error');
+            this.showNotification(`Deck "${name}" already exists. Use Overwrite.`, 'error');
             return;
         }
 
@@ -3857,13 +3891,13 @@ class ClassroomScreenApp {
         if (this.presetNameInput) {
             this.presetNameInput.value = name;
         }
-        this.showNotification(`Screen "${name}" saved.`);
+        this.showNotification(`Deck "${name}" saved.`);
     }
 
     loadPreset(name) {
         const preset = this.presets.find((item) => item.name === name);
         if (!preset) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return false;
         }
 
@@ -3896,7 +3930,7 @@ class ClassroomScreenApp {
         this.updateProjectorVisibility();
         this.saveState();
         this.touchPresetUsage(preset.name);
-        this.showNotification(`Screen "${preset.name}" loaded.`);
+        this.showNotification(`Deck "${preset.name}" loaded.`);
         return true;
     }
 
@@ -3927,7 +3961,7 @@ class ClassroomScreenApp {
 
         const presetIndex = this.presets.findIndex(preset => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
         const existingPreset = this.normalizePresetRecord(this.presets[presetIndex]);
@@ -3952,34 +3986,34 @@ class ClassroomScreenApp {
         };
         this.savePresets();
         this.renderPresetList();
-        this.showNotification(`Screen "${name}" overwritten.`);
+        this.showNotification(`Deck "${name}" overwritten.`);
     }
 
     deletePreset(name) {
         const presetIndex = this.presets.findIndex(preset => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
-        if (!confirm(`Delete screen "${name}"?`)) {
+        if (!confirm(`Delete deck "${name}"?`)) {
             return;
         }
         this.presets.splice(presetIndex, 1);
         this.savePresets();
         this.renderPresetList();
-        this.showNotification(`Screen "${name}" deleted.`);
+        this.showNotification(`Deck "${name}" deleted.`);
     }
 
     movePresetToFolder(name) {
         const presetIndex = this.presets.findIndex((preset) => preset.name === name);
         if (presetIndex === -1) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
 
         const currentPreset = this.normalizePresetRecord(this.presets[presetIndex]);
         if (!currentPreset) {
-            this.showNotification('Screen not found.', 'error');
+            this.showNotification('Deck not found.', 'error');
             return;
         }
 
@@ -4035,13 +4069,13 @@ class ClassroomScreenApp {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'classroom-layout-presets.json';
+        a.download = 'classroom-screen-decks.json';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        this.showNotification('Layout and presets exported.');
+        this.showNotification('Screen decks exported.');
     }
 
     handleConfirmImport() {
@@ -4063,7 +4097,7 @@ class ClassroomScreenApp {
 
             const summary = `
                 Ready to import:
-                - ${parsed.presets.length} presets
+                - ${parsed.presets.length} decks
                 - ${state.layout?.widgets?.length || 0} widgets
                 - Theme: ${state.theme || 'default'}
             `;
@@ -4106,7 +4140,7 @@ class ClassroomScreenApp {
             this.saveState();
             this.renderProjectControls();
             this.closeDialog(this.importDialog);
-            this.showNotification('Layout and presets imported successfully.');
+            this.showNotification('Screen decks imported successfully.');
 
         } catch (error) {
             this.importSummary.textContent = `Error: ${error.message}`;
@@ -4151,7 +4185,7 @@ class ClassroomScreenApp {
         this.presetListElement.innerHTML = '';
         if (filteredPresets.length === 0) {
             const emptyState = document.createElement('p');
-            emptyState.textContent = 'No class screens match your filters.';
+            emptyState.textContent = 'No screen decks match your filters.';
             this.presetListElement.appendChild(emptyState);
             this.renderClassProfileOptions();
             return;
@@ -4296,14 +4330,14 @@ class ClassroomScreenApp {
         } catch (err) {
             console.error('State load failed; resetting.', err);
             localStorage.removeItem('classroomScreenState');
-            this.showNotification("Your previous layout was corrupted; reset to defaults.", "warning");
+            this.showNotification("Your previous screen state was corrupted; reset to defaults.", "warning");
         }
     }
 
     resetLayout() {
-        if (confirm('Are you sure you want to reset the layout? This will remove all widgets.')) {
+        if (confirm('Clear the current page? This will remove all widgets from this page.')) {
             this.widgets = [];
-            this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+            this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
             if (this.layoutManager) {
                 this.layoutManager.widgets = [];
             }
@@ -4312,7 +4346,7 @@ class ClassroomScreenApp {
                 this.lessonPlanEditor.setContents([]);
             }
             this.saveState();
-            this.showNotification('Layout has been reset.');
+            this.showNotification('Current page cleared.');
         }
     }
 
@@ -4323,7 +4357,7 @@ class ClassroomScreenApp {
             this.layoutManager.widgets = this.layoutManager.widgets.filter(info => info.widget !== widget);
         }
         if (this.widgets.length === 0 && !this.widgetsContainer.querySelector('.widget-placeholder')) {
-            this.widgetsContainer.innerHTML = '<div class="widget-placeholder"><p>Add your first widget from the Teacher Controls!</p></div>';
+            this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
         }
         if (widget instanceof TimerWidget) {
             this.syncTimerControlsFromWidget();
@@ -5552,11 +5586,11 @@ class ClassroomScreenApp {
             return matchesFolder && matchesSearch;
         });
 
-        const currentLabel = selectedFolderId ? (this.getFolderLabel(selectedFolderId) || 'Folder') : 'Recent screens';
+        const currentLabel = selectedFolderId ? (this.getFolderLabel(selectedFolderId) || 'Folder') : 'Recent decks';
         const heroPreset = visiblePresets[0] || sortedPresets[0] || null;
 
         const folderItems = [
-            { label: 'All screens', count: sortedPresets.length, folderId: '' },
+            { label: 'All decks', count: sortedPresets.length, folderId: '' },
             ...folderStats.map((item) => ({ label: item.name, count: item.count, folderId: item.id }))
         ];
 
@@ -5585,20 +5619,20 @@ class ClassroomScreenApp {
                 <main class="dashboard-main">
                     <header class="dashboard-hero">
                         <div class="dashboard-hero__content">
-                            <p class="dashboard-hero__eyebrow">Current Project</p>
+                            <p class="dashboard-hero__eyebrow">Current Deck</p>
                             <h1>${escapeHtml(projectName)}</h1>
                             <p class="dashboard-hero__summary">${escapeHtml(pageSummary)}${activePage?.name ? ` &middot; ${escapeHtml(activePage.name)}` : ''}</p>
                         </div>
                         <div class="dashboard-hero__actions">
-                            <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create New</button>
+                            <button id="dashboard-create-btn" class="control-button control-button--primary" type="button">Create Deck</button>
                             <button id="dashboard-teacher-controls-btn" class="control-button control-button--teacher-controls" type="button">Teacher Controls</button>
                             <a id="dashboard-open-projector-btn" class="control-button" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer">Open Projector</a>
                             <button id="dashboard-open-classroom-btn" class="control-button" type="button">Open Classroom</button>
                         </div>
                     </header>
 
-                    <section class="dashboard-toolbar" aria-label="Screen tools">
-                        <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search screen decks" value="${escapeHtml(this.dashboardSearchQuery)}">
+                    <section class="dashboard-toolbar" aria-label="Deck tools">
+                        <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search decks" value="${escapeHtml(this.dashboardSearchQuery)}">
                         <div class="dashboard-toolbar__meta">
                             <span class="dashboard-chip">${visiblePresets.length} shown</span>
                             <span class="dashboard-chip">${folderStats.length} folders</span>
@@ -5609,7 +5643,7 @@ class ClassroomScreenApp {
                         <div class="dashboard-card-section__header">
                             <div>
                                 <h2>${escapeHtml(currentLabel)}</h2>
-                                <p>${heroPreset ? `Top result: ${escapeHtml(heroPreset.name || 'Untitled Screen')}` : 'No screens saved yet.'}</p>
+                                <p>${heroPreset ? `Top result: ${escapeHtml(heroPreset.name || 'Untitled Deck')}` : 'No decks saved yet.'}</p>
                             </div>
                             <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
@@ -5644,7 +5678,7 @@ class ClassroomScreenApp {
                     const newScreenButton = document.createElement('button');
                     newScreenButton.type = 'button';
                     newScreenButton.className = 'dashboard-folder-row__action dashboard-folder-row__action--primary';
-                    newScreenButton.textContent = 'New Screen';
+                    newScreenButton.textContent = 'New Deck';
                     newScreenButton.addEventListener('click', (event) => {
                         event.stopPropagation();
                         this.createBlankScreenInFolder(folder.folderId);
@@ -5681,14 +5715,14 @@ class ClassroomScreenApp {
         const screenGrid = this.dashboardRoot.querySelector('#dashboard-screen-grid');
         if (screenGrid) {
             if (visiblePresets.length === 0) {
-                screenGrid.innerHTML = '<div class="dashboard-empty">No saved screens yet. Create one from Manage Screens.</div>';
+                screenGrid.innerHTML = '<div class="dashboard-empty">No saved decks yet. Create one from Manage Screen Decks.</div>';
             } else {
                 visiblePresets.slice(0, 6).forEach((preset) => {
                     const card = document.createElement('article');
                     card.className = 'dashboard-screen-card';
                     card.innerHTML = `
                         <div class="dashboard-screen-card__header">
-                            <h3>${escapeHtml(preset.name || 'Untitled Screen')}</h3>
+                            <h3>${escapeHtml(preset.name || 'Untitled Deck')}</h3>
                             <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
                         </div>
                         <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}${this.getFolderLabel(preset.folderId) ? ` &middot; ${escapeHtml(this.getFolderLabel(preset.folderId))}` : ''}</p>
@@ -5777,8 +5811,8 @@ class ClassroomScreenApp {
 
                     if (!latestPreset) {
                         this.showNotification(selectedFolderId
-                            ? `No saved screen found in ${this.getFolderLabel(selectedFolderId) || 'that folder'}.`
-                            : 'No saved screen found.', 'warning');
+                            ? `No saved deck found in ${this.getFolderLabel(selectedFolderId) || 'that folder'}.`
+                            : 'No saved deck found.', 'warning');
                         return;
                     }
 
@@ -5913,7 +5947,7 @@ class ClassroomScreenApp {
     openTeacherControls() {
         this.closeDialog(this.widgetModal);
         this.closeSectionsMenu();
-        this.handleNavClick('classroom');
+        this.handleNavClick('classroom', { openTeacherPanel: true });
     }
 
     createFolderFromDashboard() {

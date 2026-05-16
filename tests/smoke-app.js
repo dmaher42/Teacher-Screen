@@ -75,6 +75,22 @@ async function addWidget(page, widgetKey, selector, label) {
     assert(await page.locator(selector).count() === 1, `${label} widget should be added to the classroom`);
 }
 
+async function waitForWidgetCount(page, expectedCount, label) {
+    await page.waitForFunction((count) => {
+        return document.querySelectorAll('#widgets-container .widget').length === count;
+    }, expectedCount, { timeout: 10000 });
+    assert(await page.locator('#widgets-container .widget').count() === expectedCount, label);
+}
+
+async function openTeacherPanel(page) {
+    if (await page.locator('#teacher-panel.open').count() > 0) {
+        return;
+    }
+
+    await page.locator('#teacher-controls-quick-btn').click();
+    await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+}
+
 async function launchBrowser() {
     const candidates = [
         process.env.TEACHER_SCREEN_BROWSER ? { channel: process.env.TEACHER_SCREEN_BROWSER } : null,
@@ -120,6 +136,8 @@ async function runSmoke() {
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         assert(await page.title() === 'Custom Classroom Screen', 'Teacher app page title should load');
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
+        assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
+        assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
 
         if (await page.locator('#tour-dialog[open]').count() === 1) {
             await page.locator('#tour-dialog [data-close]').click();
@@ -129,17 +147,50 @@ async function runSmoke() {
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('#student-view').isVisible(), 'Classroom view should open');
+        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'Empty classroom should point teachers to quick actions');
+        assert(await page.locator('#teacher-panel.open').count() === 0, 'Classroom should open in lesson mode with Teacher Controls closed');
+        assert(await page.locator('#lesson-quick-actions').isVisible(), 'Lesson quick actions should appear in classroom mode');
+        assert(await page.locator('#teacher-controls-quick-btn').isVisible(), 'Teacher Controls should remain one click away in lesson mode');
+        assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 4, 'Lesson quick actions should expose common live widgets');
 
-        if (await page.locator('#teacher-panel').isVisible()) {
-            await page.locator('#close-teacher-panel').click();
-        }
+        await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
+        await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
+        assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
 
         await addWidget(page, 'timer', '.widget.pomodoro-widget', 'Pomodoro');
         await addWidget(page, 'drawing-tool', '.widget.drawing-tool-widget', 'Drawing Tool');
+        assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-tool').count() >= 4, 'Drawing Tool should expose compact tool choices');
+        assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-swatch').count() >= 4, 'Drawing Tool should expose quick colour swatches');
+        assert(await page.locator('.drawing-board').count() === 0, 'Legacy fixed drawing board should not be present during lesson mode');
+        await waitForWidgetCount(page, 3, 'Deck page one should contain quick text plus both smoke-test widgets');
+
+        await openTeacherPanel(page);
+        await page.locator('#new-page-btn').click();
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state && Array.isArray(state.pages) && state.pages.length >= 2;
+        }, { timeout: 10000 });
+        await waitForWidgetCount(page, 0, 'New deck page should start blank');
+        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'New blank page should keep the quick-action empty state');
+
+        await page.locator('#teacher-page-switcher [data-page-id]').first().click();
+        await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
+        await waitForWidgetCount(page, 3, 'Switching back to deck page one should restore its widgets');
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
+        await waitForWidgetCount(page, 3, 'Reload should keep the active deck page widgets');
 
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
-            return state && state.layout && Array.isArray(state.layout.widgets) && state.layout.widgets.length >= 2;
+            return state && state.layout && Array.isArray(state.layout.widgets) && state.layout.widgets.length >= 3;
         }, { timeout: 10000 });
         const savedWidgetCount = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
@@ -147,21 +198,18 @@ async function runSmoke() {
                 ? state.layout.widgets.length
                 : 0;
         });
-        assert(savedWidgetCount >= 2, 'Classroom state should save both smoke-test widgets');
+        assert(savedWidgetCount >= 3, 'Classroom state should save all smoke-test widgets');
 
-        await page.locator('#add-widget-btn').click();
-        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
-        await page.locator('#widget-picker-teacher-controls-btn').click();
-        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        await openTeacherPanel(page);
 
-        const smokeScreenName = `Smoke Screen ${Date.now()}`;
+        const smokeScreenName = `Smoke Deck ${Date.now()}`;
         await page.locator('#project-screen-name-input').fill(smokeScreenName);
         await page.locator('#save-project-screen-btn').click();
         await page.waitForFunction((name) => {
             const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
             return Array.isArray(presets) && presets.some((preset) => preset && preset.name === name);
         }, smokeScreenName, { timeout: 10000 });
-        assert(true, 'Named classroom screen should save as a preset');
+        assert(true, 'Named classroom deck should save');
 
         await page.evaluate(() => {
             localStorage.removeItem('classroomScreenState');
@@ -174,14 +222,18 @@ async function runSmoke() {
         await page.waitForSelector('#dashboard-load-latest-btn', { timeout: 10000 });
         await page.locator('#dashboard-load-latest-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
-        assert(await page.locator('.widget.pomodoro-widget').count() === 1, 'Saved screen should reload the Pomodoro widget');
-        assert(await page.locator('.widget.drawing-tool-widget').count() === 1, 'Saved screen should reload the Drawing Tool widget');
+        assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Saved deck should reload the quick Rich Text widget');
+        assert(await page.locator('.widget.pomodoro-widget').count() === 1, 'Saved deck should reload the Pomodoro widget');
+        assert(await page.locator('.widget.drawing-tool-widget').count() === 1, 'Saved deck should reload the Drawing Tool widget');
 
         const projectorPage = await context.newPage();
         await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.pomodoro-widget', { timeout: 15000 });
+        assert(await projectorPage.locator('.widget.rich-text-widget').count() === 1, 'Projector should render the quick Rich Text widget');
         assert(await projectorPage.locator('.widget.pomodoro-widget').count() === 1, 'Projector should render the saved Pomodoro widget');
         assert(await projectorPage.locator('.widget.drawing-tool-widget').count() === 1, 'Projector should render the saved Drawing Tool widget');
 

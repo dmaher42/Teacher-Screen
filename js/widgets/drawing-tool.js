@@ -32,12 +32,15 @@ class DrawingToolWidget {
         this.controls.className = 'widget-control-bar drawing-tool-controls';
 
         this.toolButtons = new Map();
+        this.colorSwatches = new Map();
 
         // Color picker
         this.colorPicker = document.createElement('input');
         this.colorPicker.type = 'color';
         this.colorPicker.className = 'color-picker';
         this.colorPicker.value = '#000000';
+        this.colorPicker.title = 'Choose pen colour';
+        this.colorPicker.setAttribute('aria-label', 'Choose pen colour');
         this.colorPicker.addEventListener('change', (e) => this.setColor(e.target.value));
 
         // Line width selector
@@ -46,12 +49,15 @@ class DrawingToolWidget {
         this.lineWidthSelector.min = '1';
         this.lineWidthSelector.max = '20';
         this.lineWidthSelector.value = '2';
+        this.lineWidthSelector.title = 'Brush size';
+        this.lineWidthSelector.setAttribute('aria-label', 'Brush size');
         this.lineWidthSelector.addEventListener('input', (e) => this.setLineWidth(e.target.value));
 
         // Clear button
         this.clearButton = document.createElement('button');
         this.clearButton.textContent = 'Clear';
         this.clearButton.title = 'Clear drawing';
+        this.clearButton.setAttribute('aria-label', 'Clear drawing');
         this.clearButton.addEventListener('click', () => this.clear());
 
         // Assemble the controls
@@ -60,7 +66,7 @@ class DrawingToolWidget {
         this.toolsGroup = document.createElement('div');
         this.toolsGroup.className = 'drawing-tool-tools';
         [
-            ['freehand', 'Free'],
+            ['freehand', 'Pen'],
             ['line', 'Line'],
             ['rectangle', 'Box'],
             ['ellipse', 'Oval']
@@ -70,14 +76,48 @@ class DrawingToolWidget {
             button.className = 'drawing-tool-tool';
             button.textContent = label;
             button.title = label;
+            button.setAttribute('aria-label', `${label} tool`);
             button.dataset.tool = tool;
             button.addEventListener('click', () => this.setTool(tool));
             this.toolButtons.set(tool, button);
             this.toolsGroup.appendChild(button);
         });
+        this.palette = document.createElement('div');
+        this.palette.className = 'drawing-tool-palette';
+        this.palette.setAttribute('role', 'group');
+        this.palette.setAttribute('aria-label', 'Quick colours');
+        [
+            ['#000000', 'Black'],
+            ['#ef4444', 'Red'],
+            ['#2563eb', 'Blue'],
+            ['#16a34a', 'Green'],
+            ['#f59e0b', 'Amber']
+        ].forEach(([color, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'drawing-tool-swatch';
+            button.title = `${label} pen`;
+            button.setAttribute('aria-label', `${label} pen`);
+            button.style.setProperty('--swatch-color', color);
+            button.dataset.color = color;
+            button.addEventListener('click', () => {
+                this.colorPicker.value = color;
+                this.setColor(color);
+            });
+            this.colorSwatches.set(color.toLowerCase(), button);
+            this.palette.appendChild(button);
+        });
+
+        this.sizeControl = document.createElement('div');
+        this.sizeControl.className = 'drawing-tool-size';
+        this.sizeValue = document.createElement('span');
+        this.sizeValue.className = 'drawing-tool-size__value';
+        this.sizeControl.append(this.lineWidthSelector, this.sizeValue);
+
         primaryActions.appendChild(this.toolsGroup);
+        primaryActions.appendChild(this.palette);
         primaryActions.appendChild(this.colorPicker);
-        primaryActions.appendChild(this.lineWidthSelector);
+        primaryActions.appendChild(this.sizeControl);
 
         const secondaryActions = document.createElement('div');
         secondaryActions.className = 'secondary-actions';
@@ -319,7 +359,7 @@ class DrawingToolWidget {
      * @param {number} width - The new line width.
      */
     setLineWidth(width) {
-        this.currentLineWidth = width;
+        this.currentLineWidth = Number(width) || 2;
         this.updateDrawingUI();
     }
 
@@ -330,7 +370,7 @@ class DrawingToolWidget {
 
     updateDrawingUI() {
         const toolLabels = {
-            freehand: 'Freehand',
+            freehand: 'Pen',
             line: 'Line',
             rectangle: 'Box',
             ellipse: 'Oval'
@@ -338,6 +378,12 @@ class DrawingToolWidget {
 
         this.toolButtons.forEach((button, tool) => {
             const isActive = tool === this.currentTool;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        this.colorSwatches?.forEach((button, color) => {
+            const isActive = color === String(this.currentColor).toLowerCase();
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
@@ -354,8 +400,16 @@ class DrawingToolWidget {
         }
 
         if (this.statusBadge) {
-            this.statusBadge.textContent = `${toolLabels[this.currentTool] || 'Freehand'} ${this.currentLineWidth}px`;
+            this.statusBadge.textContent = `${toolLabels[this.currentTool] || 'Pen'} · ${this.currentLineWidth}px`;
             this.statusBadge.style.setProperty('--drawing-tool-color', this.currentColor);
+        }
+
+        if (this.sizeValue) {
+            this.sizeValue.textContent = `${this.currentLineWidth}px`;
+        }
+
+        if (this.lineWidthSelector) {
+            this.lineWidthSelector.title = `Brush size ${this.currentLineWidth}px`;
         }
     }
 

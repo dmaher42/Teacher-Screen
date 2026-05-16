@@ -160,62 +160,65 @@ class RichTextWidget {
     toolbar.className = 'rich-text-editor-toolbar';
     toolbar.setAttribute('role', 'toolbar');
     toolbar.setAttribute('aria-label', 'Rich text formatting');
-
-    toolbar.innerHTML = `
-      <label class="rich-text-toolbar-field">
-        <span>Style</span>
-        <select data-format="header" aria-label="Text style">
-          <option value="">Normal</option>
-          <option value="2">Heading</option>
-          <option value="3">Subheading</option>
-        </select>
-      </label>
-      <label class="rich-text-toolbar-field">
-        <span>Size</span>
-        <select data-format="size" aria-label="Text size">
-          <option value="">Normal</option>
-          <option value="small">Small</option>
-          <option value="large">Large</option>
-          <option value="huge">Huge</option>
-        </select>
-      </label>
-      <label class="rich-text-toolbar-field">
-        <span>Text</span>
-        <select data-format="color" aria-label="Text colour">
-          <option value="">Auto</option>
-          <option value="#111827">Black</option>
-          <option value="#dc2626">Red</option>
-          <option value="#2563eb">Blue</option>
-          <option value="#16a34a">Green</option>
-        </select>
-      </label>
-      <label class="rich-text-toolbar-field">
-        <span>Highlight</span>
-        <select data-format="background" aria-label="Highlight colour">
-          <option value="">None</option>
-          <option value="#fef08a">Yellow</option>
-          <option value="#bbf7d0">Green</option>
-          <option value="#bfdbfe">Blue</option>
-        </select>
-      </label>
-      <label class="rich-text-toolbar-field rich-text-toolbar-field--format">
-        <span>Format</span>
-        <select data-toggle-format aria-label="Toggle bold, italic, or underline">
-          <option value="">Choose</option>
-          <option value="bold">Bold</option>
-          <option value="italic">Italic</option>
-          <option value="underline">Underline</option>
-        </select>
-      </label>
-      <div class="rich-text-toolbar-actions" aria-label="Text actions">
-        <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
-        <button type="button" data-list="ordered" aria-label="Numbered list" title="Numbered list">1.</button>
-        <button type="button" data-list="bullet" aria-label="Bullet list" title="Bullet list">•</button>
-        <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear</button>
-      </div>
-    `;
-
+    this.populateCompactEditorToolbar(toolbar);
     return toolbar;
+  }
+
+  populateCompactEditorToolbar(toolbar) {
+    toolbar.innerHTML = `
+      <div class="rich-text-toolbar-main">
+        <label class="rich-text-toolbar-field rich-text-toolbar-field--style">
+          <span class="visually-hidden">Text style</span>
+          <select data-format="header" aria-label="Text style">
+            <option value="">Normal</option>
+            <option value="2">Heading</option>
+            <option value="3">Subheading</option>
+          </select>
+        </label>
+        <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Fast formatting">
+          <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
+          <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">List</button>
+          <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list">1.</button>
+          <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">Columns</button>
+        </div>
+        <div class="rich-text-toolbar-actions rich-text-toolbar-actions--swatches" aria-label="Quick colours">
+          <button type="button" class="rich-text-swatch rich-text-swatch--ink" data-format="color" data-value="#111827" aria-label="Black text" title="Black text"><span class="visually-hidden">Black</span></button>
+          <button type="button" class="rich-text-swatch rich-text-swatch--red" data-format="color" data-value="#dc2626" aria-label="Red text" title="Red text"><span class="visually-hidden">Red</span></button>
+          <button type="button" class="rich-text-swatch rich-text-swatch--blue" data-format="color" data-value="#2563eb" aria-label="Blue text" title="Blue text"><span class="visually-hidden">Blue</span></button>
+          <button type="button" class="rich-text-swatch rich-text-swatch--green" data-format="color" data-value="#16a34a" aria-label="Green text" title="Green text"><span class="visually-hidden">Green</span></button>
+          <button type="button" class="rich-text-swatch rich-text-swatch--highlight" data-format="background" data-value="#fef08a" aria-label="Yellow highlight" title="Yellow highlight"><span class="visually-hidden">Highlight</span></button>
+        </div>
+      </div>
+      <details class="rich-text-toolbar-more">
+        <summary>More</summary>
+        <div class="rich-text-toolbar-more-panel">
+          <label class="rich-text-toolbar-field">
+            <span>Size</span>
+            <select data-format="size" aria-label="Text size">
+              <option value="">Normal</option>
+              <option value="small">Small</option>
+              <option value="large">Large</option>
+              <option value="huge">Huge</option>
+            </select>
+          </label>
+          <label class="rich-text-toolbar-field">
+            <span>Highlight</span>
+            <select data-format="background" aria-label="Highlight colour">
+              <option value="">None</option>
+              <option value="#fef08a">Yellow</option>
+              <option value="#bbf7d0">Green</option>
+              <option value="#bfdbfe">Blue</option>
+            </select>
+          </label>
+          <div class="rich-text-toolbar-actions" aria-label="More text actions">
+            <button type="button" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
+            <button type="button" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
+            <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
+            <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear</button>
+          </div>
+        </div>
+      </details>
+    `;
   }
 
   getControls() {
@@ -263,12 +266,15 @@ class RichTextWidget {
 
     if (button.dataset.format) {
       const format = button.dataset.format;
-      this.quill.format(format, !current[format], 'user');
+      const value = button.dataset.value || !current[format];
+      this.quill.format(format, current[format] === value ? false : value, 'user');
     } else if (button.dataset.list) {
       const listType = button.dataset.list;
       this.quill.format('list', current.list === listType ? false : listType, 'user');
     } else if (button.dataset.action === 'clean') {
       this.quill.removeFormat(range.index, Math.max(range.length, 1), 'user');
+    } else if (button.dataset.action === 'columns') {
+      this.insertColumns();
     } else if (button.dataset.action === 'link') {
       const existingLink = typeof current.link === 'string' ? current.link : '';
       const url = window.prompt('Paste a link', existingLink);
@@ -295,7 +301,9 @@ class RichTextWidget {
 
     this.editorToolbar.querySelectorAll('button[data-format]').forEach((button) => {
       const format = button.dataset.format;
-      const active = !!current[format];
+      const active = button.dataset.value
+        ? current[format] === button.dataset.value
+        : !!current[format];
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
@@ -724,6 +732,35 @@ class RichTextWidget {
     const range = this.quill.getSelection(true);
     const insertIndex = range ? range.index : this.quill.getLength();
     this.quill.clipboard.dangerouslyPasteHTML(insertIndex, html);
+    this.quill.setSelection(this.quill.getLength(), 0);
+  }
+
+  insertColumns() {
+    if (!this.quill) {
+      return;
+    }
+
+    const range = this.quill.getSelection(true);
+    const insertIndex = range ? range.index : this.quill.getLength();
+    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
+    const columnMarkup = `
+      ${needsSpacing}
+      <table class="rich-text-columns">
+        <tbody>
+          <tr>
+            <td><strong>Column 1</strong></td>
+            <td><strong>Column 2</strong></td>
+          </tr>
+          <tr>
+            <td>First idea</td>
+            <td>Second idea</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><br></p>
+    `;
+
+    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, columnMarkup.trim());
     this.quill.setSelection(this.quill.getLength(), 0);
   }
 

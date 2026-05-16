@@ -110,7 +110,6 @@ const init = async () => {
     }
 
     try {
-        await import('./script.js');
         await import('./main.js');
     } catch (error) {
         console.error('[bootstrap] Failed to load main application scripts:', error);

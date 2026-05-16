@@ -234,65 +234,6 @@ details:focus-visible,
     overflow-y: auto;
 }
 
-#widget-toolbar-wrapper {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100px;
-    z-index: 1100;
-    display: flex;
-    flex-direction: column; /* This is also important for a vertical layout */
-    align-items: center;
-    justify-content: flex-start; /* Changed from center to align to top */
-    padding-top: 90px;
-}
-
-.widget-selector {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-    padding: var(--spacing-sm, 10px) var(--spacing-lg, 18px);
-    margin: 0;
-    max-width: 900px;
-    background: var(--bg-surface);
-    border-radius: var(--border-radius-large, 12px);
-    box-shadow: var(--shadow-medium);
-    z-index: 1000;
-    flex-wrap: wrap;
-}
-
-.widget-selector-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.6rem;
-    padding: var(--spacing-sm, 10px);
-    border-radius: var(--border-radius-medium, 10px);
-    cursor: pointer;
-    transition: color 180ms ease, transform 180ms ease, background-color 180ms ease;
-    text-decoration: none;
-}
-
-.widget-selector-btn:hover,
-.widget-selector-btn:focus-visible {
-    color: var(--primary-color, #8e82ff);
-    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
-    outline: none;
-    transform: translateY(-2px);
-}
-
-.widget-selector-btn.active {
-    color: var(--primary-color, #8e82ff);
-    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
-    box-shadow: var(--shadow-soft);
-}
-
-.widget-selector-btn i {
-    display: block;
-}
-
 .nav-tabs {
     display: flex;
     flex-direction: column;
@@ -456,6 +397,8 @@ details:focus-visible,
     flex: 1;
     overflow: hidden;
     position: relative;
+    box-sizing: border-box;
+    padding-bottom: 82px;
 }
 
 .dashboard-shell {
@@ -856,99 +799,35 @@ details:focus-visible,
     position: relative;
     width: 100%;
     height: 100%;
+    padding-bottom: 82px;
     transition: width 0.3s ease;
+    box-sizing: border-box;
 }
 
-.drawing-board {
-    background: var(--card-background, #ffffff);
-    border: 1px solid var(--border-color, #dfe4e2);
-    border-radius: var(--border-radius-large, 12px);
-    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.08));
-    padding: var(--spacing-lg, 20px);
-    margin: var(--spacing-lg, 20px);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md, 12px);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 90%, #f5f7fb 10%), var(--card-background, #ffffff));
-}
-
-.drawing-board.is-hidden {
-    display: none;
-}
-
-.drawing-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-md, 12px);
-    align-items: center;
-}
-
-.control-row {
+.widget-placeholder {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm, 8px);
+    justify-content: center;
+    padding: 24px;
+    pointer-events: none;
+    text-align: center;
 }
 
-.control-label {
-    font-weight: 600;
-    color: color-mix(in srgb, var(--text-color, #333) 80%, var(--a11y-min-contrast-text, #000));
+.widget-placeholder p {
+    max-width: 520px;
+    padding: 10px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #111827;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
-.control-buttons {
-    display: inline-flex;
-    gap: var(--spacing-xs, 6px);
-}
-
-.color-btn,
-.size-btn,
-#clear-drawing-btn,
-#save-drawing-btn {
-    padding: 8px 12px;
-    font-size: 0.95rem;
-    border-radius: var(--border-radius, 10px);
-    border: 1px solid var(--border-color, #dfe4e2);
-    background: var(--bg-muted);
-    color: color-mix(in srgb, var(--text-color, #333) 85%, var(--a11y-min-contrast-text, #000));
-    box-shadow: var(--shadow-soft, 0 1px 2px rgba(0,0,0,0.05));
-}
-
-#clear-drawing-btn,
-#save-drawing-btn {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 85%, #ffffff 15%), var(--primary-color, #8e82ff));
-    color: var(--text-on-accent);
-    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 75%, #000 5%);
-}
-
-.color-btn.selected,
-.size-btn.selected {
-    border-color: var(--primary-color, #8e82ff);
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #8e82ff) 25%, #ffffff 75%);
-}
-
-#color-black { border-color: var(--text-primary); }
-#color-red { border-color: var(--accent); color: var(--accent-hover); }
-#color-green { border-color: var(--accent); color: var(--accent-hover); }
-
-.size-btn { min-width: 40px; }
-.size-btn.selected { font-weight: 700; }
-
-.control-actions {
-    margin-left: auto;
-    display: flex;
-    gap: var(--spacing-sm, 10px);
-}
-
-#drawing-canvas {
-    width: 100%;
-    min-height: 320px;
-    max-height: 480px;
-    background-color: var(--bg-elevated);
-    border: 1px solid var(--border-color, #dfe4e2);
-    border-radius: var(--border-radius, 10px);
-    display: block;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
-}
 
 /* Teacher Panel */
 .teacher-panel {
@@ -1737,13 +1616,6 @@ details:focus-visible,
     margin-top: 2px;
 }
 
-.teacher-panel .student-list-display {
-    margin: 0;
-    max-height: 180px;
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 80%, var(--bg-surface, #f8fafc) 20%);
-}
-
 .lesson-plan-body {
     padding: 0;
     display: flex;
@@ -1781,32 +1653,74 @@ details:focus-visible,
     min-height: 16rem;
 }
 
-/* Floating Action Button (FAB) */
-.fab {
+.lesson-quick-actions {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 48px;
-    height: 48px;
-    background-color: var(--primary-color, #8e82ff);
-    color: var(--text-on-accent);
-    border: none;
-    border-radius: 50%;
-    font-size: 1.75rem;
-    display: flex;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1060;
+    display: none;
     align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-shadow: var(--shadow-medium, 0 4px 10px rgba(0,0,0,0.2));
-    cursor: pointer;
-    z-index: 1000;
-    transition: background-color calc(200ms * (1 - var(--reduce-motion, 0))),
-                transform calc(200ms * (1 - var(--reduce-motion, 0)));
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
 }
 
-.fab:hover {
-    background-color: var(--secondary-color, #ff8c42);
-    transform: scale(1.05);
+body.is-classroom-active .lesson-quick-actions {
+    display: flex;
+}
+
+.lesson-quick-action {
+    min-width: 48px;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: color-mix(in srgb, var(--text-color, #333333) 88%, #000000 12%);
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: none;
+}
+
+.lesson-quick-action:hover,
+.lesson-quick-action:focus-visible {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 24%, transparent);
+    color: color-mix(in srgb, var(--text-color, #333333) 88%, #000000 12%);
+    transform: none;
+}
+
+.lesson-quick-action:focus-visible {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
+}
+
+.lesson-quick-action--controls {
+    min-width: 92px;
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, #ffffff 88%);
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 26%, transparent);
+    color: color-mix(in srgb, var(--text-color, #333333) 88%, #000000 12%);
+}
+
+.lesson-quick-action--more {
+    min-width: 42px;
+    width: 42px;
+    padding: 0;
+    background: var(--primary-color, #8e82ff);
+    color: var(--text-on-accent, #ffffff);
+    font-size: 1.35rem;
+}
+
+.lesson-quick-action--more:hover,
+.lesson-quick-action--more:focus-visible {
+    background: var(--secondary-color, #ff8c42);
+    color: var(--text-on-accent, #ffffff);
 }
 
 dialog {
@@ -2504,6 +2418,28 @@ dialog::backdrop {
         max-width: none;
     }
 
+    .lesson-quick-actions {
+        right: 10px;
+        left: 10px;
+        bottom: 10px;
+        justify-content: space-between;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .lesson-quick-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    .lesson-quick-action {
+        flex: 0 0 auto;
+        min-width: 54px;
+        padding: 0 10px;
+    }
+
+    .lesson-quick-action--controls {
+        min-width: 82px;
+    }
 }
 
 @media (min-width: 769px) {
@@ -2737,6 +2673,7 @@ body.widget-resize-active {
     flex: 1 1 auto;
     min-width: 0;
     flex-wrap: wrap;
+    row-gap: 5px;
 }
 
 .drawing-tool-controls .secondary-actions {
@@ -2746,22 +2683,22 @@ body.widget-resize-active {
 .drawing-tool-tools {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
-    padding: 4px;
+    padding: 3px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, #ffffff 16%);
     border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
 }
 
 .drawing-tool-tool {
-    min-height: 26px;
-    padding: 4px 8px;
+    min-height: 28px;
+    padding: 4px 7px;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
     background: transparent;
     color: var(--text-color, #333);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     line-height: 1;
 }
@@ -2772,7 +2709,36 @@ body.widget-resize-active {
     border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 32%, #ffffff 68%);
 }
 
+.drawing-tool-palette {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, #ffffff 16%);
+    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
+}
+
+.drawing-tool-swatch {
+    inline-size: 22px;
+    block-size: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    background: var(--swatch-color, #000000);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
+}
+
+.drawing-tool-swatch.is-active {
+    box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--primary-color, #2d81ff) 58%, #ffffff 42%),
+        0 0 0 4px rgba(255, 255, 255, 0.88);
+}
+
 .drawing-tool-controls .color-picker {
+    display: none;
     inline-size: 40px;
     block-size: 32px;
     padding: 2px;
@@ -2783,23 +2749,36 @@ body.widget-resize-active {
 }
 
 .drawing-tool-controls input[type="range"] {
-    inline-size: clamp(88px, 18vw, 150px);
+    inline-size: clamp(70px, 10vw, 110px);
     accent-color: var(--primary-color, #2d81ff);
 }
 
-.drawing-tool-status {
+.drawing-tool-size {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
     min-height: 28px;
-    padding: 4px 10px;
+    padding: 2px 5px;
     border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
     border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 72%, #ffffff 28%);
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
-    color: var(--text-secondary, #64748b);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+}
+
+.drawing-tool-size__value {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.drawing-tool-status {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
     white-space: nowrap;
 }
 
@@ -2828,6 +2807,15 @@ body.widget-resize-active {
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
     color: var(--primary-color, #2d81ff);
     border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 28%, #ffffff 72%);
+}
+
+.widget-control-bar .primary-actions .drawing-tool-swatch {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    background: var(--swatch-color, #000000);
+    color: transparent;
 }
 
 .widget-control-bar .secondary-actions button {
@@ -3482,6 +3470,108 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
     transform: none;
 }
 
+.rich-text-editor-toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.28rem 0.4rem;
+    padding: 0.28rem 0.35rem;
+}
+
+.rich-text-toolbar-main {
+    display: flex;
+    align-items: center;
+    gap: 0.28rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.rich-text-toolbar-field--style {
+    min-width: 112px;
+}
+
+.rich-text-toolbar-more {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.rich-text-toolbar-more summary {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    border-radius: 7px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rich-text-toolbar-more summary:focus-visible {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
+}
+
+.rich-text-toolbar-more-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 3;
+    display: grid;
+    gap: 0.5rem;
+    width: min(280px, 84vw);
+    padding: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
+    border-radius: 10px;
+    background: var(--card-background, #ffffff);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-field {
+    min-width: 0;
+}
+
+.rich-text-swatch {
+    width: 30px;
+    min-width: 30px;
+    position: relative;
+}
+
+.rich-text-swatch::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.rich-text-swatch--ink {
+    color: #111827;
+}
+
+.rich-text-swatch--red {
+    color: #dc2626;
+}
+
+.rich-text-swatch--blue {
+    color: #2563eb;
+}
+
+.rich-text-swatch--green {
+    color: #16a34a;
+}
+
+.rich-text-swatch--highlight::after {
+    inset: 8px 6px;
+    border-radius: 4px;
+    background: #fef08a;
+    border: 1px solid rgba(17, 24, 39, 0.24);
+}
+
 .rich-text-editor-surface {
     flex: 1 1 0%;
     min-height: 0;
@@ -3664,21 +3754,48 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
     box-shadow: var(--shadow-soft);
 }
 
+.rich-text-widget-inner .ql-editor table.rich-text-columns,
+.rich-text-widget-inner .ql-editor table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0.6rem 0;
+    margin: 0.85rem 0;
+}
+
+.rich-text-widget-inner .ql-editor table.rich-text-columns td,
+.rich-text-widget-inner .ql-editor table td {
+    width: 50%;
+    vertical-align: top;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 78%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 82%, var(--card-background, #ffffff) 18%);
+}
+
+.rich-text-widget-inner .ql-editor table.rich-text-columns strong,
+.rich-text-widget-inner .ql-editor table strong {
+    display: inline-block;
+    margin-bottom: 0.3rem;
+}
+
 .rich-text-widget-inner .ql-editor span[style*="background-color"] {
     padding: 0.2rem 0.4rem;
     border-radius: 6px;
 }
 
-.rich-text-widget-inner.display-mode .ql-toolbar {
+.rich-text-widget-inner.display-mode .ql-toolbar,
+.rich-text-widget-inner.display-mode .rich-text-editor-toolbar {
     display: none;
 }
 
-.rich-text-widget-inner.is-projector-mode .ql-toolbar {
+.rich-text-widget-inner.is-projector-mode .ql-toolbar,
+.rich-text-widget-inner.is-projector-mode .rich-text-editor-toolbar {
     display: none;
 }
 
-body.projector-view .rich-text-widget-inner .ql-toolbar {
-    display: flex;
+body.projector-view .rich-text-widget-inner .ql-toolbar,
+body.projector-view .rich-text-widget-inner .rich-text-editor-toolbar {
+    display: none;
 }
 
 .rich-text-widget-inner.display-mode .ql-editor {
@@ -3791,6 +3908,7 @@ body.projector-view .widget-control-bar,
 body.projector-view .widget-content-controls,
 body.projector-view .rich-text-inline-actions,
 body.projector-view .rich-text-editor-header,
+body.projector-view .rich-text-editor-toolbar,
 body.projector-view .ql-toolbar,
 body.projector-view .drawing-tool-controls,
 body.projector-view .widget-help-text,
@@ -3919,29 +4037,6 @@ body.projector-view .drawing-tool-surface {
     padding: var(--spacing-sm, 10px) var(--spacing-md, 16px);
     font-size: 0.95rem;
     margin-left: var(--spacing-sm, 10px);
-}
-
-/* Student List Display */
-.student-list-display {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 15px 0;
-    max-height: 150px;
-    overflow-y: auto;
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: var(--border-radius, 8px);
-    background: var(--hover-bg-color, #f9fafb);
-}
-
-.student-list-display li {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-color, #e0e0e0);
-    font-size: 0.9rem;
-    color: var(--text-color, #333);
-}
-
-.student-list-display li:last-child {
-    border-bottom: none;
 }
 
 /* Refactored Widget Styles (Timer Proof of Concept) */

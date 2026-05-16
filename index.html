@@ -58,19 +58,19 @@
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="reminders-view" id="reminders-tab" data-tab="reminders">Reminders</button>
                             <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
                             <div class="sections-menu__actions" aria-label="Screen shortcuts">
-                                <button id="manage-screens-btn" class="nav-dropdown-button" type="button">Manage Screens</button>
+                                <button id="manage-screens-btn" class="nav-dropdown-button" type="button">Manage Screen Decks</button>
                             </div>
                             <details class="screen-manager-details sections-menu__screen-manager" id="manage-screens-menu-details">
-                                <summary class="screen-manager-summary">Planner Layouts &amp; Class Screens</summary>
+                                <summary class="screen-manager-summary">Screen Decks &amp; Pages</summary>
                                 <div class="screen-manager-body">
                                     <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Planner Layouts</p>
+                                        <p class="sections-menu__screen-group-title">Planner Templates</p>
                                         <div class="button-group">
-                                            <button id="save-layout-btn" class="control-button" type="button">Save Layout</button>
+                                            <button id="save-layout-btn" class="control-button" type="button">Save Planner Template</button>
                                         </div>
                                     </div>
                                     <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Class Screens</p>
+                                        <p class="sections-menu__screen-group-title">Screen Decks</p>
                                         <div class="input-group">
                                             <label for="class-profile-select">Current Class</label>
                                             <select id="class-profile-select">
@@ -78,12 +78,12 @@
                                             </select>
                                         </div>
                                         <div class="button-group">
-                                            <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Snapshot</button>
-                                            <button id="reset-layout" class="control-button" type="button">Reset Layout</button>
+                                            <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Dated Copy</button>
+                                            <button id="reset-layout" class="control-button" type="button">Clear Current Page</button>
                                         </div>
-                                        <p class="screen-helper">Pick a class to reopen its latest screen. Save Snapshot makes a dated copy you can look back on later.</p>
+                                        <p class="screen-helper">Pick a class to reopen its latest deck. Save Dated Copy keeps a timestamped version you can return to later.</p>
                                         <div class="input-group">
-                                            <label for="layout-preset">Quick Screen Layout</label>
+                                            <label for="layout-preset">Saved Screen Deck</label>
                                             <select id="layout-preset">
                                                 <option value="">None</option>
                                                 <option value="2x2">2x2 Grid</option>
@@ -92,7 +92,7 @@
                                             <button id="apply-layout-preset" class="control-button">Apply</button>
                                         </div>
                                         <div class="input-group">
-                                            <label for="preset-name">Screen Name</label>
+                                            <label for="preset-name">Deck Name</label>
                                             <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
                                         </div>
                                         <div class="input-group">
@@ -110,7 +110,7 @@
                                             </select>
                                         </div>
                                         <div class="button-group">
-                                            <button id="save-preset" class="control-button">Save Screen / Overwrite</button>
+                                            <button id="save-preset" class="control-button">Save Deck / Overwrite</button>
                                             <button id="export-layout" class="control-button">Export</button>
                                             <button id="import-layout" class="control-button">Import</button>
                                         </div>
@@ -125,15 +125,15 @@
                                         <div id="preset-list" class="preset-list" aria-live="polite"></div>
                                     </div>
                                     <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Project Pages</p>
+                                        <p class="sections-menu__screen-group-title">Pages in Current Deck</p>
                                         <div class="project-switcher">
                                             <div class="project-switcher__meta">
-                                                <p class="project-switcher__project-label">Current Project</p>
+                                                <p class="project-switcher__project-label">Current Deck</p>
                                                 <p id="current-project-name" class="project-switcher__project-name">Weekly Project</p>
                                                 <p id="current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
                                             </div>
                                         </div>
-                                        <p class="screen-helper">Project pages are managed from Teacher Controls.</p>
+                                        <p class="screen-helper">Deck pages are managed from Teacher Controls.</p>
                                     </div>
                                 </div>
                             </details>
@@ -162,42 +162,16 @@
                 <div id="widgets-container" class="widgets-grid">
                     <!-- Widgets are dynamically added here by JavaScript -->
                     <div class="widget-placeholder">
-                        <p>Add your first widget from the Teacher Controls!</p>
+                        <p>Use the quick actions below to add Text, Timer, Draw, or Pick.</p>
                     </div>
                 </div>
-                <div class="project-switcher project-switcher--corner" aria-label="Project pages">
+                <div class="project-switcher project-switcher--corner" aria-label="Deck pages">
                     <button id="main-page-prev" class="page-switcher__nav" type="button" aria-label="Previous page"><</button>
                     <button id="main-page-current" class="page-switcher__current" type="button" aria-label="Current page">1</button>
                     <button id="main-page-next" class="page-switcher__nav" type="button" aria-label="Next page">></button>
                 </div>
                 <div id="widget-area" hidden></div>
 
-                <section class="drawing-board">
-                    <h2>Drawing Board</h2>
-                    <div class="drawing-controls" aria-label="Drawing controls">
-                        <div class="control-row">
-                            <span class="control-label">Color:</span>
-                            <div class="control-buttons" role="group" aria-label="Drawing colors">
-                                <button id="color-black" class="color-btn selected" type="button">Black</button>
-                                <button id="color-red" class="color-btn" type="button">Red</button>
-                                <button id="color-green" class="color-btn" type="button">Green</button>
-                            </div>
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">Size:</span>
-                            <div class="control-buttons" role="group" aria-label="Brush sizes">
-                                <button id="size-small" class="size-btn" type="button">S</button>
-                                <button id="size-medium" class="size-btn selected" type="button">M</button>
-                                <button id="size-large" class="size-btn" type="button">L</button>
-                            </div>
-                        </div>
-                        <div class="control-row control-actions">
-                            <button id="clear-drawing-btn" type="button">Clear Drawing</button>
-                            <button id="save-drawing-btn" type="button">Save Image</button>
-                        </div>
-                    </div>
-                    <canvas id="drawing-canvas" aria-label="Canvas for drawing"></canvas>
-                </section>
             </section>
         </section>
 
@@ -212,7 +186,7 @@
                 <header class="notes-panel__header planner-panel__header">
                     <div>
                         <h2>Planner</h2>
-                        <p>Save the classroom screen you have open now, then schedule layouts into the weekly planner.</p>
+                        <p>Save the classroom screen you have open now, then schedule planner templates into the weekly planner.</p>
                     </div>
                     <div class="planner-panel__header-actions">
                         <button id="open-weekly-planner-btn" class="control-button modal-primary" type="button">Open Weekly Planner</button>
@@ -221,15 +195,15 @@
                 </header>
                 <div class="planner-panel__grid">
                     <section class="planner-panel__card" aria-labelledby="planner-save-layout-title">
-                        <h3 id="planner-save-layout-title">Save Current Layout</h3>
-                        <p>Use your current classroom widgets, theme, and lesson plan as a reusable layout.</p>
-                        <label for="planner-layout-name-input">Layout Name</label>
+                        <h3 id="planner-save-layout-title">Save Current Planner Template</h3>
+                        <p>Use your current classroom widgets, theme, and lesson plan as a reusable planner template.</p>
+                        <label for="planner-layout-name-input">Template Name</label>
                         <input id="planner-layout-name-input" class="planner-panel__input" type="text" placeholder="e.g., Morning Routine">
-                        <button id="planner-save-layout-btn" class="control-button modal-primary" type="button">Save Current Layout</button>
+                        <button id="planner-save-layout-btn" class="control-button modal-primary" type="button">Save Planner Template</button>
                     </section>
                     <section class="planner-panel__card" aria-labelledby="saved-layouts-title">
-                        <h3 id="saved-layouts-title">Saved Layouts</h3>
-                        <p>Load, delete, and prepare layouts before placing them into the weekly planner.</p>
+                        <h3 id="saved-layouts-title">Saved Planner Templates</h3>
+                        <p>Load, delete, and prepare templates before placing them into the weekly planner.</p>
                         <div id="saved-layouts-list" class="saved-layouts-list" aria-live="polite"></div>
                     </section>
                 </div>
@@ -274,32 +248,32 @@
                     <details open>
                         <summary role="button" tabindex="0">
                             <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
-                            <h4>Project Pages</h4>
+                            <h4>Deck Pages</h4>
                         </summary>
                         <div class="card-body">
                             <div class="project-switcher project-switcher--compact">
                                 <div class="project-switcher__meta">
-                                    <p class="project-switcher__project-label">Current Project</p>
+                                    <p class="project-switcher__project-label">Current Deck</p>
                                     <p id="teacher-current-project-name" class="project-switcher__project-name">Weekly Project</p>
                                     <p id="teacher-current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
                                 </div>
-                                <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Project pages"></div>
+                                <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Deck pages"></div>
                             </div>
                             <div class="project-page-name-panel">
-                                <label for="project-screen-name-input">Screen Name</label>
+                                <label for="project-screen-name-input">Deck Name</label>
                                 <input id="project-screen-name-input" type="text" placeholder="e.g., Week 2">
-                                <div class="button-group button-group--stack-gap project-page-actions" aria-label="Screen name actions">
-                                    <button id="save-project-screen-btn" class="control-button modal-primary" type="button">Save Screen</button>
-                                    <button id="rename-project-screen-btn" class="control-button" type="button">Rename Screen</button>
+                                <div class="button-group button-group--stack-gap project-page-actions" aria-label="Deck name actions">
+                                    <button id="save-project-screen-btn" class="control-button modal-primary" type="button">Save Deck</button>
+                                    <button id="rename-project-screen-btn" class="control-button" type="button">Rename Deck</button>
                                 </div>
                             </div>
-                            <div class="button-group button-group--stack-gap project-page-actions" aria-label="Project page actions">
+                            <div class="button-group button-group--stack-gap project-page-actions" aria-label="Deck page actions">
                                 <button id="new-page-btn" class="control-button" type="button">New Page</button>
                             </div>
                             <details class="project-page-advanced">
                                 <summary class="project-page-advanced__summary">More page actions</summary>
-                                <div class="button-group button-group--stack-gap project-page-actions project-page-actions--advanced" aria-label="Advanced project page actions">
-                                    <button id="new-project-btn" class="control-button" type="button">New Project</button>
+                                <div class="button-group button-group--stack-gap project-page-actions project-page-actions--advanced" aria-label="Advanced deck page actions">
+                                    <button id="new-project-btn" class="control-button" type="button">New Deck</button>
                                     <button id="move-page-left-btn" class="control-button" type="button">Move Left</button>
                                     <button id="move-page-right-btn" class="control-button" type="button">Move Right</button>
                                     <button id="duplicate-page-btn" class="control-button" type="button">Duplicate Page</button>
@@ -380,7 +354,14 @@
     <!-- =====================================================
          GLOBAL CONTROLS (REDESIGNED)
          ===================================================== -->
-    <button id="add-widget-btn" class="fab" aria-label="Add widget">+</button>
+    <nav id="lesson-quick-actions" class="lesson-quick-actions" aria-label="Lesson quick actions">
+        <button id="teacher-controls-quick-btn" class="lesson-quick-action lesson-quick-action--controls" type="button" aria-label="Open Teacher Controls">Controls</button>
+        <button class="lesson-quick-action" type="button" data-quick-widget="rich-text" aria-label="Add instruction board">Text</button>
+        <button class="lesson-quick-action" type="button" data-quick-widget="timer" aria-label="Add timer">Timer</button>
+        <button class="lesson-quick-action" type="button" data-quick-widget="drawing-tool" aria-label="Add drawing board">Draw</button>
+        <button class="lesson-quick-action" type="button" data-quick-widget="name-picker" aria-label="Add name picker">Pick</button>
+        <button id="add-widget-btn" class="lesson-quick-action lesson-quick-action--more" type="button" aria-label="Add widget">+</button>
+    </nav>
 
     <dialog id="widget-modal" aria-labelledby="widget-modal-title">
         <div class="modal-header modal-header--widget-picker">
@@ -421,7 +402,8 @@
         <div class="modal-body">
             <ul>
                 <li>Use the navigation bar to switch between views.</li>
-                <li>Use the floating action button (+) to add widgets.</li>
+                <li>Use the lesson quick actions to add Text, Timer, Draw, or Pick.</li>
+                <li>Open Controls when you need the full widget list or deck settings.</li>
                 <li>All changes save automatically to your browser.</li>
             </ul>
         </div>
@@ -436,11 +418,11 @@
             <button class="modal-close" aria-label="Close Tour">&times;</button>
         </div>
         <div class="modal-body">
-            <p>Take a quick tour of the new layout:</p>
+            <p>Take a quick tour of your screen deck:</p>
             <ol>
                 <li><strong>Top Navigation</strong>: Switch between the Classroom, Dashboard, and other tools.</li>
-                <li><strong>Teacher Panel</strong>: Access all controls from the slide-out panel on the right.</li>
-                <li><strong>Floating Action Button</strong>: Use the "+" button to add new widgets to the screen.</li>
+                <li><strong>Controls</strong>: Open the full panel when you need deck settings or more widgets.</li>
+                <li><strong>Quick Actions</strong>: Add Text, Timer, Draw, or Pick from the bottom strip during a lesson.</li>
             </ol>
         </div>
         <div class="modal-actions">
@@ -450,11 +432,11 @@
 
     <dialog id="import-dialog" aria-labelledby="import-dialog-title">
         <div class="modal-header">
-            <h3 id="import-dialog-title">Import Layout & Presets</h3>
+            <h3 id="import-dialog-title">Import Screen Decks</h3>
             <button class="modal-close" aria-label="Close Import">&times;</button>
         </div>
         <div class="modal-body">
-            <p>Paste a layout + presets JSON below:</p>
+            <p>Paste a screen deck export JSON below:</p>
             <textarea id="import-json-input" rows="8"></textarea>
             <div id="import-summary" class="import-summary"></div>
         </div>
@@ -487,7 +469,7 @@
                 <h3 id="planner-modal-title" class="modal-title">Weekly Planner</h3>
             </div>
             <div class="modal-body">
-                <p>Click a time slot to assign a saved layout. Changes are stored locally.</p>
+                <p>Click a time slot to assign a saved planner template. Changes are stored locally.</p>
                 <div id="planner-calendar-grid"></div>
             </div>
         </div>
@@ -509,7 +491,7 @@
     <!-- =====================================================
          JAVASCRIPT FILES
          ===================================================== -->
-    <!-- Bootstrap loader must be the only app script entrypoint (no direct script.js/main.js tags). -->
+    <!-- Bootstrap loader must be the only app script entrypoint. -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
     <script type="module" src="js/index.js?v=13"></script>
 
