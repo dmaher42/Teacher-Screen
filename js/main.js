@@ -52,6 +52,8 @@ const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
 const DEFAULT_PROJECT_NAME = 'Weekly Project';
 const DEFAULT_PAGE_ID = 'page-1';
 const DEFAULT_PAGE_NAME = 'Page 1';
+const PERSUASION_WEEK_2_SLIDES_URL = 'https://docs.google.com/presentation/d/1NOf1lzIqOJNSCcSIKxhKGbBgrZ3TkBZDJ8peCLPgFLo';
+const PERSUASION_WEEK_3_PLACEHOLDER_URL = '';
 const WIDGET_PICKER_SHORTCUTS = {
     q: 'quiz-game',
     r: 'reveal-manager',
@@ -2801,6 +2803,194 @@ class ClassroomScreenApp {
         this.showNotification('Layout updated from projector.');
     }
 
+    buildGoogleSlidesRevealWidget({ id, name, sourceUrl, x = 20, y = 20, width = 760, height = 560 } = {}) {
+        return {
+            id,
+            type: 'RevealManagerWidget',
+            layoutType: 'stage',
+            x,
+            y,
+            width,
+            height,
+            visibleOnProjector: true,
+            projectorVisibilityConfigured: true,
+            data: {
+                type: 'RevealManagerWidget',
+                activeDeck: {
+                    id: Date.now(),
+                    name,
+                    type: 'google-slides',
+                    sourceUrl,
+                    content: ''
+                },
+                currentIndices: { h: 0, v: 0 }
+            }
+        };
+    }
+
+    buildUrlReferenceWidget({ id, url, x = 40, y = 600, width = 720, height = 100 } = {}) {
+        return {
+            id,
+            type: 'UrlViewerWidget',
+            layoutType: 'grid',
+            x,
+            y,
+            width,
+            height,
+            visibleOnProjector: false,
+            projectorVisibilityConfigured: true,
+            data: {
+                type: 'UrlViewerWidget',
+                url,
+                chromeless: false
+            }
+        };
+    }
+
+    buildLessonNoteWidget({ id, content, x = 560, y = 20, width = 240, height = 560 } = {}) {
+        return {
+            id,
+            type: 'RichTextWidget',
+            layoutType: 'grid',
+            x,
+            y,
+            width,
+            height,
+            visibleOnProjector: false,
+            projectorVisibilityConfigured: true,
+            data: {
+                content,
+                displayMode: true,
+                presentationMode: 'normal'
+            }
+        };
+    }
+
+    buildPersuasionLessonFlowPreset() {
+        const presetName = 'Year 7 English - Persuasion Weeks 2 and 3';
+        const now = Date.now();
+        const week2DeckName = '2.0 Persuasion Week 2 (2)';
+        const week3Status = PERSUASION_WEEK_3_PLACEHOLDER_URL
+            ? 'Week 3 material is linked on page 2.'
+            : 'Week 3 Drive link was not found by Drive search yet. Paste the Week 3 URL into the page 2 URL viewer when confirmed.';
+
+        const buildSnapshot = ({ pageName, widgets, lessonPlan }) => ({
+            theme: 'theme-light',
+            background: {
+                type: 'gradient',
+                value: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #fef3c7 100%)',
+                source: 'custom'
+            },
+            layout: {
+                mode: 'stage',
+                viewport: { width: 820, height: 720 },
+                widgets
+            },
+            timerStates: [],
+            lessonPlan: [
+                { insert: `${pageName}\n`, attributes: { header: 1 } },
+                ...lessonPlan
+            ]
+        });
+
+        const page1Snapshot = buildSnapshot({
+            pageName: 'Persuasion Week 2',
+            widgets: [
+                this.buildGoogleSlidesRevealWidget({
+                    id: 'persuasion-week-2-reveal',
+                    name: week2DeckName,
+                    sourceUrl: PERSUASION_WEEK_2_SLIDES_URL,
+                    width: 520,
+                    height: 620
+                }),
+                this.buildLessonNoteWidget({
+                    id: 'persuasion-week-2-flow',
+                    content: '<h2>Week 2 flow</h2><p>Open the deck in Reveal Manager, then use the slide prompts for persuasion in the media, the useless item activity, rhetoric categories, the card sort, #BookThemOut analysis, drafting, and reflection.</p><p><strong>Drive source:</strong> 2.0 Persuasion Week 2 (2)</p>'
+                }),
+                this.buildUrlReferenceWidget({
+                    id: 'persuasion-week-2-drive-link',
+                    url: PERSUASION_WEEK_2_SLIDES_URL
+                })
+            ],
+            lessonPlan: [
+                { insert: 'Reusable lesson screen for the updated Week 2 persuasion deck.\n\n' },
+                { insert: 'Flow\n', attributes: { header: 2 } },
+                { insert: 'Hook: Where do we see persuasion?\nSmall group brainstorm: who persuades, what do they persuade, and how?\nActivity: sell a useless item.\nMini teach: categories of rhetoric.\nCard sort: mobile phone licence arguments.\nModel analysis: #BookThemOut campaign.\nDrafting: turn communications-model notes into connected sentences.\nReflection: 3,2,1 prompt.\n\n' },
+                { insert: `Drive deck: ${PERSUASION_WEEK_2_SLIDES_URL}\n` }
+            ]
+        });
+
+        const week3Widgets = [];
+        if (PERSUASION_WEEK_3_PLACEHOLDER_URL) {
+            week3Widgets.push(this.buildGoogleSlidesRevealWidget({
+                id: 'persuasion-week-3-reveal',
+                name: 'Persuasion Week 3',
+                sourceUrl: PERSUASION_WEEK_3_PLACEHOLDER_URL,
+                width: 520,
+                height: 620
+            }));
+        }
+        week3Widgets.push(
+            this.buildLessonNoteWidget({
+                id: 'persuasion-week-3-flow',
+                content: `<h2>Week 3 flow</h2><p>${week3Status}</p><p>Use this page as the reusable Week 3 slot: load the confirmed Drive deck or document through the URL viewer, then save/overwrite this screen.</p>`
+            }),
+            this.buildUrlReferenceWidget({
+                id: 'persuasion-week-3-drive-link',
+                url: PERSUASION_WEEK_3_PLACEHOLDER_URL || 'https://drive.google.com/'
+            })
+        );
+
+        const page2Snapshot = buildSnapshot({
+            pageName: 'Persuasion Week 3',
+            widgets: week3Widgets,
+            lessonPlan: [
+                { insert: 'Reusable lesson screen for the Week 3 persuasion material.\n\n' },
+                { insert: 'Status\n', attributes: { header: 2 } },
+                { insert: `${week3Status}\n\n` },
+                { insert: 'Next step once the Drive file is confirmed: paste the Week 3 URL into the URL viewer or Reveal Manager, then Save Screen / Overwrite to keep it available in saved screens and the weekly planner.\n' }
+            ]
+        });
+
+        const projectState = {
+            version: this.appVersion,
+            schemaVersion: this.schemaVersion,
+            projectName: presetName,
+            activePageId: 'persuasion-week-2',
+            pages: [
+                {
+                    id: 'persuasion-week-2',
+                    name: 'Week 2',
+                    snapshot: page1Snapshot
+                },
+                {
+                    id: 'persuasion-week-3',
+                    name: 'Week 3',
+                    snapshot: page2Snapshot
+                }
+            ],
+            theme: page1Snapshot.theme,
+            background: cloneSerializableData(page1Snapshot.background)
+        };
+
+        return {
+            name: presetName,
+            className: 'Year 7 English',
+            period: 'Persuasion',
+            folderId: '',
+            projectState,
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(page1Snapshot.layout),
+            lessonPlan: cloneSerializableData(page1Snapshot.lessonPlan),
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: now,
+            usageCount: 0,
+            seededLessonId: 'year7-persuasion-weeks-2-3-2026-05-16'
+        };
+    }
+
     buildRhetoricLessonPreset() {
         const presetName = 'Year 7 English - Rhetoric: Pathos, Logos, Ethos';
         const now = Date.now();
@@ -2877,8 +3067,11 @@ class ClassroomScreenApp {
         };
     }
 
-    ensureSeededLessonPresets() {
-        const lessonPreset = this.buildRhetoricLessonPreset();
+    upsertSeededLessonPreset(lessonPreset) {
+        if (!lessonPreset || !lessonPreset.name) {
+            return false;
+        }
+
         const existingIndex = this.presets.findIndex((preset) => preset && preset.name === lessonPreset.name);
         if (existingIndex !== -1) {
             const existingPreset = this.presets[existingIndex];
@@ -2898,6 +3091,65 @@ class ClassroomScreenApp {
         this.presets.push(lessonPreset);
         this.savePresets();
         return true;
+    }
+
+    ensureSeededPlannerLayout(lessonPreset) {
+        if (!lessonPreset || !lessonPreset.name || !lessonPreset.layout) {
+            return false;
+        }
+
+        const layoutName = lessonPreset.name;
+        const storageKey = this.getLayoutStorageKey(layoutName);
+        const existingRaw = localStorage.getItem(storageKey);
+        if (existingRaw) {
+            try {
+                const existing = JSON.parse(existingRaw);
+                if (existing?.seededLessonId === lessonPreset.seededLessonId) {
+                    const payload = {
+                        ...existing,
+                        name: layoutName,
+                        savedAt: Number.isFinite(existing.savedAt) ? existing.savedAt : Date.now(),
+                        theme: lessonPreset.theme,
+                        background: cloneSerializableData(lessonPreset.background),
+                        layout: cloneSerializableData(lessonPreset.layout),
+                        lessonPlan: cloneSerializableData(lessonPreset.lessonPlan),
+                        seededLessonId: lessonPreset.seededLessonId
+                    };
+                    localStorage.setItem(storageKey, JSON.stringify(payload));
+                    return true;
+                }
+            } catch (error) {
+                return false;
+            }
+            return false;
+        }
+
+        localStorage.setItem(storageKey, JSON.stringify({
+            name: layoutName,
+            savedAt: Date.now(),
+            theme: lessonPreset.theme,
+            background: cloneSerializableData(lessonPreset.background),
+            layout: cloneSerializableData(lessonPreset.layout),
+            lessonPlan: cloneSerializableData(lessonPreset.lessonPlan),
+            storage: {},
+            seededLessonId: lessonPreset.seededLessonId
+        }));
+        return true;
+    }
+
+    ensureSeededLessonPresets() {
+        const lessonPresets = [
+            this.buildRhetoricLessonPreset(),
+            this.buildPersuasionLessonFlowPreset()
+        ];
+        let changed = false;
+
+        lessonPresets.forEach((lessonPreset) => {
+            changed = this.upsertSeededLessonPreset(lessonPreset) || changed;
+            this.ensureSeededPlannerLayout(lessonPreset);
+        });
+
+        return changed;
     }
 
     setupPresetControls() {
