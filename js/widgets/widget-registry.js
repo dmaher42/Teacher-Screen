@@ -7,6 +7,14 @@ export const WidgetRegistry = {
         category: 'Primary',
         create: () => new PomodoroWidget()
     },
+    'behaviour-tracker': {
+        key: 'behaviour-tracker',
+        className: 'BehaviourTrackerWidget',
+        label: 'Learning-Time Tracker',
+        icon: '✓',
+        category: 'Primary',
+        create: () => new BehaviourTrackerWidget()
+    },
     'noise-meter': {
         key: 'noise-meter',
         className: 'NoiseMeterWidget',
@@ -108,6 +116,7 @@ export const WidgetRegistry = {
 const widgetTypeAliases = {
     TimerWidget: 'timer',
     PomodoroWidget: 'timer',
+    BehaviourTrackerWidget: 'behaviour-tracker',
     NoiseMeterWidget: 'noise-meter',
     NamePickerWidget: 'name-picker',
     QRCodeWidget: 'qr-code',
@@ -121,6 +130,7 @@ const widgetTypeAliases = {
     WellbeingWidget: 'wellbeing',
     RichTextWidget: 'rich-text',
     timer: 'timer',
+    'behaviour-tracker': 'behaviour-tracker',
     'noise-meter': 'noise-meter',
     'name-picker': 'name-picker',
     'qr-code': 'qr-code',

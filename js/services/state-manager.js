@@ -140,6 +140,7 @@ export function saveState(layout, options = {}) {
     const source = options.source || 'teacher';
     const projectorChannel = options.projectorChannel;
     const syncToken = options.syncToken || null;
+    const projectorState = options.projectorState || layout;
 
     const stateJSON = JSON.stringify(layout);
     localStorage.setItem('classroomScreenState', stateJSON);
@@ -163,7 +164,7 @@ export function saveState(layout, options = {}) {
     if (projectorChannel) {
         projectorChannel.postMessage({
             type: 'layout-update',
-            state: layout,
+            state: projectorState,
             source,
             syncToken
         });

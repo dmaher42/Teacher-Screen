@@ -128,6 +128,31 @@ function cloneSerializableData(value) {
     }
 }
 
+function removePrivateBehaviourData(value) {
+    const sanitized = cloneSerializableData(value);
+    const visit = (node) => {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)) {
+            node.forEach(visit);
+            return;
+        }
+
+        const isBehaviourTracker = node.type === 'BehaviourTrackerWidget'
+            || node.type === 'behaviour-tracker';
+        if (isBehaviourTracker) {
+            const data = node.data && typeof node.data === 'object' ? node.data : node;
+            data.students = [];
+            data.events = [];
+            data.runningSince = null;
+        }
+
+        Object.values(node).forEach(visit);
+    };
+
+    visit(sanitized);
+    return sanitized;
+}
+
 function escapeHtml(value = '') {
     return String(value)
         .replace(/&/g, '&amp;')
@@ -430,7 +455,7 @@ class ClassroomScreenApp {
             }
 
             if (message.type === 'request-sync') {
-                const state = this.buildStateSnapshot();
+                const state = this.buildProjectorStateSnapshot(this.buildStateSnapshot());
                 this.projectorChannel.postMessage({
                     type: 'layout-update',
                     state,
@@ -2045,6 +2070,13 @@ class ClassroomScreenApp {
         return snapshot;
     }
 
+    buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
+        const projectorState = removePrivateBehaviourData(state);
+        projectorState.layout = this.layoutManager.serialize({ forProjector: true });
+        delete projectorState.pages;
+        return projectorState;
+    }
+
     getDefaultProjectState() {
         return {
             projectName: DEFAULT_PROJECT_NAME,
@@ -2747,8 +2779,8 @@ class ClassroomScreenApp {
             this.updateProjectorVisibility();
         } else {
             this.widgets = [];
-            if (this.layoutManager && Array.isArray(this.layoutManager.widgets)) {
-                this.layoutManager.widgets = [];
+            if (this.layoutManager && typeof this.layoutManager.discardAllWidgets === 'function') {
+                this.layoutManager.discardAllWidgets();
             }
             if (this.widgetsContainer) {
                 this.widgetsContainer.innerHTML = '';
@@ -2795,10 +2827,12 @@ class ClassroomScreenApp {
 
     saveState(source = 'teacher') {
         const state = this.buildStateSnapshot();
+        const projectorState = this.buildProjectorStateSnapshot(state);
         saveState(state, {
             source,
             projectorChannel: this.projectorChannel,
-            syncToken: this.projectorSyncToken
+            syncToken: this.projectorSyncToken,
+            projectorState
         });
     }
 
@@ -4070,8 +4104,8 @@ class ClassroomScreenApp {
         const exportPayload = {
             schemaVersion: this.schemaVersion,
             appVersion: this.appVersion,
-            state: this.getSerializableState(),
-            presets: this.presets || [],
+            state: removePrivateBehaviourData(this.getSerializableState()),
+            presets: removePrivateBehaviourData(this.presets || []),
             folders: this.folders || []
         };
 
@@ -4087,7 +4121,7 @@ class ClassroomScreenApp {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        this.showNotification('Screen decks exported.');
+        this.showNotification('Screen decks exported. Private student names and behaviour notes were not included.');
     }
 
     handleConfirmImport() {
@@ -4349,10 +4383,10 @@ class ClassroomScreenApp {
     resetLayout() {
         if (confirm('Clear the current page? This will remove all widgets from this page.')) {
             this.widgets = [];
-            this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
-            if (this.layoutManager) {
-                this.layoutManager.widgets = [];
+            if (this.layoutManager && typeof this.layoutManager.discardAllWidgets === 'function') {
+                this.layoutManager.discardAllWidgets();
             }
+            this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
             this.backgroundManager.reset();
             if (this.lessonPlanEditor) {
                 this.lessonPlanEditor.setContents([]);

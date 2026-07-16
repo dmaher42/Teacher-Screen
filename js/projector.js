@@ -54,6 +54,7 @@ const PROJECTOR_DEPENDENCIES = [
     { src: 'assets/sounds/sound-data.js', required: false },
     { src: 'js/widgets/noise-meter.js', required: false },
     { src: 'js/widgets/noise-meter-widget.js', required: false },
+    { src: 'js/widgets/behaviour-tracker-widget.js', required: true },
     { src: 'js/widgets/name-picker.js', required: false },
     { src: 'js/widgets/qr-code-widget.js', required: false },
     { src: 'js/widgets/drawing-tool.js', required: false },

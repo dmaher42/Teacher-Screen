@@ -46,6 +46,7 @@ function isValidLayout(layout) {
 const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
+  BehaviourTrackerWidget: { minW: 5, minH: 6, defaultW: 6, defaultH: 8 },
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
@@ -265,6 +266,20 @@ class LayoutManager {
       clearTimeout(widgetInfo.layoutTimeout);
       widgetInfo.layoutTimeout = null;
     }
+  }
+
+  discardAllWidgets() {
+    this.widgets.forEach((widgetInfo) => {
+      this.teardownWidgetLayout(widgetInfo);
+      if (widgetInfo.widget && typeof widgetInfo.widget.onLayoutDiscard === 'function') {
+        try {
+          widgetInfo.widget.onLayoutDiscard();
+        } catch (error) {
+          console.warn('[LayoutManager] Widget discard hook failed.', error);
+        }
+      }
+    });
+    this.widgets = [];
   }
 
   mountWidgetElement(widgetInfo) {
@@ -1082,8 +1097,12 @@ class LayoutManager {
     this.emitBusEvent('layout:updated', { layout, options });
   }
 
-  serialize() {
+  serialize(options = {}) {
     const widgets = this.widgets.map(widgetInfo => {
+      const widget = widgetInfo.widget;
+      const widgetData = options.forProjector === true && typeof widget.serializeForProjector === 'function'
+        ? widget.serializeForProjector()
+        : widget.serialize();
       // Return pixels
       return {
         id: widgetInfo.id,
@@ -1097,7 +1116,7 @@ class LayoutManager {
           ? widgetInfo.visibleOnProjector !== false
           : true,
         projectorVisibilityConfigured: widgetInfo.projectorVisibilityConfigured === true,
-        data: widgetInfo.widget.serialize()
+        data: widgetData
       };
     });
 
@@ -1139,9 +1158,8 @@ class LayoutManager {
     }
 
     this.mode = layoutData.mode || (layoutManagerIsTeacherMode() && layoutData.widgets.some((widgetData) => this.getWidgetLayoutType(widgetData) === 'stage') ? 'stage' : 'dashboard');
+    this.discardAllWidgets();
     this.setupModeStructure();
-    this.widgets.forEach((widgetInfo) => this.teardownWidgetLayout(widgetInfo));
-    this.widgets = [];
 
     const containerW = this.container.clientWidth || 1024;
     const containerH = this.container.clientHeight || 768;
