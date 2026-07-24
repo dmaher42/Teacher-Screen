@@ -5691,7 +5691,7 @@ class ClassroomScreenApp {
                 <main class="dashboard-main">
                     <section class="dashboard-command-panel" aria-label="Main menu actions">
                         <div class="dashboard-command-panel__header">
-                            <p class="dashboard-command-panel__label">Current deck</p>
+                            <p class="dashboard-command-panel__label">Ready to teach</p>
                             <h1>${escapeHtml(projectName)}</h1>
                             <p>${escapeHtml(pageSummary)}${activePage?.name ? ` - ${escapeHtml(activePage.name)}` : ''}</p>
                         </div>
@@ -5700,20 +5700,20 @@ class ClassroomScreenApp {
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
                                 <span class="dashboard-launch-card__text">
                                     <strong>Open Classroom</strong>
-                                    <small>Return to the live teaching screen</small>
+                                    <small>Continue teaching with this deck</small>
                                 </span>
                             </button>
                             <button id="dashboard-create-btn" class="dashboard-launch-card" type="button">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-plus"></i></span>
                                 <span class="dashboard-launch-card__text">
                                     <strong>Create Deck</strong>
-                                    <small>Start a new classroom screen</small>
+                                    <small>Build a fresh lesson screen</small>
                                 </span>
                             </button>
                             <button id="dashboard-teacher-controls-btn" class="dashboard-launch-card" type="button">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
                                 <span class="dashboard-launch-card__text">
-                                    <strong>Teacher Controls</strong>
+                                    <strong>Arrange Deck</strong>
                                     <small>Edit pages, theme, and widgets</small>
                                 </span>
                             </button>
@@ -5721,7 +5721,7 @@ class ClassroomScreenApp {
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
                                 <span class="dashboard-launch-card__text">
                                     <strong>Open Projector</strong>
-                                    <small>Launch the student display window</small>
+                                    <small>Launch the student-facing window</small>
                                 </span>
                             </a>
                         </div>
@@ -5739,7 +5739,7 @@ class ClassroomScreenApp {
                             </div>
                         </div>
                         <div class="dashboard-search-row">
-                            <input id="dashboard-search-input" class="dashboard-search" type="search" placeholder="Search decks, classes, or periods" value="${escapeHtml(this.dashboardSearchQuery)}">
+                            <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search saved decks" placeholder="Search decks, classes, or periods" value="${escapeHtml(this.dashboardSearchQuery)}">
                             <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
@@ -5813,11 +5813,18 @@ class ClassroomScreenApp {
                 screenGrid.innerHTML = '<div class="dashboard-empty">No saved decks yet. Create one from Manage Screen Decks.</div>';
             } else {
                 visiblePresets.slice(0, 6).forEach((preset) => {
+                    const isCurrentPreset = preset.name === projectName;
                     const card = document.createElement('article');
-                    card.className = 'dashboard-screen-card';
+                    card.className = `dashboard-screen-card${isCurrentPreset ? ' is-current' : ''}`;
+                    if (isCurrentPreset) {
+                        card.setAttribute('aria-label', `${preset.name || 'Untitled Deck'}, current deck`);
+                    }
                     card.innerHTML = `
                         <div class="dashboard-screen-card__header">
-                            <h3>${escapeHtml(preset.name || 'Untitled Deck')}</h3>
+                            <div class="dashboard-screen-card__heading">
+                                <h3>${escapeHtml(preset.name || 'Untitled Deck')}</h3>
+                                ${isCurrentPreset ? '<span class="dashboard-current-badge">Current</span>' : ''}
+                            </div>
                             <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
                         </div>
                         <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}${this.getFolderLabel(preset.folderId) ? ` &middot; ${escapeHtml(this.getFolderLabel(preset.folderId))}` : ''}</p>
@@ -5829,7 +5836,7 @@ class ClassroomScreenApp {
                     const loadButton = document.createElement('button');
                     loadButton.type = 'button';
                     loadButton.className = 'control-button control-button--primary';
-                    loadButton.textContent = 'Load';
+                    loadButton.textContent = isCurrentPreset ? 'Reload' : 'Load';
                     loadButton.addEventListener('click', () => this.loadPresetFromDashboard(preset.name));
 
                     const duplicateButton = document.createElement('button');

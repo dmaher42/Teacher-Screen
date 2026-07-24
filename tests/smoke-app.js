@@ -189,6 +189,7 @@ async function runSmoke() {
         assert(await page.title() === 'Custom Classroom Screen', 'Teacher app page title should load');
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
         assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
+        assert(await page.locator('#dashboard-open-classroom-btn.dashboard-launch-card--primary').isVisible(), 'Dashboard should make Open Classroom the primary action');
         assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
 
         if (await page.locator('#tour-dialog[open]').count() === 1) {
@@ -483,6 +484,12 @@ async function runSmoke() {
         assert(await page.locator('.widget.behaviour-tracker-widget').count() === 1, 'Saved deck should reload the learning-time tracker');
         assert(await page.locator('.widget.behaviour-tracker-widget').textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Saved deck should keep names off the classroom canvas');
 
+        await page.locator('#dashboard-tab').dispatchEvent('click');
+        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+        assert(await page.locator('.dashboard-screen-card.is-current .dashboard-current-badge').count() === 1, 'Dashboard should identify the loaded current deck');
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+
         const projectorPage = await context.newPage();
         await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
@@ -511,6 +518,8 @@ async function runSmoke() {
         await mobilePage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
         await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         assert(await mobilePage.locator('#dashboard-open-classroom-btn').isVisible(), 'Mobile dashboard should show the classroom entry button');
+        assert(await mobilePage.locator('.dashboard-command-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 2), 'Mobile dashboard should keep quick actions in a compact two-column grid');
+        assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 330), 'Mobile dashboard navigation should stay compact');
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
