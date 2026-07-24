@@ -281,7 +281,7 @@ class ClassroomScreenApp {
 
         const layoutHost = this.widgetsContainer || this.studentView;
         this.layoutManager = new LayoutManager(layoutHost);
-        this.layoutManager.setEditable(true);
+        this.layoutManager.setEditable(false);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
                 this.applyProjectorLayoutDelta(payload, 'projector');
@@ -622,7 +622,13 @@ class ClassroomScreenApp {
             });
         });
         if (this.teacherControlsQuickButton) {
-            this.teacherControlsQuickButton.addEventListener('click', () => this.openTeacherControls());
+            this.teacherControlsQuickButton.addEventListener('click', () => {
+                if (this.isTeacherPanelOpen) {
+                    this.toggleTeacherPanel(false);
+                    return;
+                }
+                this.openTeacherControls();
+            });
         }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
@@ -965,6 +971,18 @@ class ClassroomScreenApp {
         this.teacherPanel.classList.toggle('open', this.isTeacherPanelOpen);
         this.panelBackdrop.classList.toggle('visible', this.isTeacherPanelOpen);
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
+        document.body.classList.toggle('is-arrange-mode', this.isTeacherPanelOpen);
+        this.layoutManager?.setEditable(this.isTeacherPanelOpen);
+
+        if (this.teacherControlsQuickButton) {
+            const label = this.teacherControlsQuickButton.querySelector('.lesson-quick-action__label');
+            this.teacherControlsQuickButton.classList.toggle('is-active', this.isTeacherPanelOpen);
+            this.teacherControlsQuickButton.setAttribute('aria-pressed', this.isTeacherPanelOpen ? 'true' : 'false');
+            this.teacherControlsQuickButton.setAttribute('aria-label', this.isTeacherPanelOpen ? 'Finish arranging classroom' : 'Arrange classroom');
+            if (label) {
+                label.textContent = this.isTeacherPanelOpen ? 'Done' : 'Arrange';
+            }
+        }
 
         if (this.isTeacherPanelOpen) {
             const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;

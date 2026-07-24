@@ -53,6 +53,8 @@ class NotesWidget {
     constructor(noteData = {}) {
         this.layoutType = 'overlay';
         this.isExpanded = false;
+        this.fallbackEditor = null;
+        this.fallbackTextChangeHandler = null;
         this.quillTextChangeHandler = null;
 
         // Create the main widget element
@@ -270,6 +272,9 @@ class NotesWidget {
         if (this.quillEditor) {
             this.savedContent = this.quillEditor.root.innerHTML;
             this.persistNote();
+        } else if (this.fallbackEditor) {
+            this.syncFallbackEditorContent();
+            this.persistNote();
         }
 
         this.destroyEditor();
@@ -307,9 +312,14 @@ class NotesWidget {
         const container = document.getElementById(this.editorContainer.id);
         if (!container) return;
 
-        if (this.quillEditor) return; // Already initialized
+        if (this.quillEditor || this.fallbackEditor) return; // Already initialized
 
-        this.quillEditor = new Quill(container, {
+        if (!window.Quill) {
+            this.initializeFallbackEditor(container);
+            return;
+        }
+
+        this.quillEditor = new window.Quill(container, {
             theme: 'snow',
             modules: {
                 toolbar: [
@@ -339,6 +349,61 @@ class NotesWidget {
 
         // Focus
         this.quillEditor.focus();
+    }
+
+    initializeFallbackEditor(container) {
+        container.innerHTML = '';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'notes-fallback-editor';
+        textarea.setAttribute('aria-label', 'Plain note editor');
+        textarea.placeholder = 'Write a note...';
+        textarea.value = this.getPlainTextFromHtml(this.savedContent);
+
+        this.fallbackTextChangeHandler = () => {
+            this.syncFallbackEditorContent();
+            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+        };
+
+        textarea.addEventListener('input', this.fallbackTextChangeHandler);
+        container.appendChild(textarea);
+        this.fallbackEditor = textarea;
+        textarea.focus();
+    }
+
+    syncFallbackEditorContent() {
+        if (!this.fallbackEditor) return;
+
+        this.savedContent = this.getHtmlFromPlainText(this.fallbackEditor.value);
+        this.title = this.getTitleFromContent();
+        this.updatedAt = new Date().toISOString();
+        this.updateDisplay();
+        this.updateExpandedHeader();
+    }
+
+    getPlainTextFromHtml(html = '') {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        return (temp.textContent || '').trim();
+    }
+
+    getHtmlFromPlainText(text = '') {
+        const lines = String(text || '').split(/\r?\n/);
+        return lines
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => `<p>${this.escapeHtml(line)}</p>`)
+            .join('');
+    }
+
+    escapeHtml(value = '') {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
     }
 
     updateDisplay() {
@@ -454,8 +519,14 @@ class NotesWidget {
             this.quillEditor.off('text-change', this.quillTextChangeHandler);
         }
 
+        if (this.fallbackEditor && this.fallbackTextChangeHandler) {
+            this.fallbackEditor.removeEventListener('input', this.fallbackTextChangeHandler);
+        }
+
         this.quillTextChangeHandler = null;
+        this.fallbackTextChangeHandler = null;
         this.quillEditor = null;
+        this.fallbackEditor = null;
         this.editorContainer = null;
     }
 
@@ -475,6 +546,8 @@ class NotesWidget {
         // If currently editing, save first
         if (this.isExpanded && this.quillEditor) {
              this.savedContent = this.quillEditor.root.innerHTML;
+        } else if (this.isExpanded && this.fallbackEditor) {
+            this.syncFallbackEditorContent();
         }
 
         return {

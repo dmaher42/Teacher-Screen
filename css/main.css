@@ -3826,6 +3826,7 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
   }
 
 .rich-text-editor-container {
+      position: relative;
       display: flex;
       flex-direction: column;
       flex: 1 1 0%;
@@ -3839,6 +3840,33 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
       background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 4px 14px rgba(15, 23, 42, 0.05);
   }
+
+.rich-text-inline-edit-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #2d81ff) 34%, #ffffff 66%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--primary-color, #2d81ff) 12%);
+    color: color-mix(in srgb, var(--text-color, #333333) 88%, #000000 12%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.rich-text-widget-inner.display-mode:not(.is-projector-mode) .rich-text-inline-edit-button {
+    display: inline-flex;
+}
+
+body.projector-view .rich-text-inline-edit-button {
+    display: none;
+}
 
 .rich-text-widget-inner .ql-toolbar,
 .rich-text-widget-inner .ql-editor {
@@ -7440,5 +7468,285 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .reveal-manager-empty[hidden] {
     display: none;
+}
+
+/* =====================================================
+   Classroom Canvas Polish v1
+   ===================================================== */
+body.is-classroom-active:not(.projector-view) {
+    --classroom-polish-blue: #4097f5;
+    --classroom-polish-blue-soft: color-mix(in srgb, var(--classroom-polish-blue) 12%, #ffffff 88%);
+    --classroom-polish-line: color-mix(in srgb, var(--border-soft-2, #d8e1ea) 76%, transparent 24%);
+}
+
+body.is-classroom-active:not(.projector-view) .widgets-grid {
+    padding: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .widget {
+    border: 1px solid var(--classroom-polish-line);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 96%, #f5f9ff 4%);
+    box-shadow: 0 16px 34px rgba(31, 72, 110, 0.14), 0 3px 10px rgba(31, 72, 110, 0.07);
+}
+
+body.is-classroom-active:not(.projector-view) .widget:hover {
+    box-shadow: 0 18px 38px rgba(31, 72, 110, 0.16), 0 4px 12px rgba(31, 72, 110, 0.08);
+}
+
+body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget-header {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget .secondary-control,
+body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget .secondary-text,
+body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .resize-handle {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget {
+    border-color: color-mix(in srgb, var(--classroom-polish-blue) 34%, var(--classroom-polish-line) 66%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--classroom-polish-blue) 8%, transparent),
+                0 16px 34px rgba(31, 72, 110, 0.15);
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header {
+    min-height: 38px;
+    padding: 7px 10px 7px 12px;
+    border-bottom: 1px solid var(--classroom-polish-line);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--classroom-polish-blue) 12%);
+    color: var(--text-primary, #0f172a);
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-title {
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-title .fa-grip-vertical {
+    color: color-mix(in srgb, var(--classroom-polish-blue) 74%, var(--text-secondary, #64748b) 26%);
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget .secondary-control,
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget .secondary-text {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 9px;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button:hover,
+body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button:focus-visible {
+    border-color: color-mix(in srgb, var(--classroom-polish-blue) 22%, transparent);
+    background: color-mix(in srgb, var(--classroom-polish-blue) 10%, #ffffff 90%);
+}
+
+@media (min-width: 769px) {
+    body.is-classroom-active.is-arrange-mode:not(.projector-view) .panel-backdrop {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+body.is-classroom-active:not(.projector-view) .widget-content {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--classroom-polish-blue) 28%, transparent) transparent;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.url-viewer-widget,
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget {
+    min-width: 0;
+    min-height: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .url-viewer-input-row {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--classroom-polish-line);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #eef6ff 6%);
+}
+
+body.is-classroom-active:not(.projector-view) .url-viewer-input {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--classroom-polish-line);
+    border-radius: 11px;
+    background: #ffffff;
+}
+
+body.is-classroom-active:not(.projector-view) .url-viewer-widget-content > .widget-control-bar {
+    min-height: 48px;
+    padding: 7px 10px;
+    border-top: 1px solid var(--classroom-polish-line);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #eef6ff 6%);
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager-widget-content {
+    overflow: hidden;
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager {
+    gap: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager__topbar {
+    position: relative;
+    top: auto;
+    min-height: 50px;
+    padding: 7px 10px;
+    border: 0;
+    border-bottom: 1px solid var(--classroom-polish-line);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #eef6ff 6%);
+    box-shadow: none;
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-btn {
+    min-height: 34px;
+    padding-inline: 12px;
+    border-radius: 11px;
+    flex: 0 0 auto;
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status,
+body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-deck-indicator {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-manager__stage {
+    padding: 10px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 96%, #eef6ff 4%);
+}
+
+body.is-classroom-active:not(.projector-view) .reveal-container,
+body.is-classroom-active:not(.projector-view) .reveal-external-embed-shell {
+    border-radius: 13px;
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-actions {
+    right: auto;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    gap: 3px;
+    padding: 7px 8px;
+    border: 1px solid var(--classroom-polish-line);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #f3f8ff 6%);
+    box-shadow: 0 18px 42px rgba(31, 72, 110, 0.18), 0 4px 12px rgba(31, 72, 110, 0.08);
+    backdrop-filter: blur(16px);
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 58px;
+    min-height: 50px;
+    padding: 5px 9px;
+    border-radius: 14px;
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 82%, var(--text-secondary, #64748b) 18%);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action__icon {
+    color: color-mix(in srgb, var(--classroom-polish-blue) 78%, var(--text-secondary, #64748b) 22%);
+    font-size: 0.95rem;
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action:hover,
+body.is-classroom-active:not(.projector-view) .lesson-quick-action:focus-visible {
+    background: var(--classroom-polish-blue-soft);
+    border-color: color-mix(in srgb, var(--classroom-polish-blue) 20%, transparent);
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action--controls {
+    min-width: 72px;
+    background: color-mix(in srgb, var(--classroom-polish-blue) 10%, #ffffff 90%);
+    border-color: color-mix(in srgb, var(--classroom-polish-blue) 18%, transparent);
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action--controls.is-active {
+    background: var(--classroom-polish-blue);
+    border-color: var(--classroom-polish-blue);
+    color: #ffffff;
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action--controls.is-active .lesson-quick-action__icon {
+    color: #ffffff;
+}
+
+body.is-classroom-active:not(.projector-view) .lesson-quick-action--more {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    margin-inline: 3px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--classroom-polish-blue);
+    color: #ffffff;
+    font-size: 1rem;
+}
+
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner {
+    top: 14px;
+    right: 14px;
+    gap: 4px;
+    padding: 5px;
+    border-color: var(--classroom-polish-line);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #f3f8ff 6%);
+    box-shadow: 0 12px 30px rgba(31, 72, 110, 0.14);
+}
+
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__nav,
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__current {
+    min-height: 24px;
+    height: 24px;
+    border: 0;
+    background: transparent;
+}
+
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__nav {
+    width: 24px;
+}
+
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__current {
+    min-width: 30px;
+    background: var(--classroom-polish-blue-soft);
+    color: color-mix(in srgb, var(--classroom-polish-blue) 76%, #0f172a 24%);
+}
+
+@media (max-width: 768px) {
+    body.is-classroom-active:not(.projector-view) .lesson-quick-actions {
+        right: 8px;
+        left: 8px;
+        bottom: 8px;
+        transform: none;
+        justify-content: flex-start;
+    }
+
+    body.is-classroom-active:not(.projector-view) .lesson-quick-action {
+        min-width: 54px;
+    }
 }
 

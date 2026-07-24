@@ -32,6 +32,7 @@ class RichTextWidget {
     this.handleTemplateBuilderClick = this.handleTemplateBuilderClick.bind(this);
     this.handleEditorToolbarChange = this.handleEditorToolbarChange.bind(this);
     this.handleEditorToolbarClick = this.handleEditorToolbarClick.bind(this);
+    this.handleInlineEditClick = this.handleInlineEditClick.bind(this);
     this.syncToolbarState = this.syncToolbarState.bind(this);
     this.syncEditorLayout = this.syncEditorLayout.bind(this);
 
@@ -118,22 +119,35 @@ class RichTextWidget {
     this.editorToolbar = this.createEditorToolbar();
     this.editorSurface = document.createElement('div');
     this.editorSurface.className = 'rich-text-editor-surface';
-    this.editorContainer.append(this.editorToolbar, this.editorSurface);
+    this.inlineEditButton = document.createElement('button');
+    this.inlineEditButton.className = 'rich-text-inline-edit-button';
+    this.inlineEditButton.type = 'button';
+    this.inlineEditButton.textContent = 'Edit';
+    this.inlineEditButton.title = 'Show text toolbar';
+    this.inlineEditButton.setAttribute('aria-label', 'Show text toolbar');
+    this.inlineEditButton.addEventListener('click', this.handleInlineEditClick);
+    this.editorContainer.append(this.editorToolbar, this.editorSurface, this.inlineEditButton);
 
     this.element.appendChild(this.editorContainer);
 
     this.initTimer = setTimeout(() => {
-      const SizeStyle = Quill.import('attributors/style/size');
+      const QuillEditor = window.Quill;
+      if (!QuillEditor) {
+        console.warn('Rich Text editor could not start because Quill is unavailable.');
+        return;
+      }
+
+      const SizeStyle = QuillEditor.import('attributors/style/size');
       SizeStyle.whitelist = ['small', 'large', 'huge'];
-      Quill.register(SizeStyle, true);
+      QuillEditor.register(SizeStyle, true);
 
-      const ColorStyle = Quill.import('attributors/style/color');
-      Quill.register(ColorStyle, true);
+      const ColorStyle = QuillEditor.import('attributors/style/color');
+      QuillEditor.register(ColorStyle, true);
 
-      const BackgroundStyle = Quill.import('attributors/style/background');
-      Quill.register(BackgroundStyle, true);
+      const BackgroundStyle = QuillEditor.import('attributors/style/background');
+      QuillEditor.register(BackgroundStyle, true);
 
-      this.quill = new Quill(this.editorSurface, {
+      this.quill = new QuillEditor(this.editorSurface, {
         theme: 'snow',
         placeholder: '',
         modules: {
@@ -318,6 +332,18 @@ class RichTextWidget {
   handleDisplayModeClick() {
     this.isDisplayMode = !this.isDisplayMode;
     this.updateDisplayModeUI();
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+  }
+
+  handleInlineEditClick() {
+    if (!this.isDisplayMode) {
+      return;
+    }
+
+    this.isDisplayMode = false;
+    this.updateDisplayModeUI();
+    this.quill?.focus();
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
   }
 
   handleTemplateButtonClick(event) {
@@ -886,6 +912,7 @@ class RichTextWidget {
 
   remove() {
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
+    this.inlineEditButton?.removeEventListener('click', this.handleInlineEditClick);
     this.templateBuilderButton.removeEventListener('click', this.handleTemplateBuilderClick);
     this.templateButtons?.forEach((button) => {
       button.removeEventListener('click', this.handleTemplateButtonClick);

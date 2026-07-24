@@ -4,6 +4,8 @@ const path = require('path');
 const { chromium } = require('playwright-core');
 
 const root = path.resolve(__dirname, '..');
+const OPTIONAL_EXTERNAL_SCRIPT_URL = /^https:\/\/(?:cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)\/.*\.js(?:\?|$)/i;
+const EXTERNAL_ASSET_URL = /^https:\/\//i;
 const mimeTypes = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
@@ -18,6 +20,11 @@ function assert(condition, message) {
         throw new Error(message);
     }
     console.log(`PASS: ${message}`);
+}
+
+function isExpectedBlockedExternalAssetMessage(message) {
+    return message.type() === 'error'
+        && message.text().includes('net::ERR_BLOCKED_BY_CLIENT');
 }
 
 function createStaticServer() {
@@ -91,6 +98,33 @@ async function openTeacherPanel(page) {
     await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
 }
 
+async function closeTeacherPanel(page) {
+    if (await page.locator('#teacher-panel.open').count() === 0) {
+        return;
+    }
+
+    await page.locator('#close-teacher-panel').click();
+    await page.waitForSelector('#teacher-panel.open', { state: 'hidden', timeout: 10000 });
+}
+
+async function dragElementBy(page, selector, deltaX, deltaY) {
+    const box = await page.locator(selector).boundingBox();
+    assert(!!box, `${selector} should have a bounding box before drag`);
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
+    await page.mouse.up();
+}
+
+async function getElementBox(page, selector) {
+    const box = await page.locator(selector).boundingBox();
+    assert(!!box, `${selector} should have a bounding box`);
+    return box;
+}
+
 async function launchBrowser() {
     const candidates = [
         process.env.TEACHER_SCREEN_BROWSER ? { channel: process.env.TEACHER_SCREEN_BROWSER } : null,
@@ -111,6 +145,20 @@ async function launchBrowser() {
     throw new Error(`Unable to launch a browser for smoke tests. Tried ${failures.join('; ')}`);
 }
 
+async function makeExternalAssetsDeterministic(context) {
+    await context.route(EXTERNAL_ASSET_URL, async (route) => {
+        const request = route.request();
+        const url = request.url();
+
+        if (OPTIONAL_EXTERNAL_SCRIPT_URL.test(url) && request.resourceType() === 'script') {
+            // Leave optional CDN scripts pending so the app must prove it can start without them.
+            return;
+        }
+
+        await route.abort('blockedbyclient');
+    });
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -119,13 +167,14 @@ async function runSmoke() {
     try {
         browser = await launchBrowser();
         const context = await browser.newContext();
+        await makeExternalAssetsDeterministic(context);
         const pageErrors = [];
         const consoleErrors = [];
 
         context.on('page', (page) => {
             page.on('pageerror', (error) => pageErrors.push(error.message));
             page.on('console', (message) => {
-                if (message.type() === 'error') {
+                if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
                     consoleErrors.push(message.text());
                 }
             });
@@ -134,6 +183,9 @@ async function runSmoke() {
         const page = await context.newPage();
         await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
+        const optionalDependencyFailures = await page.evaluate(() => window.__TeacherDependencyFailures || []);
+        assert(optionalDependencyFailures.length > 0, 'Teacher app should continue after optional online scripts stall');
         assert(await page.title() === 'Custom Classroom Screen', 'Teacher app page title should load');
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
         assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
@@ -149,6 +201,7 @@ async function runSmoke() {
         assert(await page.locator('#student-view').isVisible(), 'Classroom view should open');
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'Empty classroom should point teachers to quick actions');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Classroom should open in lesson mode with Teacher Controls closed');
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 0, 'Classroom should open in clean teaching mode');
         assert(await page.locator('#lesson-quick-actions').isVisible(), 'Lesson quick actions should appear in classroom mode');
         assert(await page.locator('#teacher-controls-quick-btn').isVisible(), 'Teacher Controls should remain one click away in lesson mode');
         assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 4, 'Lesson quick actions should expose common live widgets');
@@ -156,13 +209,156 @@ async function runSmoke() {
         await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isHidden(), 'Teaching mode should hide widget editing chrome');
+        assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
+        await openTeacherPanel(page);
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Opening Teacher Controls should enable arrange mode');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Arrange mode should reveal widget editing chrome');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'Arrange mode should use the friendly Text Board label');
+        await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
+        await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
+        await page.locator('#widget-settings-modal .rich-text-controls--modes button', { hasText: 'Display' }).click();
+        await page.locator('#widget-settings-modal .modal-close-btn').click();
+        await page.waitForSelector('#widget-settings-modal.visible', { state: 'hidden', timeout: 10000 });
+        assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isHidden(), 'Rich Text toolbar should hide in display mode');
+        assert(await page.locator('.widget.rich-text-widget .rich-text-inline-edit-button').isVisible(), 'Rich Text display mode should expose a quick Edit button');
+        await page.locator('.widget.rich-text-widget .rich-text-inline-edit-button').click();
+        assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should return after quick Edit');
+        await closeTeacherPanel(page);
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 0, 'Closing Teacher Controls should return to teaching mode');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isHidden(), 'Teaching mode should hide widget chrome again');
 
         await addWidget(page, 'timer', '.widget.pomodoro-widget', 'Pomodoro');
+        await openTeacherPanel(page);
+        await page.waitForTimeout(800);
+        const timerBoxBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
+        const classroomCanvasBox = await getElementBox(page, '#widgets-container');
+        const verticalDragDelta = timerBoxBeforeDrag.y - classroomCanvasBox.y < classroomCanvasBox.height / 2 ? 200 : -200;
+        await dragElementBy(page, '.widget.pomodoro-widget .widget-header', 0, verticalDragDelta);
+        const timerBoxAfterDrag = await getElementBox(page, '.widget.pomodoro-widget');
+        assert(
+            Math.abs(timerBoxAfterDrag.x - timerBoxBeforeDrag.x) > 20
+                || Math.abs(timerBoxAfterDrag.y - timerBoxBeforeDrag.y) > 12,
+            'Dragging should move a widget within the arranged canvas'
+        );
+        await dragElementBy(page, '.widget.pomodoro-widget .resize-handle.bottom-right', 64, 48);
+        const timerBoxAfterResize = await getElementBox(page, '.widget.pomodoro-widget');
+        assert(timerBoxAfterResize.width > timerBoxAfterDrag.width + 20, 'Resizing should widen a widget');
+        assert(timerBoxAfterResize.height > timerBoxAfterDrag.height + 12, 'Resizing should heighten a widget');
+        await closeTeacherPanel(page);
+
+        await page.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
+        await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
+        const behaviourTracker = page.locator('.widget.behaviour-tracker-widget');
+        assert(await behaviourTracker.locator('.behaviour-tracker-widget-content[data-mode="class"]').count() === 1, 'Track quick action should add the aggregate classroom tracker');
+        assert(await behaviourTracker.locator('.behaviour-student-name, .behaviour-recent-list, .behaviour-roster-input').count() === 0, 'The classroom canvas should never render private student controls');
+        await page.evaluate(() => {
+            window.__behaviourBroadcasts = [];
+            window.__behaviourTestChannel = new BroadcastChannel('teacher-screen-sync');
+            window.__behaviourTestChannel.onmessage = (event) => {
+                if (event.data?.type === 'layout-update') window.__behaviourBroadcasts.push(event.data);
+            };
+        });
+        const behaviourPopupPromise = page.waitForEvent('popup');
+        await behaviourTracker.locator('[data-action="open-controls"]').click();
+        const behaviourControls = await behaviourPopupPromise;
+        await behaviourControls.waitForSelector('.behaviour-tracker-widget-content[data-mode="private"]', { timeout: 10000 });
+        await behaviourControls.locator('.behaviour-tracker-widget-content').press('2');
+        assert(await behaviourControls.locator('[data-category-id="calling-out"]').getAttribute('aria-pressed') === 'true', 'Tracker number shortcuts should select a behaviour category');
+        await behaviourControls.locator('[data-action="class-mark"]').click();
+        assert(await behaviourControls.locator('.behaviour-recent-list').textContent().then((text) => text.includes('Calling out')), 'Tracker should record an anonymous class observation');
+        assert(await behaviourControls.locator('.behaviour-timer-value').textContent().then((text) => text.trim() === '00:00'), 'Behaviour marks should not invent lost learning time');
+        await behaviourControls.locator('[data-action="undo"]').click();
+        assert(await behaviourControls.locator('.behaviour-recent-list').count() === 0, 'Tracker Undo should remove the last observation');
+        await behaviourControls.locator('[data-action="class-mark"]').click();
+        await behaviourControls.locator('.behaviour-roster-details summary').click();
+        await behaviourControls.locator('.behaviour-roster-input').fill('Alex\nBailey');
+        await behaviourControls.locator('[data-action="save-roster"]').click();
+        await behaviourControls.locator('.behaviour-student-mark', { hasText: 'Alex' }).click();
+        assert(await behaviourControls.locator('.behaviour-student-mark', { hasText: 'Alex' }).locator('.behaviour-student-count').textContent().then((text) => text.trim() === '1'), 'Tracker should keep private per-student observation counts');
+        assert(await behaviourTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Named observations should stay out of the classroom canvas');
+        await behaviourControls.locator('.behaviour-timer-toggle').click();
+        await page.waitForTimeout(1100);
+        const storedRunningStateIsSafe = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const tracker = state.layout?.widgets?.find((widget) => widget.type === 'BehaviourTrackerWidget');
+            return tracker?.data?.runningSince === null;
+        });
+        assert(storedRunningStateIsSafe, 'Saved tracker state should not keep counting after the app closes');
+        await behaviourControls.locator('.behaviour-timer-toggle').click();
+        assert(await behaviourControls.locator('.behaviour-timer-value').textContent().then((text) => text.trim() !== '00:00'), 'Tracker should measure actual paused learning time');
+        await page.waitForFunction(() => window.__behaviourBroadcasts.some((message) => {
+            const tracker = message.state?.layout?.widgets?.find((widget) => widget.type === 'BehaviourTrackerWidget');
+            return tracker && tracker.data?.observationCount >= 2;
+        }), { timeout: 10000 });
+        const projectorPayloadIsPrivate = await page.evaluate(() => {
+            const message = [...window.__behaviourBroadcasts].reverse().find((candidate) => {
+                return candidate.state?.layout?.widgets?.some((widget) => widget.type === 'BehaviourTrackerWidget');
+            });
+            const tracker = message?.state?.layout?.widgets?.find((widget) => widget.type === 'BehaviourTrackerWidget');
+            return Boolean(message && !Object.prototype.hasOwnProperty.call(message.state, 'pages')
+                && tracker && tracker.data?.students?.length === 0 && tracker.data?.events?.length === 0);
+        });
+        assert(projectorPayloadIsPrivate, 'Projector sync should contain aggregate tracker data only');
+
         await addWidget(page, 'drawing-tool', '.widget.drawing-tool-widget', 'Drawing Tool');
         assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-tool').count() >= 4, 'Drawing Tool should expose compact tool choices');
         assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-swatch').count() >= 4, 'Drawing Tool should expose quick colour swatches');
         assert(await page.locator('.drawing-board').count() === 0, 'Legacy fixed drawing board should not be present during lesson mode');
-        await waitForWidgetCount(page, 3, 'Deck page one should contain quick text plus both smoke-test widgets');
+        await addWidget(page, 'quiz-game', '.widget.quiz-game-widget', 'Quiz Game');
+        await page.locator('.widget.quiz-game-widget button', { hasText: 'Reveal Answer' }).click();
+        await page.waitForSelector('.widget.quiz-game-widget .quiz-game-answer.is-correct', { timeout: 10000 });
+        assert(await page.locator('.widget.quiz-game-widget .quiz-game-answer.is-correct').count() >= 1, 'Quiz Game should reveal the correct answer');
+        await page.locator('.widget.quiz-game-widget .quiz-game-score-actions button', { hasText: '+1' }).first().click();
+        assert(await page.locator('.widget.quiz-game-widget .quiz-game-team-score').first().textContent().then((text) => text.trim() === '1'), 'Quiz Game should update team score');
+        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
+        await page.locator('.widget.reveal-manager-widget .reveal-toggle-controls-btn').click();
+        await page.locator('.widget.reveal-manager-widget .reveal-deck-name').fill('Smoke Reveal Deck');
+        await page.locator('.widget.reveal-manager-widget .reveal-content-textarea').fill('<section><h2>Smoke Slide</h2><p>Deck content</p></section>');
+        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').click();
+        await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck .slides section', { timeout: 10000 });
+        await page.waitForFunction(() => {
+            const status = document.querySelector('.widget.reveal-manager-widget .reveal-presenter-status');
+            return status && /Unable to load Reveal deck/i.test(status.textContent || '');
+        }, undefined, { timeout: 10000 });
+        assert(await page.locator('.widget.reveal-manager-widget .reveal-presenter-status').textContent().then((text) => /Unable to load Reveal deck/i.test(text)), 'Slides should fail gracefully when Reveal.js is unavailable');
+
+        await addWidget(page, 'url-viewer', '.widget.url-viewer-widget', 'Web Page');
+
+        await addWidget(page, 'notes', '.widget.notes-widget', 'Quick Notes');
+        await page.locator('.widget.notes-widget .notes-main-display').click({ force: true });
+        await page.waitForSelector('.widget.notes-widget .notes-editor-wrapper', { timeout: 10000 });
+        assert(await page.locator('.widget.notes-widget .notes-fallback-editor').isVisible(), 'Notes should expose a plain editor when Quill is unavailable');
+        await page.locator('.widget.notes-widget .notes-fallback-editor').fill('Smoke note for classroom follow-up checks');
+        await page.locator('.widget.notes-widget button', { hasText: 'Save and Close' }).click();
+        await page.waitForSelector('.widget.notes-widget .notes-main-display', { timeout: 10000 });
+        assert(await page.locator('.widget.notes-widget .notes-preview-snippet').textContent().then((text) => text.includes('Smoke note')), 'Notes should save text with the fallback editor');
+        await page.locator('#notes-tab').dispatchEvent('click');
+        await page.waitForSelector('#notes-view:not([hidden])', { timeout: 10000 });
+        assert(await page.locator('#saved-notes-list').textContent().then((text) => text.includes('Smoke note')), 'Saved Notes view should list the fallback note');
+        await page.locator('#planner-tab').dispatchEvent('click');
+        await page.waitForSelector('#planner-view:not([hidden])', { timeout: 10000 });
+        const plannerTemplateName = `Smoke Planner ${Date.now()}`;
+        await page.locator('#planner-layout-name-input').fill(plannerTemplateName);
+        await page.locator('#planner-save-layout-btn').click();
+        await page.waitForFunction((name) => localStorage.getItem(`layouts_${name}`) !== null, plannerTemplateName, { timeout: 10000 });
+        assert(await page.locator('#saved-layouts-list').textContent().then((text) => text.includes(plannerTemplateName)), 'Planner should list a saved template');
+        await page.locator('#open-weekly-planner-btn').click();
+        await page.waitForSelector('#planner-modal.visible', { timeout: 10000 });
+        await page.locator('.planner-slot').first().click();
+        await page.locator('.layout-dropdown').selectOption(plannerTemplateName);
+        await page.waitForFunction((name) => {
+            const schedule = JSON.parse(localStorage.getItem('teacherScreenSchedule') || '{}');
+            return Object.values(schedule).some((entry) => (
+                entry === name || (entry && typeof entry === 'object' && entry.layout === name)
+            ));
+        }, plannerTemplateName, { timeout: 10000 });
+        assert(true, 'Planner should schedule a saved template into a weekly slot');
+        await page.locator('#planner-modal .modal-close-btn').click();
+        await page.waitForSelector('#planner-modal.visible', { state: 'hidden', timeout: 10000 });
+        await page.locator('#classroom-tab').dispatchEvent('click');
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await waitForWidgetCount(page, 8, 'Deck page one should contain the tracker, quick text, and smoke-test widgets');
 
         await openTeacherPanel(page);
         await page.locator('#new-page-btn').click();
@@ -171,13 +367,36 @@ async function runSmoke() {
             return state && Array.isArray(state.pages) && state.pages.length >= 2;
         }, { timeout: 10000 });
         await waitForWidgetCount(page, 0, 'New deck page should start blank');
+        assert(behaviourControls.isClosed(), 'Changing deck pages should close the old private behaviour controls');
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'New blank page should keep the quick-action empty state');
 
         await page.locator('#teacher-page-switcher [data-page-id]').first().click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
-        await waitForWidgetCount(page, 3, 'Switching back to deck page one should restore its widgets');
+        await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
+        await waitForWidgetCount(page, 8, 'Switching back to deck page one should restore its widgets');
+
+        await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const makeLegacyLayoutOversized = (layout) => {
+                if (!layout || !Array.isArray(layout.widgets)) return;
+                const slides = layout.widgets.find((widget) => widget.type === 'RevealManagerWidget');
+                const webPage = layout.widgets.find((widget) => widget.type === 'UrlViewerWidget');
+                if (slides) slides.height = 1600;
+                if (webPage) webPage.width = 160;
+            };
+
+            makeLegacyLayoutOversized(state.layout);
+            const activePage = Array.isArray(state.pages)
+                ? state.pages.find((candidate) => candidate?.id === state.activePageId)
+                : null;
+            makeLegacyLayoutOversized(activePage?.snapshot?.layout);
+            localStorage.setItem('classroomScreenState', JSON.stringify(state));
+        });
 
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
@@ -186,11 +405,35 @@ async function runSmoke() {
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
-        await waitForWidgetCount(page, 3, 'Reload should keep the active deck page widgets');
+        await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
+        const reloadedTracker = page.locator('.widget.behaviour-tracker-widget');
+        assert(await reloadedTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Reloaded classroom canvas should still hide the private roster');
+        const privateRosterPersisted = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const tracker = state.layout?.widgets?.find((widget) => widget.type === 'BehaviourTrackerWidget');
+            return tracker?.data?.students?.some((student) => student.name === 'Alex') === true;
+        });
+        assert(privateRosterPersisted, 'Reload should keep the private tracker roster in local teacher state');
+        await waitForWidgetCount(page, 8, 'Reload should keep the active deck page widgets');
+        const restoredLayoutFits = await page.evaluate(() => {
+            const canvas = document.querySelector('#widgets-container')?.getBoundingClientRect();
+            const slides = document.querySelector('.widget.reveal-manager-widget')?.getBoundingClientRect();
+            if (!canvas || !slides) return false;
+            return slides.top >= canvas.top - 1
+                && slides.left >= canvas.left - 1
+                && slides.right <= canvas.right + 1
+                && slides.bottom <= canvas.bottom + 1;
+        });
+        assert(restoredLayoutFits, 'Oversized saved widgets should be fitted inside the classroom canvas on reload');
+        assert(await page.locator('.widget.url-viewer-widget').evaluate((element) => element.getBoundingClientRect().width >= 400), 'Narrow saved web-page widgets should restore at a readable width');
 
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
-            return state && state.layout && Array.isArray(state.layout.widgets) && state.layout.widgets.length >= 3;
+            return state && state.layout && Array.isArray(state.layout.widgets) && state.layout.widgets.length >= 8;
         }, { timeout: 10000 });
         const savedWidgetCount = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
@@ -198,7 +441,7 @@ async function runSmoke() {
                 ? state.layout.widgets.length
                 : 0;
         });
-        assert(savedWidgetCount >= 3, 'Classroom state should save all smoke-test widgets');
+        assert(savedWidgetCount >= 8, 'Classroom state should save all smoke-test widgets');
 
         await openTeacherPanel(page);
 
@@ -225,17 +468,52 @@ async function runSmoke() {
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Saved deck should reload the quick Rich Text widget');
         assert(await page.locator('.widget.pomodoro-widget').count() === 1, 'Saved deck should reload the Pomodoro widget');
         assert(await page.locator('.widget.drawing-tool-widget').count() === 1, 'Saved deck should reload the Drawing Tool widget');
+        assert(await page.locator('.widget.quiz-game-widget').count() === 1, 'Saved deck should reload the Quiz Game widget');
+        assert(await page.locator('.widget.reveal-manager-widget').count() === 1, 'Saved deck should reload the Slides widget');
+        assert(await page.locator('.widget.url-viewer-widget').count() === 1, 'Saved deck should reload the Web Page widget');
+        assert(await page.locator('.widget.notes-widget').count() === 1, 'Saved deck should reload the Notes widget');
+        assert(await page.locator('.widget.behaviour-tracker-widget').count() === 1, 'Saved deck should reload the learning-time tracker');
+        assert(await page.locator('.widget.behaviour-tracker-widget').textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Saved deck should keep names off the classroom canvas');
 
         const projectorPage = await context.newPage();
         await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.pomodoro-widget', { timeout: 15000 });
+        await projectorPage.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 15000 });
         assert(await projectorPage.locator('.widget.rich-text-widget').count() === 1, 'Projector should render the quick Rich Text widget');
         assert(await projectorPage.locator('.widget.pomodoro-widget').count() === 1, 'Projector should render the saved Pomodoro widget');
         assert(await projectorPage.locator('.widget.drawing-tool-widget').count() === 1, 'Projector should render the saved Drawing Tool widget');
+        const publicTracker = projectorPage.locator('.widget.behaviour-tracker-widget');
+        assert(await publicTracker.locator('.behaviour-tracker-widget-content[data-mode="public"]').count() === 1, 'Projector should render the aggregate class tracker view');
+        assert(await publicTracker.locator('.behaviour-timer-value').textContent().then((text) => text.trim() !== '00:00'), 'Projector should show the saved class lost-time total');
+        assert(await publicTracker.locator('.behaviour-student-name').count() === 0, 'Projector tracker should not render student-name controls');
+        assert(await publicTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Projector tracker should keep individual names private');
+
+        page.once('dialog', (dialog) => dialog.accept());
+        await page.locator('#reset-layout').dispatchEvent('click');
+        await waitForWidgetCount(page, 0, 'Clear Current Page should remove the active widgets');
+        assert(await page.locator('.widget.behaviour-tracker-widget').count() === 0, 'Clear Current Page should discard the active behaviour tracker');
+
+        const presentationPage = await context.newPage();
+        await presentationPage.goto(`${baseUrl}/presentations/year7-rhetoric-marine-turtles/slides.html`, { waitUntil: 'domcontentloaded' });
+        assert(await presentationPage.locator('body').textContent().then((text) => text.toLowerCase().includes('marine turtles')), 'Local presentation link should load its slide content');
+
+        const mobilePage = await context.newPage();
+        await mobilePage.setViewportSize({ width: 390, height: 844 });
+        await mobilePage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        assert(await mobilePage.locator('#dashboard-open-classroom-btn').isVisible(), 'Mobile dashboard should show the classroom entry button');
+        await mobilePage.locator('#dashboard-open-classroom-btn').click();
+        await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
 
         assert(pageErrors.length === 0, `Browser page errors should be absent (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Browser console errors should be absent (${consoleErrors.join('; ')})`);

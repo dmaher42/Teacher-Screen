@@ -5,6 +5,8 @@ import { createWidgetByType } from './widgets/widget-registry.js';
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
+const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
+const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
 window.__ProjectorConnection = {
     window: window,
@@ -35,12 +37,43 @@ function getProjectorSyncToken() {
     }
 }
 
-const loadClassicScript = (src) => new Promise((resolve, reject) => {
+const isExternalDependency = (src) => /^https?:\/\//i.test(src);
+
+const getDependencyTimeoutMs = (dependency) => {
+    if (Number.isFinite(dependency.timeoutMs)) {
+        return dependency.timeoutMs;
+    }
+
+    return !dependency.required && isExternalDependency(dependency.src)
+        ? EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS
+        : LOCAL_DEPENDENCY_TIMEOUT_MS;
+};
+
+const loadClassicScript = (src, timeoutMs = LOCAL_DEPENDENCY_TIMEOUT_MS) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
+    let settled = false;
+
+    const settle = (callback) => {
+        if (settled) {
+            return;
+        }
+
+        settled = true;
+        window.clearTimeout(timeoutId);
+        callback();
+    };
+
+    const timeoutId = window.setTimeout(() => {
+        settle(() => {
+            script.remove();
+            reject(new Error(`Timed out loading script: ${src}`));
+        });
+    }, timeoutMs);
+
     script.src = src;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    script.onload = () => settle(resolve);
+    script.onerror = () => settle(() => reject(new Error(`Failed to load script: ${src}`)));
     document.head.appendChild(script);
 });
 
@@ -73,7 +106,7 @@ const bootstrapProjectorDependencies = async () => {
 
     for (const dependency of PROJECTOR_DEPENDENCIES) {
         try {
-            await loadClassicScript(dependency.src);
+            await loadClassicScript(dependency.src, getDependencyTimeoutMs(dependency));
         } catch (error) {
             failures.push({
                 src: dependency.src,

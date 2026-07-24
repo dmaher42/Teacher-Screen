@@ -1,5 +1,6 @@
 const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js';
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
+const REVEAL_SCRIPT_TIMEOUT_MS = 2500;
 const revealStateStore = new WeakMap();
 
 function createRevealState(root = null) {
@@ -87,9 +88,33 @@ function ensureRevealScript() {
 
     window.__teacherScreenRevealScriptPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
+        let settled = false;
+
+        const settle = (callback) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            window.clearTimeout(timeoutId);
+            callback();
+        };
+
+        const fail = (error) => {
+            window.__teacherScreenRevealScriptPromise = null;
+            reject(error);
+        };
+
+        const timeoutId = window.setTimeout(() => {
+            settle(() => {
+                script.remove();
+                fail(new Error('Timed out loading Reveal.js'));
+            });
+        }, REVEAL_SCRIPT_TIMEOUT_MS);
+
         script.src = REVEAL_SCRIPT_SRC;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load Reveal.js'));
+        script.onload = () => settle(resolve);
+        script.onerror = () => settle(() => fail(new Error('Failed to load Reveal.js')));
         document.head.appendChild(script);
     });
 

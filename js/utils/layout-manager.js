@@ -2,6 +2,9 @@
 
 const GRID_SIZE = 20; // Widgets will snap to a 20px grid
 const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
+const TEACHER_CANVAS_MARGIN = 16;
+const TEACHER_CANVAS_BOTTOM_INSET = 0;
+const TEACHER_WIDGET_GAP = GRID_SIZE;
 const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
@@ -62,6 +65,14 @@ const WIDGET_SIZE_RULES = {
   NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
 
+const WIDGET_DISPLAY_NAMES = {
+  BehaviourTrackerWidget: 'Learning-Time Tracker',
+  PomodoroWidget: 'Timer',
+  RevealManagerWidget: 'Slides',
+  RichTextWidget: 'Text Board',
+  UrlViewerWidget: 'Web Page'
+};
+
 class LayoutManager {
   constructor(container) {
     this.container = container;
@@ -75,6 +86,8 @@ class LayoutManager {
     this.onLayoutChange = null;
     this.isRestoring = false;
     this.interactionEnabled = true;
+    this.containerResizeObserver = null;
+    this.lastContainerSize = null;
 
     if (typeof debounce === 'function') {
         this.saveLayout = debounce(this.saveLayout.bind(this), 200);
@@ -98,7 +111,9 @@ class LayoutManager {
     this.editable = !!isEditable;
     this.interactionEnabled = this.editable;
     this.container.classList.toggle('layout-edit-mode', this.editable);
+    this.container.dataset.layoutMode = this.editable ? 'arrange' : 'teach';
     this.widgets.forEach((widgetInfo) => {
+      this.updateWidgetChrome(widgetInfo);
       if (widgetInfo.widget && typeof widgetInfo.widget.setEditable === 'function') {
         widgetInfo.widget.setEditable(this.editable);
       }
@@ -111,6 +126,32 @@ class LayoutManager {
       this.clampAllWidgetsToContainer();
       this.saveLayout({ emitFull: false });
     });
+
+    if (typeof ResizeObserver === 'function') {
+      this.containerResizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        const nextSize = {
+          width: Math.round(entry.contentRect.width),
+          height: Math.round(entry.contentRect.height)
+        };
+        if (this.lastContainerSize
+          && this.lastContainerSize.width === nextSize.width
+          && this.lastContainerSize.height === nextSize.height) {
+          return;
+        }
+
+        const previousSize = this.lastContainerSize;
+        this.lastContainerSize = nextSize;
+        if (previousSize && previousSize.width > 0 && previousSize.height > 0) {
+          this.scaleWidgetsToContainer(previousSize, nextSize);
+        }
+        this.clampAllWidgetsToContainer();
+        this.saveLayout({ emitFull: false });
+      });
+      this.containerResizeObserver.observe(this.container);
+    }
   }
 
   applyGridStyles() {
@@ -124,6 +165,57 @@ class LayoutManager {
     this.container.style.gridTemplateRows = '';
     this.container.style.gap = '';
     this.container.style.padding = '0';
+  }
+
+  getCanvasMetrics() {
+    const rawWidth = this.container.clientWidth || 1024;
+    const rawHeight = this.container.clientHeight || 768;
+    const isTeacherCanvas = layoutManagerIsTeacherMode();
+    const margin = isTeacherCanvas ? TEACHER_CANVAS_MARGIN : 0;
+    const bottomInset = isTeacherCanvas ? TEACHER_CANVAS_BOTTOM_INSET : 0;
+    const width = Math.max(GRID_SIZE * 4, rawWidth - (margin * 2));
+    const height = Math.max(GRID_SIZE * 4, rawHeight - (margin * 2) - bottomInset);
+
+    return {
+      rawWidth,
+      rawHeight,
+      margin,
+      bottomInset,
+      width,
+      height,
+      minX: margin,
+      minY: margin
+    };
+  }
+
+  scaleWidgetsToContainer(previousSize, nextSize) {
+    if (!previousSize || !nextSize || !this.widgets.length) return;
+
+    const isTeacherCanvas = layoutManagerIsTeacherMode();
+    const margin = isTeacherCanvas ? TEACHER_CANVAS_MARGIN : 0;
+    const bottomInset = isTeacherCanvas ? TEACHER_CANVAS_BOTTOM_INSET : 0;
+    const previousWidth = Math.max(GRID_SIZE * 4, previousSize.width - (margin * 2));
+    const previousHeight = Math.max(GRID_SIZE * 4, previousSize.height - (margin * 2) - bottomInset);
+    const nextWidth = Math.max(GRID_SIZE * 4, nextSize.width - (margin * 2));
+    const nextHeight = Math.max(GRID_SIZE * 4, nextSize.height - (margin * 2) - bottomInset);
+    const gapBudget = isTeacherCanvas ? Math.max(0, this.widgets.length - 1) * TEACHER_WIDGET_GAP : 0;
+    const previousScalableWidth = Math.max(GRID_SIZE * 4, previousWidth - gapBudget);
+    const nextScalableWidth = Math.max(GRID_SIZE * 4, nextWidth - gapBudget);
+    const positionWidthScale = nextWidth / previousWidth;
+    const widthScale = nextScalableWidth / previousScalableWidth;
+    const heightScale = nextHeight / previousHeight;
+
+    if (!Number.isFinite(positionWidthScale) || !Number.isFinite(widthScale) || !Number.isFinite(heightScale)) return;
+
+    this.widgets.forEach((widgetInfo) => {
+      const scaledWidth = widgetInfo.width * widthScale;
+      const scaledHeight = widgetInfo.height * heightScale;
+      const constrained = this.getConstrainedSize(widgetInfo.widget, scaledWidth, scaledHeight);
+      widgetInfo.x = margin + ((widgetInfo.x - margin) * positionWidthScale);
+      widgetInfo.y = margin + ((widgetInfo.y - margin) * heightScale);
+      widgetInfo.width = constrained.width;
+      widgetInfo.height = constrained.height;
+    });
   }
 
   clearStageLayout() {
@@ -331,34 +423,49 @@ class LayoutManager {
     if (!rules) return { width: widthPx, height: heightPx };
 
     // Approximation of column size
-    const colSize = this.container.clientWidth / this.gridColumns || 80;
-    const rowSize = this.container.clientHeight / this.gridRows || 80;
+    const canvas = this.getCanvasMetrics();
+    const colSize = canvas.width / this.gridColumns || 80;
+    const rowSize = canvas.height / this.gridRows || 80;
 
     let w = widthPx;
     let h = heightPx;
 
-    if (rules.minW) w = Math.max(w, rules.minW * colSize);
-    if (rules.minH) h = Math.max(h, rules.minH * rowSize);
-    // Remove max constraints for more freedom, or adapt them?
-    // Let's keep min constraints but be lenient on max.
+    if (rules.minW) w = Math.max(w, Math.min(rules.minW * colSize, canvas.width));
+    if (rules.minH) h = Math.max(h, Math.min(rules.minH * rowSize, canvas.height));
+    if (rules.maxW) w = Math.min(w, rules.maxW * colSize);
+    if (rules.maxH) h = Math.min(h, rules.maxH * rowSize);
+    if (type === 'RevealManagerWidget') {
+      const revealMinHeight = Math.min((rules.minH || 5) * rowSize, canvas.height);
+      const revealCardHeight = Math.min(canvas.height, Math.max(revealMinHeight, w * 0.72));
+      h = Math.min(h, revealCardHeight);
+    }
 
     return { width: w, height: h };
   }
 
   normalizeWidgetBounds(x, y, width, height) {
-    const containerWidth = this.container.clientWidth || 1024;
-    const containerHeight = this.container.clientHeight || 768;
-    const safeWidth = Number.isFinite(width) && width > 0 ? width : 320;
-    const safeHeight = Number.isFinite(height) && height > 0 ? height : 240;
-    const maxX = Math.max(0, containerWidth - safeWidth);
-    const maxY = Math.max(0, containerHeight - safeHeight);
+    const canvas = this.getCanvasMetrics();
+    const requestedWidth = Number.isFinite(width) && width > 0 ? width : 320;
+    const requestedHeight = Number.isFinite(height) && height > 0 ? height : 240;
+    const safeWidth = clamp(requestedWidth, Math.min(GRID_SIZE * 4, canvas.width), canvas.width);
+    const safeHeight = clamp(requestedHeight, Math.min(GRID_SIZE * 4, canvas.height), canvas.height);
+    const maxX = canvas.minX + Math.max(0, canvas.width - safeWidth);
+    const maxY = canvas.minY + Math.max(0, canvas.height - safeHeight);
 
     return {
-      x: clamp(Number.isFinite(x) ? x : 0, 0, maxX),
-      y: clamp(Number.isFinite(y) ? y : 0, 0, maxY),
+      x: clamp(Number.isFinite(x) ? x : canvas.minX, canvas.minX, maxX),
+      y: clamp(Number.isFinite(y) ? y : canvas.minY, canvas.minY, maxY),
       width: safeWidth,
       height: safeHeight
     };
+  }
+
+  updateWidgetChrome(widgetInfo) {
+    const header = widgetInfo?.element?.querySelector(':scope > .widget-header');
+    if (!header) return;
+
+    header.setAttribute('aria-hidden', this.editable ? 'false' : 'true');
+    header.toggleAttribute('inert', !this.editable);
   }
 
   clampWidgetToContainer(widgetInfo) {
@@ -373,8 +480,41 @@ class LayoutManager {
   clampAllWidgetsToContainer() {
     this.widgets.forEach((widgetInfo) => {
       this.clampWidgetToContainer(widgetInfo);
+    });
+    this.ensureTeacherWidgetSpacing();
+    this.widgets.forEach((widgetInfo) => {
       this.mountWidgetElement(widgetInfo);
     });
+    this.widgets.forEach((widgetInfo) => {
+      this.resolveWidgetPlacementConflict(widgetInfo);
+    });
+  }
+
+  ensureTeacherWidgetSpacing() {
+    if (!layoutManagerIsTeacherMode() || this.widgets.length < 2) return;
+
+    const canvas = this.getCanvasMetrics();
+    const maxRight = canvas.minX + canvas.width;
+    const minWidth = GRID_SIZE * 4;
+    const ordered = [...this.widgets].sort((a, b) => a.x - b.x);
+
+    for (let index = 1; index < ordered.length; index += 1) {
+      const previous = ordered[index - 1];
+      const current = ordered[index];
+      const verticallyAligned = previous.y < current.y + current.height + TEACHER_WIDGET_GAP
+        && previous.y + previous.height + TEACHER_WIDGET_GAP > current.y;
+      if (!verticallyAligned) continue;
+
+      const shortfall = previous.x + previous.width + TEACHER_WIDGET_GAP - current.x;
+      if (shortfall <= 0) continue;
+
+      const snappedShortfall = Math.ceil(shortfall / GRID_SIZE) * GRID_SIZE;
+      if (current.x + current.width + snappedShortfall <= maxRight) {
+        current.x += snappedShortfall;
+      } else if (previous.width - snappedShortfall >= minWidth) {
+        previous.width -= snappedShortfall;
+      }
+    }
   }
 
   moveWidgetByDelta(widgetElement, dx, dy) {
@@ -389,8 +529,9 @@ class LayoutManager {
     let newY = info.y + deltaY;
 
     // Constraints
-    newX = Math.max(0, Math.min(this.container.clientWidth - info.width, newX));
-    newY = Math.max(0, Math.min(this.container.clientHeight - info.height, newY));
+    const bounded = this.normalizeWidgetBounds(newX, newY, info.width, info.height);
+    newX = bounded.x;
+    newY = bounded.y;
 
     // Snap
     newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
@@ -413,15 +554,17 @@ class LayoutManager {
   rectsOverlap(a, b) {
     if (!a || !b) return false;
 
-    return a.x < b.x + b.width
-      && a.x + a.width > b.x
-      && a.y < b.y + b.height
-      && a.y + a.height > b.y;
+    const gap = layoutManagerIsTeacherMode() ? TEACHER_WIDGET_GAP : 0;
+
+    return a.x < b.x + b.width + gap
+      && a.x + a.width + gap > b.x
+      && a.y < b.y + b.height + gap
+      && a.y + a.height + gap > b.y;
   }
 
   resolveWidgetPlacementConflict(widgetInfo) {
     if (!widgetInfo || !widgetInfo.element) return false;
-    if (widgetInfo.layoutType === 'stage') return false;
+    if (this.mode === 'stage' && widgetInfo.layoutType === 'stage') return false;
 
     const parent = widgetInfo.element.parentElement;
     if (!parent) return false;
@@ -513,8 +656,9 @@ class LayoutManager {
 
   addWidget(widget, x = null, y = null, width = null, height = null) {
     layoutManagerApplyAppModeToWidget(widget);
-     const containerW = this.container.clientWidth || 1024;
-     const containerH = this.container.clientHeight || 768;
+     const canvas = this.getCanvasMetrics();
+     const containerW = canvas.width;
+     const containerH = canvas.height;
      const colW = containerW / this.gridColumns;
      const rowH = containerH / this.gridRows;
      const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
@@ -592,6 +736,7 @@ class LayoutManager {
     widget.widgetId = widgetInfo.id;
     widget.widgetInfo = widgetInfo;
     this.widgets.push(widgetInfo);
+    this.updateWidgetChrome(widgetInfo);
     this.refreshWidgetProjectorVisibilityControl(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
@@ -663,7 +808,8 @@ class LayoutManager {
 
     // Format the title from the class name (e.g. Timer, Rich Text, etc.)
     const nameStr = widget.constructor.name.replace(/Widget$/, '');
-    const readableName = nameStr.replace(/([A-Z])/g, ' $1').trim();
+    const readableName = WIDGET_DISPLAY_NAMES[widget.constructor.name]
+      || nameStr.replace(/([A-Z])/g, ' $1').trim();
 
     title.innerHTML = `<i class="fas fa-grip-vertical"></i> <span>${readableName}</span>`;
     header.appendChild(title);
@@ -821,8 +967,9 @@ class LayoutManager {
 
       const info = this.widgets.find(w => w.element === element);
       const rules = info ? WIDGET_SIZE_RULES[info.widget.constructor.name] || {} : {};
-      const colW = this.container.clientWidth / this.gridColumns || COL_PX_ESTIMATE;
-      const rowH = this.container.clientHeight / this.gridRows || COL_PX_ESTIMATE;
+      const canvas = this.getCanvasMetrics();
+      const colW = canvas.width / this.gridColumns || COL_PX_ESTIMATE;
+      const rowH = canvas.height / this.gridRows || COL_PX_ESTIMATE;
       const minWidth = Math.round((rules.minW ? rules.minW * colW : GRID_SIZE * 4) / GRID_SIZE) * GRID_SIZE;
       const minHeight = Math.round((rules.minH ? rules.minH * rowH : GRID_SIZE * 3) / GRID_SIZE) * GRID_SIZE;
       let resizeFrame = null;
@@ -879,11 +1026,11 @@ class LayoutManager {
           newHeight = minHeight;
         }
 
-        const maxLeft = Math.max(0, this.container.clientWidth - newWidth);
-        const maxTop = Math.max(0, this.container.clientHeight - newHeight);
-
-        newLeft = Math.min(Math.max(0, newLeft), maxLeft);
-        newTop = Math.min(Math.max(0, newTop), maxTop);
+        const bounded = this.normalizeWidgetBounds(newLeft, newTop, newWidth, newHeight);
+        newWidth = bounded.width;
+        newHeight = bounded.height;
+        newLeft = bounded.x;
+        newTop = bounded.y;
 
         pendingResize = {
           width: Math.round(newWidth),
@@ -993,6 +1140,9 @@ class LayoutManager {
           e.target.closest('input') ||
           e.target.closest('select') ||
           e.target.closest('textarea') ||
+          e.target.closest('summary') ||
+          e.target.closest('details') ||
+          e.target.closest('.notes-main-display') ||
           e.target.closest('[contenteditable="true"]') ||
           e.target.closest('.ql-toolbar') ||
           e.target.closest('.ql-editor') ||
@@ -1239,6 +1389,10 @@ class LayoutManager {
       if (finalX == null) finalX = 0;
       if (finalY == null) finalY = 0;
 
+      const constrained = this.getConstrainedSize(widget, finalW, finalH);
+      finalW = constrained.width;
+      finalH = constrained.height;
+
       // Snap
       finalX = Math.round(finalX / GRID_SIZE) * GRID_SIZE;
       finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
@@ -1289,6 +1443,7 @@ class LayoutManager {
       };
       widget.widgetInfo = widgetInfo;
       this.widgets.push(widgetInfo);
+      this.updateWidgetChrome(widgetInfo);
       this.refreshWidgetProjectorVisibilityControl(widgetInfo);
 
       if (typeof widget.setEditable === 'function') {
@@ -1299,6 +1454,7 @@ class LayoutManager {
     this.widgets.forEach((widgetInfo) => {
       this.mountWidgetElement(widgetInfo);
       this.observeWidgetLayout(widgetInfo);
+      this.resolveWidgetPlacementConflict(widgetInfo);
     });
   }
 
