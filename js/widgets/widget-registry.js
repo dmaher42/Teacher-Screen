@@ -4,6 +4,7 @@ export const WidgetRegistry = {
         className: 'PomodoroWidget',
         label: 'Pomodoro',
         icon: '⏱️',
+        description: 'Keep activities on time',
         category: 'Primary',
         create: () => new PomodoroWidget()
     },
@@ -12,6 +13,7 @@ export const WidgetRegistry = {
         className: 'BehaviourTrackerWidget',
         label: 'Learning-Time Tracker',
         icon: '✓',
+        description: 'Track interruptions privately',
         category: 'Primary',
         create: () => new BehaviourTrackerWidget()
     },
@@ -20,6 +22,7 @@ export const WidgetRegistry = {
         className: 'NoiseMeterWidget',
         label: 'Noise Meter',
         icon: '🔊',
+        description: 'Show the room noise level',
         category: 'Primary',
         create: () => new NoiseMeterWidget()
     },
@@ -28,6 +31,7 @@ export const WidgetRegistry = {
         className: 'NamePickerWidget',
         label: 'Random Name Picker',
         icon: '🎲',
+        description: 'Choose students at random',
         category: 'Primary',
         create: () => new NamePickerWidget()
     },
@@ -36,6 +40,7 @@ export const WidgetRegistry = {
         className: 'QRCodeWidget',
         label: 'QR Code',
         icon: '🔳',
+        description: 'Share a link students can scan',
         category: 'Secondary',
         create: () => new QRCodeWidget()
     },
@@ -44,6 +49,7 @@ export const WidgetRegistry = {
         className: 'DrawingToolWidget',
         label: 'Drawing Tool',
         icon: '✏️',
+        description: 'Sketch and annotate live',
         category: 'Secondary',
         create: () => new DrawingToolWidget()
     },
@@ -52,6 +58,7 @@ export const WidgetRegistry = {
         className: 'QuizGameWidget',
         label: 'Quiz Game',
         icon: 'Q',
+        description: 'Run a quick class quiz',
         category: 'Secondary',
         create: () => new QuizGameWidget()
     },
@@ -60,6 +67,7 @@ export const WidgetRegistry = {
         className: 'DocumentViewerWidget',
         label: 'Document Viewer',
         icon: '📄',
+        description: 'Put a document on screen',
         category: 'Secondary',
         create: () => new DocumentViewerWidget()
     },
@@ -68,6 +76,7 @@ export const WidgetRegistry = {
         className: 'UrlViewerWidget',
         label: 'URL Viewer',
         icon: '🔗',
+        description: 'Embed a web page',
         category: 'Secondary',
         create: () => new UrlViewerWidget()
     },
@@ -76,6 +85,7 @@ export const WidgetRegistry = {
         className: 'RevealManagerWidget',
         label: 'Slides',
         icon: '🖥️',
+        description: 'Present a slide deck',
         category: 'Secondary',
         create: () => new RevealManagerWidget()
     },
@@ -84,6 +94,7 @@ export const WidgetRegistry = {
         className: 'MaskWidget',
         label: 'Mask',
         icon: '🎭',
+        description: 'Reveal content step by step',
         category: 'Secondary',
         create: () => new MaskWidget()
     },
@@ -92,6 +103,7 @@ export const WidgetRegistry = {
         className: 'NotesWidget',
         label: 'Quick Notes',
         icon: '📝',
+        description: 'Capture notes during a lesson',
         category: 'Secondary',
         create: () => new NotesWidget()
     },
@@ -100,6 +112,7 @@ export const WidgetRegistry = {
         className: 'WellbeingWidget',
         label: 'Well-being Check-in',
         icon: '💚',
+        description: 'Check how the class is feeling',
         category: 'Secondary',
         create: () => new WellbeingWidget()
     },
@@ -108,6 +121,7 @@ export const WidgetRegistry = {
         className: 'RichTextWidget',
         label: 'Rich Text Board',
         icon: '✒️',
+        description: 'Display instructions and prompts',
         category: 'Secondary',
         create: () => new RichTextWidget()
     }
@@ -168,6 +182,7 @@ export function getWidgetMeta(type) {
         className: definition.className,
         label: definition.label,
         icon: definition.icon,
+        description: definition.description,
         category: definition.category,
         hiddenFromPicker: definition.hiddenFromPicker === true
     };

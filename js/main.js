@@ -1349,7 +1349,7 @@ class ClassroomScreenApp {
                 : [];
 
             return {
-                favorites: favorites.length ? favorites : fallback.favorites,
+                favorites,
                 recent
             };
         } catch (error) {
@@ -1387,11 +1387,12 @@ class ClassroomScreenApp {
             ? state.favorites.filter((item) => item !== key)
             : [...state.favorites, key];
 
-        this.saveWidgetPickerState({
+        const nextState = {
             ...state,
             favorites
-        });
-        this.renderWidgetModal(key);
+        };
+        this.saveWidgetPickerState(nextState);
+        return nextState;
     }
 
     renderWidgetModal(focusWidgetType = null) {

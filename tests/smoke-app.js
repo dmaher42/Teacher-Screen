@@ -218,6 +218,28 @@ async function runSmoke() {
         assert(await page.locator('#teacher-controls-quick-btn').isVisible(), 'Teacher Controls should remain one click away in lesson mode');
         assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 4, 'Lesson quick actions should expose common live widgets');
 
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        assert(await page.locator('#widget-picker-search').isVisible(), 'Widget picker should open with a visible search field');
+        const allWidgetKeys = await page.locator('#widget-modal [data-widget]').evaluateAll((buttons) => (
+            buttons.map((button) => button.dataset.widget)
+        ));
+        assert(allWidgetKeys.length >= 14, 'Widget picker should expose the complete tool collection');
+        assert(new Set(allWidgetKeys).size === allWidgetKeys.length, 'Widget picker should show each tool once without duplicate cards');
+        const compactWidgetCardHeight = await page.locator('#widget-modal [data-widget]').first().evaluate((button) => (
+            button.getBoundingClientRect().height
+        ));
+        assert(compactWidgetCardHeight <= 82, 'Widget picker cards should stay compact on desktop');
+        await page.locator('#widget-picker-search').fill('noise');
+        assert(await page.locator('#widget-modal [data-widget]').count() === 1, 'Widget search should narrow the picker to matching tools');
+        assert(await page.locator('#widget-modal [data-widget="noise-meter"]').isVisible(), 'Widget search should find the Noise Meter');
+        await page.locator('#widget-modal .widget-picker-search__clear').click();
+        await page.locator('#widget-modal [data-filter="Secondary"]').click();
+        assert(await page.locator('#widget-modal [data-widget="timer"]').count() === 0, 'Widget filters should hide tools from other categories');
+        assert(await page.locator('#widget-modal [data-widget="notes"]').isVisible(), 'Content filter should keep matching display tools visible');
+        await page.locator('#widget-modal .modal-close').click();
+        await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
+
         await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
