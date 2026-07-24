@@ -2074,9 +2074,9 @@ body.is-dashboard-active .dashboard-shell {
 }
 
 body.is-dashboard-active .dashboard-layout {
-    grid-template-columns: minmax(210px, 238px) minmax(0, 1fr);
-    gap: 18px;
-    padding: 18px;
+    grid-template-columns: minmax(196px, 216px) minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
     background:
         radial-gradient(circle at 86% 4%, rgba(47, 143, 244, 0.2), transparent 28%),
         linear-gradient(135deg, rgba(43, 196, 220, 0.08), transparent 42%),
@@ -2087,13 +2087,13 @@ body.is-dashboard-active .dashboard-layout {
 body.is-dashboard-active .dashboard-sidebar,
 body.is-dashboard-active .dashboard-command-panel,
 body.is-dashboard-active .dashboard-library-panel {
-    border-radius: 22px;
+    border-radius: 20px;
     box-shadow: 0 20px 48px rgba(2, 15, 24, 0.2);
 }
 
 body.is-dashboard-active .dashboard-sidebar {
-    gap: 16px;
-    padding: 17px;
+    gap: 14px;
+    padding: 15px;
     border-color: rgba(125, 211, 252, 0.16);
     background:
         radial-gradient(circle at 22% 0%, rgba(47, 143, 244, 0.24), transparent 34%),
@@ -2101,14 +2101,14 @@ body.is-dashboard-active .dashboard-sidebar {
 }
 
 body.is-dashboard-active .dashboard-brand {
-    gap: 11px;
+    gap: 10px;
     padding: 2px;
 }
 
 body.is-dashboard-active .dashboard-brand__mark {
-    width: 43px;
-    height: 43px;
-    border-radius: 14px;
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
     background: linear-gradient(145deg, #45c5f2, var(--dashboard-blue));
     color: #ffffff;
     box-shadow: 0 10px 22px rgba(1, 17, 28, 0.26);
@@ -2120,7 +2120,7 @@ body.is-dashboard-active .dashboard-brand__eyebrow {
 
 body.is-dashboard-active .dashboard-brand h2 {
     color: #ffffff;
-    font-size: 1.14rem;
+    font-size: 1.08rem;
 }
 
 body.is-dashboard-active .dashboard-sidebar__actions {
@@ -2129,9 +2129,9 @@ body.is-dashboard-active .dashboard-sidebar__actions {
 }
 
 body.is-dashboard-active .dashboard-sidebar__action {
-    min-height: 43px;
-    padding: 0.64rem 0.72rem;
-    border-radius: 13px;
+    min-height: 41px;
+    padding: 0.58rem 0.68rem;
+    border-radius: 12px;
     border-color: rgba(101, 199, 255, 0.24);
     background: linear-gradient(135deg, #42baf1, var(--dashboard-blue));
     color: #ffffff;
@@ -2154,9 +2154,9 @@ body.is-dashboard-active .dashboard-sidebar__section h3 {
 }
 
 body.is-dashboard-active .dashboard-folder {
-    min-height: 46px;
-    padding: 0.68rem 0.76rem;
-    border-radius: 13px;
+    min-height: 42px;
+    padding: 0.58rem 0.7rem;
+    border-radius: 12px;
     border-color: rgba(220, 244, 255, 0.11);
     background: rgba(235, 248, 255, 0.055);
     color: rgba(245, 252, 255, 0.9);
@@ -2179,21 +2179,21 @@ body.is-dashboard-active .dashboard-sidebar__footer {
 }
 
 body.is-dashboard-active .dashboard-sidebar__ghost {
-    min-height: 36px;
-    padding: 0.54rem 0.68rem;
+    min-height: 34px;
+    padding: 0.48rem 0.62rem;
     border-radius: 12px;
     color: rgba(235, 248, 255, 0.72);
 }
 
 body.is-dashboard-active .dashboard-main {
-    gap: 18px;
+    gap: 14px;
 }
 
 body.is-dashboard-active .dashboard-command-panel {
-    grid-template-columns: minmax(270px, 0.82fr) minmax(0, 1.55fr);
-    gap: 20px;
-    min-height: 196px;
-    padding: 20px;
+    grid-template-columns: minmax(230px, 0.66fr) minmax(0, 1.7fr);
+    gap: 18px;
+    min-height: 184px;
+    padding: 18px;
     border-color: rgba(255, 255, 255, 0.68);
     background:
         radial-gradient(circle at 8% 8%, rgba(58, 181, 238, 0.16), transparent 38%),
@@ -2201,8 +2201,8 @@ body.is-dashboard-active .dashboard-command-panel {
 }
 
 body.is-dashboard-active .dashboard-command-panel__header {
-    gap: 8px;
-    padding: 4px 10px 4px 2px;
+    gap: 6px;
+    padding: 2px 6px 2px 0;
 }
 
 body.is-dashboard-active .dashboard-command-panel__label,
@@ -2213,7 +2213,7 @@ body.is-dashboard-active .dashboard-toolbar__label {
 body.is-dashboard-active .dashboard-command-panel h1 {
     max-width: 18ch;
     color: var(--dashboard-ink);
-    font-size: clamp(1.8rem, 3vw, 2.35rem);
+    font-size: clamp(1.72rem, 2.6vw, 2.2rem);
     line-height: 1.03;
     letter-spacing: -0.035em;
 }
@@ -2224,15 +2224,15 @@ body.is-dashboard-active .dashboard-command-panel p {
 
 body.is-dashboard-active .dashboard-command-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    gap: 9px;
 }
 
 body.is-dashboard-active .dashboard-launch-card {
-    min-height: 122px;
+    min-height: 112px;
     align-content: space-between;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 17px;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 15px;
     border-color: var(--dashboard-line);
     background: rgba(255, 255, 255, 0.76);
     color: var(--dashboard-ink);
@@ -2253,9 +2253,9 @@ body.is-dashboard-active .dashboard-launch-card--primary {
 }
 
 body.is-dashboard-active .dashboard-launch-card__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 13px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
     background: rgba(47, 143, 244, 0.12);
     color: var(--dashboard-blue-deep);
 }
@@ -2266,25 +2266,25 @@ body.is-dashboard-active .dashboard-launch-card--primary .dashboard-launch-card_
 }
 
 body.is-dashboard-active .dashboard-launch-card strong {
-    font-size: 0.95rem;
+    font-size: 0.91rem;
 }
 
 body.is-dashboard-active .dashboard-launch-card small {
     max-width: 19ch;
     opacity: 0.72;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
 }
 
 body.is-dashboard-active .dashboard-library-panel {
-    gap: 13px;
-    padding: 18px;
+    gap: 11px;
+    padding: 16px;
     border-color: rgba(255, 255, 255, 0.62);
     background: var(--dashboard-surface);
 }
 
 body.is-dashboard-active .dashboard-toolbar h2 {
     color: var(--dashboard-ink);
-    font-size: 1.38rem;
+    font-size: 1.3rem;
 }
 
 body.is-dashboard-active .dashboard-chip {
@@ -2296,7 +2296,7 @@ body.is-dashboard-active .dashboard-chip {
 }
 
 body.is-dashboard-active .dashboard-search {
-    min-height: 44px;
+    min-height: 42px;
     padding-inline: 14px;
     border-radius: 13px;
     border-color: var(--dashboard-line);
@@ -2309,7 +2309,7 @@ body.is-dashboard-active .dashboard-search:focus {
 }
 
 body.is-dashboard-active .dashboard-link-btn {
-    min-height: 42px;
+    min-height: 40px;
     border-radius: 12px;
     border-color: transparent;
     background: var(--dashboard-navy);
@@ -2317,16 +2317,16 @@ body.is-dashboard-active .dashboard-link-btn {
 }
 
 body.is-dashboard-active .dashboard-screen-grid {
-    gap: 10px;
+    gap: 8px;
     padding-right: 2px;
 }
 
 body.is-dashboard-active .dashboard-screen-card {
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.52fr) auto;
-    min-height: 84px;
-    gap: 14px;
-    padding: 13px 14px;
-    border-radius: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 0.5fr) auto;
+    min-height: 76px;
+    gap: 12px;
+    padding: 11px 13px;
+    border-radius: 14px;
     border-color: var(--dashboard-line);
     background: #ffffff;
     box-shadow: 0 7px 18px rgba(17, 64, 89, 0.055);
@@ -2374,9 +2374,9 @@ body.is-dashboard-active .dashboard-screen-card__actions {
 
 body.is-dashboard-active .dashboard-screen-card__actions .control-button,
 body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
-    min-height: 34px;
-    border-radius: 10px;
-    padding: 0.4rem 0.66rem;
+    min-height: 32px;
+    border-radius: 9px;
+    padding: 0.34rem 0.58rem;
 }
 
 body.is-dashboard-active .dashboard-screen-card__actions .control-button--primary {
@@ -2392,7 +2392,13 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
 @media (max-width: 1180px) {
     body.is-dashboard-active .dashboard-layout {
-        grid-template-columns: minmax(200px, 226px) minmax(0, 1fr);
+        grid-template-columns: minmax(192px, 206px) minmax(0, 1fr);
+    }
+
+    body.is-dashboard-active .dashboard-sidebar__action {
+        gap: 8px;
+        padding-inline: 0.6rem;
+        font-size: 0.9rem;
     }
 
     body.is-dashboard-active .dashboard-command-panel {
@@ -2410,7 +2416,7 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     body.is-dashboard-active .dashboard-screen-card {
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
-            "deck-heading deck-actions"
+            "deck-heading deck-heading"
             "deck-meta deck-actions";
         align-items: center;
     }
@@ -2500,8 +2506,8 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
 @media (max-width: 640px) {
     body.is-dashboard-active .dashboard-layout {
-        gap: 12px;
-        padding: 10px;
+        gap: 10px;
+        padding: 8px;
     }
 
     body.is-dashboard-active .dashboard-sidebar,
@@ -2517,8 +2523,8 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
             "actions"
             "shelves"
             "footer";
-        gap: 11px;
-        padding: 14px;
+        gap: 9px;
+        padding: 12px;
     }
 
     body.is-dashboard-active .dashboard-sidebar__actions {
@@ -2527,9 +2533,9 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-sidebar__action {
-        min-height: 42px;
-        padding: 0.55rem 0.62rem;
-        font-size: 0.82rem;
+        min-height: 40px;
+        padding: 0.5rem 0.58rem;
+        font-size: 0.8rem;
     }
 
     body.is-dashboard-active .dashboard-sidebar__section {
@@ -2541,12 +2547,12 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-folder-list {
-        max-height: 74px;
+        max-height: 66px;
     }
 
     body.is-dashboard-active .dashboard-folder {
-        min-height: 42px;
-        padding: 0.54rem 0.68rem;
+        min-height: 40px;
+        padding: 0.5rem 0.64rem;
     }
 
     body.is-dashboard-active .dashboard-sidebar__footer {
@@ -2554,15 +2560,15 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-sidebar__ghost {
-        min-height: 34px;
-        padding: 0.44rem 0.34rem;
-        font-size: 0.72rem;
+        min-height: 32px;
+        padding: 0.4rem 0.3rem;
+        font-size: 0.7rem;
     }
 
     body.is-dashboard-active .dashboard-command-panel {
-        gap: 15px;
+        gap: 12px;
         min-height: 0;
-        padding: 16px;
+        padding: 14px;
     }
 
     body.is-dashboard-active .dashboard-command-panel__header {
@@ -2572,40 +2578,40 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
     body.is-dashboard-active .dashboard-command-panel h1 {
         max-width: 100%;
-        font-size: 1.72rem;
+        font-size: 1.58rem;
         line-height: 1.06;
     }
 
     body.is-dashboard-active .dashboard-command-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: 7px;
     }
 
     body.is-dashboard-active .dashboard-launch-card {
-        min-height: 104px;
-        padding: 11px;
-        border-radius: 14px;
+        min-height: 92px;
+        padding: 10px;
+        border-radius: 13px;
     }
 
     body.is-dashboard-active .dashboard-launch-card__icon {
-        width: 35px;
-        height: 35px;
-        border-radius: 11px;
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
     }
 
     body.is-dashboard-active .dashboard-launch-card strong {
-        font-size: 0.84rem;
+        font-size: 0.82rem;
     }
 
     body.is-dashboard-active .dashboard-launch-card small {
-        font-size: 0.66rem;
+        font-size: 0.64rem;
         line-height: 1.22;
     }
 
     body.is-dashboard-active .dashboard-library-panel {
-        gap: 12px;
-        min-height: 520px;
-        padding: 15px;
+        gap: 10px;
+        min-height: 440px;
+        padding: 14px;
     }
 
     body.is-dashboard-active .dashboard-toolbar,
@@ -2624,8 +2630,8 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
             "deck-heading"
             "deck-meta"
             "deck-actions";
-        gap: 9px;
-        padding: 13px;
+        gap: 8px;
+        padding: 11px;
     }
 
     body.is-dashboard-active .dashboard-screen-card__meta {
@@ -2634,8 +2640,23 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
     body.is-dashboard-active .dashboard-screen-card__actions {
         display: grid;
+        grid-template-columns: repeat(4, max-content);
+        justify-content: space-between;
+        gap: 4px;
+    }
+
+    body.is-dashboard-active .dashboard-screen-card__actions .control-button,
+    body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
+        width: auto;
+        min-width: 0;
+        padding-inline: 0.42rem;
+        font-size: 0.68rem;
+    }
+}
+
+@media (max-width: 360px) {
+    body.is-dashboard-active .dashboard-screen-card__actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        justify-content: stretch;
     }
 
     body.is-dashboard-active .dashboard-screen-card__actions .control-button,

@@ -190,6 +190,17 @@ async function runSmoke() {
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
         assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
         assert(await page.locator('#dashboard-open-classroom-btn.dashboard-launch-card--primary').isVisible(), 'Dashboard should make Open Classroom the primary action');
+        const desktopDashboardScale = await page.evaluate(() => {
+            const sidebar = document.querySelector('.dashboard-sidebar')?.getBoundingClientRect();
+            const launchCard = document.querySelector('.dashboard-launch-card')?.getBoundingClientRect();
+            return {
+                sidebarWidth: sidebar?.width || 0,
+                launchCardWidth: launchCard?.width || 0,
+                launchCardHeight: launchCard?.height || 0
+            };
+        });
+        assert(desktopDashboardScale.sidebarWidth <= 220, 'Desktop dashboard navigation should not crowd the lesson actions');
+        assert(desktopDashboardScale.launchCardWidth >= 160 && desktopDashboardScale.launchCardHeight <= 155, 'Desktop dashboard actions should stay wide and compact');
         assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
 
         if (await page.locator('#tour-dialog[open]').count() === 1) {
@@ -519,7 +530,9 @@ async function runSmoke() {
         await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         assert(await mobilePage.locator('#dashboard-open-classroom-btn').isVisible(), 'Mobile dashboard should show the classroom entry button');
         assert(await mobilePage.locator('.dashboard-command-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 2), 'Mobile dashboard should keep quick actions in a compact two-column grid');
-        assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 330), 'Mobile dashboard navigation should stay compact');
+        assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 270), 'Mobile dashboard navigation should stay compact');
+        assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 360), 'Mobile dashboard lesson actions should stay above the deck library');
+        assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 650), 'Mobile dashboard should bring the deck library into the first screenful');
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
