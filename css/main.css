@@ -2186,15 +2186,15 @@ body.is-dashboard-active .dashboard-sidebar__ghost {
 }
 
 body.is-dashboard-active .dashboard-main {
-    gap: 12px;
+    gap: 8px;
 }
 
 body.is-dashboard-active .dashboard-command-panel {
     grid-template-columns: minmax(260px, 1fr) auto;
     align-items: center;
-    gap: 10px;
-    min-height: 94px;
-    padding: 8px 10px;
+    gap: 8px;
+    min-height: 82px;
+    padding: 6px 10px;
     border-color: rgba(255, 255, 255, 0.68);
     background:
         radial-gradient(circle at 8% 8%, rgba(58, 181, 238, 0.16), transparent 38%),
@@ -2237,10 +2237,10 @@ body.is-dashboard-active .dashboard-launch-card {
     grid-template-columns: 22px minmax(0, 1fr);
     align-items: center;
     align-content: center;
-    height: 50px;
-    min-height: 50px;
+    height: 48px;
+    min-height: 48px;
     gap: 6px;
-    padding: 6px 9px;
+    padding: 5px 8px;
     border-radius: 12px;
     border-color: var(--dashboard-line);
     background: rgba(255, 255, 255, 0.76);
@@ -2286,8 +2286,8 @@ body.is-dashboard-active .dashboard-launch-card small {
 }
 
 body.is-dashboard-active .dashboard-library-panel {
-    gap: 11px;
-    padding: 16px;
+    gap: 8px;
+    padding: 10px 14px;
     border-color: rgba(255, 255, 255, 0.62);
     background: var(--dashboard-surface);
 }
@@ -2585,9 +2585,9 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
     body.is-dashboard-active .dashboard-command-panel {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 10px;
         min-height: 0;
-        padding: 12px;
+        padding: 10px;
     }
 
     body.is-dashboard-active .dashboard-command-panel__header {
@@ -2607,9 +2607,9 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-launch-card {
-        height: 56px;
-        min-height: 56px;
-        padding: 8px;
+        height: 52px;
+        min-height: 52px;
+        padding: 6px;
         border-radius: 12px;
     }
 
@@ -2624,9 +2624,9 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-library-panel {
-        gap: 10px;
+        gap: 8px;
         min-height: 440px;
-        padding: 14px;
+        padding: 12px;
     }
 
     body.is-dashboard-active .dashboard-toolbar,

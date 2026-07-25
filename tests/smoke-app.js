@@ -327,11 +327,11 @@ async function runSmoke() {
         });
         assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
         assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
-        assert(desktopDashboardScale.launchCardHeight >= 48 && desktopDashboardScale.launchCardHeight <= 52, 'Desktop dashboard actions should use a compact touch-friendly height');
+        assert(desktopDashboardScale.launchCardHeight >= 46 && desktopDashboardScale.launchCardHeight <= 50, 'Desktop dashboard actions should use a compact touch-friendly height');
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
         assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
-        assert(desktopDashboardScale.commandPanelHeight >= 90 && desktopDashboardScale.commandPanelHeight <= 100, 'Desktop dashboard command strip should use the requested 90-110px compact height');
-        assert(desktopDashboardScale.longTitlePanelHeight <= 100, 'Desktop dashboard command strip should stay compact with a long lesson title');
+        assert(desktopDashboardScale.commandPanelHeight >= 80 && desktopDashboardScale.commandPanelHeight <= 88, 'Desktop dashboard command strip should use the tighter compact height');
+        assert(desktopDashboardScale.longTitlePanelHeight <= 88, 'Desktop dashboard command strip should stay compact with a long lesson title');
         assert(desktopDashboardScale.lessonSubtitle === 'Page 1 of 1', 'Dashboard subtitle should sit beneath the deck title and describe the active page');
         assert(desktopDashboardScale.readyLabelCount === 0, 'Dashboard should make the deck title the primary focus without a Ready to Teach label');
         assert(desktopDashboardScale.deckShelvesHeight >= 300, 'Deck Shelves should receive the main share of the desktop sidebar');
