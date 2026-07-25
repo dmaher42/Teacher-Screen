@@ -11,6 +11,7 @@ import {
 } from './services/state-manager.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { renderWidgetPicker } from './utils/widget-picker-renderer.js';
+import { TeachingAssistantController } from './utils/teaching-assistant-controller.js';
 import {
     THEME_OPTIONS,
     applyTheme,
@@ -320,6 +321,11 @@ class ClassroomScreenApp {
                 lessonPlan: null
             }
         ];
+        this.teachingAssistant = new TeachingAssistantController({
+            getContext: () => this.buildTeachingAssistantContext(),
+            addToScreen: (proposal) => this.addTeachingAssistantProposal(proposal),
+            notify: (message, type) => this.showNotification(message, type)
+        });
     }
 
     ensureWidgetSettingsModal(hostDocument) {
@@ -379,6 +385,7 @@ class ClassroomScreenApp {
         this.initializeSavedNotes();
         this.syncTimerControlsFromWidget();
         this.renderProjectControls();
+        this.teachingAssistant.init();
 
         this.handleNavClick('dashboard');
 
@@ -1272,12 +1279,16 @@ class ClassroomScreenApp {
         return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     }
 
-    addWidget(type) {
+    addWidget(type, options = {}) {
         let widget;
         try {
             widget = createWidgetByType(type);
             if (!widget) {
                 throw new Error(`Unknown widget type: ${type}`);
+            }
+
+            if (options.initialData && typeof widget.deserialize === 'function') {
+                widget.deserialize(cloneSerializableData(options.initialData));
             }
 
             const widgetElement = this.layoutManager.addWidget(widget);
@@ -1287,14 +1298,138 @@ class ClassroomScreenApp {
             const placeholder = this.widgetsContainer.querySelector('.widget-placeholder');
             if (placeholder) placeholder.remove();
             this.recordWidgetPickerUsage(type);
-            
+
             this.saveState();
-            this.showNotification(`${this.getFriendlyWidgetName(type)} Added!`);
-            this.closeDialog(this.widgetModal);
+            this.showNotification(options.notification || `${this.getFriendlyWidgetName(type)} Added!`);
+            if (options.closePicker !== false) {
+                this.closeDialog(this.widgetModal);
+            }
+            return widget;
         } catch (error) {
             console.error('Failed to add widget:', error);
             this.showNotification('Failed to add widget.', 'error');
+            return null;
         }
+    }
+
+    buildTeachingAssistantContext() {
+        const state = this.getActiveProjectState();
+        const activePage = this.getActiveProjectPage(state);
+        const pageIndex = this.getActiveProjectPageIndex(state);
+        const cleanHtmlText = (value = '') => {
+            const temp = document.createElement('div');
+            temp.innerHTML = String(value || '');
+            return String(temp.textContent || '').replace(/\s+/g, ' ').trim();
+        };
+        const widgets = this.widgets.map((widget) => {
+            const type = widget?.constructor?.name || 'Widget';
+            const label = this.getFriendlyWidgetName(type);
+            let data = {};
+            try {
+                data = typeof widget?.serialize === 'function' ? widget.serialize() : {};
+            } catch (error) {
+                data = {};
+            }
+
+            if (type === 'RichTextWidget') {
+                return {
+                    type,
+                    label,
+                    text: cleanHtmlText(data.content).slice(0, 2500)
+                };
+            }
+            if (type === 'QuizGameWidget') {
+                return {
+                    type,
+                    label,
+                    title: String(data.title || '').slice(0, 200),
+                    questions: Array.isArray(data.questions)
+                        ? data.questions.map((question) => String(question?.question || question?.prompt || '').slice(0, 500)).slice(0, 20)
+                        : []
+                };
+            }
+            if (type === 'RevealManagerWidget') {
+                return {
+                    type,
+                    label,
+                    title: String(data.deckName || data.name || '').slice(0, 200)
+                };
+            }
+
+            // Private notes, student names, behaviour records, URLs, and free-form widget data are never sent.
+            return { type, label };
+        });
+        const lessonPlanText = this.lessonPlanEditor && typeof this.lessonPlanEditor.getText === 'function'
+            ? String(this.lessonPlanEditor.getText() || '').replace(/\s+/g, ' ').trim().slice(0, 3000)
+            : '';
+
+        return {
+            deckName: String(state.projectName || DEFAULT_PROJECT_NAME).slice(0, 200),
+            pageName: String(activePage?.name || DEFAULT_PAGE_NAME).slice(0, 200),
+            pageNumber: pageIndex >= 0 ? pageIndex + 1 : 1,
+            pageCount: Array.isArray(state.pages) ? state.pages.length : 1,
+            theme: this.getCurrentThemeName(),
+            lessonPlan: lessonPlanText,
+            widgets: widgets.slice(0, 24)
+        };
+    }
+
+    buildTeachingAssistantHtml(proposal = {}) {
+        const blocks = Array.isArray(proposal.blocks) ? proposal.blocks : [];
+        const title = escapeHtml(proposal.title || 'Teaching Assistant');
+        const blockHtml = blocks.map((block) => {
+            const heading = block.heading ? `<h3>${escapeHtml(block.heading)}</h3>` : '';
+            const text = block.text ? `<p>${escapeHtml(block.text)}</p>` : '';
+            const items = Array.isArray(block.items) ? block.items.filter(Boolean) : [];
+            const listTag = block.type === 'numbered' ? 'ol' : 'ul';
+            const list = items.length
+                ? `<${listTag}>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</${listTag}>`
+                : '';
+            const content = `${heading}${text}${list}`;
+            return block.type === 'callout'
+                ? `<div class="display-callout">${content}</div>`
+                : content;
+        }).join('');
+        return `<h2>${title}</h2>${blockHtml}`;
+    }
+
+    addTeachingAssistantProposal(proposal = {}) {
+        this.closeSectionsMenu();
+        this.closeDialog(this.widgetModal);
+        this.handleNavClick('classroom');
+
+        if (proposal.kind === 'quiz') {
+            const widget = this.addWidget('quiz-game', {
+                closePicker: false,
+                notification: 'Quiz Master preview added to the current page.',
+                initialData: {
+                    title: proposal.title,
+                    teams: proposal.teams,
+                    questions: proposal.questions,
+                    quizFormat: proposal.quizFormat,
+                    responseMode: proposal.responseMode,
+                    showAnswers: proposal.showAnswers,
+                    showExplanations: proposal.showExplanations,
+                    questionTimerSeconds: proposal.quizFormat === 'rapid-fire' ? 15 : 30
+                }
+            });
+            return !!widget;
+        }
+
+        if (proposal.kind === 'teaching-content') {
+            const widget = this.addWidget('rich-text', {
+                closePicker: false,
+                notification: 'Teaching Assistant preview added to the current page.',
+                initialData: {
+                    content: this.buildTeachingAssistantHtml(proposal),
+                    displayMode: true,
+                    presentationMode: 'normal'
+                }
+            });
+            return !!widget;
+        }
+
+        return false;
     }
 
     getFriendlyWidgetName(type) {

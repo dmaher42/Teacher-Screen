@@ -11,6 +11,10 @@ class QuizGameWidget {
         this.quizTitle = defaultQuiz.title;
         this.questions = defaultQuiz.questions;
         this.teams = defaultQuiz.teams.map((name) => ({ name, score: 0 }));
+        this.quizFormat = defaultQuiz.quizFormat;
+        this.responseMode = defaultQuiz.responseMode;
+        this.showAnswers = defaultQuiz.showAnswers;
+        this.showExplanations = defaultQuiz.showExplanations;
         this.currentQuestionIndex = 0;
         this.answerRevealed = false;
         this.questionTimerSeconds = 30;
@@ -29,6 +33,8 @@ class QuizGameWidget {
         this.handleTitleInput = this.handleTitleInput.bind(this);
         this.handleTeamNamesInput = this.handleTeamNamesInput.bind(this);
         this.handleTimerSecondsInput = this.handleTimerSecondsInput.bind(this);
+        this.handleResponseModeInput = this.handleResponseModeInput.bind(this);
+        this.handleDisplayOptionsInput = this.handleDisplayOptionsInput.bind(this);
 
         this.element = document.createElement('div');
         this.element.className = 'quiz-game-widget-content';
@@ -102,7 +108,15 @@ class QuizGameWidget {
 
         this.answerPanel.append(this.answerPanelLabel, this.answerPanelValue);
 
-        this.questionCard.append(this.questionNumber, this.questionText, this.answersList, this.answerPanel);
+        this.explanationPanel = document.createElement('div');
+        this.explanationPanel.className = 'quiz-game-explanation';
+        this.explanationPanel.hidden = true;
+        this.explanationPanelLabel = document.createElement('strong');
+        this.explanationPanelLabel.textContent = 'Why';
+        this.explanationPanelValue = document.createElement('p');
+        this.explanationPanel.append(this.explanationPanelLabel, this.explanationPanelValue);
+
+        this.questionCard.append(this.questionNumber, this.questionText, this.answersList, this.answerPanel, this.explanationPanel);
 
         this.scoreboard = document.createElement('div');
         this.scoreboard.className = 'quiz-game-scoreboard';
@@ -161,6 +175,40 @@ class QuizGameWidget {
         this.timerSecondsInput.addEventListener('change', this.handleTimerSecondsInput);
         this.timerSecondsLabel.appendChild(this.timerSecondsInput);
 
+        this.responseModeLabel = document.createElement('label');
+        this.responseModeLabel.textContent = 'Response mode';
+        this.responseModeInput = document.createElement('select');
+        [
+            ['whole-class', 'Whole class'],
+            ['teams', 'Teams'],
+            ['individual', 'Individual / mini whiteboards'],
+            ['verbal', 'Verbal / hands up']
+        ].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            this.responseModeInput.appendChild(option);
+        });
+        this.responseModeInput.value = this.responseMode;
+        this.responseModeInput.addEventListener('change', this.handleResponseModeInput);
+        this.responseModeLabel.appendChild(this.responseModeInput);
+
+        this.displayOptions = document.createElement('div');
+        this.displayOptions.className = 'quiz-game-display-options';
+        this.showAnswersLabel = document.createElement('label');
+        this.showAnswersInput = document.createElement('input');
+        this.showAnswersInput.type = 'checkbox';
+        this.showAnswersInput.checked = this.showAnswers;
+        this.showAnswersInput.addEventListener('change', this.handleDisplayOptionsInput);
+        this.showAnswersLabel.append(this.showAnswersInput, document.createTextNode(' Show answers'));
+        this.showExplanationsLabel = document.createElement('label');
+        this.showExplanationsInput = document.createElement('input');
+        this.showExplanationsInput.type = 'checkbox';
+        this.showExplanationsInput.checked = this.showExplanations;
+        this.showExplanationsInput.addEventListener('change', this.handleDisplayOptionsInput);
+        this.showExplanationsLabel.append(this.showExplanationsInput, document.createTextNode(' Show explanations'));
+        this.displayOptions.append(this.showAnswersLabel, this.showExplanationsLabel);
+
         this.quizJsonLabel = document.createElement('label');
         this.quizJsonLabel.textContent = 'Quiz JSON';
         this.quizJsonInput = document.createElement('textarea');
@@ -177,7 +225,15 @@ class QuizGameWidget {
         this.resetScoresButton = this.createControlButton('Reset Scores', this.handleResetScores, 'control-button control-button--ghost');
         this.settingsActions.append(this.loadQuizButton, this.sampleQuizButton, this.importRevealButton, this.resetScoresButton);
 
-        this.controlsOverlay.append(this.titleLabel, this.teamNamesLabel, this.timerSecondsLabel, this.quizJsonLabel, this.settingsActions);
+        this.controlsOverlay.append(
+            this.titleLabel,
+            this.teamNamesLabel,
+            this.timerSecondsLabel,
+            this.responseModeLabel,
+            this.displayOptions,
+            this.quizJsonLabel,
+            this.settingsActions
+        );
 
         this.render();
     }
@@ -195,21 +251,34 @@ class QuizGameWidget {
         return {
             title: 'Quick Quiz',
             teams: ['Team 1', 'Team 2'],
+            quizFormat: 'multiple-choice',
+            responseMode: 'teams',
+            showAnswers: true,
+            showExplanations: false,
             questions: [
                 {
+                    type: 'multiple-choice',
                     question: 'Which planet is known as the Red Planet?',
                     choices: ['Earth', 'Mars', 'Jupiter', 'Venus'],
-                    answer: 1
+                    answer: 1,
+                    answerText: 'Mars',
+                    explanation: 'Iron minerals on the surface oxidise, giving Mars its reddish appearance.'
                 },
                 {
+                    type: 'multiple-choice',
                     question: 'What is the largest ocean on Earth?',
                     choices: ['Atlantic Ocean', 'Indian Ocean', 'Pacific Ocean', 'Southern Ocean'],
-                    answer: 2
+                    answer: 2,
+                    answerText: 'Pacific Ocean',
+                    explanation: 'The Pacific covers more area than every other ocean.'
                 },
                 {
+                    type: 'multiple-choice',
                     question: 'Which gas do plants absorb from the air?',
                     choices: ['Oxygen', 'Nitrogen', 'Carbon Dioxide', 'Helium'],
-                    answer: 2
+                    answer: 2,
+                    answerText: 'Carbon Dioxide',
+                    explanation: 'Plants use carbon dioxide during photosynthesis.'
                 }
             ]
         };
@@ -229,6 +298,19 @@ class QuizGameWidget {
     }
 
     normalizeQuizData(data = {}, overrides = {}) {
+        const validQuestionTypes = [
+            'multiple-choice',
+            'true-false',
+            'short-answer',
+            'matching',
+            'ordering',
+            'fill-in-the-blank',
+            'rapid-fire',
+            'jeopardy'
+        ];
+        const validQuizFormats = [...validQuestionTypes, 'team-quiz', 'mixed'];
+        const requestedFormat = String(overrides.quizFormat || data.quizFormat || 'multiple-choice').trim();
+        const quizFormat = validQuizFormats.includes(requestedFormat) ? requestedFormat : 'multiple-choice';
         const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
         const normalizedQuestions = rawQuestions.map((question) => {
             if (!question || typeof question !== 'object') {
@@ -236,6 +318,10 @@ class QuizGameWidget {
             }
 
             const prompt = String(question.question || question.prompt || question.text || '').trim();
+            const requestedType = String(question.type || '').trim();
+            let questionType = validQuestionTypes.includes(requestedType)
+                ? requestedType
+                : (validQuestionTypes.includes(quizFormat) ? quizFormat : 'multiple-choice');
             const choicesSource = Array.isArray(question.choices)
                 ? question.choices
                 : Array.isArray(question.options)
@@ -248,39 +334,116 @@ class QuizGameWidget {
                 .filter(Boolean)
                 .slice(0, 6);
             const explicitAnswerText = String(question.answerText || '').trim();
+            const explanation = String(question.explanation || '').trim().slice(0, 1200);
+            const category = String(question.category || '').trim().slice(0, 120);
+            const points = Math.min(1000, Math.max(1, Number.parseInt(question.points, 10) || 1));
+            const acceptedAnswers = Array.isArray(question.acceptedAnswers)
+                ? question.acceptedAnswers.map((answer) => String(answer || '').trim()).filter(Boolean).slice(0, 12)
+                : [];
+            const pairs = Array.isArray(question.pairs)
+                ? question.pairs.map((pair) => {
+                    const left = String(pair?.left || '').trim();
+                    const right = String(pair?.right || '').trim();
+                    return left && right ? { left, right } : null;
+                }).filter(Boolean).slice(0, 10)
+                : [];
+            const items = Array.isArray(question.items)
+                ? question.items.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 12)
+                : [];
 
             if (!prompt) {
                 return null;
             }
 
             let answerIndex = Number.isInteger(question.answer) ? question.answer : Number.parseInt(question.answer, 10);
+            if (!Number.isInteger(answerIndex)) {
+                answerIndex = Number.parseInt(question.answerIndex, 10);
+            }
             if (!Number.isInteger(answerIndex) && typeof question.answer === 'string' && choices.length >= 2) {
                 answerIndex = choices.findIndex((choice) => choice.toLowerCase() === question.answer.trim().toLowerCase());
             }
 
-            if (choices.length >= 2) {
+            if (questionType === 'true-false') {
+                choices.splice(0, choices.length, 'True', 'False');
+                if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex > 1) {
+                    answerIndex = /^false$/i.test(explicitAnswerText) ? 1 : 0;
+                }
+            }
+
+            if (questionType === 'matching' && pairs.length) {
+                const matchingChoices = choices.length ? choices : pairs.map((pair) => pair.right).reverse();
+                return {
+                    type: questionType,
+                    category,
+                    points,
+                    question: prompt,
+                    choices: matchingChoices,
+                    answer: 0,
+                    answerText: explicitAnswerText || pairs.map((pair) => `${pair.left} → ${pair.right}`).join('; '),
+                    acceptedAnswers,
+                    pairs,
+                    items: [],
+                    explanation
+                };
+            }
+
+            if (questionType === 'ordering' && items.length) {
+                const orderingChoices = choices.length ? choices : [...items].reverse();
+                return {
+                    type: questionType,
+                    category,
+                    points,
+                    question: prompt,
+                    choices: orderingChoices,
+                    answer: 0,
+                    answerText: explicitAnswerText || items.map((item, index) => `${index + 1}. ${item}`).join(' '),
+                    acceptedAnswers,
+                    pairs: [],
+                    items,
+                    explanation
+                };
+            }
+
+            if (choices.length >= 2 && !['short-answer', 'fill-in-the-blank'].includes(questionType)) {
                 if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= choices.length) {
                     answerIndex = 0;
                 }
 
                 return {
+                    type: questionType,
+                    category,
+                    points,
                     question: prompt,
                     choices,
                     answer: answerIndex,
-                    answerText: explicitAnswerText || choices[answerIndex] || ''
+                    answerText: explicitAnswerText || choices[answerIndex] || '',
+                    acceptedAnswers,
+                    pairs: [],
+                    items: [],
+                    explanation
                 };
             }
 
-            const answerText = explicitAnswerText || String(question.answer || '').trim();
+            questionType = ['short-answer', 'fill-in-the-blank', 'rapid-fire', 'jeopardy'].includes(questionType)
+                ? questionType
+                : 'short-answer';
+            const answerText = explicitAnswerText || acceptedAnswers[0] || String(question.answer || '').trim();
             if (!answerText) {
                 return null;
             }
 
             return {
+                type: questionType,
+                category,
+                points,
                 question: prompt,
                 choices: [],
                 answer: 0,
-                answerText
+                answerText,
+                acceptedAnswers,
+                pairs: [],
+                items: [],
+                explanation
             };
         }).filter(Boolean);
 
@@ -297,11 +460,19 @@ class QuizGameWidget {
         );
 
         const title = String(overrides.title || data.title || 'Quiz Game').trim() || 'Quiz Game';
+        const responseModeCandidate = String(overrides.responseMode || data.responseMode || 'teams').trim();
+        const responseMode = ['whole-class', 'teams', 'individual', 'verbal'].includes(responseModeCandidate)
+            ? responseModeCandidate
+            : 'teams';
 
         return {
             title,
             teams: teamNames,
-            questions: normalizedQuestions
+            questions: normalizedQuestions,
+            quizFormat,
+            responseMode,
+            showAnswers: overrides.showAnswers ?? data.showAnswers ?? true,
+            showExplanations: overrides.showExplanations ?? data.showExplanations ?? false
         };
     }
 
@@ -314,6 +485,20 @@ class QuizGameWidget {
 
     getCurrentQuestion() {
         return this.questions[this.currentQuestionIndex] || null;
+    }
+
+    getQuestionTypeLabel(type = '') {
+        const labels = {
+            'multiple-choice': 'Multiple choice',
+            'true-false': 'True / false',
+            'short-answer': 'Short answer',
+            matching: 'Matching',
+            ordering: 'Ordering',
+            'fill-in-the-blank': 'Fill in the blank',
+            'rapid-fire': 'Rapid-fire',
+            jeopardy: 'Jeopardy'
+        };
+        return labels[type] || 'Question';
     }
 
     setStatus(message = '') {
@@ -440,7 +625,9 @@ class QuizGameWidget {
         this.element.classList.toggle('is-buzzing', this.questionBuzzActive);
         this.headerTitle.textContent = this.quizTitle || 'Quiz Game';
         this.headerProgress.textContent = totalQuestions ? `Question ${currentNumber} of ${totalQuestions}` : 'No questions';
-        this.headerStatus.textContent = this.answerRevealed ? 'Revealed' : 'Live';
+        this.headerStatus.textContent = this.answerRevealed
+            ? 'Revealed'
+            : (question?.category || this.getQuestionTypeLabel(question?.type));
 
         const progressPercent = totalQuestions && totalQuestions > 0 ? ((this.currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
         if (this.progressBar) {
@@ -450,15 +637,48 @@ class QuizGameWidget {
         this.timerValue.textContent = this.formatTimer(this.timerRemainingSeconds);
         this.timerDisplay.classList.toggle('is-running', this.timerRunning);
         this.timerDisplay.classList.toggle('is-finished', this.timerRemainingSeconds <= 0);
-        this.questionNumber.textContent = totalQuestions ? `Q${currentNumber}` : 'Quiz';
+        const typeLabel = this.getQuestionTypeLabel(question?.type);
+        const pointsLabel = question?.points > 1 ? ` • ${question.points} pts` : '';
+        this.questionNumber.textContent = totalQuestions ? `Q${currentNumber} • ${typeLabel}${pointsLabel}` : 'Quiz';
         this.questionText.textContent = question ? question.question : 'Load a quiz to begin.';
 
         this.answersList.innerHTML = '';
         this.answerPanel.hidden = true;
         this.answerPanelLabel.textContent = '';
         this.answerPanelValue.textContent = '';
+        this.explanationPanel.hidden = true;
+        this.explanationPanelValue.textContent = '';
         if (question) {
-            if (Array.isArray(question.choices) && question.choices.length >= 2) {
+            if (question.type === 'matching' && Array.isArray(question.pairs) && question.pairs.length) {
+                question.pairs.forEach((pair, index) => {
+                    const answer = document.createElement('div');
+                    answer.className = 'quiz-game-answer';
+                    answer.innerHTML = '<span class="quiz-game-answer-letter"></span><span class="quiz-game-answer-text"></span>';
+                    answer.querySelector('.quiz-game-answer-letter').textContent = String(index + 1);
+                    answer.querySelector('.quiz-game-answer-text').textContent = this.answerRevealed
+                        ? `${pair.left} → ${pair.right}`
+                        : `${pair.left} → ?`;
+                    answer.classList.toggle('is-correct', this.answerRevealed);
+                    this.answersList.appendChild(answer);
+                });
+                if (!this.answerRevealed && Array.isArray(question.choices) && question.choices.length) {
+                    const bank = document.createElement('div');
+                    bank.className = 'quiz-game-answer-bank';
+                    bank.textContent = `Answer bank: ${question.choices.join(' • ')}`;
+                    this.answersList.appendChild(bank);
+                }
+            } else if (question.type === 'ordering' && Array.isArray(question.items) && question.items.length) {
+                const displayItems = this.answerRevealed ? question.items : question.choices;
+                displayItems.forEach((item, index) => {
+                    const answer = document.createElement('div');
+                    answer.className = 'quiz-game-answer';
+                    answer.innerHTML = '<span class="quiz-game-answer-letter"></span><span class="quiz-game-answer-text"></span>';
+                    answer.querySelector('.quiz-game-answer-letter').textContent = this.answerRevealed ? String(index + 1) : '•';
+                    answer.querySelector('.quiz-game-answer-text').textContent = item;
+                    answer.classList.toggle('is-correct', this.answerRevealed);
+                    this.answersList.appendChild(answer);
+                });
+            } else if (Array.isArray(question.choices) && question.choices.length >= 2) {
                 question.choices.forEach((choice, index) => {
                     const answer = document.createElement('div');
                     answer.className = 'quiz-game-answer';
@@ -466,7 +686,7 @@ class QuizGameWidget {
                     answer.querySelector('.quiz-game-answer-letter').textContent = String.fromCharCode(65 + index);
                     answer.querySelector('.quiz-game-answer-text').textContent = choice;
 
-                    if (this.answerRevealed) {
+                    if (this.answerRevealed && this.showAnswers) {
                         answer.classList.add(index === question.answer ? 'is-correct' : 'is-dimmed');
                     }
 
@@ -474,15 +694,21 @@ class QuizGameWidget {
                 });
             } else if (question.answerText) {
                 this.answerPanel.hidden = false;
-                this.answerPanel.classList.toggle('is-revealed', this.answerRevealed);
+                this.answerPanel.classList.toggle('is-revealed', this.answerRevealed && this.showAnswers);
                 this.answerPanelLabel.textContent = this.answerRevealed ? 'Correct answer' : 'Short answer';
-                this.answerPanelValue.textContent = this.answerRevealed
+                this.answerPanelValue.textContent = this.answerRevealed && this.showAnswers
                     ? question.answerText
                     : 'Reveal the answer to continue.';
+            }
+
+            if (this.answerRevealed && this.showExplanations && question.explanation) {
+                this.explanationPanel.hidden = false;
+                this.explanationPanelValue.textContent = question.explanation;
             }
         }
 
         this.scoreboard.innerHTML = '';
+        this.scoreboard.hidden = this.responseMode !== 'teams' && this.quizFormat !== 'team-quiz';
         const maxScore = this.teams.length > 0 ? Math.max(...this.teams.map(t => t.score)) : 0;
         const hasLeader = maxScore > 0;
 
@@ -522,9 +748,10 @@ class QuizGameWidget {
 
             const actions = document.createElement('div');
             actions.className = 'quiz-game-score-actions';
+            const scoreAmount = Math.max(1, Number.parseInt(question?.points, 10) || 1);
             actions.append(
-                this.createControlButton('-1', () => this.adjustScore(index, -1), 'control-button control-button--ghost'),
-                this.createControlButton('+1', () => this.adjustScore(index, 1))
+                this.createControlButton(`-${scoreAmount}`, () => this.adjustScore(index, -scoreAmount), 'control-button control-button--ghost'),
+                this.createControlButton(`+${scoreAmount}`, () => this.adjustScore(index, scoreAmount))
             );
             card.appendChild(actions);
 
@@ -533,11 +760,15 @@ class QuizGameWidget {
 
         this.prevButton.disabled = this.currentQuestionIndex <= 0;
         this.nextButton.disabled = this.currentQuestionIndex >= totalQuestions - 1;
+        this.revealButton.hidden = !this.showAnswers;
         this.revealButton.textContent = this.answerRevealed ? 'Hide Answer' : 'Reveal Answer';
         this.timerToggleButton.textContent = this.timerRunning ? 'Pause Timer' : 'Start Timer';
         this.titleInput.value = this.quizTitle;
         this.teamNamesInput.value = this.teams.map((team) => team.name).join(', ');
         this.timerSecondsInput.value = String(this.questionTimerSeconds);
+        this.responseModeInput.value = this.responseMode;
+        this.showAnswersInput.checked = this.showAnswers;
+        this.showExplanationsInput.checked = this.showExplanations;
     }
 
     adjustScore(index, amount) {
@@ -569,6 +800,10 @@ class QuizGameWidget {
     }
 
     toggleAnswerReveal() {
+        if (!this.showAnswers) {
+            this.setStatus('Answer reveal is turned off for this quiz.');
+            return;
+        }
         this.answerRevealed = !this.answerRevealed;
         this.render();
         this.setStatus(this.answerRevealed ? 'Answer revealed.' : 'Answer hidden.');
@@ -617,6 +852,24 @@ class QuizGameWidget {
         this.emitChange();
     }
 
+    handleResponseModeInput() {
+        this.responseMode = this.responseModeInput.value || 'teams';
+        this.render();
+        this.setStatus('Response mode updated.');
+        this.emitChange();
+    }
+
+    handleDisplayOptionsInput() {
+        this.showAnswers = this.showAnswersInput.checked;
+        this.showExplanations = this.showExplanationsInput.checked;
+        if (!this.showAnswers) {
+            this.answerRevealed = false;
+        }
+        this.render();
+        this.setStatus('Answer display options updated.');
+        this.emitChange();
+    }
+
     handleLoadQuiz() {
         let parsed;
         try {
@@ -628,7 +881,10 @@ class QuizGameWidget {
 
         const normalized = this.normalizeQuizData(parsed, {
             title: this.titleInput.value,
-            teams: this.getTeamNamesFromInput()
+            teams: this.getTeamNamesFromInput(),
+            responseMode: this.responseModeInput.value,
+            showAnswers: this.showAnswersInput.checked,
+            showExplanations: this.showExplanationsInput.checked
         });
 
         if (!normalized) {
@@ -639,12 +895,20 @@ class QuizGameWidget {
         this.quizTitle = normalized.title;
         this.questions = normalized.questions;
         this.teams = normalized.teams.map((name) => ({ name, score: 0 }));
+        this.quizFormat = normalized.quizFormat;
+        this.responseMode = normalized.responseMode;
+        this.showAnswers = normalized.showAnswers;
+        this.showExplanations = normalized.showExplanations;
         this.currentQuestionIndex = 0;
         this.answerRevealed = false;
         this.resetTimer(false);
         this.quizJsonInput.value = this.stringifyQuizData({
             title: this.quizTitle,
             teams: this.teams.map((team) => team.name),
+            quizFormat: this.quizFormat,
+            responseMode: this.responseMode,
+            showAnswers: this.showAnswers,
+            showExplanations: this.showExplanations,
             questions: this.questions
         });
         this.render();
@@ -657,6 +921,9 @@ class QuizGameWidget {
         this.quizJsonInput.value = this.stringifyQuizData(sampleQuiz);
         this.titleInput.value = sampleQuiz.title;
         this.teamNamesInput.value = sampleQuiz.teams.join(', ');
+        this.responseModeInput.value = sampleQuiz.responseMode;
+        this.showAnswersInput.checked = sampleQuiz.showAnswers;
+        this.showExplanationsInput.checked = sampleQuiz.showExplanations;
         this.handleLoadQuiz();
     }
 
@@ -802,6 +1069,10 @@ class QuizGameWidget {
             title: this.quizTitle,
             teams: this.teams,
             questions: this.questions,
+            quizFormat: this.quizFormat,
+            responseMode: this.responseMode,
+            showAnswers: this.showAnswers,
+            showExplanations: this.showExplanations,
             currentQuestionIndex: this.currentQuestionIndex,
             answerRevealed: this.answerRevealed,
             questionTimerSeconds: this.questionTimerSeconds,
@@ -814,7 +1085,11 @@ class QuizGameWidget {
         const normalized = this.normalizeQuizData({
             title: data.title,
             teams: Array.isArray(data.teams) ? data.teams.map((team) => team?.name || team) : [],
-            questions: Array.isArray(data.questions) ? data.questions : []
+            questions: Array.isArray(data.questions) ? data.questions : [],
+            quizFormat: data.quizFormat,
+            responseMode: data.responseMode,
+            showAnswers: data.showAnswers,
+            showExplanations: data.showExplanations
         });
 
         if (!normalized) {
@@ -824,6 +1099,10 @@ class QuizGameWidget {
         const scores = Array.isArray(data.teams) ? data.teams : [];
         this.quizTitle = normalized.title;
         this.questions = normalized.questions;
+        this.quizFormat = normalized.quizFormat;
+        this.responseMode = normalized.responseMode;
+        this.showAnswers = normalized.showAnswers;
+        this.showExplanations = normalized.showExplanations;
         this.teams = normalized.teams.map((name, index) => ({
             name,
             score: Math.max(0, Number.parseInt(scores[index]?.score, 10) || 0)
@@ -832,7 +1111,7 @@ class QuizGameWidget {
             Math.max(0, Number.parseInt(data.currentQuestionIndex, 10) || 0),
             Math.max(0, this.questions.length - 1)
         );
-        this.answerRevealed = !!data.answerRevealed;
+        this.answerRevealed = this.showAnswers && !!data.answerRevealed;
         this.questionTimerSeconds = Math.min(600, Math.max(5, Number.parseInt(data.questionTimerSeconds, 10) || 30));
         this.timerRemainingSeconds = Math.min(
             this.questionTimerSeconds,
@@ -845,6 +1124,10 @@ class QuizGameWidget {
         this.quizJsonInput.value = this.stringifyQuizData({
             title: this.quizTitle,
             teams: this.teams.map((team) => team.name),
+            quizFormat: this.quizFormat,
+            responseMode: this.responseMode,
+            showAnswers: this.showAnswers,
+            showExplanations: this.showExplanations,
             questions: this.questions
         });
         this.render();
@@ -857,6 +1140,9 @@ class QuizGameWidget {
         this.titleInput.removeEventListener('input', this.handleTitleInput);
         this.teamNamesInput.removeEventListener('change', this.handleTeamNamesInput);
         this.timerSecondsInput.removeEventListener('change', this.handleTimerSecondsInput);
+        this.responseModeInput.removeEventListener('change', this.handleResponseModeInput);
+        this.showAnswersInput.removeEventListener('change', this.handleDisplayOptionsInput);
+        this.showExplanationsInput.removeEventListener('change', this.handleDisplayOptionsInput);
         this.loadQuizButton.removeEventListener('click', this.handleLoadQuiz);
         this.sampleQuizButton.removeEventListener('click', this.handleLoadSampleQuiz);
         this.importRevealButton.removeEventListener('click', this.handleImportLastRevealDeck);

@@ -27,10 +27,99 @@ function isExpectedBlockedExternalAssetMessage(message) {
         && message.text().includes('net::ERR_BLOCKED_BY_CLIENT');
 }
 
+function buildMockAiProposal(payload = {}) {
+    if (payload.mode !== 'quiz') {
+        return {
+            kind: 'teaching-content',
+            title: 'Equivalent Fractions Instructions',
+            summary: 'A short set of student-ready instructions for the current lesson.',
+            yearLevel: payload.settings?.yearLevel || 'Year 7',
+            subject: payload.settings?.subject || 'Mathematics',
+            contentType: payload.task || 'student-instructions',
+            blocks: [
+                {
+                    type: 'heading',
+                    heading: 'Your task',
+                    text: 'Show that two fractions have the same value.',
+                    items: []
+                },
+                {
+                    type: 'numbered',
+                    heading: 'Steps',
+                    text: '',
+                    items: ['Choose a fraction.', 'Multiply the numerator and denominator by the same number.', 'Check the values match.']
+                }
+            ]
+        };
+    }
+
+    const count = Math.max(3, Math.min(20, Number.parseInt(payload.settings?.questionCount, 10) || 3));
+    return {
+        kind: 'quiz',
+        title: 'Equivalent Fractions Match-Up',
+        summary: 'Match each fraction to an equivalent value.',
+        yearLevel: payload.settings?.yearLevel || 'Year 7',
+        subject: payload.settings?.subject || 'Mathematics',
+        difficulty: payload.settings?.difficulty || 'standard',
+        quizFormat: payload.task || 'matching',
+        responseMode: payload.settings?.responseMode || 'teams',
+        showAnswers: payload.settings?.showAnswers !== false,
+        showExplanations: payload.settings?.showExplanations === true,
+        teams: ['Team 1', 'Team 2'],
+        questions: Array.from({ length: count }, (_, index) => ({
+            type: 'matching',
+            category: 'Equivalent fractions',
+            points: index + 1,
+            prompt: `Match equivalent fraction set ${index + 1}.`,
+            choices: ['1/2', '2/3', '3/4'],
+            answerIndex: 0,
+            answerText: `${index + 1}/${(index + 1) * 2} matches 1/2`,
+            acceptedAnswers: ['1/2'],
+            pairs: [{ left: `${index + 1}/${(index + 1) * 2}`, right: '1/2' }],
+            items: [],
+            explanation: 'Multiplying or dividing the numerator and denominator by the same number keeps the value equal.'
+        }))
+    };
+}
+
 function createStaticServer() {
     return http.createServer((request, response) => {
         const requestUrl = new URL(request.url, 'http://127.0.0.1');
         let pathname = decodeURIComponent(requestUrl.pathname);
+
+        if (pathname === '/api/teaching-assistant') {
+            response.setHeader('Cache-Control', 'no-store');
+            response.setHeader('Content-Type', 'application/json; charset=utf-8');
+            if (request.method === 'GET') {
+                response.writeHead(200);
+                response.end(JSON.stringify({ ok: true, configured: true, model: 'smoke-test-model' }));
+                return;
+            }
+            if (request.method !== 'POST') {
+                response.writeHead(405);
+                response.end(JSON.stringify({ error: { message: 'Method not allowed.' } }));
+                return;
+            }
+
+            const chunks = [];
+            request.on('data', (chunk) => chunks.push(chunk));
+            request.on('end', () => {
+                try {
+                    const payload = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+                    response.writeHead(200);
+                    response.end(JSON.stringify({
+                        proposal: buildMockAiProposal(payload),
+                        model: 'smoke-test-model',
+                        usage: { input_tokens: 100, output_tokens: 200, total_tokens: 300 },
+                        limits: { requestsPerHour: 30, requestsPerDay: 100 }
+                    }));
+                } catch (error) {
+                    response.writeHead(400);
+                    response.end(JSON.stringify({ error: { message: 'Invalid mock request.' } }));
+                }
+            });
+            return;
+        }
 
         if (pathname === '/') {
             pathname = '/index.html';
@@ -476,6 +565,50 @@ async function runSmoke() {
         assert(await page.locator('.widget.quiz-game-widget .quiz-game-answer.is-correct').count() >= 1, 'Quiz Game should reveal the correct answer');
         await page.locator('.widget.quiz-game-widget .quiz-game-score-actions button', { hasText: '+1' }).first().click();
         assert(await page.locator('.widget.quiz-game-widget .quiz-game-team-score').first().textContent().then((text) => text.trim() === '1'), 'Quiz Game should update team score');
+
+        await page.locator('#teaching-assistant-toggle').click();
+        await page.waitForSelector('#teaching-assistant-panel:not([hidden])', { timeout: 10000 });
+        assert(await page.locator('#teaching-assistant-panel').isVisible(), 'Teaching Assistant should open as a collapsible classroom panel');
+        assert(await page.locator('#teaching-assistant-api-url').inputValue() === '/api/teaching-assistant', 'Teaching Assistant should default to the secure same-origin API route');
+        await page.locator('#teaching-assistant-subject').fill('Year 7 Mathematics - equivalent fractions');
+        await page.locator('#teaching-assistant-request').fill('Create concise student instructions for the current page.');
+        await page.locator('#teaching-assistant-form button[type="submit"]').click();
+        await page.waitForSelector('#teaching-assistant-preview .teaching-assistant-preview__header', { timeout: 10000 });
+        assert(await page.locator('#teaching-assistant-preview').textContent().then((text) => text.includes('Equivalent Fractions Instructions')), 'Teaching Assistant should show a classroom-ready preview');
+        assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Generating a Teaching Assistant preview should not change classroom widgets');
+        assert(await page.locator('#teaching-assistant-status').textContent().then((text) => text.includes('Nothing has been added')), 'Teaching Assistant should state that preview generation has not changed the screen');
+        await page.locator('#teaching-assistant-add').click();
+        await page.waitForFunction(() => document.querySelectorAll('.widget.rich-text-widget').length === 2, { timeout: 10000 });
+        const generatedTextWidget = page.locator('.widget.rich-text-widget').last();
+        assert(await generatedTextWidget.locator('.rich-text-editor-surface').textContent().then((text) => text.includes('Show that two fractions have the same value')), 'Add to Screen should create the preview through the existing Rich Text widget');
+        await page.locator('#teaching-assistant-close').click();
+        await generatedTextWidget.locator('.widget-header-menu > summary').dispatchEvent('click');
+        await generatedTextWidget.locator('.widget-remove-btn').dispatchEvent('click');
+        await page.waitForFunction(() => document.querySelectorAll('.widget.rich-text-widget').length === 1, { timeout: 10000 });
+
+        await page.locator('#teaching-assistant-toggle').click();
+        await page.locator('[data-ai-mode="quiz"]').click();
+        await page.locator('#quiz-master-type').selectOption('matching');
+        await page.locator('#quiz-master-response-mode').selectOption('teams');
+        await page.locator('#quiz-master-question-count').fill('3');
+        await page.locator('#quiz-master-subject').fill('Year 7 Mathematics - equivalent fractions');
+        await page.locator('#quiz-master-form button[type="submit"]').click();
+        await page.waitForSelector('#teaching-assistant-preview .quiz-master-preview-question', { timeout: 10000 });
+        assert(await page.locator('#teaching-assistant-preview .quiz-master-preview-question').count() === 3, 'Quiz Master should preview the requested number of matching questions');
+        assert(await page.locator('.widget.quiz-game-widget').count() === 1, 'Generating a Quiz Master preview should not create a quiz widget');
+        await page.locator('#teaching-assistant-add').click();
+        await page.waitForFunction(() => document.querySelectorAll('.widget.quiz-game-widget').length === 2, { timeout: 10000 });
+        const generatedQuizWidget = page.locator('.widget.quiz-game-widget').last();
+        assert(await generatedQuizWidget.locator('.quiz-game-question-number').textContent().then((text) => text.includes('Matching')), 'Add to Screen should load the requested quiz type into the existing Quiz Game widget');
+        assert(await generatedQuizWidget.locator('.quiz-game-answer-bank').isVisible(), 'Matching quiz should show a student-facing answer bank before reveal');
+        await page.locator('#teaching-assistant-close').click();
+        await generatedQuizWidget.locator('button', { hasText: 'Reveal Answer' }).click();
+        assert(await generatedQuizWidget.locator('.quiz-game-answer.is-correct').count() >= 1, 'Generated matching quiz should reveal its correct pairs');
+        assert(await generatedQuizWidget.locator('.quiz-game-explanation').isVisible(), 'Generated quiz should show explanations when the teacher selected them');
+        await generatedQuizWidget.locator('.widget-header-menu > summary').dispatchEvent('click');
+        await generatedQuizWidget.locator('.widget-remove-btn').dispatchEvent('click');
+        await page.waitForFunction(() => document.querySelectorAll('.widget.quiz-game-widget').length === 1, { timeout: 10000 });
+
         await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
         await page.locator('.widget.reveal-manager-widget .reveal-toggle-controls-btn').click();
         await page.locator('.widget.reveal-manager-widget .reveal-deck-name').fill('Smoke Reveal Deck');

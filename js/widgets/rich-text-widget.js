@@ -134,6 +134,7 @@ class RichTextWidget {
       const QuillEditor = window.Quill;
       if (!QuillEditor) {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
+        this.editorSurface.innerHTML = this.pendingContent;
         return;
       }
 
@@ -839,6 +840,8 @@ class RichTextWidget {
     if (this.quill) {
       this.quill.root.innerHTML = this.pendingContent;
       this.syncEditorLayout();
+    } else {
+      this.editorSurface.innerHTML = this.pendingContent;
     }
   }
 

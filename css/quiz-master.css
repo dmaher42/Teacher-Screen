@@ -1,0 +1,98 @@
+.quiz-game-answer-bank {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--bg-surface) 88%, var(--accent) 12%);
+    border: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--border-color));
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.quiz-game-explanation {
+    margin-top: 10px;
+    padding: 10px 12px;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 10px;
+}
+
+.quiz-game-explanation[hidden],
+.quiz-game-scoreboard[hidden],
+.quiz-game-control-bar button[hidden] {
+    display: none !important;
+}
+
+.quiz-game-explanation strong {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.quiz-game-explanation p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.quiz-game-display-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding: 8px 0;
+}
+
+.quiz-game-display-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.quiz-game-display-options input {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.quiz-game-settings-controls select {
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 9px;
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.quiz-game-widget-content.is-projector-mode .quiz-game-explanation,
+body.projector-view .quiz-game-widget-content .quiz-game-explanation {
+    padding: clamp(12px, 1.1vw, 22px);
+    border-width: 2px;
+}
+
+.quiz-game-widget-content.is-projector-mode .quiz-game-explanation strong,
+body.projector-view .quiz-game-widget-content .quiz-game-explanation strong {
+    font-size: clamp(0.85rem, 1.15vw, 1.35rem);
+}
+
+.quiz-game-widget-content.is-projector-mode .quiz-game-explanation p,
+body.projector-view .quiz-game-widget-content .quiz-game-explanation p,
+.quiz-game-widget-content.is-projector-mode .quiz-game-answer-bank,
+body.projector-view .quiz-game-widget-content .quiz-game-answer-bank {
+    font-size: clamp(1rem, 1.45vw, 1.8rem);
+}
+
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-explanation,
+body:not(.projector-view) .quiz-game-widget-content.is-tight .quiz-game-answer-bank {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+}

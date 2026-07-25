@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="css/tokens.css?v=2">
     <link rel="stylesheet" href="css/main.css?v=23">
     <link rel="stylesheet" href="css/behaviour-tracker.css?v=4">
+    <link rel="stylesheet" href="css/quiz-master.css?v=1">
+    <link rel="stylesheet" href="css/teaching-assistant.css?v=1">
     <link rel="stylesheet" href="css/themes.css?v=2">
     <link rel="stylesheet" href="css/notes.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css">
@@ -373,10 +375,193 @@
             <i class="fas fa-shuffle lesson-quick-action__icon" aria-hidden="true"></i>
             <span class="lesson-quick-action__label">Pick</span>
         </button>
+        <button id="teaching-assistant-toggle" class="lesson-quick-action lesson-quick-action--ai" type="button" aria-label="Open Teaching Assistant" aria-controls="teaching-assistant-panel" aria-expanded="false">
+            <i class="fas fa-wand-magic-sparkles lesson-quick-action__icon" aria-hidden="true"></i>
+            <span class="lesson-quick-action__label">AI</span>
+        </button>
         <button id="add-widget-btn" class="lesson-quick-action lesson-quick-action--more" type="button" aria-label="Add widget">
             <i class="fas fa-plus" aria-hidden="true"></i>
         </button>
     </nav>
+
+    <aside id="teaching-assistant-panel" class="teaching-assistant-panel" role="dialog" aria-modal="false" aria-labelledby="teaching-assistant-title" hidden>
+        <header class="teaching-assistant-panel__header">
+            <div>
+                <p class="teaching-assistant-panel__eyebrow">Teacher tools</p>
+                <h2 id="teaching-assistant-title">Teaching Assistant</h2>
+                <p>Build a preview first. Nothing changes on the classroom screen until you choose Add to Screen.</p>
+            </div>
+            <button id="teaching-assistant-close" class="teaching-assistant-panel__close" type="button" aria-label="Close Teaching Assistant">&times;</button>
+        </header>
+
+        <div class="teaching-assistant-tabs" role="tablist" aria-label="AI teacher tools">
+            <button class="teaching-assistant-tab is-active" type="button" role="tab" aria-selected="true" data-ai-mode="assistant">Teaching Assistant</button>
+            <button class="teaching-assistant-tab" type="button" role="tab" aria-selected="false" data-ai-mode="quiz">Quiz Master</button>
+        </div>
+
+        <div class="teaching-assistant-panel__body">
+            <form id="teaching-assistant-form" class="teaching-assistant-form">
+                <div class="teaching-assistant-form__grid">
+                    <label>
+                        <span>Year level</span>
+                        <select id="teaching-assistant-year-level">
+                            <option>Foundation</option>
+                            <option>Year 1</option>
+                            <option>Year 2</option>
+                            <option>Year 3</option>
+                            <option>Year 4</option>
+                            <option>Year 5</option>
+                            <option>Year 6</option>
+                            <option selected>Year 7</option>
+                            <option>Year 8</option>
+                            <option>Year 9</option>
+                            <option>Year 10</option>
+                            <option>Year 11</option>
+                            <option>Year 12</option>
+                            <option>Mixed year levels</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Content type</span>
+                        <select id="teaching-assistant-task">
+                            <option value="student-instructions">Student instructions</option>
+                            <option value="explanation">Explain a concept</option>
+                            <option value="discussion-questions">Discussion questions</option>
+                            <option value="formative-check">Formative check</option>
+                            <option value="lesson-sequence">Lesson sequence</option>
+                            <option value="exit-ticket">Exit ticket</option>
+                            <option value="rewrite">Rewrite classroom text</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    <span>Subject / topic</span>
+                    <input id="teaching-assistant-subject" type="text" maxlength="200" placeholder="e.g., Year 7 Science - ecosystems" autocomplete="off">
+                </label>
+                <label>
+                    <span>What should it prepare?</span>
+                    <textarea id="teaching-assistant-request" rows="3" maxlength="3000" placeholder="Describe the classroom-ready content you need."></textarea>
+                </label>
+                <label class="teaching-assistant-checkbox">
+                    <input id="teaching-assistant-use-context" type="checkbox" checked>
+                    <span>Use the current deck and page context</span>
+                </label>
+                <button class="control-button modal-primary teaching-assistant-generate" type="submit">Generate Preview</button>
+            </form>
+
+            <form id="quiz-master-form" class="teaching-assistant-form" hidden>
+                <div class="teaching-assistant-form__grid">
+                    <label>
+                        <span>Year level</span>
+                        <select id="quiz-master-year-level">
+                            <option>Foundation</option>
+                            <option>Year 1</option>
+                            <option>Year 2</option>
+                            <option>Year 3</option>
+                            <option>Year 4</option>
+                            <option>Year 5</option>
+                            <option>Year 6</option>
+                            <option selected>Year 7</option>
+                            <option>Year 8</option>
+                            <option>Year 9</option>
+                            <option>Year 10</option>
+                            <option>Year 11</option>
+                            <option>Year 12</option>
+                            <option>Mixed year levels</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Quiz type</span>
+                        <select id="quiz-master-type">
+                            <option value="multiple-choice">Multiple choice</option>
+                            <option value="true-false">True / false</option>
+                            <option value="short-answer">Short answer</option>
+                            <option value="matching">Matching</option>
+                            <option value="ordering">Ordering</option>
+                            <option value="fill-in-the-blank">Fill in the blank</option>
+                            <option value="rapid-fire">Rapid-fire</option>
+                            <option value="jeopardy">Jeopardy-style categories</option>
+                            <option value="team-quiz">Team quiz</option>
+                            <option value="mixed">Mixed quiz</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Difficulty</span>
+                        <select id="quiz-master-difficulty">
+                            <option value="easy">Easy</option>
+                            <option value="standard" selected>Standard</option>
+                            <option value="challenging">Challenging</option>
+                            <option value="mixed">Mixed difficulty</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Questions</span>
+                        <input id="quiz-master-question-count" type="number" min="3" max="20" value="10">
+                    </label>
+                    <label class="teaching-assistant-form__wide">
+                        <span>Response mode</span>
+                        <select id="quiz-master-response-mode">
+                            <option value="whole-class">Whole class</option>
+                            <option value="teams">Teams</option>
+                            <option value="individual">Individual / mini whiteboards</option>
+                            <option value="verbal">Verbal / hands up</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    <span>Subject / topic</span>
+                    <input id="quiz-master-subject" type="text" maxlength="200" placeholder="e.g., Year 8 History - the Industrial Revolution" autocomplete="off">
+                </label>
+                <label>
+                    <span>Extra instructions</span>
+                    <textarea id="quiz-master-request" rows="2" maxlength="3000" placeholder="Optional focus, vocabulary, misconceptions, or style notes."></textarea>
+                </label>
+                <div class="teaching-assistant-options">
+                    <label class="teaching-assistant-checkbox">
+                        <input id="quiz-master-show-answers" type="checkbox" checked>
+                        <span>Show answers when revealed</span>
+                    </label>
+                    <label class="teaching-assistant-checkbox">
+                        <input id="quiz-master-show-explanations" type="checkbox" checked>
+                        <span>Show explanations</span>
+                    </label>
+                    <label class="teaching-assistant-checkbox">
+                        <input id="quiz-master-use-context" type="checkbox" checked>
+                        <span>Use the current deck and page context</span>
+                    </label>
+                </div>
+                <button class="control-button modal-primary teaching-assistant-generate" type="submit">Generate Quiz Preview</button>
+            </form>
+
+            <div id="teaching-assistant-status" class="teaching-assistant-status" role="status" aria-live="polite" hidden></div>
+
+            <section class="teaching-assistant-preview-wrap" aria-labelledby="teaching-assistant-preview-title">
+                <div class="teaching-assistant-preview-wrap__heading">
+                    <h3 id="teaching-assistant-preview-title">Preview</h3>
+                    <span>Teacher review only</span>
+                </div>
+                <div id="teaching-assistant-preview" class="teaching-assistant-preview"></div>
+                <div class="teaching-assistant-preview-actions">
+                    <button id="teaching-assistant-add" class="control-button modal-primary" type="button" hidden>Add to Screen</button>
+                    <button id="teaching-assistant-clear" class="control-button control-button--ghost" type="button" hidden>Clear Preview</button>
+                </div>
+            </section>
+
+            <details class="teaching-assistant-connection">
+                <summary>Secure AI connection</summary>
+                <div class="teaching-assistant-connection__body">
+                    <label for="teaching-assistant-api-url">Backend URL</label>
+                    <input id="teaching-assistant-api-url" type="url" inputmode="url" placeholder="https://your-project.vercel.app/api/teaching-assistant" autocomplete="off">
+                    <p>Enter the deployed server route, never an OpenAI API key. The key belongs only in the server's environment settings.</p>
+                    <div class="button-group">
+                        <button id="teaching-assistant-save-api-url" class="control-button" type="button">Save Address</button>
+                        <button id="teaching-assistant-check-api" class="control-button control-button--ghost" type="button">Check Connection</button>
+                    </div>
+                    <p id="teaching-assistant-connection-status" class="teaching-assistant-connection__status" role="status" aria-live="polite"></p>
+                </div>
+            </details>
+        </div>
+    </aside>
 
     <dialog id="widget-modal" aria-labelledby="widget-modal-title">
         <div class="modal-header modal-header--widget-picker">
