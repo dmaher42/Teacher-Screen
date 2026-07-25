@@ -290,6 +290,7 @@ async function runSmoke() {
             const deckShelves = document.querySelector('.dashboard-sidebar__section');
             const folderList = document.querySelector('#dashboard-folder-list');
             const createFolderButton = document.querySelector('#dashboard-create-folder-btn');
+            const loadLatestButton = document.querySelector('#dashboard-load-latest-btn');
             const navigationItems = Array.from(document.querySelectorAll('.dashboard-nav-item'));
             const activeNavigationItems = navigationItems.filter((item) => item.classList.contains('is-active'));
             const classFilters = Array.from(document.querySelectorAll('.dashboard-filter'));
@@ -303,6 +304,7 @@ async function runSmoke() {
                 sidebarWidth: sidebar?.width || 0,
                 launchCardWidth: launchCard?.width || 0,
                 launchCardHeight: launchCard?.height || 0,
+                loadLatestHeight: loadLatestButton?.getBoundingClientRect().height || 0,
                 commandPanelHeight: commandPanel?.getBoundingClientRect().height || 0,
                 longTitlePanelHeight,
                 lessonSubtitle: lessonSubtitle?.textContent?.trim() || '',
@@ -328,6 +330,7 @@ async function runSmoke() {
         assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
         assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
         assert(desktopDashboardScale.launchCardHeight >= 46 && desktopDashboardScale.launchCardHeight <= 50, 'Desktop dashboard actions should use a compact touch-friendly height');
+        assert(desktopDashboardScale.loadLatestHeight >= 34 && desktopDashboardScale.loadLatestHeight <= 38, 'Load Latest should stay visually secondary to the deck search field');
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
         assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
         assert(desktopDashboardScale.commandPanelHeight >= 80 && desktopDashboardScale.commandPanelHeight <= 88, 'Desktop dashboard command strip should use the tighter compact height');

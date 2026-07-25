@@ -2326,6 +2326,25 @@ body.is-dashboard-active .dashboard-link-btn {
     color: #ffffff;
 }
 
+body.is-dashboard-active #dashboard-load-latest-btn {
+    min-height: 36px;
+    padding: 0.42rem 0.68rem;
+    border-color: rgba(47, 143, 244, 0.18);
+    border-radius: 10px;
+    background: #eaf2f6;
+    color: #315466;
+    box-shadow: none;
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+body.is-dashboard-active #dashboard-load-latest-btn:hover,
+body.is-dashboard-active #dashboard-load-latest-btn:focus-visible {
+    border-color: rgba(47, 143, 244, 0.36);
+    background: #dcebf3;
+    color: #173f56;
+}
+
 body.is-dashboard-active .dashboard-screen-grid {
     gap: 8px;
     padding-right: 2px;
