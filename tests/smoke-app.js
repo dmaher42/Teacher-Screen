@@ -423,6 +423,20 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The compact widget grab bar should always remain visible');
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
+        const richTextWidget = page.locator('.widget.rich-text-widget');
+        const richTextToolbar = richTextWidget.locator('.rich-text-editor-toolbar');
+        const moreFormatting = richTextToolbar.locator('.rich-text-toolbar-more');
+        await moreFormatting.locator('summary').click();
+        assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
+        assert(await moreFormatting.locator('.rich-text-toolbar-more-panel').evaluate((panel) => {
+            const clearButton = panel.querySelector('[aria-label="Clear formatting"]');
+            const clearRect = clearButton?.getBoundingClientRect();
+            if (!clearRect?.width || !clearRect?.height) return false;
+            const hitTarget = document.elementFromPoint(clearRect.left + (clearRect.width / 2), clearRect.top + (clearRect.height / 2));
+            return !!hitTarget?.closest?.('.rich-text-toolbar-more-panel');
+        }), 'More should reveal every advanced formatting control above the editor');
+        await moreFormatting.locator('summary').click();
+
         assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => header.getBoundingClientRect().height <= 37), 'The permanent widget grab bar should stay about five percent slimmer');
         assert(await page.locator('.widget.rich-text-widget .widget-header-actions').count() === 0, 'Widget editing buttons should not remain exposed in a row');
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'Each widget should expose one compact options menu');
@@ -466,6 +480,21 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 3, 'The widget options menu should contain projector, settings, and remove actions');
+        const widgetMenuScale = await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
+            const popoverRect = popover.getBoundingClientRect();
+            const items = Array.from(popover.querySelectorAll('.widget-header-menu__item'));
+            const labels = items.map((item) => item.querySelector('span'));
+            return {
+                width: popoverRect.width,
+                rowsFillMenu: items.every((item) => item.getBoundingClientRect().width >= popoverRect.width - 14),
+                rowsAreComfortable: items.every((item) => item.getBoundingClientRect().height >= 36),
+                labelsStayOnOneLine: labels.every((label) => label && label.scrollWidth <= label.clientWidth)
+            };
+        });
+        assert(widgetMenuScale.width >= 198 && widgetMenuScale.width <= 222, 'The widget options menu should use a compact, readable width');
+        assert(widgetMenuScale.rowsFillMenu, 'Every widget option should fill the menu instead of collapsing to an icon-sized control');
+        assert(widgetMenuScale.rowsAreComfortable, 'Widget options should share a consistent touch-friendly row height');
+        assert(widgetMenuScale.labelsStayOnOneLine, 'Widget option labels should remain on one line');
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
             const rect = popover.getBoundingClientRect();
             return rect.left >= 0 && rect.right <= window.innerWidth;
