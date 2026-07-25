@@ -2376,7 +2376,7 @@ class ClassroomScreenApp {
             ? projectName.trim()
             : window.prompt('Enter a project name', DEFAULT_PROJECT_NAME);
         if (requestedName === null) {
-            return;
+            return false;
         }
 
         const resolvedProjectName = requestedName && requestedName.trim() ? requestedName.trim() : DEFAULT_PROJECT_NAME;
@@ -2396,6 +2396,7 @@ class ClassroomScreenApp {
         this.renderProjectControls();
         this.saveStateImmediately();
         this.showNotification(`Created deck "${resolvedProjectName}".`);
+        return true;
     }
 
     saveCurrentProjectScreen() {
@@ -6198,7 +6199,11 @@ class ClassroomScreenApp {
 
         const createButton = this.dashboardRoot.querySelector('#dashboard-create-btn');
         if (createButton) {
-            createButton.addEventListener('click', () => this.createNewProject());
+            createButton.addEventListener('click', () => {
+                if (this.createNewProject()) {
+                    this.handleNavClick('classroom');
+                }
+            });
         }
 
         const teacherControlsButton = this.dashboardRoot.querySelector('#dashboard-teacher-controls-btn');

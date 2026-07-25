@@ -250,6 +250,42 @@ async function makeExternalAssetsDeterministic(context) {
     });
 }
 
+async function runNewDeckNavigationChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-create-btn', { timeout: 15000 });
+
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await page.locator('#dashboard-create-btn').click();
+        assert(await page.locator('#dashboard-view').isVisible(), 'Cancelling New Deck should keep the dashboard open');
+
+        const deckName = `Fresh Classroom ${Date.now()}`;
+        page.once('dialog', (dialog) => dialog.accept(deckName));
+        await page.locator('#dashboard-create-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+
+        const newDeckState = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return {
+                projectName: state.projectName,
+                pageCount: Array.isArray(state.pages) ? state.pages.length : 0,
+                widgetCount: Array.isArray(state.layout?.widgets) ? state.layout.widgets.length : -1
+            };
+        });
+
+        assert(newDeckState.projectName === deckName, 'New Deck should save the chosen deck name');
+        assert(newDeckState.pageCount === 1, 'New Deck should start with one page');
+        assert(newDeckState.widgetCount === 0, 'New Deck should open a blank classroom');
+        assert(await page.locator('#teacher-panel.open').count() === 0, 'New Deck should open the classroom in lesson mode');
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -257,6 +293,7 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        await runNewDeckNavigationChecks(browser, baseUrl);
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
         const pageErrors = [];
