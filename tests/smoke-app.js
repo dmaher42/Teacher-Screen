@@ -201,7 +201,11 @@ async function runSmoke() {
             const deckShelves = document.querySelector('.dashboard-sidebar__section');
             const folderList = document.querySelector('#dashboard-folder-list');
             const createFolderButton = document.querySelector('#dashboard-create-folder-btn');
+            const navigationItems = Array.from(document.querySelectorAll('.dashboard-nav-item'));
+            const activeNavigationItems = navigationItems.filter((item) => item.classList.contains('is-active'));
+            const classFilters = Array.from(document.querySelectorAll('.dashboard-filter'));
             const lessonTitle = commandPanel?.querySelector('h1');
+            const lessonSubtitle = commandPanel?.querySelector('.dashboard-command-panel__subtitle');
             const originalLessonTitle = lessonTitle?.textContent || '';
             if (lessonTitle) lessonTitle.textContent = 'Year 7 English - Persuasion Weeks 2 and 3';
             const longTitlePanelHeight = commandPanel?.getBoundingClientRect().height || 0;
@@ -210,11 +214,20 @@ async function runSmoke() {
                 sidebarWidth: sidebar?.width || 0,
                 launchCardWidth: launchCard?.width || 0,
                 launchCardHeight: launchCard?.height || 0,
+                commandPanelHeight: commandPanel?.getBoundingClientRect().height || 0,
                 longTitlePanelHeight,
+                lessonSubtitle: lessonSubtitle?.textContent?.trim() || '',
+                readyLabelCount: commandPanel?.querySelectorAll('.dashboard-command-panel__label').length || 0,
                 deckShelvesHeight: deckShelves?.getBoundingClientRect().height || 0,
                 folderListMaxHeight: folderList ? getComputedStyle(folderList).maxHeight : '',
                 createFolderInsideShelves: !!(deckShelves && createFolderButton && deckShelves.contains(createFolderButton)),
                 utilityMenuLabels: Array.from(document.querySelectorAll('#dashboard-utility-menu button')).map((button) => button.textContent?.trim()),
+                teacherProfileName: document.querySelector('.dashboard-brand h2')?.textContent?.trim() || '',
+                navigationLabels: navigationItems.map((item) => item.textContent?.trim()),
+                activeNavigationLabels: activeNavigationItems.map((item) => item.textContent?.trim()),
+                navigationItemHeight: navigationItems[0]?.getBoundingClientRect().height || 0,
+                classFilterLabels: classFilters.map((item) => item.querySelector('span')?.textContent?.trim()),
+                classFilterHeight: classFilters[0]?.getBoundingClientRect().height || 0,
                 legacyFooterCount: document.querySelectorAll('.dashboard-sidebar__footer').length,
                 launchCardsAligned: launchCardRects.every((rect) => (
                     Math.abs(rect.top - launchCardRects[0].top) < 1
@@ -225,14 +238,23 @@ async function runSmoke() {
         });
         assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
         assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
-        assert(desktopDashboardScale.launchCardHeight >= 54 && desktopDashboardScale.launchCardHeight <= 58, 'Desktop dashboard actions should use a compact touch-friendly height');
+        assert(desktopDashboardScale.launchCardHeight >= 48 && desktopDashboardScale.launchCardHeight <= 52, 'Desktop dashboard actions should use a compact touch-friendly height');
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
         assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
-        assert(desktopDashboardScale.longTitlePanelHeight <= 112, 'Desktop dashboard command strip should stay compact with a long lesson title');
+        assert(desktopDashboardScale.commandPanelHeight >= 90 && desktopDashboardScale.commandPanelHeight <= 100, 'Desktop dashboard command strip should use the requested 90-110px compact height');
+        assert(desktopDashboardScale.longTitlePanelHeight <= 100, 'Desktop dashboard command strip should stay compact with a long lesson title');
+        assert(desktopDashboardScale.lessonSubtitle === 'Page 1 of 1', 'Dashboard subtitle should sit beneath the deck title and describe the active page');
+        assert(desktopDashboardScale.readyLabelCount === 0, 'Dashboard should make the deck title the primary focus without a Ready to Teach label');
         assert(desktopDashboardScale.deckShelvesHeight >= 300, 'Deck Shelves should receive the main share of the desktop sidebar');
         assert(desktopDashboardScale.folderListMaxHeight === 'none', 'Deck Shelves should not use the old fixed-height scrolling window');
         assert(desktopDashboardScale.createFolderInsideShelves, 'Create Folder should sit with the Deck Shelves controls');
-        assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Settings|Updates|Help', 'Settings, Updates, and Help should live in the compact Menu Desk options menu');
+        assert(desktopDashboardScale.teacherProfileName === 'Teacher', 'Sidebar should show a compact teacher profile');
+        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Classes|Favourites|Recent', 'Sidebar should expose the five primary navigation destinations');
+        assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Dashboard', 'Dashboard should be the only active navigation item on launch');
+        assert(desktopDashboardScale.navigationItemHeight >= 40, 'Primary navigation items should have clear touch-friendly height');
+        assert(desktopDashboardScale.classFilterLabels.join('|') === 'All Decks|Year 7 English', 'Class filters should be generated from saved deck metadata');
+        assert(desktopDashboardScale.classFilterHeight < desktopDashboardScale.navigationItemHeight, 'Class filters should be visually secondary to primary navigation');
+        assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Sections|Settings|Updates|Help', 'Sections and utilities should live in the compact teacher options menu');
         assert(desktopDashboardScale.legacyFooterCount === 0, 'The sidebar should not reserve a footer row for utility links');
         assert(await page.locator('#tour-dialog').count() === 0, 'The removed welcome tour should not be part of the app');
 
@@ -248,6 +270,31 @@ async function runSmoke() {
         await page.waitForSelector('#help-dialog[open]', { timeout: 10000 });
         await page.locator('#help-dialog .modal-close').click();
         await page.waitForSelector('#help-dialog[open]', { state: 'detached', timeout: 10000 });
+
+        await page.locator('[data-dashboard-mode="library"]').click();
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Library'), 'Library should become the only active navigation destination');
+        assert(await page.locator('.dashboard-library-panel h2').textContent().then((text) => text.trim() === 'All lesson decks'), 'Library should display all lesson decks');
+        assert(await page.locator('.dashboard-screen-card').count() === 2, 'Library should include every seeded lesson deck');
+
+        await page.locator('.dashboard-screen-card .dashboard-favorite-btn').first().click();
+        assert(await page.locator('.dashboard-screen-card .dashboard-favorite-btn.is-active').count() === 1, 'Deck cards should provide a working favourite control');
+        assert(await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').filter((preset) => preset?.isFavorite).length === 1), 'Favourite deck state should persist locally');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        assert(await page.locator('.dashboard-screen-card .dashboard-favorite-btn.is-active').count() === 1, 'Favourite deck state should survive a full app reload');
+        await page.locator('[data-dashboard-mode="favorites"]').click();
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Favourites'), 'Favourites should become the only active navigation destination');
+        assert(await page.locator('.dashboard-screen-card').count() === 1, 'Favourites should show only pinned lesson decks');
+
+        await page.locator('[data-dashboard-mode="classes"]').click();
+        await page.locator('.dashboard-filter[data-class-name="Year 7 English"]').click();
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Classes'), 'Selecting a class filter should keep Classes as the active destination');
+        assert(await page.locator('.dashboard-library-panel h2').textContent().then((text) => text.trim() === 'Year 7 English'), 'Class filters should label the Deck Library with the selected class');
+        assert(await page.locator('.dashboard-screen-card').count() === 2, 'Class filters should show only decks saved for that teaching class');
+
+        await page.locator('[data-dashboard-mode="recent"]').click();
+        assert(await page.locator('.dashboard-empty').textContent().then((text) => text.includes('No recently opened decks')), 'Recent should explain when no lesson deck has been opened yet');
+        await page.locator('[data-dashboard-mode="dashboard"]').click();
 
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
@@ -604,6 +651,9 @@ async function runSmoke() {
         await page.locator('#dashboard-tab').dispatchEvent('click');
         await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('.dashboard-screen-card.is-current .dashboard-current-badge').count() === 1, 'Dashboard should identify the loaded current deck');
+        await page.locator('[data-dashboard-mode="recent"]').click();
+        assert(await page.locator('.dashboard-screen-card.is-current').count() === 1, 'Recent should show a lesson deck after it has been opened');
+        await page.locator('[data-dashboard-mode="dashboard"]').click();
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
 
@@ -637,12 +687,17 @@ async function runSmoke() {
         assert(await mobilePage.locator('#dashboard-open-classroom-btn').isVisible(), 'Mobile dashboard should show the classroom entry button');
         assert(await mobilePage.locator('.dashboard-command-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 2), 'Mobile dashboard should keep quick actions in a compact two-column grid');
         assert(await mobilePage.locator('.dashboard-launch-card').first().evaluate((element) => element.getBoundingClientRect().height <= 58), 'Mobile dashboard actions should keep the compact toolbar height');
-        assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 270), 'Mobile dashboard navigation should stay compact');
+        assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 340), 'Mobile dashboard navigation should stay compact');
+        assert(await mobilePage.locator('.dashboard-primary-nav__list').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 3), 'Mobile primary navigation should use a compact three-column layout');
+        assert(await mobilePage.locator('.dashboard-nav-item.is-active').count() === 1, 'Mobile sidebar should keep exactly one primary destination active');
+        assert(await mobilePage.locator('.dashboard-main').evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'Mobile dashboard content should not create horizontal scrolling');
         assert(await mobilePage.locator('#dashboard-folder-list').evaluate((element) => getComputedStyle(element).overflowX === 'auto'), 'Mobile Deck Shelves should use a compact horizontal shelf');
         assert(await mobilePage.locator('#dashboard-utility-menu > summary').isVisible(), 'Mobile dashboard should keep utility links inside the compact options menu');
         assert(await mobilePage.locator('.dashboard-sidebar__footer').count() === 0, 'Mobile dashboard should not render a separate utility footer');
         assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 300), 'Mobile dashboard lesson actions should stay above the deck library');
         assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the deck library into the first screenful');
+        assert(await mobilePage.locator('#dashboard-search-input').evaluate((element) => element.getBoundingClientRect().height <= 46), 'Mobile deck search should not stretch into unused vertical space');
+        assert(await mobilePage.locator('.dashboard-screen-card').first().evaluate((element) => element.getBoundingClientRect().top < window.innerHeight), 'Mobile dashboard should show the first saved deck without scrolling');
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
