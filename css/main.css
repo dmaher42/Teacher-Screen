@@ -5075,7 +5075,7 @@ body.projector-view .rich-text-inline-edit-button {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.28rem 0.4rem;
-    padding: 0.28rem 4.75rem 0.28rem 0.35rem;
+    padding: 0.28rem 10.2rem 0.28rem 0.35rem;
 }
 
 .rich-text-toolbar-main {
@@ -5105,6 +5105,10 @@ body.projector-view .rich-text-inline-edit-button {
 
 .rich-text-toolbar-field--style {
     min-width: 112px;
+}
+
+.rich-text-toolbar-field--align {
+    min-width: 74px;
 }
 
 .rich-text-toolbar-italic {
@@ -5262,7 +5266,7 @@ body.projector-view .rich-text-inline-edit-button {
 .rich-text-toolbar-more summary {
     position: absolute;
     top: 0.28rem;
-    right: 0.35rem;
+    right: 5.65rem;
     z-index: 1;
     min-height: 30px;
     display: inline-flex;
@@ -5314,12 +5318,14 @@ body.projector-view .rich-text-inline-edit-button {
     z-index: 5;
     display: grid;
     gap: 0.65rem;
-    width: min(260px, 84vw);
+    width: min(340px, 92vw);
+    max-height: min(420px, calc(100vh - 140px));
     padding: 0.65rem;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 84%, transparent);
     border-radius: 10px;
     background: var(--card-background, #ffffff);
     box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+    overflow-y: auto;
 }
 
 .rich-text-toolbar-more-panel .rich-text-toolbar-field {
@@ -5350,7 +5356,67 @@ body.projector-view .rich-text-inline-edit-button {
     flex: 0 0 auto;
 }
 
-@container (max-width: 360px) {
+.rich-text-toolbar-insert-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.32rem;
+}
+
+.rich-text-toolbar-insert-grid button,
+.rich-text-toolbar-more-panel .rich-text-toolbar-actions button {
+    min-height: 31px;
+    padding: 0.34rem 0.44rem;
+    border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 60%, #ffffff 40%);
+    color: #1e293b;
+    font: inherit;
+    font-size: 0.71rem;
+    font-weight: 750;
+    line-height: 1.2;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rich-text-toolbar-insert-grid button:hover,
+.rich-text-toolbar-more-panel .rich-text-toolbar-actions button:hover {
+    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 42%, transparent);
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
+}
+
+.rich-text-toolbar-more-panel button:disabled {
+    cursor: not-allowed;
+    opacity: 0.46;
+}
+
+.rich-text-toolbar-present {
+    position: absolute;
+    top: 0.28rem;
+    right: 0.35rem;
+    z-index: 1;
+    min-height: 30px;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 58%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 16%, #ffffff 84%);
+    color: #111827;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 850;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rich-text-toolbar-present:hover {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 24%, #ffffff 76%);
+}
+
+.rich-text-toolbar-present:focus-visible {
+    outline: 3px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
+}
+
+@container (max-width: 520px) {
     .rich-text-editor-toolbar {
         padding-right: 0.35rem;
     }
@@ -5363,12 +5429,17 @@ body.projector-view .rich-text-inline-edit-button {
         position: static;
     }
 
+    .rich-text-toolbar-present {
+        position: static;
+        margin-left: auto;
+    }
+
     .rich-text-toolbar-colour-panel {
         width: min(202px, calc(100cqw - 0.7rem));
     }
 
     .rich-text-toolbar-more-panel {
-        width: min(260px, calc(100cqw - 0.7rem));
+        width: min(340px, calc(100cqw - 0.7rem));
     }
 }
 
@@ -5492,8 +5563,8 @@ body.projector-view .rich-text-inline-edit-button {
       height: auto;
       min-height: 0;
       font-family: 'Poppins', sans-serif;
-      font-size: 0.98rem;
-      line-height: 1.5;
+      font-size: 1rem;
+      line-height: 1.62;
       letter-spacing: 0.01em;
       padding: 0.65rem 0.75rem 0.75rem;
       color: var(--text-primary);
@@ -5509,6 +5580,15 @@ body.projector-view .rich-text-inline-edit-button {
     right: 0.75rem;
     color: color-mix(in srgb, var(--text-secondary, #64748b) 78%, transparent);
     font-style: normal;
+    line-height: 1.5;
+}
+
+.rich-text-widget-inner .ql-editor > p {
+    margin: 0 0 0.82rem;
+}
+
+.rich-text-widget-inner .ql-editor > p:last-child {
+    margin-bottom: 0;
 }
 
 .rich-text-widget-inner .ql-editor .ql-size-small {
@@ -5526,7 +5606,7 @@ body.projector-view .rich-text-inline-edit-button {
 .rich-text-widget-inner .ql-editor h2 {
     font-size: 1.65rem;
     font-weight: 800;
-    margin: 1rem 0 0.7rem;
+    margin: 1.35rem 0 0.7rem;
     border-left: 6px solid var(--accent);
     padding-left: 0.85rem;
     line-height: 1.2;
@@ -5535,7 +5615,7 @@ body.projector-view .rich-text-inline-edit-button {
 .rich-text-widget-inner .ql-editor h3 {
     font-size: 1.35rem;
     font-weight: 700;
-    margin: 0.9rem 0 0.5rem;
+    margin: 1.1rem 0 0.55rem;
     line-height: 1.25;
 }
 
@@ -5546,12 +5626,24 @@ body.projector-view .rich-text-inline-edit-button {
 }
 
 .rich-text-widget-inner .ql-editor .display-callout {
-    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--bg-elevated, #ffffff) 82%, var(--primary-color, #8e82ff) 18%);
     border-left: 8px solid var(--accent);
     padding: 0.9rem 1rem;
     border-radius: 12px;
     margin: 1rem 0;
     box-shadow: var(--shadow-soft);
+}
+
+.rich-text-widget-inner .ql-editor .display-callout p {
+    margin: 0.25rem 0 0;
+}
+
+.rich-text-widget-inner .ql-editor .display-callout p:first-child {
+    margin-top: 0;
+}
+
+.rich-text-widget-inner .ql-editor .display-callout strong {
+    color: color-mix(in srgb, var(--text-primary, #0f172a) 88%, var(--primary-color, #8e82ff) 12%);
 }
 
 .rich-text-widget-inner .ql-editor table.rich-text-columns,

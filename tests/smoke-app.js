@@ -426,10 +426,22 @@ async function runSmoke() {
         const richTextWidget = page.locator('.widget.rich-text-widget');
         const richTextToolbar = richTextWidget.locator('.rich-text-editor-toolbar');
         const moreFormatting = richTextToolbar.locator('.rich-text-toolbar-more');
+        assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
+        assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
+        assert(await richTextToolbar.getByRole('button', { name: 'Present to students' }).isVisible(), 'Text Board should expose one-click Present mode');
         await moreFormatting.locator('summary').click();
         assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
+        assert(await moreFormatting.getByRole('button', { name: 'Learning intention' }).isVisible(), 'More should offer the Learning intention teaching block');
+        assert(await moreFormatting.getByRole('button', { name: 'Success criteria' }).isVisible(), 'More should offer the Success criteria teaching block');
+        assert(await moreFormatting.getByRole('button', { name: 'Warm-up' }).isVisible(), 'More should offer the Warm-up teaching block');
+        assert(await moreFormatting.getByRole('button', { name: 'Discussion question' }).isVisible(), 'More should offer the Discussion question teaching block');
+        assert(await moreFormatting.getByRole('button', { name: 'Exit ticket' }).isVisible(), 'More should offer the Exit ticket teaching block');
+        assert(await moreFormatting.getByRole('button', { name: 'Tip' }).isVisible(), 'More should offer classroom callouts');
+        assert(await moreFormatting.getByRole('button', { name: 'Undo' }).count() === 1, 'More should provide Undo');
+        assert(await moreFormatting.getByRole('button', { name: 'Redo' }).count() === 1, 'More should provide Redo');
         assert(await moreFormatting.locator('.rich-text-toolbar-more-panel').evaluate((panel) => {
             const clearButton = panel.querySelector('[aria-label="Clear formatting"]');
+            clearButton?.scrollIntoView({ block: 'nearest' });
             const clearRect = clearButton?.getBoundingClientRect();
             if (!clearRect?.width || !clearRect?.height) return false;
             const hitTarget = document.elementFromPoint(clearRect.left + (clearRect.width / 2), clearRect.top + (clearRect.height / 2));

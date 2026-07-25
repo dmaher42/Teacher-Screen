@@ -150,9 +150,14 @@ class RichTextWidget {
 
       this.quill = new QuillEditor(this.editorSurface, {
         theme: 'snow',
-        placeholder: '',
+        placeholder: 'Start with a clear heading, a short prompt, or a teaching block…',
         modules: {
-          toolbar: false
+          toolbar: false,
+          history: {
+            delay: 400,
+            maxStack: 100,
+            userOnly: true
+          }
         }
       });
 
@@ -189,6 +194,7 @@ class RichTextWidget {
               <option value="">Body</option>
               <option value="2">Heading</option>
               <option value="3">Subheading</option>
+              <option value="small">Small notes</option>
             </select>
           </label>
           <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
@@ -199,9 +205,17 @@ class RichTextWidget {
         </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
           <div class="rich-text-toolbar-actions">
-            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><span aria-hidden="true">•</span> List</button>
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><span aria-hidden="true">&bull;</span> List</button>
             <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><span aria-hidden="true">1.</span> List</button>
           </div>
+          <label class="rich-text-toolbar-field rich-text-toolbar-field--align">
+            <span class="visually-hidden">Alignment</span>
+            <select data-format="align" aria-label="Alignment">
+              <option value="">Left</option>
+              <option value="center">Centre</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
         </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--colour" aria-label="Colour">
           <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
@@ -219,7 +233,7 @@ class RichTextWidget {
                 <button type="button" class="rich-text-swatch" style="--swatch-color: #16a34a" data-format="color" data-value="#16a34a" aria-label="Green text" aria-pressed="false" title="Green text"><span class="visually-hidden">Green</span></button>
                 <button type="button" class="rich-text-swatch" style="--swatch-color: #7c3aed" data-format="color" data-value="#7c3aed" aria-label="Purple text" aria-pressed="false" title="Purple text"><span class="visually-hidden">Purple</span></button>
                 <button type="button" class="rich-text-swatch" style="--swatch-color: #ea580c" data-format="color" data-value="#ea580c" aria-label="Orange text" aria-pressed="false" title="Orange text"><span class="visually-hidden">Orange</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">×</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">&times;</span></button>
               </div>
             </div>
           </details>
@@ -235,7 +249,7 @@ class RichTextWidget {
                 <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bbf7d0" data-format="background" data-value="#bbf7d0" aria-label="Green highlight" aria-pressed="false" title="Green highlight"><span class="visually-hidden">Green</span></button>
                 <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bfdbfe" data-format="background" data-value="#bfdbfe" aria-label="Blue highlight" aria-pressed="false" title="Blue highlight"><span class="visually-hidden">Blue</span></button>
                 <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fbcfe8" data-format="background" data-value="#fbcfe8" aria-label="Pink highlight" aria-pressed="false" title="Pink highlight"><span class="visually-hidden">Pink</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="background" data-value="" aria-label="Remove highlight" aria-pressed="false" title="Remove highlight"><span aria-hidden="true">×</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="background" data-value="" aria-label="Remove highlight" aria-pressed="false" title="Remove highlight"><span aria-hidden="true">&times;</span></button>
               </div>
             </div>
           </details>
@@ -245,31 +259,43 @@ class RichTextWidget {
         <summary>More</summary>
         <div class="rich-text-toolbar-more-panel">
           <div class="rich-text-toolbar-more-section">
-            <span class="rich-text-toolbar-menu-label">Size and layout</span>
+            <span class="rich-text-toolbar-menu-label">Layout</span>
             <div class="rich-text-toolbar-more-row">
-              <label class="rich-text-toolbar-field">
-                <span class="visually-hidden">Text size</span>
-                <select data-format="size" aria-label="Text size">
-                  <option value="">Normal size</option>
-                  <option value="small">Small</option>
-                  <option value="large">Large</option>
-                  <option value="huge">Huge</option>
-                </select>
-              </label>
               <div class="rich-text-toolbar-actions">
                 <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">Columns</button>
               </div>
             </div>
           </div>
+          <div class="rich-text-toolbar-more-section rich-text-toolbar-more-section--teaching">
+            <span class="rich-text-toolbar-menu-label">Teaching blocks</span>
+            <div class="rich-text-toolbar-insert-grid" aria-label="Insert teaching block">
+              <button type="button" data-insert="learning-intention">Learning intention</button>
+              <button type="button" data-insert="success-criteria">Success criteria</button>
+              <button type="button" data-insert="warm-up">Warm-up</button>
+              <button type="button" data-insert="discussion-question">Discussion question</button>
+              <button type="button" data-insert="exit-ticket">Exit ticket</button>
+            </div>
+            <span class="rich-text-toolbar-menu-label">Callouts</span>
+            <div class="rich-text-toolbar-insert-grid rich-text-toolbar-insert-grid--callouts" aria-label="Insert classroom callout">
+              <button type="button" data-insert="tip">Tip</button>
+              <button type="button" data-insert="remember">Remember</button>
+              <button type="button" data-insert="important">Important</button>
+              <button type="button" data-insert="question">Question</button>
+              <button type="button" data-insert="answer">Answer</button>
+            </div>
+          </div>
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Utilities</span>
             <div class="rich-text-toolbar-actions" aria-label="More text actions">
-            <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
+              <button type="button" data-action="undo" aria-label="Undo" title="Undo">Undo</button>
+              <button type="button" data-action="redo" aria-label="Redo" title="Redo">Redo</button>
+              <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
               <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear formatting</button>
             </div>
           </div>
         </div>
       </details>
+      <button type="button" class="rich-text-toolbar-present" data-action="present" aria-label="Present to students" title="Present to students">Present</button>
     `;
 
     toolbar.querySelectorAll('details').forEach((menu) => {
@@ -310,11 +336,21 @@ class RichTextWidget {
 
     const format = event.target.dataset.format;
     let value = event.target.value || false;
-    if (format === 'header' && value) {
-      value = Number(value);
+    this.quill.focus();
+    if (format === 'header') {
+      if (value === 'small') {
+        this.quill.format('header', false, 'user');
+        this.quill.format('size', 'small', 'user');
+        this.syncToolbarState();
+        return;
+      }
+
+      this.quill.format('size', false, 'user');
+      if (value) {
+        value = Number(value);
+      }
     }
 
-    this.quill.focus();
     this.quill.format(format, value, 'user');
     this.syncToolbarState();
   }
@@ -338,6 +374,9 @@ class RichTextWidget {
     } else if (button.dataset.list) {
       const listType = button.dataset.list;
       this.quill.format('list', current.list === listType ? false : listType, 'user');
+    } else if (button.dataset.insert) {
+      this.insertTeachingMarkup(button.dataset.insert);
+      button.closest('details')?.removeAttribute('open');
     } else if (button.dataset.action === 'clean') {
       this.quill.removeFormat(range.index, Math.max(range.length, 1), 'user');
     } else if (button.dataset.action === 'columns') {
@@ -348,6 +387,15 @@ class RichTextWidget {
       if (url !== null) {
         this.quill.format('link', url.trim() || false, 'user');
       }
+    } else if (button.dataset.action === 'undo') {
+      this.quill.history?.undo();
+    } else if (button.dataset.action === 'redo') {
+      this.quill.history?.redo();
+    } else if (button.dataset.action === 'present') {
+      this.presentationMode = 'fullscreen';
+      this.isDisplayMode = true;
+      this.updateDisplayModeUI();
+      document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
     }
 
     this.syncToolbarState();
@@ -363,7 +411,11 @@ class RichTextWidget {
     this.editorToolbar.querySelectorAll('select[data-format]').forEach((select) => {
       const format = select.dataset.format;
       const value = current[format];
-      select.value = value === true || value == null ? '' : String(value);
+      if (format === 'header' && !value && current.size === 'small') {
+        select.value = 'small';
+      } else {
+        select.value = value === true || value == null ? '' : String(value);
+      }
     });
 
     this.editorToolbar.querySelectorAll('button[data-format]').forEach((button) => {
@@ -388,6 +440,10 @@ class RichTextWidget {
       preview?.style.setProperty('--swatch-color', activeValue || menu.dataset.defaultValue);
       menu.classList.toggle('is-active', !!activeValue);
     });
+
+    const history = this.quill.history?.stack;
+    this.editorToolbar.querySelector('[data-action="undo"]')?.toggleAttribute('disabled', !(history?.undo?.length));
+    this.editorToolbar.querySelector('[data-action="redo"]')?.toggleAttribute('disabled', !(history?.redo?.length));
   }
 
   handleDisplayModeClick() {
@@ -808,6 +864,7 @@ class RichTextWidget {
 
     this.maybeApplySmartFormatting(delta, source);
     this.pendingContent = this.quill.root.innerHTML;
+    this.syncToolbarState();
     document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
   }
 
@@ -862,6 +919,51 @@ class RichTextWidget {
     };
 
     return templateMap[templateKey] || '';
+  }
+
+  getTeachingMarkup(key) {
+    const blocks = {
+      'learning-intention': `
+        <h2>Learning Intention</h2>
+        <div class="display-callout"><p><strong>Today we are learning to…</strong></p><p>Describe the key knowledge or skill for this lesson.</p></div>
+      `,
+      'success-criteria': `
+        <h2>Success Criteria</h2>
+        <ul><li>I can explain…</li><li>I can apply…</li><li>I can check…</li></ul>
+      `,
+      'warm-up': `
+        <h2>Warm-up</h2>
+        <div class="display-callout"><p><strong>5 minutes</strong></p><p>Start with this short retrieval or thinking task.</p></div>
+      `,
+      'discussion-question': `
+        <h2>Discussion Question</h2>
+        <div class="display-callout"><p><strong>Talk with a partner</strong></p><p>What do you notice, wonder, or predict?</p></div>
+      `,
+      'exit-ticket': `
+        <h2>Exit Ticket</h2>
+        <ol><li>What is one thing you learned?</li><li>What is one question you still have?</li></ol>
+      `,
+      tip: '<div class="display-callout"><p><strong>&#128161; Tip</strong></p><p>A helpful idea for tackling this task.</p></div>',
+      remember: '<div class="display-callout"><p><strong>&#11088; Remember</strong></p><p>The key point students should keep in mind.</p></div>',
+      important: '<div class="display-callout"><p><strong>&#9888;&#65039; Important</strong></p><p>Pause and make sure this detail is understood.</p></div>',
+      question: '<div class="display-callout"><p><strong>&#10067; Question</strong></p><p>Ask students to explain their thinking.</p></div>',
+      answer: '<div class="display-callout"><p><strong>&#9989; Answer</strong></p><p>Reveal or discuss the model response here.</p></div>'
+    };
+
+    return blocks[key] || '';
+  }
+
+  insertTeachingMarkup(key) {
+    const markup = this.getTeachingMarkup(key);
+    if (!markup) {
+      return;
+    }
+
+    const range = this.quill?.getSelection(true);
+    const insertIndex = range ? range.index : this.quill?.getLength() || 0;
+    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
+    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, `${needsSpacing}${markup}<p><br></p>`);
+    this.quill.setSelection(this.quill.getLength(), 0, 'silent');
   }
 
   insertTemplate(templateKey) {
