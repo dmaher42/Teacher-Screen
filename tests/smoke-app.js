@@ -221,7 +221,7 @@ async function runSmoke() {
                 launchCardLabels: launchCards.map((card) => card.querySelector('strong')?.textContent?.trim())
             };
         });
-        assert(desktopDashboardScale.sidebarWidth <= 220, 'Desktop dashboard navigation should not crowd the lesson actions');
+        assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
         assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
         assert(desktopDashboardScale.launchCardHeight >= 54 && desktopDashboardScale.launchCardHeight <= 58, 'Desktop dashboard actions should use a compact touch-friendly height');
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');

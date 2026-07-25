@@ -2074,7 +2074,7 @@ body.is-dashboard-active .dashboard-shell {
 }
 
 body.is-dashboard-active .dashboard-layout {
-    grid-template-columns: minmax(196px, 216px) minmax(0, 1fr);
+    grid-template-columns: minmax(188px, 192px) minmax(0, 1fr);
     gap: 14px;
     padding: 14px;
     background:
@@ -2406,7 +2406,7 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
 @media (max-width: 1180px) {
     body.is-dashboard-active .dashboard-layout {
-        grid-template-columns: minmax(192px, 206px) minmax(0, 1fr);
+        grid-template-columns: minmax(184px, 192px) minmax(0, 1fr);
     }
 
     body.is-dashboard-active .dashboard-sidebar__action {
