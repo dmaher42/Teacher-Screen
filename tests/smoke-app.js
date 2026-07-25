@@ -94,7 +94,9 @@ async function openTeacherPanel(page) {
         return;
     }
 
-    await page.locator('#teacher-controls-quick-btn').click();
+    await page.locator('#add-widget-btn').click();
+    await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+    await page.locator('#widget-picker-teacher-controls-btn').click();
     await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
 }
 
@@ -232,12 +234,7 @@ async function runSmoke() {
         assert(desktopDashboardScale.createFolderInsideShelves, 'Create Folder should sit with the Deck Shelves controls');
         assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Settings|Updates|Help', 'Settings, Updates, and Help should live in the compact Menu Desk options menu');
         assert(desktopDashboardScale.legacyFooterCount === 0, 'The sidebar should not reserve a footer row for utility links');
-        assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
-
-        if (await page.locator('#tour-dialog[open]').count() === 1) {
-            await page.locator('#tour-dialog [data-close]').click();
-            await page.waitForSelector('#tour-dialog[open]', { state: 'detached', timeout: 10000 });
-        }
+        assert(await page.locator('#tour-dialog').count() === 0, 'The removed welcome tour should not be part of the app');
 
         await page.locator('#dashboard-utility-menu > summary').click();
         assert(await page.locator('#dashboard-settings-btn').isVisible(), 'Menu Desk options should reveal Settings');
@@ -255,11 +252,12 @@ async function runSmoke() {
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('#student-view').isVisible(), 'Classroom view should open');
-        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'Empty classroom should point teachers to quick actions');
+        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'Empty classroom should not show instructional placeholder text');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Classroom should open in lesson mode with Teacher Controls closed');
-        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 0, 'Classroom should open in clean teaching mode');
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Classroom widgets should always be ready to move and resize');
         assert(await page.locator('#lesson-quick-actions').isVisible(), 'Lesson quick actions should appear in classroom mode');
-        assert(await page.locator('#teacher-controls-quick-btn').isVisible(), 'Teacher Controls should remain one click away in lesson mode');
+        assert(await page.locator('#layout-edit-quick-btn').count() === 0, 'The widget bar should not require an Edit or Done mode button');
+        assert(await page.locator('#teacher-controls-quick-btn').count() === 0, 'The widget bar should not duplicate the Teacher Controls button');
         assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 4, 'Lesson quick actions should expose common live widgets');
 
         await page.locator('#add-widget-btn').click();
@@ -287,10 +285,19 @@ async function runSmoke() {
         await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isHidden(), 'Teaching mode should hide widget editing chrome');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The compact widget grab bar should always remain visible');
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => header.getBoundingClientRect().height <= 37), 'The permanent widget grab bar should stay about five percent slimmer');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-actions').count() === 0, 'Widget editing buttons should not remain exposed in a row');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'Each widget should expose one compact options menu');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => {
+            const titleRect = header.querySelector('.widget-header-title')?.getBoundingClientRect();
+            const menuRect = header.querySelector('.widget-header-menu > summary')?.getBoundingClientRect();
+            return !!titleRect && !!menuRect && menuRect.left - titleRect.right <= 8;
+        }), 'The widget options menu should stay beside the title instead of colliding with corner controls');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__popover').isHidden(), 'Widget options should stay hidden until requested');
         await openTeacherPanel(page);
-        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Opening Teacher Controls should enable arrange mode');
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Teacher Controls should not change the permanent widget interaction state');
         const teacherControlsScale = await page.locator('#teacher-panel').evaluate((panel) => {
             const rect = panel.getBoundingClientRect();
             const headerRect = panel.querySelector('.panel-header')?.getBoundingClientRect();
@@ -319,8 +326,14 @@ async function runSmoke() {
         assert(teacherControlsScale.newPageFillsRow, 'New Page should align to the full action row');
         assert(teacherControlsScale.lastCardVisible, 'All Teacher Controls sections should be reachable in the first desktop view');
         assert(teacherControlsScale.advancedControlClosed, 'More page actions should show the correct closed-state affordance');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Arrange mode should reveal widget editing chrome');
-        assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'Arrange mode should use the friendly Text Board label');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
+        await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 3, 'The widget options menu should contain projector, settings, and remove actions');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
+            const rect = popover.getBoundingClientRect();
+            return rect.left >= 0 && rect.right <= window.innerWidth;
+        }), 'The widget options menu should remain fully inside the screen');
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
         await page.locator('#widget-settings-modal .rich-text-controls--modes button', { hasText: 'Display' }).click();
@@ -331,16 +344,16 @@ async function runSmoke() {
         await page.locator('.widget.rich-text-widget .rich-text-inline-edit-button').click();
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should return after quick Edit');
         await closeTeacherPanel(page);
-        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 0, 'Closing Teacher Controls should return to teaching mode');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isHidden(), 'Teaching mode should hide widget chrome again');
+        assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Closing Teacher Controls should keep widget movement available');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The widget grab bar should remain visible after closing Teacher Controls');
 
         await addWidget(page, 'timer', '.widget.pomodoro-widget', 'Pomodoro');
-        await openTeacherPanel(page);
         await page.waitForTimeout(800);
+        assert(await page.locator('#teacher-panel.open').count() === 0, 'Immediate widget movement should not require Teacher Controls');
         const timerBoxBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
         const classroomCanvasBox = await getElementBox(page, '#widgets-container');
         const verticalDragDelta = timerBoxBeforeDrag.y - classroomCanvasBox.y < classroomCanvasBox.height / 2 ? 200 : -200;
-        await dragElementBy(page, '.widget.pomodoro-widget .widget-header', 0, verticalDragDelta);
+        await dragElementBy(page, '.widget.pomodoro-widget .widget-header-title', 0, verticalDragDelta);
         const timerBoxAfterDrag = await getElementBox(page, '.widget.pomodoro-widget');
         assert(
             Math.abs(timerBoxAfterDrag.x - timerBoxBeforeDrag.x) > 20
@@ -351,7 +364,6 @@ async function runSmoke() {
         const timerBoxAfterResize = await getElementBox(page, '.widget.pomodoro-widget');
         assert(timerBoxAfterResize.width > timerBoxAfterDrag.width + 20, 'Resizing should widen a widget');
         assert(timerBoxAfterResize.height > timerBoxAfterDrag.height + 12, 'Resizing should heighten a widget');
-        await closeTeacherPanel(page);
 
         await page.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
         await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
@@ -474,7 +486,7 @@ async function runSmoke() {
         }, { timeout: 10000 });
         await waitForWidgetCount(page, 0, 'New deck page should start blank');
         assert(behaviourControls.isClosed(), 'Changing deck pages should close the old private behaviour controls');
-        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.includes('quick actions')), 'New blank page should keep the quick-action empty state');
+        assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'New blank page should not show instructional placeholder text');
 
         await page.locator('#teacher-page-switcher [data-page-id]').first().click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
@@ -634,6 +646,8 @@ async function runSmoke() {
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
+        assert(await mobilePage.locator('#layout-edit-quick-btn').count() === 0, 'Mobile should not require an Edit mode button');
+        assert(await mobilePage.locator('#widgets-container.layout-edit-mode').count() === 1, 'Mobile widgets should keep their permanent interaction state');
         await openTeacherPanel(mobilePage);
         const mobileTeacherControlsScale = await mobilePage.locator('#teacher-panel').evaluate((panel) => {
             const panelRect = panel.getBoundingClientRect();

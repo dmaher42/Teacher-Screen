@@ -63,7 +63,7 @@ const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
 const DEFAULT_PROJECT_NAME = 'Weekly Project';
 const DEFAULT_PAGE_ID = 'page-1';
 const DEFAULT_PAGE_NAME = 'Page 1';
-const EMPTY_WIDGET_PLACEHOLDER_HTML = '<div class="widget-placeholder"><p>Use the quick actions below to add Text, Timer, Draw, or Pick.</p></div>';
+const EMPTY_WIDGET_PLACEHOLDER_HTML = '<div class="widget-placeholder" aria-hidden="true"></div>';
 const PERSUASION_WEEK_2_SLIDES_URL = 'https://docs.google.com/presentation/d/1NOf1lzIqOJNSCcSIKxhKGbBgrZ3TkBZDJ8peCLPgFLo';
 const PERSUASION_WEEK_3_PLACEHOLDER_URL = '';
 const WIDGET_PICKER_SHORTCUTS = {
@@ -200,8 +200,6 @@ class ClassroomScreenApp {
         this.renamePageButton = document.getElementById('rename-page-btn');
         this.deletePageButton = document.getElementById('delete-page-btn');
         this.helpDialog = document.getElementById('help-dialog');
-        this.tourDialog = document.getElementById('tour-dialog');
-        this.teacherControlsQuickButton = document.getElementById('teacher-controls-quick-btn');
         this.widgetModal = document.getElementById('widget-modal');
         this.widgetSettingsModal = this.ensureWidgetSettingsModal(teacherDocument);
         this.navTabs = document.querySelectorAll('.nav-tab');
@@ -281,7 +279,7 @@ class ClassroomScreenApp {
 
         const layoutHost = this.widgetsContainer || this.studentView;
         this.layoutManager = new LayoutManager(layoutHost);
-        this.layoutManager.setEditable(false);
+        this.layoutManager.setEditable(true);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
                 this.applyProjectorLayoutDelta(payload, 'projector');
@@ -380,7 +378,6 @@ class ClassroomScreenApp {
         this.syncTimerControlsFromWidget();
         this.renderProjectControls();
 
-        this.showWelcomeTourIfNeeded();
         this.handleNavClick('dashboard');
 
         const savedRM = localStorage.getItem('reduceMotion');
@@ -621,15 +618,6 @@ class ClassroomScreenApp {
                 this.addWidget(button.dataset.quickWidget);
             });
         });
-        if (this.teacherControlsQuickButton) {
-            this.teacherControlsQuickButton.addEventListener('click', () => {
-                if (this.isTeacherPanelOpen) {
-                    this.toggleTeacherPanel(false);
-                    return;
-                }
-                this.openTeacherControls();
-            });
-        }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
             widgetPickerTeacherControlsButton.addEventListener('click', () => this.openTeacherControls());
@@ -972,17 +960,6 @@ class ClassroomScreenApp {
         this.panelBackdrop.classList.toggle('visible', this.isTeacherPanelOpen);
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
         document.body.classList.toggle('is-arrange-mode', this.isTeacherPanelOpen);
-        this.layoutManager?.setEditable(this.isTeacherPanelOpen);
-
-        if (this.teacherControlsQuickButton) {
-            const label = this.teacherControlsQuickButton.querySelector('.lesson-quick-action__label');
-            this.teacherControlsQuickButton.classList.toggle('is-active', this.isTeacherPanelOpen);
-            this.teacherControlsQuickButton.setAttribute('aria-pressed', this.isTeacherPanelOpen ? 'true' : 'false');
-            this.teacherControlsQuickButton.setAttribute('aria-label', this.isTeacherPanelOpen ? 'Finish arranging classroom' : 'Arrange classroom');
-            if (label) {
-                label.textContent = this.isTeacherPanelOpen ? 'Done' : 'Arrange';
-            }
-        }
 
         if (this.isTeacherPanelOpen) {
             const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
@@ -6054,7 +6031,6 @@ class ClassroomScreenApp {
     setupDialogControls() {
         const dialogs = [
             this.helpDialog,
-            this.tourDialog,
             this.widgetModal,
             this.importDialog,
             this.nameEntryDialog
@@ -6146,20 +6122,11 @@ class ClassroomScreenApp {
     }
 
     closeAllDialogs() {
-        [this.helpDialog, this.tourDialog, this.widgetModal].forEach((dialog) => {
+        [this.helpDialog, this.widgetModal].forEach((dialog) => {
             if (dialog && dialog.open) {
                 dialog.close();
             }
         });
-    }
-
-    showWelcomeTourIfNeeded() {
-        const tourSeen = localStorage.getItem('welcomeTourSeen');
-        if (this.hasSavedState || tourSeen) {
-            return;
-        }
-        this.openDialog(this.tourDialog);
-        localStorage.setItem('welcomeTourSeen', 'true');
     }
 
     initLessonPlanner() {

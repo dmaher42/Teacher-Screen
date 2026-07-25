@@ -2895,29 +2895,6 @@ dialog::backdrop {
     gap: var(--spacing-md, 12px);
 }
 
-#tour-dialog .modal-body {
-    display: block;
-    overflow: auto;
-}
-
-#tour-dialog .modal-body p {
-    margin: 0 0 0.85rem;
-}
-
-#tour-dialog .modal-body ol {
-    margin: 0;
-    padding-left: 1.35rem;
-}
-
-#tour-dialog .modal-body li {
-    margin-bottom: 0.65rem;
-    color: var(--text-primary);
-}
-
-#tour-dialog .modal-body li:last-child {
-    margin-bottom: 0;
-}
-
 #widget-settings-modal .modal-content {
     width: min(680px, 92vw);
     border-radius: 24px;
@@ -3939,6 +3916,11 @@ dialog::backdrop {
     box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
 }
 
+.widget:has(.widget-header-menu[open]) {
+    z-index: 30;
+    overflow: visible;
+}
+
 .layout-edit-mode .widget.is-dragging {
     transition: none;
     cursor: grabbing;
@@ -3985,20 +3967,22 @@ body.widget-resize-active {
 }
 
 .widget-header {
+    position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 6px;
     padding: 6px 10px;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 95%, var(--accent, #6b7cff) 5%);
     border-bottom: 1px solid var(--border-color-light, #e5e7eb);
-    cursor: grab;
+    cursor: default;
     user-select: none;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-secondary, #64748b);
 }
 
-.layout-edit-mode .widget-header:active {
+.layout-edit-mode .widget-header-title:active {
     cursor: grabbing;
 }
 
@@ -4006,40 +3990,104 @@ body.widget-resize-active {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    cursor: grab;
+    outline: none;
 }
 
-.widget-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
+.widget-header-title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.widget:hover .widget-header-actions,
-.widget:focus-within .widget-header-actions {
-    opacity: 1;
-    pointer-events: auto;
+.widget-header-title:focus-visible {
+    border-radius: 6px;
+    outline: 2px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 2px;
 }
 
-.widget-header-actions button {
+.widget-header-menu {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.widget-header-menu > summary {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    list-style: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
-    border: none;
     color: var(--text-secondary, #64748b);
     cursor: pointer;
-    font-size: 0.95rem;
-    padding: 3px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s, background 0.15s;
 }
 
-.widget-header-actions button:hover {
+.widget-header-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.widget-header-menu > summary:hover,
+.widget-header-menu > summary:focus-visible,
+.widget-header-menu[open] > summary {
     color: var(--text-primary, #1e293b);
     background: color-mix(in srgb, var(--text-secondary, #64748b) 15%, transparent);
+}
+
+.widget-header-menu > summary:focus-visible {
+    outline: 2px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 1px;
+}
+
+.widget-header-menu__popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 30;
+    display: grid;
+    gap: 2px;
+    width: 178px;
+    padding: 5px;
+    border: 1px solid var(--border-color-light, #e5e7eb);
+    border-radius: 10px;
+    background: var(--card-background, #ffffff);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+}
+
+.widget-header-menu--align-end .widget-header-menu__popover {
+    right: 0;
+    left: auto;
+}
+
+.widget-header-menu__item {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-primary, #1e293b);
+    font-size: 0.74rem;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+}
+
+.widget-header-menu__item:hover,
+.widget-header-menu__item:focus-visible {
+    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
+    outline: none;
+}
+
+.widget-header-menu__item--danger {
+    color: #b42318;
 }
 
 .widget-content {
@@ -4311,6 +4359,8 @@ body.widget-resize-active {
 }
 
 .layout-edit-mode .widget:hover .resize-handle,
+.layout-edit-mode .widget:focus-within .resize-handle,
+.layout-edit-mode .widget.is-resizing .resize-handle,
 .layout-edit-mode .resize-handle:focus-visible {
     opacity: 1;
 }
@@ -8468,63 +8518,28 @@ body.is-classroom-active:not(.projector-view) .widget:hover {
     box-shadow: 0 18px 38px rgba(31, 72, 110, 0.16), 0 4px 12px rgba(31, 72, 110, 0.08);
 }
 
-body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget-header {
-    display: none;
-}
-
-body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget .secondary-control,
-body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .widget .secondary-text,
-body.is-classroom-active:not(.projector-view) .widgets-grid:not(.layout-edit-mode) .resize-handle {
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget {
-    border-color: color-mix(in srgb, var(--classroom-polish-blue) 34%, var(--classroom-polish-line) 66%);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--classroom-polish-blue) 8%, transparent),
-                0 16px 34px rgba(31, 72, 110, 0.15);
-}
-
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header {
-    min-height: 38px;
-    padding: 7px 10px 7px 12px;
+body.is-classroom-active:not(.projector-view) .widget-header {
+    min-height: 36px;
+    padding: 4px 6px 4px 10px;
     border-bottom: 1px solid var(--classroom-polish-line);
-    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--classroom-polish-blue) 12%);
+    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, var(--classroom-polish-blue) 6%);
     color: var(--text-primary, #0f172a);
 }
 
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-title {
+body.is-classroom-active:not(.projector-view) .widget-header-title {
     gap: 8px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.01em;
 }
 
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-title .fa-grip-vertical {
+body.is-classroom-active:not(.projector-view) .widget-header-title .fa-grip-vertical {
     color: color-mix(in srgb, var(--classroom-polish-blue) 74%, var(--text-secondary, #64748b) 26%);
 }
 
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget .secondary-control,
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget .secondary-text {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 9px;
-}
-
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button:hover,
-body.is-classroom-active:not(.projector-view) .layout-edit-mode .widget-header-actions button:focus-visible {
+body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:hover,
+body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:focus-visible,
+body.is-classroom-active:not(.projector-view) .widget-header-menu[open] > summary {
     border-color: color-mix(in srgb, var(--classroom-polish-blue) 22%, transparent);
     background: color-mix(in srgb, var(--classroom-polish-blue) 10%, #ffffff 90%);
 }

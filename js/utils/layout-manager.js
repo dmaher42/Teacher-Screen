@@ -772,8 +772,9 @@ class LayoutManager {
 
     const isVisible = widgetInfo.visibleOnProjector !== false;
     projectorVisibilityButton.innerHTML = isVisible
-      ? '<i class="fas fa-eye" aria-hidden="true"></i>'
-      : '<i class="fas fa-eye-slash" aria-hidden="true"></i>';
+      ? '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from projector</span>'
+      : '<i class="fas fa-eye" aria-hidden="true"></i><span>Show on projector</span>';
+    projectorVisibilityButton.setAttribute('aria-label', isVisible ? 'Hide widget from projector' : 'Show widget on projector');
     projectorVisibilityButton.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
     projectorVisibilityButton.classList.toggle('is-visible', isVisible);
     projectorVisibilityButton.classList.toggle('is-teacher-only', !isVisible);
@@ -802,7 +803,7 @@ class LayoutManager {
     const header = document.createElement('div');
     header.className = 'widget-header';
 
-    // Drag handle title area
+    // Permanent compact drag handle.
     const title = document.createElement('div');
     title.className = 'widget-header-title';
 
@@ -812,79 +813,129 @@ class LayoutManager {
       || nameStr.replace(/([A-Z])/g, ' $1').trim();
 
     title.innerHTML = `<i class="fas fa-grip-vertical"></i> <span>${readableName}</span>`;
+    title.tabIndex = 0;
+    title.setAttribute('role', 'button');
+    title.setAttribute('aria-label', `Move ${readableName}`);
+    title.title = `Drag to move ${readableName}`;
+    title.addEventListener('mousedown', () => title.focus({ preventScroll: true }));
+    title.addEventListener('keydown', (event) => {
+      const step = event.shiftKey ? GRID_SIZE * 2 : GRID_SIZE;
+      const movement = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step]
+      }[event.key];
+      if (!movement || !this.editable) return;
+
+      event.preventDefault();
+      const widgetInfo = this.widgets.find(info => info.widget === widget);
+      if (!widgetInfo) return;
+
+      const bounded = this.normalizeWidgetBounds(
+        widgetInfo.x + movement[0],
+        widgetInfo.y + movement[1],
+        widgetInfo.width,
+        widgetInfo.height
+      );
+      widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+      widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      widgetElement.style.left = `${widgetInfo.x}px`;
+      widgetElement.style.top = `${widgetInfo.y}px`;
+      this.resolveWidgetPlacementConflict(widgetInfo);
+      this.emitWidgetUpdate(widgetInfo);
+      this.saveLayout({ emitFull: false });
+    });
     header.appendChild(title);
 
-    const actions = document.createElement('div');
-    actions.className = 'widget-header-actions';
+    const menu = document.createElement('details');
+    menu.className = 'widget-header-menu';
+    const menuToggle = document.createElement('summary');
+    menuToggle.className = 'widget-header-menu__toggle';
+    menuToggle.setAttribute('aria-label', `${readableName} options`);
+    menuToggle.title = `${readableName} options`;
+    menuToggle.innerHTML = '<i class="fas fa-ellipsis-h" aria-hidden="true"></i>';
+    menu.appendChild(menuToggle);
 
-    // Projector Visibility Button
+    const menuItems = document.createElement('div');
+    menuItems.className = 'widget-header-menu__popover';
+    menuItems.setAttribute('role', 'menu');
+    menuItems.setAttribute('aria-label', `${readableName} options`);
+
+    const closeMenu = () => {
+      menu.open = false;
+    };
+
+    menu.addEventListener('toggle', () => {
+      if (!menu.open) return;
+      document.querySelectorAll('.widget-header-menu[open]').forEach((otherMenu) => {
+        if (otherMenu !== menu) otherMenu.open = false;
+      });
+      const toggleRect = menuToggle.getBoundingClientRect();
+      const popoverWidth = menuItems.getBoundingClientRect().width || 178;
+      menu.classList.toggle('widget-header-menu--align-end', toggleRect.left + popoverWidth > window.innerWidth - 8);
+    });
+    menu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeMenu();
+      menuToggle.focus();
+    });
+
+    // Projector visibility menu item.
     if (layoutManagerIsTeacherMode()) {
       const projectorVisibilityButton = document.createElement('button');
-      projectorVisibilityButton.className = 'widget-projector-visibility-btn secondary-control';
+      projectorVisibilityButton.className = 'widget-projector-visibility-btn widget-header-menu__item';
       projectorVisibilityButton.type = 'button';
+      projectorVisibilityButton.setAttribute('role', 'menuitem');
       projectorVisibilityButton.setAttribute('aria-pressed', 'false');
-      projectorVisibilityButton.setAttribute('aria-label', 'Toggle projector visibility');
-      projectorVisibilityButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i>';
-
-      projectorVisibilityButton.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-      });
+      projectorVisibilityButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from projector</span>';
 
       projectorVisibilityButton.addEventListener('click', (e) => {
         e.stopPropagation();
         const widgetInfo = this.widgets.find(info => info.widget === widget);
         if (!widgetInfo) return;
         this.setWidgetProjectorVisibility(widgetInfo, !widgetInfo.visibleOnProjector);
-      });
-
-      projectorVisibilityButton.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          e.stopPropagation();
-          const widgetInfo = this.widgets.find(info => info.widget === widget);
-          if (!widgetInfo) return;
-          this.setWidgetProjectorVisibility(widgetInfo, !widgetInfo.visibleOnProjector);
-        }
+        closeMenu();
       });
 
       widget.projectorVisibilityButton = projectorVisibilityButton;
-      actions.appendChild(projectorVisibilityButton);
+      menuItems.appendChild(projectorVisibilityButton);
     }
 
-    // Settings Button
+    // Settings menu item.
     const settingsBtn = document.createElement('button');
-    settingsBtn.className = 'widget-header-settings-btn secondary-control';
-    settingsBtn.innerHTML = '<i class="fas fa-cog"></i>';
+    settingsBtn.className = 'widget-header-settings-btn widget-header-menu__item';
+    settingsBtn.type = 'button';
+    settingsBtn.setAttribute('role', 'menuitem');
+    settingsBtn.innerHTML = '<i class="fas fa-cog" aria-hidden="true"></i><span>Widget settings</span>';
     settingsBtn.setAttribute('aria-label', 'Open Settings');
     settingsBtn.title = 'Widget Settings';
     settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeMenu();
         const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
         document.dispatchEvent(event);
     });
+    menuItems.appendChild(settingsBtn);
 
-    settingsBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.stopPropagation();
-             const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
-            document.dispatchEvent(event);
-        }
-    });
-    actions.appendChild(settingsBtn);
-
-    // Remove Button
+    // Remove menu item.
     const removeBtn = document.createElement('button');
-    removeBtn.className = 'widget-remove-btn secondary-control';
-    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.className = 'widget-remove-btn widget-header-menu__item widget-header-menu__item--danger';
+    removeBtn.type = 'button';
+    removeBtn.setAttribute('role', 'menuitem');
+    removeBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i><span>Remove widget</span>';
     removeBtn.setAttribute('aria-label', 'Remove Widget');
     removeBtn.title = 'Remove Widget';
     removeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeMenu();
         this.removeWidget(widget);
     });
-    actions.appendChild(removeBtn);
+    menuItems.appendChild(removeBtn);
 
-    header.appendChild(actions);
+    menu.appendChild(menuItems);
+    header.appendChild(menu);
     widgetElement.appendChild(header);
   }
 
@@ -1128,27 +1179,8 @@ class LayoutManager {
     widgetElement.addEventListener('mousedown', (e) => {
       if (!this.editable) return;
 
-      if (e.target.classList.contains('resize-handle') ||
-          e.target.tagName === 'CANVAS' ||
-          e.target.tagName === 'INPUT' ||
-          e.target.tagName === 'BUTTON' ||
-          e.target.tagName === 'SELECT' ||
-          e.target.tagName === 'TEXTAREA' ||
-          e.target.tagName === 'A' ||
-          e.target.isContentEditable ||
-          e.target.closest('button') ||
-          e.target.closest('input') ||
-          e.target.closest('select') ||
-          e.target.closest('textarea') ||
-          e.target.closest('summary') ||
-          e.target.closest('details') ||
-          e.target.closest('.notes-main-display') ||
-          e.target.closest('[contenteditable="true"]') ||
-          e.target.closest('.ql-toolbar') ||
-          e.target.closest('.ql-editor') ||
-          e.target.closest('.ql-tooltip')) {
-        return;
-      }
+      const dragHandle = e.target.closest('.widget-header-title');
+      if (!dragHandle || !widgetElement.contains(dragHandle)) return;
 
       isDragging = true;
       startX = e.clientX;
