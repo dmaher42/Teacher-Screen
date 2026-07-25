@@ -5697,31 +5697,31 @@ class ClassroomScreenApp {
                             <p>${escapeHtml(pageSummary)}${activePage?.name ? ` - ${escapeHtml(activePage.name)}` : ''}</p>
                         </div>
                         <div class="dashboard-command-grid">
-                            <button id="dashboard-open-classroom-btn" class="dashboard-launch-card dashboard-launch-card--primary" type="button">
+                            <button id="dashboard-open-classroom-btn" class="dashboard-launch-card dashboard-launch-card--primary" type="button" aria-label="Open Classroom">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
                                 <span class="dashboard-launch-card__text">
-                                    <strong>Open Classroom</strong>
+                                    <strong>Classroom</strong>
                                     <small>Continue teaching with this deck</small>
                                 </span>
                             </button>
-                            <button id="dashboard-create-btn" class="dashboard-launch-card" type="button">
+                            <button id="dashboard-create-btn" class="dashboard-launch-card" type="button" aria-label="Create New Deck">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-plus"></i></span>
                                 <span class="dashboard-launch-card__text">
-                                    <strong>Create Deck</strong>
+                                    <strong>New Deck</strong>
                                     <small>Build a fresh lesson screen</small>
                                 </span>
                             </button>
-                            <button id="dashboard-teacher-controls-btn" class="dashboard-launch-card" type="button">
+                            <button id="dashboard-teacher-controls-btn" class="dashboard-launch-card" type="button" aria-label="Arrange Deck">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
                                 <span class="dashboard-launch-card__text">
-                                    <strong>Arrange Deck</strong>
+                                    <strong>Arrange</strong>
                                     <small>Edit pages, theme, and widgets</small>
                                 </span>
                             </button>
-                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer">
+                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer" aria-label="Open Projector">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
                                 <span class="dashboard-launch-card__text">
-                                    <strong>Open Projector</strong>
+                                    <strong>Projector</strong>
                                     <small>Launch the student-facing window</small>
                                 </span>
                             </a>

@@ -2190,10 +2190,11 @@ body.is-dashboard-active .dashboard-main {
 }
 
 body.is-dashboard-active .dashboard-command-panel {
-    grid-template-columns: minmax(230px, 0.66fr) minmax(0, 1.7fr);
-    gap: 18px;
-    min-height: 184px;
-    padding: 18px;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 104px;
+    padding: 10px 12px;
     border-color: rgba(255, 255, 255, 0.68);
     background:
         radial-gradient(circle at 8% 8%, rgba(58, 181, 238, 0.16), transparent 38%),
@@ -2201,8 +2202,8 @@ body.is-dashboard-active .dashboard-command-panel {
 }
 
 body.is-dashboard-active .dashboard-command-panel__header {
-    gap: 6px;
-    padding: 2px 6px 2px 0;
+    gap: 2px;
+    padding: 0 5px 0 0;
 }
 
 body.is-dashboard-active .dashboard-command-panel__label,
@@ -2210,29 +2211,41 @@ body.is-dashboard-active .dashboard-toolbar__label {
     color: #517485;
 }
 
+body.is-dashboard-active .dashboard-command-panel__label {
+    font-size: 0.64rem;
+}
+
 body.is-dashboard-active .dashboard-command-panel h1 {
-    max-width: 18ch;
+    max-width: none;
     color: var(--dashboard-ink);
-    font-size: clamp(1.72rem, 2.6vw, 2.2rem);
-    line-height: 1.03;
-    letter-spacing: -0.035em;
+    font-size: clamp(1.28rem, 1.8vw, 1.45rem);
+    line-height: 1.06;
+    letter-spacing: -0.025em;
 }
 
 body.is-dashboard-active .dashboard-command-panel p {
     color: var(--dashboard-muted);
+    font-size: 0.78rem;
+    line-height: 1.15;
 }
 
 body.is-dashboard-active .dashboard-command-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 9px;
+    grid-template-columns: repeat(4, 136px);
+    align-self: center;
+    justify-content: end;
+    align-items: center;
+    gap: 8px;
 }
 
 body.is-dashboard-active .dashboard-launch-card {
-    min-height: 112px;
-    align-content: space-between;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 15px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    align-content: center;
+    height: 56px;
+    min-height: 56px;
+    gap: 7px;
+    padding: 8px 10px;
+    border-radius: 12px;
     border-color: var(--dashboard-line);
     background: rgba(255, 255, 255, 0.76);
     color: var(--dashboard-ink);
@@ -2253,9 +2266,9 @@ body.is-dashboard-active .dashboard-launch-card--primary {
 }
 
 body.is-dashboard-active .dashboard-launch-card__icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
     background: rgba(47, 143, 244, 0.12);
     color: var(--dashboard-blue-deep);
 }
@@ -2266,13 +2279,14 @@ body.is-dashboard-active .dashboard-launch-card--primary .dashboard-launch-card_
 }
 
 body.is-dashboard-active .dashboard-launch-card strong {
-    font-size: 0.91rem;
+    overflow: hidden;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 body.is-dashboard-active .dashboard-launch-card small {
-    max-width: 19ch;
-    opacity: 0.72;
-    font-size: 0.72rem;
+    display: none;
 }
 
 body.is-dashboard-active .dashboard-library-panel {
@@ -2402,7 +2416,7 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-command-panel {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(230px, 1fr) auto;
     }
 
     body.is-dashboard-active .dashboard-command-panel__header {
@@ -2410,7 +2424,15 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-command-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(4, 112px);
+    }
+
+    body.is-dashboard-active .dashboard-launch-card {
+        padding-inline: 4px;
+    }
+
+    body.is-dashboard-active .dashboard-launch-card strong {
+        font-size: 0.74rem;
     }
 
     body.is-dashboard-active .dashboard-screen-card {
@@ -2566,9 +2588,10 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-command-panel {
+        grid-template-columns: 1fr;
         gap: 12px;
         min-height: 0;
-        padding: 14px;
+        padding: 12px;
     }
 
     body.is-dashboard-active .dashboard-command-panel__header {
@@ -2578,7 +2601,7 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 
     body.is-dashboard-active .dashboard-command-panel h1 {
         max-width: 100%;
-        font-size: 1.58rem;
+        font-size: 1.4rem;
         line-height: 1.06;
     }
 
@@ -2588,24 +2611,20 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     }
 
     body.is-dashboard-active .dashboard-launch-card {
-        min-height: 92px;
-        padding: 10px;
-        border-radius: 13px;
+        height: 56px;
+        min-height: 56px;
+        padding: 8px;
+        border-radius: 12px;
     }
 
     body.is-dashboard-active .dashboard-launch-card__icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 10px;
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
     }
 
     body.is-dashboard-active .dashboard-launch-card strong {
-        font-size: 0.82rem;
-    }
-
-    body.is-dashboard-active .dashboard-launch-card small {
-        font-size: 0.64rem;
-        line-height: 1.22;
+        font-size: 0.76rem;
     }
 
     body.is-dashboard-active .dashboard-library-panel {
@@ -3857,6 +3876,11 @@ dialog::backdrop {
 
 /* Responsive Grid Adjustment */
 @media (max-width: 768px) {
+    body:has(#teacher-panel.open) #top-nav {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     .teacher-panel {
         width: 100%;
         max-width: none;
@@ -8697,5 +8721,370 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 
     body.is-classroom-active:not(.projector-view) .lesson-quick-action {
         min-width: 54px;
+    }
+}
+
+/* =====================================================
+   Teacher Controls Polish
+   ===================================================== */
+.teacher-panel {
+    --primary-color: #2f8ff4;
+    --text-color: #102b3c;
+    --text-primary: #102b3c;
+    --text-secondary: #617b8a;
+    --text-on-accent: #ffffff;
+    --card-background: #ffffff;
+    --bg-surface: #f4f8fb;
+    --border-color: rgba(25, 67, 91, 0.16);
+    width: min(400px, calc(100vw - 24px));
+    max-width: 400px;
+    overflow: hidden;
+    border-left-color: rgba(25, 67, 91, 0.18);
+    border-radius: 18px 0 0 18px;
+    background: #f4f8fb;
+    color: #102b3c;
+    box-shadow: -20px 0 48px rgba(4, 25, 39, 0.2);
+}
+
+.teacher-panel .panel-header {
+    align-items: center;
+    min-height: 68px;
+    padding: 12px 14px 12px 16px;
+    border-bottom: 0;
+    background:
+        radial-gradient(circle at 92% 0%, rgba(47, 143, 244, 0.34), transparent 42%),
+        linear-gradient(135deg, #0b344d 0%, #08273b 100%);
+}
+
+.teacher-panel .panel-header__copy {
+    gap: 2px;
+}
+
+.teacher-panel .panel-eyebrow {
+    color: #8dd9ff;
+    font-size: 0.62rem;
+    letter-spacing: 0.13em;
+}
+
+.teacher-panel .panel-header h3 {
+    color: #ffffff;
+    font-size: 1.08rem;
+    letter-spacing: -0.015em;
+}
+
+.teacher-panel .panel-close {
+    width: 34px;
+    height: 34px;
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    font-size: 1.2rem;
+}
+
+.teacher-panel .panel-close:hover {
+    border-color: rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.teacher-panel .panel-content {
+    gap: 8px;
+    padding: 10px 12px 28px;
+    background:
+        linear-gradient(180deg, rgba(222, 239, 249, 0.48), transparent 120px),
+        #f4f8fb;
+    scroll-padding-top: 10px;
+    scroll-padding-bottom: 28px;
+}
+
+.teacher-panel .panel-section-label {
+    margin: 7px 2px 1px;
+    color: #587384;
+    font-size: 0.64rem;
+    letter-spacing: 0.13em;
+}
+
+.teacher-panel .control-card {
+    border-color: rgba(25, 67, 91, 0.14);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(14, 48, 68, 0.06);
+}
+
+.teacher-panel .control-card > details > summary {
+    min-height: 50px;
+    gap: 9px;
+    padding: 8px 10px;
+    color: #102b3c;
+    font-size: 0.9rem;
+}
+
+.teacher-panel .control-card > details > summary .card-icon {
+    width: 18px;
+    height: 18px;
+    padding: 5px;
+    border-color: rgba(47, 143, 244, 0.18);
+    border-radius: 9px;
+    background: #eaf4ff;
+}
+
+.teacher-panel .control-card > details > summary::after {
+    width: 24px;
+    height: 24px;
+    border-color: rgba(25, 67, 91, 0.16);
+    background: #f4f8fb;
+    color: #587384;
+    font-size: 0.88rem;
+}
+
+.teacher-panel .control-card > details[open] > summary {
+    border-bottom: 1px solid rgba(25, 67, 91, 0.1);
+    background: #eef6ff;
+}
+
+.teacher-panel .control-card h4 {
+    color: #102b3c;
+    font-size: 0.9rem;
+}
+
+.teacher-panel .card-body {
+    gap: 9px;
+    padding: 10px 11px 12px;
+    border-top: 0;
+    background: #ffffff;
+}
+
+.teacher-panel .project-switcher {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 9px;
+    border-color: rgba(47, 143, 244, 0.16);
+    border-radius: 10px;
+    background: #f5f9fd;
+}
+
+.teacher-panel .project-switcher__meta {
+    min-width: 0;
+    gap: 1px;
+}
+
+.teacher-panel .project-switcher__project-label {
+    color: #668091;
+    font-size: 0.6rem;
+    letter-spacing: 0.11em;
+}
+
+.teacher-panel .project-switcher__project-name {
+    overflow: hidden;
+    color: #102b3c;
+    font-size: 0.86rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teacher-panel .project-switcher__summary {
+    color: #668091;
+    font-size: 0.72rem;
+}
+
+.teacher-panel .page-switcher {
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.teacher-panel .page-switcher--compact .page-switcher__button {
+    min-height: 30px;
+    padding: 0.34rem 0.58rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+}
+
+.teacher-panel .project-page-name-panel {
+    gap: 5px;
+    margin-top: 0;
+}
+
+.teacher-panel .project-page-name-panel label {
+    color: #668091;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+}
+
+.teacher-panel input[type="text"],
+.teacher-panel input[type="number"],
+.teacher-panel select,
+.teacher-panel .project-page-name-panel input {
+    min-height: 38px;
+    padding: 7px 10px;
+    border-color: rgba(25, 67, 91, 0.18);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #102b3c;
+    font-size: 0.82rem;
+}
+
+.teacher-panel .button-group,
+.teacher-panel .project-page-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 0;
+}
+
+.teacher-panel .control-button,
+.teacher-panel .button-group button {
+    min-height: 38px;
+    padding: 7px 9px;
+    border: 1px solid rgba(25, 67, 91, 0.14);
+    border-radius: 10px;
+    background: #eef4f8;
+    color: #18384c;
+    box-shadow: none;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.teacher-panel #save-project-screen-btn,
+.teacher-panel #new-page-btn,
+.teacher-panel #start-timer {
+    border-color: #2f8ff4;
+    background: linear-gradient(135deg, #3ba1fb, #247fe7);
+    color: #ffffff;
+    box-shadow: 0 5px 12px rgba(47, 143, 244, 0.2);
+}
+
+.teacher-panel #new-page-btn {
+    grid-column: 1 / -1;
+}
+
+.teacher-panel .modal-danger-btn {
+    border-color: rgba(190, 49, 68, 0.2);
+    background: #fff0f2;
+    color: #a8283b;
+}
+
+.teacher-panel .project-page-advanced {
+    margin-top: 0;
+    padding: 0;
+    border-color: rgba(25, 67, 91, 0.12);
+    border-radius: 10px;
+    background: #f7fafc;
+}
+
+.teacher-panel .project-page-advanced > summary,
+.teacher-panel .control-card details[open] .project-page-advanced > summary {
+    min-height: 36px;
+    margin: 0;
+    padding: 0 10px;
+    border: 0;
+    background: transparent;
+    color: #617b8a;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+}
+
+.teacher-panel .project-page-advanced > summary::after,
+.teacher-panel .control-card details[open] .project-page-advanced > summary::after {
+    content: "+";
+}
+
+.teacher-panel .project-page-advanced[open] > summary {
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(25, 67, 91, 0.1);
+}
+
+.teacher-panel .project-page-advanced[open] > summary::after,
+.teacher-panel .control-card details[open] .project-page-advanced[open] > summary::after {
+    content: "-";
+}
+
+.teacher-panel .project-page-actions--advanced {
+    margin: 0;
+    padding: 8px;
+}
+
+.teacher-panel .timer-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+}
+
+.teacher-panel .timer-inputs input {
+    min-width: 0;
+    text-align: center;
+}
+
+.teacher-panel .timer-inputs + .button-group + .button-group {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.teacher-panel .timer-status-panel {
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+}
+
+.teacher-panel .timer-status-badge {
+    min-height: 26px;
+    padding: 3px 8px;
+    font-size: 0.66rem;
+}
+
+.teacher-panel .timer-status-display {
+    font-size: 1.72rem;
+}
+
+.teacher-panel .timer-status-meta {
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.teacher-panel .theme-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.teacher-panel .theme-option {
+    gap: 7px;
+    min-height: 40px;
+    padding: 6px 8px;
+    border: 1px solid rgba(25, 67, 91, 0.12);
+    border-radius: 10px;
+    background: #f7fafc;
+    font-size: 0.76rem;
+}
+
+.teacher-panel .theme-swatch {
+    width: 20px;
+    height: 20px;
+}
+
+.teacher-panel .background-selector {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.teacher-panel .background-swatch,
+.teacher-panel .background-upload-button {
+    min-height: 48px;
+    padding: 7px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+}
+
+@media (max-width: 768px) {
+    .teacher-panel {
+        width: 100%;
+        max-width: none;
+        border-radius: 0;
+    }
+
+    .teacher-panel .panel-header {
+        min-height: 64px;
+        padding-inline: 14px;
+    }
+
+    .teacher-panel .panel-content {
+        padding: 9px 10px 76px;
     }
 }

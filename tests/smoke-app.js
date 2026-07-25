@@ -193,14 +193,32 @@ async function runSmoke() {
         const desktopDashboardScale = await page.evaluate(() => {
             const sidebar = document.querySelector('.dashboard-sidebar')?.getBoundingClientRect();
             const launchCard = document.querySelector('.dashboard-launch-card')?.getBoundingClientRect();
+            const launchCards = Array.from(document.querySelectorAll('.dashboard-launch-card'));
+            const launchCardRects = launchCards.map((card) => card.getBoundingClientRect());
+            const commandPanel = document.querySelector('.dashboard-command-panel');
+            const lessonTitle = commandPanel?.querySelector('h1');
+            const originalLessonTitle = lessonTitle?.textContent || '';
+            if (lessonTitle) lessonTitle.textContent = 'Year 7 English - Persuasion Weeks 2 and 3';
+            const longTitlePanelHeight = commandPanel?.getBoundingClientRect().height || 0;
+            if (lessonTitle) lessonTitle.textContent = originalLessonTitle;
             return {
                 sidebarWidth: sidebar?.width || 0,
                 launchCardWidth: launchCard?.width || 0,
-                launchCardHeight: launchCard?.height || 0
+                launchCardHeight: launchCard?.height || 0,
+                longTitlePanelHeight,
+                launchCardsAligned: launchCardRects.every((rect) => (
+                    Math.abs(rect.top - launchCardRects[0].top) < 1
+                    && Math.abs(rect.height - launchCardRects[0].height) < 1
+                )),
+                launchCardLabels: launchCards.map((card) => card.querySelector('strong')?.textContent?.trim())
             };
         });
         assert(desktopDashboardScale.sidebarWidth <= 220, 'Desktop dashboard navigation should not crowd the lesson actions');
-        assert(desktopDashboardScale.launchCardWidth >= 160 && desktopDashboardScale.launchCardHeight <= 155, 'Desktop dashboard actions should stay wide and compact');
+        assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
+        assert(desktopDashboardScale.launchCardHeight >= 54 && desktopDashboardScale.launchCardHeight <= 58, 'Desktop dashboard actions should use a compact touch-friendly height');
+        assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
+        assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
+        assert(desktopDashboardScale.longTitlePanelHeight <= 112, 'Desktop dashboard command strip should stay compact with a long lesson title');
         assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
 
         if (await page.locator('#tour-dialog[open]').count() === 1) {
@@ -247,6 +265,34 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
         await openTeacherPanel(page);
         assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Opening Teacher Controls should enable arrange mode');
+        const teacherControlsScale = await page.locator('#teacher-panel').evaluate((panel) => {
+            const rect = panel.getBoundingClientRect();
+            const headerRect = panel.querySelector('.panel-header')?.getBoundingClientRect();
+            const summaries = Array.from(panel.querySelectorAll('.control-card > details > summary'));
+            const deckCardRect = panel.querySelector('.control-card--project-pages')?.getBoundingClientRect();
+            const newPageRect = panel.querySelector('#new-page-btn')?.getBoundingClientRect();
+            const deckBodyRect = panel.querySelector('.control-card--project-pages .card-body')?.getBoundingClientRect();
+            const lastCardRect = panel.querySelector('.control-card:last-child')?.getBoundingClientRect();
+            const advancedSummary = panel.querySelector('.project-page-advanced > summary');
+            return {
+                width: rect.width,
+                headerHeight: headerRect?.height || 0,
+                openSectionCount: panel.querySelectorAll('.control-card > details[open]').length,
+                deckCardHeight: deckCardRect?.height || 0,
+                summariesCompact: summaries.every((summary) => summary.getBoundingClientRect().height <= 52),
+                newPageFillsRow: (newPageRect?.width || 0) >= (deckBodyRect?.width || 0) - 24,
+                lastCardVisible: (lastCardRect?.bottom || Infinity) <= window.innerHeight,
+                advancedControlClosed: advancedSummary ? getComputedStyle(advancedSummary, '::after').content.includes('+') : false
+            };
+        });
+        assert(teacherControlsScale.width >= 390 && teacherControlsScale.width <= 402, 'Desktop Teacher Controls should use a focused compact drawer width');
+        assert(teacherControlsScale.headerHeight <= 70, 'Teacher Controls header should stay compact');
+        assert(teacherControlsScale.openSectionCount === 1, 'Teacher Controls should open with only Deck & Pages expanded');
+        assert(teacherControlsScale.deckCardHeight <= 360, 'Deck & Pages should keep the main controls within a compact card');
+        assert(teacherControlsScale.summariesCompact, 'Teacher Controls section rows should share a compact height');
+        assert(teacherControlsScale.newPageFillsRow, 'New Page should align to the full action row');
+        assert(teacherControlsScale.lastCardVisible, 'All Teacher Controls sections should be reachable in the first desktop view');
+        assert(teacherControlsScale.advancedControlClosed, 'More page actions should show the correct closed-state affordance');
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Arrange mode should reveal widget editing chrome');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'Arrange mode should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
@@ -552,12 +598,28 @@ async function runSmoke() {
         await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         assert(await mobilePage.locator('#dashboard-open-classroom-btn').isVisible(), 'Mobile dashboard should show the classroom entry button');
         assert(await mobilePage.locator('.dashboard-command-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 2), 'Mobile dashboard should keep quick actions in a compact two-column grid');
+        assert(await mobilePage.locator('.dashboard-launch-card').first().evaluate((element) => element.getBoundingClientRect().height <= 58), 'Mobile dashboard actions should keep the compact toolbar height');
         assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 270), 'Mobile dashboard navigation should stay compact');
-        assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 360), 'Mobile dashboard lesson actions should stay above the deck library');
-        assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 650), 'Mobile dashboard should bring the deck library into the first screenful');
+        assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 300), 'Mobile dashboard lesson actions should stay above the deck library');
+        assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the deck library into the first screenful');
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
+        await openTeacherPanel(mobilePage);
+        const mobileTeacherControlsScale = await mobilePage.locator('#teacher-panel').evaluate((panel) => {
+            const panelRect = panel.getBoundingClientRect();
+            const lastCardRect = panel.querySelector('.control-card:last-child')?.getBoundingClientRect();
+            return {
+                width: panelRect.width,
+                openSectionCount: panel.querySelectorAll('.control-card > details[open]').length,
+                lastCardVisible: (lastCardRect?.bottom || Infinity) <= window.innerHeight
+            };
+        });
+        assert(Math.abs(mobileTeacherControlsScale.width - 390) < 1, 'Mobile Teacher Controls should use the full screen width');
+        assert(mobileTeacherControlsScale.openSectionCount === 1, 'Mobile Teacher Controls should keep one focused section open');
+        assert(mobileTeacherControlsScale.lastCardVisible, 'Mobile Teacher Controls should show all section choices without initial scrolling');
+        assert(await mobilePage.locator('#top-nav').evaluate((element) => getComputedStyle(element).opacity === '0'), 'Mobile Teacher Controls should not be obscured by the Home button');
+        await closeTeacherPanel(mobilePage);
 
         assert(pageErrors.length === 0, `Browser page errors should be absent (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Browser console errors should be absent (${consoleErrors.join('; ')})`);
