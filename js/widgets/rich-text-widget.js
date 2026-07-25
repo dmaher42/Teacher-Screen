@@ -182,58 +182,108 @@ class RichTextWidget {
   populateCompactEditorToolbar(toolbar) {
     toolbar.innerHTML = `
       <div class="rich-text-toolbar-main">
-        <label class="rich-text-toolbar-field rich-text-toolbar-field--style">
-          <span class="visually-hidden">Text style</span>
-          <select data-format="header" aria-label="Text style">
-            <option value="">Normal</option>
-            <option value="2">Heading</option>
-            <option value="3">Subheading</option>
-          </select>
-        </label>
-        <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Fast formatting">
-          <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
-          <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">List</button>
-          <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list">1.</button>
-          <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">Columns</button>
+        <div class="rich-text-toolbar-group rich-text-toolbar-group--text" aria-label="Text formatting">
+          <label class="rich-text-toolbar-field rich-text-toolbar-field--style">
+            <span class="visually-hidden">Text style</span>
+            <select data-format="header" aria-label="Text style">
+              <option value="">Body</option>
+              <option value="2">Heading</option>
+              <option value="3">Subheading</option>
+            </select>
+          </label>
+          <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
+            <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
+            <button type="button" class="rich-text-toolbar-italic" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
+            <button type="button" class="rich-text-toolbar-underline" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
+          </div>
         </div>
-        <div class="rich-text-toolbar-actions rich-text-toolbar-actions--swatches" aria-label="Quick colours">
-          <button type="button" class="rich-text-swatch rich-text-swatch--ink" data-format="color" data-value="#111827" aria-label="Black text" title="Black text"><span class="visually-hidden">Black</span></button>
-          <button type="button" class="rich-text-swatch rich-text-swatch--red" data-format="color" data-value="#dc2626" aria-label="Red text" title="Red text"><span class="visually-hidden">Red</span></button>
-          <button type="button" class="rich-text-swatch rich-text-swatch--blue" data-format="color" data-value="#2563eb" aria-label="Blue text" title="Blue text"><span class="visually-hidden">Blue</span></button>
-          <button type="button" class="rich-text-swatch rich-text-swatch--green" data-format="color" data-value="#16a34a" aria-label="Green text" title="Green text"><span class="visually-hidden">Green</span></button>
-          <button type="button" class="rich-text-swatch rich-text-swatch--highlight" data-format="background" data-value="#fef08a" aria-label="Yellow highlight" title="Yellow highlight"><span class="visually-hidden">Highlight</span></button>
+        <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
+          <div class="rich-text-toolbar-actions">
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><span aria-hidden="true">•</span> List</button>
+            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><span aria-hidden="true">1.</span> List</button>
+          </div>
+        </div>
+        <div class="rich-text-toolbar-group rich-text-toolbar-group--colour" aria-label="Colour">
+          <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
+            <summary aria-label="Text colour" title="Text colour">
+              <span class="rich-text-colour-control-icon" aria-hidden="true">A</span>
+              <span class="rich-text-colour-control-label">Text</span>
+              <span class="rich-text-colour-preview" style="--swatch-color: #111827" aria-hidden="true"></span>
+            </summary>
+            <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Text colour palette">
+              <span class="rich-text-toolbar-menu-label">Text colour</span>
+              <div class="rich-text-toolbar-palette-swatches">
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #111827" data-format="color" data-value="#111827" aria-label="Black text" aria-pressed="false" title="Black text"><span class="visually-hidden">Black</span></button>
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #dc2626" data-format="color" data-value="#dc2626" aria-label="Red text" aria-pressed="false" title="Red text"><span class="visually-hidden">Red</span></button>
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #2563eb" data-format="color" data-value="#2563eb" aria-label="Blue text" aria-pressed="false" title="Blue text"><span class="visually-hidden">Blue</span></button>
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #16a34a" data-format="color" data-value="#16a34a" aria-label="Green text" aria-pressed="false" title="Green text"><span class="visually-hidden">Green</span></button>
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #7c3aed" data-format="color" data-value="#7c3aed" aria-label="Purple text" aria-pressed="false" title="Purple text"><span class="visually-hidden">Purple</span></button>
+                <button type="button" class="rich-text-swatch" style="--swatch-color: #ea580c" data-format="color" data-value="#ea580c" aria-label="Orange text" aria-pressed="false" title="Orange text"><span class="visually-hidden">Orange</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">×</span></button>
+              </div>
+            </div>
+          </details>
+          <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
+            <summary aria-label="Highlight colour" title="Highlight colour">
+              <span class="rich-text-colour-control-label">Highlight</span>
+              <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
+            </summary>
+            <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">
+              <span class="rich-text-toolbar-menu-label">Highlight colour</span>
+              <div class="rich-text-toolbar-palette-swatches">
+                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fef08a" data-format="background" data-value="#fef08a" aria-label="Yellow highlight" aria-pressed="false" title="Yellow highlight"><span class="visually-hidden">Yellow</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bbf7d0" data-format="background" data-value="#bbf7d0" aria-label="Green highlight" aria-pressed="false" title="Green highlight"><span class="visually-hidden">Green</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bfdbfe" data-format="background" data-value="#bfdbfe" aria-label="Blue highlight" aria-pressed="false" title="Blue highlight"><span class="visually-hidden">Blue</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fbcfe8" data-format="background" data-value="#fbcfe8" aria-label="Pink highlight" aria-pressed="false" title="Pink highlight"><span class="visually-hidden">Pink</span></button>
+                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="background" data-value="" aria-label="Remove highlight" aria-pressed="false" title="Remove highlight"><span aria-hidden="true">×</span></button>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
       <details class="rich-text-toolbar-more">
         <summary>More</summary>
         <div class="rich-text-toolbar-more-panel">
-          <label class="rich-text-toolbar-field">
-            <span>Size</span>
-            <select data-format="size" aria-label="Text size">
-              <option value="">Normal</option>
-              <option value="small">Small</option>
-              <option value="large">Large</option>
-              <option value="huge">Huge</option>
-            </select>
-          </label>
-          <label class="rich-text-toolbar-field">
-            <span>Highlight</span>
-            <select data-format="background" aria-label="Highlight colour">
-              <option value="">None</option>
-              <option value="#fef08a">Yellow</option>
-              <option value="#bbf7d0">Green</option>
-              <option value="#bfdbfe">Blue</option>
-            </select>
-          </label>
-          <div class="rich-text-toolbar-actions" aria-label="More text actions">
-            <button type="button" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
-            <button type="button" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Size and layout</span>
+            <div class="rich-text-toolbar-more-row">
+              <label class="rich-text-toolbar-field">
+                <span class="visually-hidden">Text size</span>
+                <select data-format="size" aria-label="Text size">
+                  <option value="">Normal size</option>
+                  <option value="small">Small</option>
+                  <option value="large">Large</option>
+                  <option value="huge">Huge</option>
+                </select>
+              </label>
+              <div class="rich-text-toolbar-actions">
+                <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">Columns</button>
+              </div>
+            </div>
+          </div>
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Utilities</span>
+            <div class="rich-text-toolbar-actions" aria-label="More text actions">
             <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
-            <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear</button>
+              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear formatting</button>
+            </div>
           </div>
         </div>
       </details>
     `;
+
+    toolbar.querySelectorAll('details').forEach((menu) => {
+      menu.addEventListener('toggle', () => {
+        if (!menu.open) {
+          return;
+        }
+        toolbar.querySelectorAll('details[open]').forEach((otherMenu) => {
+          if (otherMenu !== menu) {
+            otherMenu.open = false;
+          }
+        });
+      });
+    });
   }
 
   getControls() {
@@ -281,8 +331,10 @@ class RichTextWidget {
 
     if (button.dataset.format) {
       const format = button.dataset.format;
-      const value = button.dataset.value || !current[format];
+      const hasExplicitValue = Object.prototype.hasOwnProperty.call(button.dataset, 'value');
+      const value = hasExplicitValue ? (button.dataset.value || false) : !current[format];
       this.quill.format(format, current[format] === value ? false : value, 'user');
+      button.closest('.rich-text-toolbar-colour-menu')?.removeAttribute('open');
     } else if (button.dataset.list) {
       const listType = button.dataset.list;
       this.quill.format('list', current.list === listType ? false : listType, 'user');
@@ -316,9 +368,9 @@ class RichTextWidget {
 
     this.editorToolbar.querySelectorAll('button[data-format]').forEach((button) => {
       const format = button.dataset.format;
-      const active = button.dataset.value
-        ? current[format] === button.dataset.value
-        : !!current[format];
+      const hasExplicitValue = Object.prototype.hasOwnProperty.call(button.dataset, 'value');
+      const expectedValue = hasExplicitValue ? (button.dataset.value || false) : true;
+      const active = expectedValue === false ? !current[format] : current[format] === expectedValue;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
@@ -327,6 +379,14 @@ class RichTextWidget {
       const active = current.list === button.dataset.list;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    this.editorToolbar.querySelectorAll('[data-format-menu]').forEach((menu) => {
+      const format = menu.dataset.formatMenu;
+      const activeValue = typeof current[format] === 'string' ? current[format] : '';
+      const preview = menu.querySelector('.rich-text-colour-preview');
+      preview?.style.setProperty('--swatch-color', activeValue || menu.dataset.defaultValue);
+      menu.classList.toggle('is-active', !!activeValue);
     });
   }
 
