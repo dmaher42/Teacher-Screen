@@ -205,8 +205,8 @@ class RichTextWidget {
         </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
           <div class="rich-text-toolbar-actions">
-            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><span aria-hidden="true">&bull;</span> List</button>
-            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><span aria-hidden="true">1.</span> List</button>
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><i class="fa-solid fa-list-ul" aria-hidden="true"></i><span class="rich-text-control-text">Bullets</span></button>
+            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><i class="fa-solid fa-list-ol" aria-hidden="true"></i><span class="rich-text-control-text">Numbered</span></button>
           </div>
           <label class="rich-text-toolbar-field rich-text-toolbar-field--align">
             <span class="visually-hidden">Alignment</span>
@@ -220,8 +220,8 @@ class RichTextWidget {
         <div class="rich-text-toolbar-group rich-text-toolbar-group--colour" aria-label="Colour">
           <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
             <summary aria-label="Text colour" title="Text colour">
-              <span class="rich-text-colour-control-icon" aria-hidden="true">A</span>
-              <span class="rich-text-colour-control-label">Text</span>
+              <i class="fa-solid fa-font rich-text-colour-control-icon" aria-hidden="true"></i>
+              <span class="rich-text-colour-control-label rich-text-control-text">Text colour</span>
               <span class="rich-text-colour-preview" style="--swatch-color: #111827" aria-hidden="true"></span>
             </summary>
             <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Text colour palette">
@@ -239,7 +239,8 @@ class RichTextWidget {
           </details>
           <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
             <summary aria-label="Highlight colour" title="Highlight colour">
-              <span class="rich-text-colour-control-label">Highlight</span>
+              <i class="fa-solid fa-highlighter rich-text-colour-control-icon" aria-hidden="true"></i>
+              <span class="rich-text-colour-control-label rich-text-control-text">Highlight</span>
               <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
             </summary>
             <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">
@@ -256,13 +257,13 @@ class RichTextWidget {
         </div>
       </div>
       <details class="rich-text-toolbar-more">
-        <summary>More</summary>
+        <summary aria-label="More formatting tools" title="More formatting tools"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="rich-text-toolbar-more__label">More</span></summary>
         <div class="rich-text-toolbar-more-panel">
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Layout</span>
             <div class="rich-text-toolbar-more-row">
               <div class="rich-text-toolbar-actions">
-                <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">Columns</button>
+                <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Columns</span></button>
               </div>
             </div>
           </div>
@@ -289,8 +290,8 @@ class RichTextWidget {
             <div class="rich-text-toolbar-actions" aria-label="More text actions">
               <button type="button" data-action="undo" aria-label="Undo" title="Undo">Undo</button>
               <button type="button" data-action="redo" aria-label="Redo" title="Redo">Redo</button>
-              <button type="button" data-action="link" aria-label="Add link" title="Add link">Link</button>
-              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">Clear formatting</button>
+              <button type="button" data-action="link" aria-label="Add link" title="Add link"><i class="fa-solid fa-link" aria-hidden="true"></i><span>Link</span></button>
+              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting"><i class="fa-solid fa-eraser" aria-hidden="true"></i><span>Clear formatting</span></button>
             </div>
           </div>
         </div>

@@ -6578,7 +6578,7 @@ class ClassroomScreenApp {
             if (isProjector && info.visibleOnProjector === false) {
                 info.element.style.display = 'none';
             } else {
-                info.element.style.display = 'block';
+                info.element.style.removeProperty('display');
             }
         });
     }

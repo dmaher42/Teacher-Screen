@@ -9980,3 +9980,470 @@ body.is-dashboard-active .dashboard-screen-card__heading h3 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* =====================================================
+   Widget Control Chrome Polish
+   Keep teacher-side widget controls light and legible on
+   every classroom theme while leaving projector output clean.
+   ===================================================== */
+body.is-classroom-active:not(.projector-view) .widget {
+    --widget-chrome-accent: var(--classroom-polish-blue, #4097f5);
+    --widget-chrome-accent-deep: #1778da;
+    --widget-chrome-ink: #15364a;
+    --widget-chrome-muted: #657f90;
+    --widget-chrome-surface: #ffffff;
+    --widget-chrome-soft: #f2f7fb;
+    --widget-chrome-line: rgba(27, 74, 101, 0.16);
+    --primary-color: var(--widget-chrome-accent);
+    --text-primary: var(--widget-chrome-ink);
+    --text-secondary: var(--widget-chrome-muted);
+    --text-color: var(--widget-chrome-ink);
+    --card-background: var(--widget-chrome-surface);
+    --bg-surface: var(--widget-chrome-soft);
+    --border-color: var(--widget-chrome-line);
+    color: var(--widget-chrome-ink);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header {
+    min-height: 36px;
+    gap: 8px;
+    padding: 4px 7px 4px 8px;
+    border-bottom-color: var(--widget-chrome-line);
+    background:
+        linear-gradient(90deg, rgba(64, 151, 245, 0.1), transparent 46%),
+        var(--widget-chrome-soft);
+    color: var(--widget-chrome-ink);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-title {
+    flex: 1 1 auto;
+    gap: 7px;
+    color: var(--widget-chrome-ink);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-title .fa-grip-vertical {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 25px;
+    width: 25px;
+    height: 25px;
+    border: 1px solid rgba(64, 151, 245, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--widget-chrome-accent-deep);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.08);
+    font-size: 0.72rem;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu {
+    margin-left: auto;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu > summary {
+    width: 28px;
+    height: 28px;
+    border-color: rgba(27, 74, 101, 0.12);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.84);
+    color: var(--widget-chrome-muted);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:hover,
+body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:focus-visible,
+body.is-classroom-active:not(.projector-view) .widget-header-menu[open] > summary {
+    border-color: rgba(64, 151, 245, 0.34);
+    background: rgba(64, 151, 245, 0.12);
+    color: var(--widget-chrome-accent-deep);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__popover {
+    gap: 4px;
+    width: 216px;
+    padding: 6px;
+    border-color: var(--widget-chrome-line);
+    border-radius: 14px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: 0 20px 46px rgba(21, 54, 74, 0.2), 0 4px 12px rgba(21, 54, 74, 0.08);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item {
+    min-height: 40px;
+    border-radius: 10px;
+    color: var(--widget-chrome-ink);
+    font-size: 0.8rem;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item i {
+    color: var(--widget-chrome-muted);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item:hover,
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item:focus-visible {
+    background: rgba(64, 151, 245, 0.1);
+    color: var(--widget-chrome-accent-deep);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item:hover i,
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item:focus-visible i {
+    color: var(--widget-chrome-accent-deep);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger {
+    color: #b42318;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger i {
+    color: #c43d32;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger:hover,
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger:focus-visible {
+    background: #fff2f0;
+    color: #a11f17;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger:hover i,
+body.is-classroom-active:not(.projector-view) .widget-header-menu__item--danger:focus-visible i {
+    color: #b42318;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-control-bar {
+    min-height: 50px;
+    gap: 8px;
+    padding: 7px 9px;
+    border-top-color: var(--widget-chrome-line);
+    background: rgba(247, 251, 255, 0.94);
+    box-shadow: 0 -8px 22px rgba(31, 72, 110, 0.05);
+    backdrop-filter: blur(14px);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions,
+body.is-classroom-active:not(.projector-view) .widget-control-bar .secondary-actions {
+    gap: 6px;
+}
+
+body.is-classroom-active:not(.projector-view) .widget .control-button,
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions button:not(.drawing-tool-swatch),
+body.is-classroom-active:not(.projector-view) .widget-control-bar .secondary-actions button {
+    min-height: 34px;
+    padding: 6px 11px;
+    border: 1px solid var(--widget-chrome-line);
+    border-radius: 10px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: 0 2px 7px rgba(31, 72, 110, 0.08);
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions > button:not(.drawing-tool-tool):not(.drawing-tool-swatch),
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions > .control-button {
+    border-color: var(--widget-chrome-accent-deep);
+    background: linear-gradient(135deg, #4ca3f8, var(--widget-chrome-accent-deep));
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(23, 120, 218, 0.2);
+}
+
+body.is-classroom-active:not(.projector-view) .widget .control-button:hover,
+body.is-classroom-active:not(.projector-view) .widget-control-bar button:not(.drawing-tool-swatch):hover {
+    border-color: rgba(64, 151, 245, 0.42);
+    background: rgba(64, 151, 245, 0.1);
+    color: var(--widget-chrome-accent-deep);
+    box-shadow: 0 5px 12px rgba(31, 72, 110, 0.12);
+    transform: translateY(-1px);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions > button:not(.drawing-tool-tool):not(.drawing-tool-swatch):hover,
+body.is-classroom-active:not(.projector-view) .widget-control-bar .primary-actions > .control-button:hover {
+    border-color: #126cc3;
+    background: linear-gradient(135deg, #3498f4, #126fc9);
+    color: #ffffff;
+}
+
+body.is-classroom-active:not(.projector-view) .widget button:disabled {
+    opacity: 0.48;
+    box-shadow: none;
+    transform: none;
+    cursor: not-allowed;
+}
+
+body.is-classroom-active:not(.projector-view) .pomodoro-actions .modal-primary {
+    border-color: var(--widget-chrome-accent-deep);
+    background: linear-gradient(135deg, #4ca3f8, var(--widget-chrome-accent-deep));
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(23, 120, 218, 0.2);
+}
+
+body.is-classroom-active:not(.projector-view) .pomodoro-actions .modal-primary:hover {
+    border-color: #126cc3;
+    background: linear-gradient(135deg, #3498f4, #126fc9);
+    color: #ffffff;
+}
+
+body.is-classroom-active:not(.projector-view) .drawing-tool-tool.is-active {
+    border-color: var(--widget-chrome-accent-deep);
+    background: var(--widget-chrome-accent);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(23, 120, 218, 0.18);
+}
+
+body.is-classroom-active:not(.projector-view) .widget-control-bar .drawing-tool-swatch:hover {
+    background: var(--swatch-color, #000000);
+    transform: translateY(-1px) scale(1.04);
+}
+
+body.is-classroom-active:not(.projector-view) .widget :where(input[type="text"], input[type="url"], input[type="number"], select, textarea) {
+    border-color: var(--widget-chrome-line);
+    border-radius: 10px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: inset 0 1px 1px rgba(21, 54, 74, 0.04);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-editor-container {
+    container-name: rich-text-editor;
+    border-color: var(--widget-chrome-line);
+    background: var(--widget-chrome-surface);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 14px rgba(31, 72, 110, 0.06);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 7px;
+    border-bottom-color: var(--widget-chrome-line);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 253, 0.98));
+    box-shadow: 0 3px 10px rgba(31, 72, 110, 0.05);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-widget-inner.display-mode .rich-text-editor-toolbar,
+body.is-classroom-active:not(.projector-view) .rich-text-widget-inner.is-projector-mode .rich-text-editor-toolbar {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main::-webkit-scrollbar {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
+    min-height: 34px;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid rgba(27, 74, 101, 0.12);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group + .rich-text-toolbar-group {
+    margin-left: 0;
+    padding-left: 3px;
+    border-left: 1px solid rgba(27, 74, 101, 0.12);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
+    position: relative;
+    min-width: 104px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 9px;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--widget-chrome-muted);
+    border-bottom: 1.5px solid var(--widget-chrome-muted);
+    transform: translateY(-68%) rotate(45deg);
+    pointer-events: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field select {
+    appearance: none;
+    min-height: 30px;
+    padding: 4px 25px 4px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--widget-chrome-ink);
+    font-size: 0.76rem;
+    font-weight: 700;
+    box-shadow: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions {
+    gap: 3px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions button,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu summary,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--widget-chrome-ink);
+    box-shadow: none;
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions button:hover,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions button.is-active,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu summary:hover,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu[open] summary,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu.is-active summary,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary:hover,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more[open] summary {
+    border-color: rgba(64, 151, 245, 0.25);
+    background: rgba(64, 151, 245, 0.11);
+    color: var(--widget-chrome-accent-deep);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions button.is-active,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu.is-active summary {
+    background: var(--widget-chrome-accent);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(23, 120, 218, 0.2);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu summary {
+    position: relative;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-colour-control-icon {
+    min-width: 14px;
+    color: currentColor;
+    font-size: 0.78rem;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-colour-preview {
+    position: absolute;
+    right: 7px;
+    bottom: 3px;
+    left: 7px;
+    width: auto;
+    height: 3px;
+    border: 0;
+    border-radius: 999px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more {
+    position: static;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
+    position: static;
+    min-width: 70px;
+    border-color: rgba(27, 74, 101, 0.14);
+    background: var(--widget-chrome-surface);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary::after {
+    content: none;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-present {
+    position: static;
+    min-height: 34px;
+    padding: 6px 11px;
+    border-color: rgba(64, 151, 245, 0.28);
+    border-radius: 9px;
+    background: rgba(64, 151, 245, 0.12);
+    color: var(--widget-chrome-accent-deep);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-present:hover {
+    border-color: rgba(64, 151, 245, 0.4);
+    background: rgba(64, 151, 245, 0.2);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-panel,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel {
+    border-color: var(--widget-chrome-line);
+    border-radius: 13px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: 0 20px 42px rgba(21, 54, 74, 0.2), 0 4px 12px rgba(21, 54, 74, 0.08);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel {
+    right: 7px;
+    top: calc(100% + 7px);
+    width: min(300px, calc(100% - 14px));
+    padding: 10px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section {
+    gap: 7px;
+    padding: 8px;
+    border: 1px solid rgba(27, 74, 101, 0.1);
+    border-radius: 10px;
+    background: var(--widget-chrome-soft);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions button {
+    border-color: rgba(27, 74, 101, 0.13);
+    background: var(--widget-chrome-surface);
+}
+
+@container rich-text-editor (max-width: 720px) {
+    .rich-text-control-text {
+        display: none;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu summary {
+        width: 30px;
+        padding-inline: 7px;
+    }
+}
+
+@container rich-text-editor (max-width: 470px) {
+    body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar {
+        gap: 5px;
+        padding-inline: 5px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
+        padding: 2px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
+        min-width: 92px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
+        min-width: 32px;
+        width: 32px;
+        padding-inline: 6px;
+    }
+
+    .rich-text-toolbar-more__label {
+        display: none;
+    }
+}
