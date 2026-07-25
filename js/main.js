@@ -5664,29 +5664,45 @@ class ClassroomScreenApp {
                 <aside class="dashboard-sidebar">
                     <div class="dashboard-brand">
                         <div class="dashboard-brand__mark" aria-hidden="true">TS</div>
-                        <div>
+                        <div class="dashboard-brand__copy">
                             <p class="dashboard-brand__eyebrow">Teacher Screen</p>
                             <h2>Menu Desk</h2>
                         </div>
+                        <details id="dashboard-utility-menu" class="dashboard-utility-menu">
+                            <summary aria-label="Open Menu Desk options" title="Menu Desk options">
+                                <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                            </summary>
+                            <div class="dashboard-utility-menu__popover" role="menu" aria-label="Menu Desk options">
+                                <button id="dashboard-settings-btn" type="button" role="menuitem">
+                                    <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                                    <span>Settings</span>
+                                </button>
+                                <button id="dashboard-updates-btn" type="button" role="menuitem">
+                                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                                    <span>Updates</span>
+                                </button>
+                                <button id="dashboard-help-btn" type="button" role="menuitem">
+                                    <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                                    <span>Help</span>
+                                </button>
+                            </div>
+                        </details>
                     </div>
                     <div class="dashboard-sidebar__actions">
-                        <button id="dashboard-create-folder-btn" class="dashboard-sidebar__action" type="button">
-                            <span class="dashboard-action-icon" aria-hidden="true"><i class="fa-solid fa-folder-plus"></i></span>
-                            <span>Create Folder</span>
-                        </button>
-                        <button id="dashboard-sections-btn" class="dashboard-sidebar__action dashboard-sidebar__action--quiet" type="button">
+                        <button id="dashboard-sections-btn" class="dashboard-sidebar__action dashboard-sidebar__action--quiet" type="button" aria-label="Open Sections">
                             <span class="dashboard-action-icon" aria-hidden="true"><i class="fa-solid fa-compass"></i></span>
-                            <span>Open Sections</span>
+                            <span>Sections</span>
                         </button>
                     </div>
                     <div class="dashboard-sidebar__section">
-                        <h3>Deck Shelves</h3>
+                        <div class="dashboard-sidebar__section-header">
+                            <h3>Deck Shelves</h3>
+                            <button id="dashboard-create-folder-btn" class="dashboard-new-folder-btn" type="button" aria-label="Create folder" title="Create folder">
+                                <i class="fa-solid fa-folder-plus" aria-hidden="true"></i>
+                                <span>New folder</span>
+                            </button>
+                        </div>
                         <div class="dashboard-folder-list" id="dashboard-folder-list"></div>
-                    </div>
-                    <div class="dashboard-sidebar__footer">
-                        <button id="dashboard-settings-btn" class="dashboard-sidebar__ghost" type="button">Settings</button>
-                        <button id="dashboard-updates-btn" class="dashboard-sidebar__ghost" type="button">Updates</button>
-                        <button id="dashboard-help-btn" class="dashboard-sidebar__ghost" type="button">Help</button>
                     </div>
                 </aside>
                 <main class="dashboard-main">
@@ -5767,7 +5783,7 @@ class ClassroomScreenApp {
 
                 row.appendChild(button);
 
-                if (folder.folderId) {
+                if (folder.folderId && folder.folderId === selectedFolderId) {
                     const actions = document.createElement('div');
                     actions.className = 'dashboard-folder-row__actions';
 
@@ -5879,6 +5895,48 @@ class ClassroomScreenApp {
         const createFolderButton = this.dashboardRoot.querySelector('#dashboard-create-folder-btn');
         if (createFolderButton) {
             createFolderButton.addEventListener('click', () => this.createFolderFromDashboard());
+        }
+
+        const utilityMenu = this.dashboardRoot.querySelector('#dashboard-utility-menu');
+        const closeUtilityMenu = () => {
+            if (utilityMenu) {
+                utilityMenu.open = false;
+            }
+        };
+
+        const settingsButton = this.dashboardRoot.querySelector('#dashboard-settings-btn');
+        if (settingsButton) {
+            settingsButton.addEventListener('click', () => {
+                closeUtilityMenu();
+                this.openTeacherControls();
+            });
+        }
+
+        const updatesButton = this.dashboardRoot.querySelector('#dashboard-updates-btn');
+        if (updatesButton) {
+            updatesButton.addEventListener('click', () => {
+                closeUtilityMenu();
+                this.showNotification('Teacher Screen updates are applied automatically when the page refreshes.', 'info');
+            });
+        }
+
+        const helpButton = this.dashboardRoot.querySelector('#dashboard-help-btn');
+        if (helpButton) {
+            helpButton.addEventListener('click', () => {
+                closeUtilityMenu();
+                this.openDialog(this.helpDialog);
+            });
+        }
+
+        if (utilityMenu) {
+            utilityMenu.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') {
+                    return;
+                }
+
+                closeUtilityMenu();
+                utilityMenu.querySelector('summary')?.focus();
+            });
         }
 
         const createButton = this.dashboardRoot.querySelector('#dashboard-create-btn');

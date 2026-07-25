@@ -2,7 +2,7 @@ import './utils/app-mode.js';
 import './utils/app-bus.js';
 import './core/event-bus.js';
 
-const LOCAL_ASSET_VERSION = '22';
+const LOCAL_ASSET_VERSION = '23';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 

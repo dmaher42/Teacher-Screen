@@ -196,6 +196,9 @@ async function runSmoke() {
             const launchCards = Array.from(document.querySelectorAll('.dashboard-launch-card'));
             const launchCardRects = launchCards.map((card) => card.getBoundingClientRect());
             const commandPanel = document.querySelector('.dashboard-command-panel');
+            const deckShelves = document.querySelector('.dashboard-sidebar__section');
+            const folderList = document.querySelector('#dashboard-folder-list');
+            const createFolderButton = document.querySelector('#dashboard-create-folder-btn');
             const lessonTitle = commandPanel?.querySelector('h1');
             const originalLessonTitle = lessonTitle?.textContent || '';
             if (lessonTitle) lessonTitle.textContent = 'Year 7 English - Persuasion Weeks 2 and 3';
@@ -206,6 +209,11 @@ async function runSmoke() {
                 launchCardWidth: launchCard?.width || 0,
                 launchCardHeight: launchCard?.height || 0,
                 longTitlePanelHeight,
+                deckShelvesHeight: deckShelves?.getBoundingClientRect().height || 0,
+                folderListMaxHeight: folderList ? getComputedStyle(folderList).maxHeight : '',
+                createFolderInsideShelves: !!(deckShelves && createFolderButton && deckShelves.contains(createFolderButton)),
+                utilityMenuLabels: Array.from(document.querySelectorAll('#dashboard-utility-menu button')).map((button) => button.textContent?.trim()),
+                legacyFooterCount: document.querySelectorAll('.dashboard-sidebar__footer').length,
                 launchCardsAligned: launchCardRects.every((rect) => (
                     Math.abs(rect.top - launchCardRects[0].top) < 1
                     && Math.abs(rect.height - launchCardRects[0].height) < 1
@@ -219,12 +227,30 @@ async function runSmoke() {
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
         assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
         assert(desktopDashboardScale.longTitlePanelHeight <= 112, 'Desktop dashboard command strip should stay compact with a long lesson title');
+        assert(desktopDashboardScale.deckShelvesHeight >= 300, 'Deck Shelves should receive the main share of the desktop sidebar');
+        assert(desktopDashboardScale.folderListMaxHeight === 'none', 'Deck Shelves should not use the old fixed-height scrolling window');
+        assert(desktopDashboardScale.createFolderInsideShelves, 'Create Folder should sit with the Deck Shelves controls');
+        assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Settings|Updates|Help', 'Settings, Updates, and Help should live in the compact Menu Desk options menu');
+        assert(desktopDashboardScale.legacyFooterCount === 0, 'The sidebar should not reserve a footer row for utility links');
         assert(await page.locator('#tour-dialog').textContent().then((text) => !text.includes('Floating Action Button')), 'Welcome tour should not mention the old floating action button');
 
         if (await page.locator('#tour-dialog[open]').count() === 1) {
             await page.locator('#tour-dialog [data-close]').click();
             await page.waitForSelector('#tour-dialog[open]', { state: 'detached', timeout: 10000 });
         }
+
+        await page.locator('#dashboard-utility-menu > summary').click();
+        assert(await page.locator('#dashboard-settings-btn').isVisible(), 'Menu Desk options should reveal Settings');
+        assert(await page.locator('#dashboard-updates-btn').isVisible(), 'Menu Desk options should reveal Updates');
+        assert(await page.locator('#dashboard-help-btn').isVisible(), 'Menu Desk options should reveal Help');
+        await page.locator('#dashboard-updates-btn').click();
+        assert(await page.locator('.notification-toast').textContent().then((text) => text.includes('applied automatically')), 'Updates should explain how the web app receives updates');
+        assert(await page.locator('#dashboard-utility-menu[open]').count() === 0, 'Choosing a utility option should close the compact menu');
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-help-btn').click();
+        await page.waitForSelector('#help-dialog[open]', { timeout: 10000 });
+        await page.locator('#help-dialog .modal-close').click();
+        await page.waitForSelector('#help-dialog[open]', { state: 'detached', timeout: 10000 });
 
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
@@ -600,6 +626,9 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-command-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 2), 'Mobile dashboard should keep quick actions in a compact two-column grid');
         assert(await mobilePage.locator('.dashboard-launch-card').first().evaluate((element) => element.getBoundingClientRect().height <= 58), 'Mobile dashboard actions should keep the compact toolbar height');
         assert(await mobilePage.locator('.dashboard-sidebar').evaluate((element) => element.getBoundingClientRect().height < 270), 'Mobile dashboard navigation should stay compact');
+        assert(await mobilePage.locator('#dashboard-folder-list').evaluate((element) => getComputedStyle(element).overflowX === 'auto'), 'Mobile Deck Shelves should use a compact horizontal shelf');
+        assert(await mobilePage.locator('#dashboard-utility-menu > summary').isVisible(), 'Mobile dashboard should keep utility links inside the compact options menu');
+        assert(await mobilePage.locator('.dashboard-sidebar__footer').count() === 0, 'Mobile dashboard should not render a separate utility footer');
         assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 300), 'Mobile dashboard lesson actions should stay above the deck library');
         assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the deck library into the first screenful');
         await mobilePage.locator('#dashboard-open-classroom-btn').click();

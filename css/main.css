@@ -9088,3 +9088,279 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
         padding: 9px 10px 76px;
     }
 }
+
+/* =====================================================
+   Dashboard Sidebar Redesign
+   ===================================================== */
+body.is-dashboard-active .dashboard-sidebar {
+    position: relative;
+    gap: 10px;
+    padding: 14px;
+}
+
+body.is-dashboard-active .dashboard-brand {
+    position: relative;
+    z-index: 20;
+    gap: 7px;
+    min-width: 0;
+}
+
+body.is-dashboard-active .dashboard-brand__copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+body.is-dashboard-active .dashboard-brand__mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+}
+
+body.is-dashboard-active .dashboard-brand__eyebrow {
+    overflow: hidden;
+    font-size: 0.54rem;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.is-dashboard-active .dashboard-brand h2 {
+    overflow: hidden;
+    font-size: 1rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.is-dashboard-active .dashboard-utility-menu {
+    position: relative;
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+body.is-dashboard-active .dashboard-utility-menu > summary {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    list-style: none;
+    border: 1px solid rgba(218, 241, 253, 0.14);
+    border-radius: 10px;
+    background: rgba(232, 247, 255, 0.07);
+    color: rgba(240, 250, 255, 0.86);
+    cursor: pointer;
+}
+
+body.is-dashboard-active .dashboard-utility-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+body.is-dashboard-active .dashboard-utility-menu > summary:hover,
+body.is-dashboard-active .dashboard-utility-menu > summary:focus-visible,
+body.is-dashboard-active .dashboard-utility-menu[open] > summary {
+    border-color: rgba(79, 178, 255, 0.5);
+    background: rgba(47, 143, 244, 0.2);
+    color: #ffffff;
+}
+
+body.is-dashboard-active .dashboard-utility-menu__popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    gap: 3px;
+    width: 168px;
+    padding: 6px;
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    border-radius: 12px;
+    background: #0a2c42;
+    box-shadow: 0 18px 36px rgba(2, 15, 24, 0.34);
+}
+
+body.is-dashboard-active .dashboard-utility-menu__popover button {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(240, 250, 255, 0.86);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+body.is-dashboard-active .dashboard-utility-menu__popover button:hover,
+body.is-dashboard-active .dashboard-utility-menu__popover button:focus-visible {
+    background: rgba(47, 143, 244, 0.18);
+    color: #ffffff;
+}
+
+body.is-dashboard-active .dashboard-utility-menu__popover button i {
+    color: #71ccfa;
+    text-align: center;
+}
+
+body.is-dashboard-active .dashboard-sidebar__actions {
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+body.is-dashboard-active .dashboard-sidebar__action {
+    min-height: 38px;
+    padding: 0.5rem 0.62rem;
+}
+
+body.is-dashboard-active .dashboard-sidebar__section {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+body.is-dashboard-active .dashboard-sidebar__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+body.is-dashboard-active .dashboard-sidebar__section-header h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.is-dashboard-active .dashboard-new-folder-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    min-height: 28px;
+    padding: 4px;
+    border: 1px solid rgba(101, 199, 255, 0.22);
+    border-radius: 8px;
+    background: rgba(47, 143, 244, 0.12);
+    color: rgba(232, 248, 255, 0.88);
+    font: inherit;
+    font-size: 0.65rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+body.is-dashboard-active .dashboard-new-folder-btn span {
+    display: none;
+}
+
+body.is-dashboard-active .dashboard-new-folder-btn:hover,
+body.is-dashboard-active .dashboard-new-folder-btn:focus-visible {
+    border-color: rgba(101, 199, 255, 0.44);
+    background: rgba(47, 143, 244, 0.22);
+    color: #ffffff;
+}
+
+body.is-dashboard-active .dashboard-folder-list {
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    padding-right: 5px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(137, 207, 245, 0.36) transparent;
+}
+
+body.is-dashboard-active .dashboard-folder-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+body.is-dashboard-active .dashboard-folder-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body.is-dashboard-active .dashboard-folder-list::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(137, 207, 245, 0.36);
+}
+
+body.is-dashboard-active .dashboard-folder-row__actions {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr 0.8fr;
+    gap: 4px;
+    padding: 0 2px 3px;
+}
+
+body.is-dashboard-active .dashboard-folder-row__action {
+    min-width: 0;
+    min-height: 28px;
+    padding: 0.24rem 0.26rem;
+    font-size: 0.62rem;
+    text-align: center;
+}
+
+@media (max-width: 860px) {
+    body.is-dashboard-active .dashboard-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.is-dashboard-active .dashboard-sidebar {
+        grid-template-columns: minmax(180px, 1fr) minmax(180px, 220px);
+        grid-template-areas:
+            "brand actions"
+            "shelves shelves";
+        gap: 10px 14px;
+    }
+
+    body.is-dashboard-active .dashboard-sidebar,
+    body.is-dashboard-active .dashboard-main {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.is-dashboard-active .dashboard-sidebar__section {
+        grid-template-rows: auto auto;
+        overflow: visible;
+    }
+
+    body.is-dashboard-active .dashboard-folder-list {
+        display: flex;
+        gap: 7px;
+        width: 100%;
+        max-width: 100%;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0 0 4px;
+    }
+
+    body.is-dashboard-active .dashboard-folder-row {
+        flex: 0 0 174px;
+    }
+}
+
+@media (max-width: 640px) {
+    body.is-dashboard-active .dashboard-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "brand"
+            "actions"
+            "shelves";
+        gap: 8px;
+    }
+
+    body.is-dashboard-active .dashboard-sidebar__action {
+        min-height: 38px;
+    }
+
+    body.is-dashboard-active .dashboard-folder-row {
+        flex-basis: 160px;
+    }
+}
