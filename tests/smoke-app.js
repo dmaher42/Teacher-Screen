@@ -784,6 +784,11 @@ async function runSmoke() {
         await page.locator('#dashboard-tab').dispatchEvent('click');
         await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('.dashboard-screen-card.is-current .dashboard-current-badge').count() === 1, 'Dashboard should identify the loaded current deck');
+        await page.locator('#dashboard-search-input').click();
+        await page.keyboard.type('year');
+        assert(await page.locator('#dashboard-search-input').inputValue() === 'year', 'Dashboard deck search should accept continuous typing without losing characters');
+        assert(await page.locator('#dashboard-search-input').evaluate((element) => document.activeElement === element), 'Dashboard deck search should keep keyboard focus while filtering');
+        await page.locator('#dashboard-search-input').fill('');
         await page.locator('[data-dashboard-mode="recent"]').click();
         assert(await page.locator('.dashboard-screen-card.is-current').count() === 1, 'Recent should show a lesson deck after it has been opened');
         await page.locator('[data-dashboard-mode="dashboard"]').click();

@@ -6214,8 +6214,22 @@ class ClassroomScreenApp {
         const searchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', (event) => {
-                this.dashboardSearchQuery = event.target.value || '';
+                const activeSearchInput = event.currentTarget;
+                const shouldRestoreFocus = document.activeElement === activeSearchInput;
+                const selectionStart = activeSearchInput.selectionStart;
+                const selectionEnd = activeSearchInput.selectionEnd;
+                this.dashboardSearchQuery = activeSearchInput.value || '';
                 this.renderDashboard();
+
+                if (shouldRestoreFocus) {
+                    const replacementSearchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
+                    replacementSearchInput?.focus({ preventScroll: true });
+                    if (replacementSearchInput
+                        && Number.isInteger(selectionStart)
+                        && Number.isInteger(selectionEnd)) {
+                        replacementSearchInput.setSelectionRange(selectionStart, selectionEnd);
+                    }
+                }
             });
         }
 
