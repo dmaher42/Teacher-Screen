@@ -6536,6 +6536,42 @@ body.projector-view .pomodoro-settings-controls {
     height: 100%;
 }
 
+.document-viewer-widget-content > .widget-control-bar {
+    position: static;
+    flex: 0 0 auto;
+    width: 100%;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.document-viewer-widget-content > .widget-control-bar .primary-actions {
+    flex: 1 1 320px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.document-viewer-widget-content > .widget-control-bar .secondary-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.document-viewer-pdf-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.document-viewer-message {
+    max-width: 34rem;
+    margin: auto;
+    padding: 20px;
+    color: var(--text-secondary, #64748b);
+    text-align: center;
+    line-height: 1.45;
+}
+
 .document-viewer-controls {
     display: flex;
     align-items: center;
@@ -6590,6 +6626,24 @@ body.projector-view .pomodoro-settings-controls {
     box-shadow: none;
 }
 
+.widget.document-viewer-widget--presenting {
+    z-index: 2200 !important;
+    overflow: visible;
+}
+
+body.document-viewer-presenting {
+    overflow: hidden;
+}
+
+body.document-viewer-presenting:not(.projector-view) #top-nav,
+body.document-viewer-presenting:not(.projector-view) #teacher-panel,
+body.document-viewer-presenting:not(.projector-view) .panel-backdrop,
+body.document-viewer-presenting:not(.projector-view) #lesson-quick-actions,
+body.document-viewer-presenting:not(.projector-view) .project-switcher--corner {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
 .document-viewer-widget-content.presentation-mode .document-viewer-controls {
     display: none;
 }
@@ -6624,6 +6678,29 @@ body.projector-view .document-viewer-widget-content.presentation-mode {
 body.projector-view .document-viewer-widget-content.presentation-mode .widget-control-bar {
       display: none;
   }
+
+@media (max-width: 600px) {
+    body:not(.projector-view) .layout-stage-container:has(.document-viewer-widget) {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    body:not(.projector-view) .layout-stage-container:has(.document-viewer-widget) .layout-stage-sidebar:empty {
+        display: none;
+    }
+
+    .document-viewer-widget-content > .widget-control-bar {
+        align-items: stretch;
+    }
+
+    .document-viewer-widget-content > .widget-control-bar .primary-actions,
+    .document-viewer-widget-content > .widget-control-bar .secondary-actions,
+    .document-viewer-pdf-controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+}
 
 .quiz-game-widget-content {
     display: flex;

@@ -250,6 +250,134 @@ async function makeExternalAssetsDeterministic(context) {
     });
 }
 
+async function installPdfStub(context) {
+    await context.addInitScript(() => {
+        window.pdfjsLib = {
+            getDocument: () => ({
+                promise: Promise.resolve({
+                    numPages: 2,
+                    getPage: (pageNumber) => Promise.resolve({
+                        getViewport: ({ scale = 1 } = {}) => ({
+                            width: 612 * scale,
+                            height: 792 * scale
+                        }),
+                        render: () => ({ promise: Promise.resolve(pageNumber) })
+                    }),
+                    destroy: () => Promise.resolve()
+                })
+            })
+        };
+    });
+}
+
+async function runDocumentViewerPdfChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await makeExternalAssetsDeterministic(context);
+    await installPdfStub(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+
+    const attachErrorChecks = (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    };
+    context.on('page', attachErrorChecks);
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await addWidget(page, 'document-viewer', '.widget.document-viewer-widget', 'Document Viewer');
+
+        const documentWidget = page.locator('.widget.document-viewer-widget');
+        assert(await documentWidget.locator('.present-button').isDisabled(), 'Document Viewer should disable Present until a document is loaded');
+        await documentWidget.locator('.document-viewer-file-input').setInputFiles({
+            name: 'two-page-lesson.pdf',
+            mimeType: 'application/pdf',
+            buffer: Buffer.from('%PDF-1.7\nTeacher Screen smoke fixture')
+        });
+
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const documentState = state.layout?.widgets?.find((widget) => widget.type === 'DocumentViewerWidget')?.data;
+            return document.querySelector('.document-viewer-page-counter')?.textContent === 'Page 1 of 2'
+                && document.querySelector('.document-viewer-canvas-container canvas')
+                && typeof documentState?.localPdf?.id === 'string'
+                && documentState.localPdf.id.length > 0
+                && documentState.localPdf.requiresReupload === false;
+        }, { timeout: 15000 });
+        assert(true, 'Uploaded PDF should save a durable local document reference');
+
+        await openTeacherPanel(page);
+        const deckNameInput = page.locator('#project-screen-name-input');
+        await deckNameInput.fill('Keyboard isolation check');
+        await deckNameInput.press('ArrowRight');
+        assert(await documentWidget.locator('.document-viewer-page-counter').textContent() === 'Page 1 of 2', 'PDF shortcuts should not run while the teacher is editing another input');
+        await closeTeacherPanel(page);
+
+        await documentWidget.locator('.document-viewer-canvas-container canvas').click({ position: { x: 10, y: 10 } });
+        await page.keyboard.press('ArrowRight');
+        await page.waitForFunction(() => document.querySelector('.document-viewer-page-counter')?.textContent === 'Page 2 of 2');
+        assert(true, 'Focused Document Viewer should support keyboard page navigation');
+
+        await documentWidget.locator('.present-button').click();
+        assert(await page.locator('body.document-viewer-presenting').count() === 1, 'Present should enter isolated document presentation mode');
+        assert(await page.locator('#lesson-quick-actions').evaluate((element) => getComputedStyle(element).visibility === 'hidden'), 'Document presentation should hide lesson quick actions');
+        await page.keyboard.press('Escape');
+        assert(await page.locator('body.document-viewer-presenting').count() === 0, 'Escape should exit document presentation mode');
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForTimeout(100);
+        const mobileControlsFit = await documentWidget.locator('.widget-control-bar').evaluate((controlBar) => {
+            const barRect = controlBar.getBoundingClientRect();
+            return controlBar.scrollWidth <= controlBar.clientWidth + 1
+                && Array.from(controlBar.querySelectorAll('button')).filter((button) => {
+                    return getComputedStyle(button).display !== 'none';
+                }).every((button) => {
+                    const buttonRect = button.getBoundingClientRect();
+                    return buttonRect.left >= barRect.left - 1 && buttonRect.right <= barRect.right + 1;
+                });
+        });
+        assert(mobileControlsFit, 'Document Viewer controls should stay inside the widget on a phone-sized screen');
+        await page.setViewportSize({ width: 1280, height: 720 });
+
+        const projectorPage = await context.newPage();
+        await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
+        assert(await projectorPage.locator('.widget.document-viewer-widget canvas').count() === 1, 'Projector should restore an uploaded PDF from local document storage');
+        assert(!(await projectorPage.locator('.widget.document-viewer-widget').textContent()).includes('uploaded again'), 'Projector should not ask for a PDF that is already stored on this device');
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
+        assert(await page.locator('.widget.document-viewer-widget canvas').count() === 1, 'Uploaded PDF should survive a full teacher-screen reload');
+
+        await page.evaluate(() => {
+            delete window.pdfjsLib;
+        });
+        await page.locator('.widget.document-viewer-widget .document-viewer-file-input').setInputFiles({
+            name: 'missing-engine.pdf',
+            mimeType: 'application/pdf',
+            buffer: Buffer.from('%PDF-1.7\nMissing engine fixture')
+        });
+        await page.waitForSelector('.document-viewer-message', { timeout: 10000 });
+        assert((await page.locator('.document-viewer-message').textContent()).includes('PDF support could not load'), 'Document Viewer should explain when PDF support is unavailable');
+        assert(await page.locator('.widget.document-viewer-widget .present-button').isDisabled(), 'Document Viewer should not present an unavailable PDF');
+        assert(pageErrors.length === 0, `Document Viewer PDF checks should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Document Viewer PDF checks should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runNewDeckNavigationChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
@@ -294,6 +422,7 @@ async function runSmoke() {
     try {
         browser = await launchBrowser();
         await runNewDeckNavigationChecks(browser, baseUrl);
+        await runDocumentViewerPdfChecks(browser, baseUrl);
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
         const pageErrors = [];
