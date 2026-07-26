@@ -216,6 +216,68 @@ async function getElementBox(page, selector) {
     return box;
 }
 
+async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 640 } });
+    await makeExternalAssetsDeterministic(context);
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
+
+        const tallWidgetBeforeDrag = await getElementBox(page, '.widget.reveal-manager-widget');
+        await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, 320);
+        const tallWidgetAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget');
+        const tallWidgetHeaderAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget .widget-header');
+        const canvasAfterTallDrag = await getElementBox(page, '#widgets-container');
+        assert(
+            tallWidgetAfterDrag.y - tallWidgetBeforeDrag.y >= 220,
+            'Tall widgets should have meaningful vertical travel instead of being locked by their full height'
+        );
+        assert(
+            tallWidgetHeaderAfterDrag.y >= canvasAfterTallDrag.y
+                && tallWidgetHeaderAfterDrag.y + tallWidgetHeaderAfterDrag.height <= canvasAfterTallDrag.y + canvasAfterTallDrag.height,
+            'A vertically moved widget should keep its grab bar safely inside the classroom canvas'
+        );
+
+        await page.waitForTimeout(700);
+        const savedTallWidgetY = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const activePage = Array.isArray(state.pages)
+                ? state.pages.find((pageRecord) => pageRecord?.id === state.activePageId)
+                : null;
+            return activePage?.snapshot?.layout?.widgets?.find((widget) => widget.type === 'RevealManagerWidget')?.y;
+        });
+        assert(
+            Math.abs(savedTallWidgetY - tallWidgetAfterDrag.y) <= 20,
+            `A moved tall widget should save its vertical position before reload (saved ${savedTallWidgetY}, rendered ${tallWidgetAfterDrag.y})`
+        );
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        const tallWidgetAfterReload = await getElementBox(page, '.widget.reveal-manager-widget');
+        assert(
+            Math.abs(tallWidgetAfterReload.y - tallWidgetAfterDrag.y) <= 20,
+            `A tall widget should keep its intentional vertical position after reload (restored ${tallWidgetAfterReload.y}, expected ${tallWidgetAfterDrag.y})`
+        );
+
+        await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, -600);
+        const tallWidgetAfterUpwardDrag = await getElementBox(page, '.widget.reveal-manager-widget');
+        const canvasAfterUpwardDrag = await getElementBox(page, '#widgets-container');
+        assert(
+            tallWidgetAfterUpwardDrag.y <= canvasAfterUpwardDrag.y + 24,
+            'Tall widgets should still move back to the top of the classroom canvas'
+        );
+    } finally {
+        await context.close();
+    }
+}
+
 async function launchBrowser() {
     const candidates = [
         process.env.TEACHER_SCREEN_BROWSER ? { channel: process.env.TEACHER_SCREEN_BROWSER } : null,
@@ -422,6 +484,7 @@ async function runSmoke() {
     try {
         browser = await launchBrowser();
         await runNewDeckNavigationChecks(browser, baseUrl);
+        await runTallWidgetVerticalMovementChecks(browser, baseUrl);
         await runDocumentViewerPdfChecks(browser, baseUrl);
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);

@@ -5,6 +5,7 @@ const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
 const TEACHER_CANVAS_MARGIN = 16;
 const TEACHER_CANVAS_BOTTOM_INSET = 0;
 const TEACHER_WIDGET_GAP = GRID_SIZE;
+const TEACHER_WIDGET_VISIBLE_DRAG_HEIGHT = 40;
 const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
@@ -460,6 +461,24 @@ class LayoutManager {
     };
   }
 
+  normalizeWidgetDragBounds(x, y, width, height) {
+    const bounded = this.normalizeWidgetBounds(x, y, width, height);
+    if (!layoutManagerIsTeacherMode()) return bounded;
+
+    const canvas = this.getCanvasMetrics();
+    const requestedHeight = Number.isFinite(height) && height > 0 ? height : bounded.height;
+    const keepEntireWidgetVisible = requestedHeight > canvas.height;
+    const visibleHeight = keepEntireWidgetVisible
+      ? bounded.height
+      : Math.min(bounded.height, TEACHER_WIDGET_VISIBLE_DRAG_HEIGHT);
+    const maxY = canvas.minY + Math.max(0, canvas.height - visibleHeight);
+
+    return {
+      ...bounded,
+      y: clamp(Number.isFinite(y) ? y : canvas.minY, canvas.minY, maxY)
+    };
+  }
+
   updateWidgetChrome(widgetInfo) {
     const header = widgetInfo?.element?.querySelector(':scope > .widget-header');
     if (!header) return;
@@ -470,7 +489,7 @@ class LayoutManager {
 
   clampWidgetToContainer(widgetInfo) {
     if (!widgetInfo) return;
-    const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height);
+    const bounded = this.normalizeWidgetDragBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height);
     widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
     widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
     widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
@@ -529,7 +548,7 @@ class LayoutManager {
     let newY = info.y + deltaY;
 
     // Constraints
-    const bounded = this.normalizeWidgetBounds(newX, newY, info.width, info.height);
+    const bounded = this.normalizeWidgetDragBounds(newX, newY, info.width, info.height);
     newX = bounded.x;
     newY = bounded.y;
 
@@ -832,7 +851,7 @@ class LayoutManager {
       const widgetInfo = this.widgets.find(info => info.widget === widget);
       if (!widgetInfo) return;
 
-      const bounded = this.normalizeWidgetBounds(
+      const bounded = this.normalizeWidgetDragBounds(
         widgetInfo.x + movement[0],
         widgetInfo.y + movement[1],
         widgetInfo.width,
@@ -1204,7 +1223,7 @@ class LayoutManager {
 
       let left = initialLeft + deltaX;
       let top = initialTop + deltaY;
-      const bounded = this.normalizeWidgetBounds(left, top, info?.width, info?.height);
+      const bounded = this.normalizeWidgetDragBounds(left, top, info?.width, info?.height);
 
       pendingPosition = {
         x: Math.round(bounded.x),
@@ -1236,7 +1255,7 @@ class LayoutManager {
         const finalTop = parseInt(widgetElement.style.top, 10) || 0;
 
         const info = this.widgets.find(w => w.element === widgetElement);
-        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, info?.width, info?.height);
+        const bounded = this.normalizeWidgetDragBounds(finalLeft, finalTop, info?.width, info?.height);
         const snappedLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
         const snappedTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
 
@@ -1343,14 +1362,19 @@ class LayoutManager {
     this.discardAllWidgets();
     this.setupModeStructure();
 
-    const containerW = this.container.clientWidth || 1024;
-    const containerH = this.container.clientHeight || 768;
-    const sourceViewportW = layoutData.viewport && Number(layoutData.viewport.width) > 0
+    const storedViewportW = layoutData.viewport && Number(layoutData.viewport.width) > 0
       ? Number(layoutData.viewport.width)
-      : containerW;
-    const sourceViewportH = layoutData.viewport && Number(layoutData.viewport.height) > 0
+      : null;
+    const storedViewportH = layoutData.viewport && Number(layoutData.viewport.height) > 0
       ? Number(layoutData.viewport.height)
-      : containerH;
+      : null;
+    // Saved classrooms are restored while their view is hidden, when the canvas can
+    // temporarily report 0 x 0. Reuse the saved viewport in that state so positions
+    // are not scaled against the legacy 1024 x 768 fallback before the view opens.
+    const containerW = this.container.clientWidth || storedViewportW || 1024;
+    const containerH = this.container.clientHeight || storedViewportH || 768;
+    const sourceViewportW = storedViewportW || containerW;
+    const sourceViewportH = storedViewportH || containerH;
     const widthScale = containerW / sourceViewportW;
     const heightScale = containerH / sourceViewportH;
     const colW = containerW / this.gridColumns;
@@ -1431,7 +1455,7 @@ class LayoutManager {
       finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
       finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
 
-      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
+      const bounded = this.normalizeWidgetDragBounds(finalX, finalY, finalW, finalH);
       finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
       finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
       finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
