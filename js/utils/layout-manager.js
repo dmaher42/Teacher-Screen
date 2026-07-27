@@ -6,6 +6,7 @@ const TEACHER_CANVAS_MARGIN = 16;
 const TEACHER_CANVAS_BOTTOM_INSET = 0;
 const TEACHER_WIDGET_GAP = GRID_SIZE;
 const TEACHER_WIDGET_VISIBLE_DRAG_HEIGHT = 40;
+const MINIMIZED_WIDGET_HEIGHT = GRID_SIZE * 2;
 const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
   ? window.TeacherScreenAppMode.applyAppModeToWidget(widgetInstance)
@@ -209,13 +210,18 @@ class LayoutManager {
     if (!Number.isFinite(positionWidthScale) || !Number.isFinite(widthScale) || !Number.isFinite(heightScale)) return;
 
     this.widgets.forEach((widgetInfo) => {
+      const isMinimized = this.isWidgetMinimized(widgetInfo);
+      const expandedHeight = isMinimized && Number.isFinite(widgetInfo.expandedHeight)
+        ? widgetInfo.expandedHeight
+        : widgetInfo.height;
       const scaledWidth = widgetInfo.width * widthScale;
-      const scaledHeight = widgetInfo.height * heightScale;
+      const scaledHeight = expandedHeight * heightScale;
       const constrained = this.getConstrainedSize(widgetInfo.widget, scaledWidth, scaledHeight);
       widgetInfo.x = margin + ((widgetInfo.x - margin) * positionWidthScale);
       widgetInfo.y = margin + ((widgetInfo.y - margin) * heightScale);
       widgetInfo.width = constrained.width;
-      widgetInfo.height = constrained.height;
+      widgetInfo.expandedHeight = constrained.height;
+      widgetInfo.height = isMinimized ? MINIMIZED_WIDGET_HEIGHT : constrained.height;
     });
   }
 
@@ -377,6 +383,7 @@ class LayoutManager {
 
   mountWidgetElement(widgetInfo) {
     const { element, layoutType } = widgetInfo;
+    element.classList.toggle('is-minimized', this.isWidgetMinimized(widgetInfo));
     if (this.mode !== 'stage') {
       element.style.position = 'absolute';
       element.style.left = `${widgetInfo.x}px`;
@@ -450,8 +457,11 @@ class LayoutManager {
     const canvas = this.getCanvasMetrics();
     const requestedWidth = Number.isFinite(width) && width > 0 ? width : 320;
     const requestedHeight = Number.isFinite(height) && height > 0 ? height : 240;
+    const minimumHeight = requestedHeight <= MINIMIZED_WIDGET_HEIGHT
+      ? MINIMIZED_WIDGET_HEIGHT
+      : GRID_SIZE * 4;
     const safeWidth = clamp(requestedWidth, Math.min(GRID_SIZE * 4, canvas.width), canvas.width);
-    const safeHeight = clamp(requestedHeight, Math.min(GRID_SIZE * 4, canvas.height), canvas.height);
+    const safeHeight = clamp(requestedHeight, Math.min(minimumHeight, canvas.height), canvas.height);
     const maxX = canvas.minX + Math.max(0, canvas.width - safeWidth);
     const maxY = canvas.minY + Math.max(0, canvas.height - safeHeight);
 
@@ -530,6 +540,9 @@ class LayoutManager {
     widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
     widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
     widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+    if (!this.isWidgetMinimized(widgetInfo)) {
+      widgetInfo.expandedHeight = widgetInfo.height;
+    }
   }
 
   clampAllWidgetsToContainer() {
@@ -786,6 +799,7 @@ class LayoutManager {
       y: finalY,
       width: finalW,
       height: finalH,
+      expandedHeight: finalH,
       visibleOnProjector: true,
       projectorVisibilityConfigured: false
     };
@@ -794,7 +808,7 @@ class LayoutManager {
     widget.widgetInfo = widgetInfo;
     this.widgets.push(widgetInfo);
     this.updateWidgetChrome(widgetInfo);
-    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
+    this.refreshWidgetMinimizeControl(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
     this.widgets.forEach((info) => {
@@ -813,47 +827,58 @@ class LayoutManager {
     return widgetElement;
   }
 
-  getWidgetProjectorVisibilityLabel(widgetInfo) {
-    return widgetInfo && widgetInfo.visibleOnProjector !== false
-      ? 'Visible to students'
-      : 'Teacher only';
+  isWidgetMinimized(widgetInfo) {
+    return layoutManagerIsTeacherMode() && widgetInfo?.visibleOnProjector === false;
   }
 
-  refreshWidgetProjectorVisibilityControl(widgetInfo) {
+  refreshWidgetMinimizeControl(widgetInfo) {
     if (!widgetInfo) return;
 
-    const projectorVisibilityButton = widgetInfo.projectorVisibilityButton || widgetInfo.widget?.projectorVisibilityButton;
-    if (!projectorVisibilityButton) return;
+    const minimizeButton = widgetInfo.minimizeButton || widgetInfo.widget?.minimizeButton;
+    const isMinimized = this.isWidgetMinimized(widgetInfo);
+    widgetInfo.element?.classList.toggle('is-minimized', isMinimized);
+    if (!minimizeButton) return;
 
-    widgetInfo.projectorVisibilityButton = projectorVisibilityButton;
-
-    const isVisible = widgetInfo.visibleOnProjector !== false;
-    projectorVisibilityButton.innerHTML = isVisible
-      ? '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from projector</span>'
-      : '<i class="fas fa-eye" aria-hidden="true"></i><span>Show on projector</span>';
-    projectorVisibilityButton.setAttribute('aria-label', isVisible ? 'Hide widget from projector' : 'Show widget on projector');
-    projectorVisibilityButton.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
-    projectorVisibilityButton.classList.toggle('is-visible', isVisible);
-    projectorVisibilityButton.classList.toggle('is-teacher-only', !isVisible);
+    widgetInfo.minimizeButton = minimizeButton;
+    minimizeButton.innerHTML = isMinimized
+      ? '<i class="fas fa-window-restore" aria-hidden="true"></i><span><strong>Restore widget</strong><small>Show to students</small></span>'
+      : '<i class="fas fa-window-minimize" aria-hidden="true"></i><span><strong>Minimise widget</strong><small>Hide from students</small></span>';
+    minimizeButton.setAttribute('aria-label', isMinimized
+      ? 'Restore widget and show it to students'
+      : 'Minimise widget and hide it from students');
+    minimizeButton.classList.toggle('is-expanded', !isMinimized);
+    minimizeButton.classList.toggle('is-minimized', isMinimized);
   }
 
-  setWidgetProjectorVisibility(widgetInfo, visibleOnProjector) {
+  setWidgetMinimized(widgetInfo, minimized) {
     if (!widgetInfo) return;
 
-    const nextVisible = visibleOnProjector !== false;
-    widgetInfo.visibleOnProjector = nextVisible;
-    widgetInfo.projectorVisibilityConfigured = true;
-    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
+    const nextMinimized = minimized === true;
+    if (nextMinimized === this.isWidgetMinimized(widgetInfo)) return;
 
-    if (this.widgetSettingsModal && this.widgetSettingsModal.classList.contains('visible') && this.activeSettingsWidget === widgetInfo.widget) {
-      const projectorToggleInput = this.widgetSettingsModal.querySelector('#projectorToggle');
-      if (projectorToggleInput) {
-        projectorToggleInput.checked = nextVisible;
+    if (nextMinimized) {
+      if (Number.isFinite(widgetInfo.height) && widgetInfo.height > MINIMIZED_WIDGET_HEIGHT) {
+        widgetInfo.expandedHeight = widgetInfo.height;
       }
+      widgetInfo.height = MINIMIZED_WIDGET_HEIGHT;
+    } else {
+      const restoreHeight = Number.isFinite(widgetInfo.expandedHeight)
+        ? widgetInfo.expandedHeight
+        : GRID_SIZE * 4;
+      const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight);
+      widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+      widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
+      widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+      widgetInfo.expandedHeight = widgetInfo.height;
     }
 
+    widgetInfo.visibleOnProjector = !nextMinimized;
+    widgetInfo.projectorVisibilityConfigured = true;
+    this.refreshWidgetMinimizeControl(widgetInfo);
+    this.mountWidgetElement(widgetInfo);
+    if (!nextMinimized) this.scheduleWidgetLayoutHook(widgetInfo);
     this.saveLayout();
-    this.updateProjectorVisibility();
   }
 
   createWidgetHeader(widget, widgetElement, widgetType) {
@@ -869,7 +894,7 @@ class LayoutManager {
     const readableName = WIDGET_DISPLAY_NAMES[widget.constructor.name]
       || nameStr.replace(/([A-Z])/g, ' $1').trim();
 
-    title.innerHTML = `<i class="fas fa-grip-vertical"></i> <span>${readableName}</span>`;
+    title.innerHTML = `<span>${readableName}</span>`;
     title.tabIndex = 0;
     title.setAttribute('role', 'button');
     title.setAttribute('aria-label', `Move ${readableName}`);
@@ -912,25 +937,24 @@ class LayoutManager {
       menuToggle.focus();
     });
 
-    // Projector visibility menu item.
+    // Minimise on the teacher screen and hide from the student projector.
     if (layoutManagerIsTeacherMode()) {
-      const projectorVisibilityButton = document.createElement('button');
-      projectorVisibilityButton.className = 'widget-projector-visibility-btn widget-header-menu__item';
-      projectorVisibilityButton.type = 'button';
-      projectorVisibilityButton.setAttribute('role', 'menuitem');
-      projectorVisibilityButton.setAttribute('aria-pressed', 'false');
-      projectorVisibilityButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from projector</span>';
+      const minimizeButton = document.createElement('button');
+      minimizeButton.className = 'widget-minimize-btn widget-header-menu__item';
+      minimizeButton.type = 'button';
+      minimizeButton.setAttribute('role', 'menuitem');
+      minimizeButton.innerHTML = '<i class="fas fa-window-minimize" aria-hidden="true"></i><span><strong>Minimise widget</strong><small>Hide from students</small></span>';
 
-      projectorVisibilityButton.addEventListener('click', (e) => {
+      minimizeButton.addEventListener('click', (e) => {
         e.stopPropagation();
         const widgetInfo = this.widgets.find(info => info.widget === widget);
         if (!widgetInfo) return;
-        this.setWidgetProjectorVisibility(widgetInfo, !widgetInfo.visibleOnProjector);
+        this.setWidgetMinimized(widgetInfo, !this.isWidgetMinimized(widgetInfo));
         closeMenu();
       });
 
-      widget.projectorVisibilityButton = projectorVisibilityButton;
-      menuItems.appendChild(projectorVisibilityButton);
+      widget.minimizeButton = minimizeButton;
+      menuItems.appendChild(minimizeButton);
     }
 
     // Settings menu item.
@@ -1167,6 +1191,7 @@ class LayoutManager {
         if (info) {
           info.width = finalWidth;
           info.height = finalHeight;
+          info.expandedHeight = finalHeight;
           info.x = finalLeft;
           info.y = finalTop;
           this.resolveWidgetPlacementConflict(info);
@@ -1331,6 +1356,9 @@ class LayoutManager {
       const widgetData = options.forProjector === true && typeof widget.serializeForProjector === 'function'
         ? widget.serializeForProjector()
         : widget.serialize();
+      const savedHeight = this.isWidgetMinimized(widgetInfo) && Number.isFinite(widgetInfo.expandedHeight)
+        ? widgetInfo.expandedHeight
+        : widgetInfo.height;
       // Return pixels
       return {
         id: widgetInfo.id,
@@ -1339,7 +1367,7 @@ class LayoutManager {
         x: widgetInfo.x,
         y: widgetInfo.y,
         width: widgetInfo.width,
-        height: widgetInfo.height,
+        height: savedHeight,
         visibleOnProjector: widgetInfo.projectorVisibilityConfigured === true
           ? widgetInfo.visibleOnProjector !== false
           : true,
@@ -1521,6 +1549,9 @@ class LayoutManager {
 
       const resolvedWidgetId = widgetData.id || this.getNextWidgetId();
       widget.widgetId = resolvedWidgetId;
+      const visibleOnProjector = widgetData.projectorVisibilityConfigured === true
+        ? widgetData.visibleOnProjector !== false
+        : true;
 
       const widgetInfo = {
         id: resolvedWidgetId,
@@ -1530,16 +1561,15 @@ class LayoutManager {
         x: finalX,
         y: finalY,
         width: finalW,
-        height: finalH,
+        height: visibleOnProjector ? finalH : MINIMIZED_WIDGET_HEIGHT,
+        expandedHeight: finalH,
         projectorVisibilityConfigured: widgetData.projectorVisibilityConfigured === true,
-        visibleOnProjector: widgetData.projectorVisibilityConfigured === true
-          ? widgetData.visibleOnProjector !== false
-          : true
+        visibleOnProjector
       };
       widget.widgetInfo = widgetInfo;
       this.widgets.push(widgetInfo);
       this.updateWidgetChrome(widgetInfo);
-      this.refreshWidgetProjectorVisibilityControl(widgetInfo);
+      this.refreshWidgetMinimizeControl(widgetInfo);
 
       if (typeof widget.setEditable === 'function') {
         widget.setEditable(this.editable);
@@ -1562,6 +1592,9 @@ class LayoutManager {
     widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
     widget.width = typeof delta.w === 'number' ? delta.w : widget.width;
     widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
+    if (!this.isWidgetMinimized(widget)) {
+      widget.expandedHeight = widget.height;
+    }
     this.clampWidgetToContainer(widget);
     this.mountWidgetElement(widget);
     this.scheduleWidgetLayoutHook(widget);

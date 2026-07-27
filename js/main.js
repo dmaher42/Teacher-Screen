@@ -6500,9 +6500,7 @@ class ClassroomScreenApp {
             modalBody.appendChild(controlsNode);
         }
 
-        // --- NEW: Add Common Controls (Close, Projector, Help) ---
-        // Since we removed the header bar, we need to add these controls to the settings modal.
-
+        // Keep the shared destructive action available in every widget settings panel.
         const commonControls = document.createElement('div');
         commonControls.className = 'modal-common-controls';
 
@@ -6515,32 +6513,9 @@ class ClassroomScreenApp {
              this.closeWidgetSettings();
         });
 
-        // Toggle Projector Visibility
-        const projectorToggle = document.createElement('label');
-        projectorToggle.className = 'widget-settings-toggle';
-        const widgetInfo = this.layoutManager.widgets.find(w => w.widget === widget);
-        const isVisible = widgetInfo ? widgetInfo.visibleOnProjector !== false : true;
-        projectorToggle.innerHTML = `
-            <input type="checkbox" id="projectorToggle" ${isVisible ? 'checked' : ''}>
-            Show on projector
-        `;
-        const projectorToggleInput = projectorToggle.querySelector('input');
-        if (projectorToggleInput) {
-            projectorToggleInput.addEventListener('change', (event) => {
-                if (!widgetInfo) return;
-                this.layoutManager.setWidgetProjectorVisibility(widgetInfo, event.target.checked);
-            });
-        }
-
-        const rightGroup = document.createElement('div');
-        rightGroup.className = 'modal-common-controls__actions';
-        rightGroup.appendChild(projectorToggle);
-
         commonControls.appendChild(removeBtn);
-        commonControls.appendChild(rightGroup);
 
         modalBody.appendChild(commonControls);
-        // ---------------------------------------------------------
 
         this.activeSettingsWidget = widget;
         this.widgetSettingsModal.classList.add('visible');

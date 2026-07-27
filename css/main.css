@@ -3941,6 +3941,22 @@ dialog::backdrop {
     overflow: visible;
 }
 
+.widget.is-minimized > .widget-content,
+.widget.is-minimized > .resize-handle {
+    display: none !important;
+}
+
+.widget.is-minimized > .widget-header {
+    flex: 1 1 auto;
+    border-bottom: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.is-minimized {
+    border-color: color-mix(in srgb, var(--widget-chrome-accent, #4097f5) 28%, var(--widget-chrome-line, #d9e4ec) 72%);
+    background: var(--widget-chrome-soft, #f4f8fb);
+    box-shadow: 0 6px 16px rgba(31, 72, 110, 0.12);
+}
+
 .layout-edit-mode .widget.is-dragging {
     transition: none;
     cursor: grabbing;
@@ -6462,7 +6478,7 @@ body.projector-view .pomodoro-settings-controls {
     font-size: 0.72rem;
 }
 
-.widget-projector-visibility-btn:not(.widget-header-menu__item) {
+.widget-minimize-btn:not(.widget-header-menu__item) {
     position: relative;
     top: auto;
     right: auto;
@@ -6486,30 +6502,47 @@ body.projector-view .pomodoro-settings-controls {
     font-size: 0.76rem;
 }
 
-.widget-projector-visibility-btn:not(.widget-header-menu__item).is-visible {
+.widget-minimize-btn:not(.widget-header-menu__item).is-expanded {
     background-color: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, var(--card-background, #ffffff) 88%);
     color: #18a957;
 }
 
-.widget-projector-visibility-btn:not(.widget-header-menu__item).is-teacher-only {
+.widget-minimize-btn:not(.widget-header-menu__item).is-minimized {
     background-color: color-mix(in srgb, var(--bg-surface, #f8fafc) 72%, var(--card-background, #ffffff) 28%);
     color: #d94a4a;
 }
 
-.widget-projector-visibility-btn:not(.widget-header-menu__item):focus-visible {
+.widget-minimize-btn:not(.widget-header-menu__item):focus-visible {
     outline: 2px solid var(--primary-color, #8e82ff);
     outline-offset: 2px;
 }
 
-.widget-projector-visibility-btn.widget-header-menu__item {
+.widget-minimize-btn.widget-header-menu__item {
     color: var(--text-primary, #1e293b);
+    min-height: 48px;
+    white-space: normal;
 }
 
-.widget-projector-visibility-btn.widget-header-menu__item.is-visible i {
+.widget-minimize-btn.widget-header-menu__item span {
+    display: grid;
+    gap: 1px;
+}
+
+.widget-minimize-btn.widget-header-menu__item strong {
+    font: inherit;
+}
+
+.widget-minimize-btn.widget-header-menu__item small {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.68rem;
+    font-weight: 550;
+}
+
+.widget-minimize-btn.widget-header-menu__item.is-expanded i {
     color: #178a4b;
 }
 
-.widget-projector-visibility-btn.widget-header-menu__item.is-teacher-only i {
+.widget-minimize-btn.widget-header-menu__item.is-minimized i {
     color: color-mix(in srgb, var(--primary-color, #8e82ff) 72%, #1d4ed8 28%);
 }
 
@@ -8987,10 +9020,6 @@ body.is-classroom-active:not(.projector-view) .widget-header-title {
     letter-spacing: 0.01em;
 }
 
-body.is-classroom-active:not(.projector-view) .widget-header-title .fa-grip-vertical {
-    color: color-mix(in srgb, var(--classroom-polish-blue) 74%, var(--text-secondary, #64748b) 26%);
-}
-
 body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:hover,
 body.is-classroom-active:not(.projector-view) .widget-header-menu > summary:focus-visible,
 body.is-classroom-active:not(.projector-view) .widget-header-menu[open] > summary {
@@ -10161,20 +10190,6 @@ body.is-classroom-active:not(.projector-view) .widget-header-title {
     color: var(--widget-chrome-ink);
     font-size: 0.78rem;
     font-weight: 750;
-}
-
-body.is-classroom-active:not(.projector-view) .widget-header-title .fa-grip-vertical {
-    display: inline-grid;
-    place-items: center;
-    flex: 0 0 25px;
-    width: 25px;
-    height: 25px;
-    border: 1px solid rgba(64, 151, 245, 0.2);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.86);
-    color: var(--widget-chrome-accent-deep);
-    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.08);
-    font-size: 0.72rem;
 }
 
 body.is-classroom-active:not(.projector-view) .widget-header-menu {

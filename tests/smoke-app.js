@@ -683,6 +683,7 @@ async function runSmoke() {
         await moreFormatting.locator('summary').click();
 
         assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => header.getBoundingClientRect().height <= 37), 'The permanent widget grab bar should stay about five percent slimmer');
+        assert(await page.locator('.widget.rich-text-widget .widget-header .fa-grip-vertical').count() === 0, 'The draggable widget header should not show a redundant grip icon');
         assert(await page.locator('.widget.rich-text-widget .widget-header-actions').count() === 0, 'Widget editing buttons should not remain exposed in a row');
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'Each widget should expose one compact options menu');
         assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => {
@@ -724,11 +725,13 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
-        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 3, 'The widget options menu should contain projector, settings, and remove actions');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 3, 'The widget options menu should contain minimise, settings, and remove actions');
         const widgetMenuScale = await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
             const popoverRect = popover.getBoundingClientRect();
             const items = Array.from(popover.querySelectorAll('.widget-header-menu__item'));
-            const labels = items.map((item) => item.querySelector('span'));
+            const labels = items
+                .filter((item) => !item.classList.contains('widget-minimize-btn'))
+                .map((item) => item.querySelector('span'));
             return {
                 width: popoverRect.width,
                 rowsFillMenu: items.every((item) => item.getBoundingClientRect().width >= popoverRect.width - 14),
@@ -744,8 +747,51 @@ async function runSmoke() {
             const rect = popover.getBoundingClientRect();
             return rect.left >= 0 && rect.right <= window.innerWidth;
         }), 'The widget options menu should remain fully inside the screen');
+
+        const richTextBoxBeforeMinimize = await getElementBox(page, '.widget.rich-text-widget');
+        const minimizeButton = page.locator('.widget.rich-text-widget .widget-minimize-btn');
+        assert(await minimizeButton.textContent().then((text) => text.includes('Minimise') && text.includes('students')), 'The widget menu should explain that minimising also hides the widget from students');
+        await minimizeButton.click();
+        await page.waitForSelector('.widget.rich-text-widget.is-minimized', { timeout: 10000 });
+        const richTextBoxWhileMinimized = await getElementBox(page, '.widget.rich-text-widget');
+        assert(richTextBoxWhileMinimized.height <= 42, 'Minimising should collapse the teacher widget to its title bar');
+        assert(richTextBoxWhileMinimized.height < richTextBoxBeforeMinimize.height - 40, 'Minimising should reclaim meaningful teacher-screen space');
+        assert(await page.locator('.widget.rich-text-widget > .widget-content').isHidden(), 'A minimised teacher widget should hide its content and resize controls');
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const widget = state.layout?.widgets?.find((item) => item?.type === 'RichTextWidget');
+            return widget?.visibleOnProjector === false && widget.height > 42;
+        }, { timeout: 10000 });
+        assert(true, 'A minimised widget should save its student-hidden state and remember its expanded height');
+
+        const minimizedProjectorPage = await context.newPage();
+        try {
+            await minimizedProjectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+            await minimizedProjectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), { timeout: 15000 });
+            await minimizedProjectorPage.waitForTimeout(500);
+            assert(await minimizedProjectorPage.locator('.widget.rich-text-widget').count() === 0, 'A minimised widget should be hidden from the student projector');
+        } finally {
+            await minimizedProjectorPage.close();
+        }
+
+        await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
+        assert(await minimizeButton.textContent().then((text) => text.includes('Restore') && text.includes('students')), 'A minimised widget should offer one clear restore-and-show action');
+        await minimizeButton.click();
+        await page.waitForSelector('.widget.rich-text-widget.is-minimized', { state: 'detached', timeout: 10000 });
+        const richTextBoxAfterRestore = await getElementBox(page, '.widget.rich-text-widget');
+        assert(Math.abs(richTextBoxAfterRestore.height - richTextBoxBeforeMinimize.height) <= 2, 'Restoring should return the teacher widget to its previous height');
+        assert(await page.locator('.widget.rich-text-widget > .widget-content').isVisible(), 'Restoring should return the widget content to the teacher screen');
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const widget = state.layout?.widgets?.find((item) => item?.type === 'RichTextWidget');
+            return widget?.visibleOnProjector === true;
+        }, { timeout: 10000 });
+        assert(true, 'Restoring should show the widget to students again');
+
+        await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
+        assert(await page.locator('#widget-settings-modal #projectorToggle').count() === 0, 'Widget settings should not repeat the replaced projector visibility switch');
         await page.locator('#widget-settings-modal .rich-text-controls--modes button', { hasText: 'Display' }).click();
         await page.locator('#widget-settings-modal .modal-close-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { state: 'hidden', timeout: 10000 });
