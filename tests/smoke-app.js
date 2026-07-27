@@ -759,10 +759,51 @@ async function runSmoke() {
         await addWidget(page, 'timer', '.widget.pomodoro-widget', 'Pomodoro');
         await page.waitForTimeout(800);
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Immediate widget movement should not require Teacher Controls');
+        const timerWidget = page.locator('.widget.pomodoro-widget');
+        assert(await timerWidget.locator('.pomodoro-display > .pomodoro-time').count() === 1, 'Timer should show one clean countdown display');
+        assert(await timerWidget.locator('.pomodoro-phase-badge, .pomodoro-rhythm-badge, .pomodoro-actions, .pomodoro-progress, .pomodoro-status').count() === 0, 'Timer canvas card should not repeat controls, badges, progress, or status text');
+        assert(await timerWidget.locator('.pomodoro-time').textContent().then((text) => /^\d{2,}:\d{2}$/.test(text.trim())), 'Timer should display countdown time only');
         const timerBoxBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
         const classroomCanvasBox = await getElementBox(page, '#widgets-container');
-        const verticalDragDelta = timerBoxBeforeDrag.y - classroomCanvasBox.y < classroomCanvasBox.height / 2 ? 200 : -200;
-        await dragElementBy(page, '.widget.pomodoro-widget .widget-header-title', 0, verticalDragDelta);
+        assert(timerBoxBeforeDrag.width <= classroomCanvasBox.width * 0.25, 'New timer should use no more than about one quarter of the canvas width');
+        assert(timerBoxBeforeDrag.height <= classroomCanvasBox.height * 0.2, 'New timer should keep a compact low-profile height');
+        const timerDragDelta = await page.evaluate(() => {
+            const timer = document.querySelector('.widget.pomodoro-widget');
+            const canvas = document.querySelector('#widgets-container');
+            if (!timer || !canvas) return null;
+
+            const timerRect = timer.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            const otherRects = Array.from(document.querySelectorAll('.widget:not(.pomodoro-widget)'))
+                .map((widget) => widget.getBoundingClientRect());
+            const gap = 20;
+
+            for (let top = canvasRect.top + 16; top <= canvasRect.bottom - timerRect.height - 16; top += 20) {
+                for (let left = canvasRect.left + 16; left <= canvasRect.right - timerRect.width - 16; left += 20) {
+                    if (Math.abs(left - timerRect.left) < 20 && Math.abs(top - timerRect.top) < 20) continue;
+
+                    const candidate = {
+                        left,
+                        top,
+                        right: left + timerRect.width,
+                        bottom: top + timerRect.height
+                    };
+                    const overlaps = otherRects.some((rect) => (
+                        candidate.left < rect.right + gap
+                        && candidate.right + gap > rect.left
+                        && candidate.top < rect.bottom + gap
+                        && candidate.bottom + gap > rect.top
+                    ));
+                    if (!overlaps) {
+                        return { x: left - timerRect.left, y: top - timerRect.top };
+                    }
+                }
+            }
+
+            return null;
+        });
+        assert(!!timerDragDelta, 'Timer drag check should find an open position on the classroom canvas');
+        await dragElementBy(page, '.widget.pomodoro-widget .widget-header-title', timerDragDelta.x, timerDragDelta.y);
         const timerBoxAfterDrag = await getElementBox(page, '.widget.pomodoro-widget');
         assert(
             Math.abs(timerBoxAfterDrag.x - timerBoxBeforeDrag.x) > 20
@@ -1114,6 +1155,18 @@ async function runSmoke() {
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
         assert(await mobilePage.locator('#layout-edit-quick-btn').count() === 0, 'Mobile should not require an Edit mode button');
         assert(await mobilePage.locator('#widgets-container.layout-edit-mode').count() === 1, 'Mobile widgets should keep their permanent interaction state');
+        await mobilePage.locator('#lesson-quick-actions [data-quick-widget="timer"]').click();
+        await mobilePage.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
+        const mobileTimerFits = await mobilePage.locator('.widget.pomodoro-widget').evaluate((timerWidget) => {
+            const displayRect = timerWidget.querySelector('.pomodoro-display')?.getBoundingClientRect();
+            const timeRect = timerWidget.querySelector('.pomodoro-time')?.getBoundingClientRect();
+            return !!displayRect && !!timeRect
+                && timeRect.left >= displayRect.left
+                && timeRect.right <= displayRect.right
+                && timeRect.top >= displayRect.top
+                && timeRect.bottom <= displayRect.bottom;
+        });
+        assert(mobileTimerFits, 'Mobile timer should stay compact without clipping the countdown');
         await openTeacherPanel(mobilePage);
         const mobileTeacherControlsScale = await mobilePage.locator('#teacher-panel').evaluate((panel) => {
             const panelRect = panel.getBoundingClientRect();

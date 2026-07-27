@@ -48,8 +48,8 @@ function isValidLayout(layout) {
 }
 
 const WIDGET_SIZE_RULES = {
-  PomodoroWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
-  TimerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3, maxW: 12, maxH: 5 },
+  PomodoroWidget: { minW: 2.5, minH: 1.25, minWidthPx: 160, defaultW: 2.5, defaultH: 1.25, maxW: 12, maxH: 5 },
+  TimerWidget: { minW: 2.5, minH: 1.25, minWidthPx: 160, defaultW: 2.5, defaultH: 1.25, maxW: 12, maxH: 5 },
   BehaviourTrackerWidget: { minW: 5, minH: 6, defaultW: 6, defaultH: 8 },
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
@@ -417,14 +417,14 @@ class LayoutManager {
     this.stageSidebar.appendChild(element);
   }
 
-  getConstrainedSize(widget, widthPx, heightPx) {
+  getConstrainedSize(widget, widthPx, heightPx, canvasOverride = null) {
     // Convert rules to pixels roughly
     const type = widget.constructor.name;
     const rules = WIDGET_SIZE_RULES[type];
     if (!rules) return { width: widthPx, height: heightPx };
 
     // Approximation of column size
-    const canvas = this.getCanvasMetrics();
+    const canvas = canvasOverride || this.getCanvasMetrics();
     const colSize = canvas.width / this.gridColumns || 80;
     const rowSize = canvas.height / this.gridRows || 80;
 
@@ -433,6 +433,8 @@ class LayoutManager {
 
     if (rules.minW) w = Math.max(w, Math.min(rules.minW * colSize, canvas.width));
     if (rules.minH) h = Math.max(h, Math.min(rules.minH * rowSize, canvas.height));
+    if (rules.minWidthPx) w = Math.max(w, Math.min(rules.minWidthPx, canvas.width));
+    if (rules.minHeightPx) h = Math.max(h, Math.min(rules.minHeightPx, canvas.height));
     if (rules.maxW) w = Math.min(w, rules.maxW * colSize);
     if (rules.maxH) h = Math.min(h, rules.maxH * rowSize);
     if (type === 'RevealManagerWidget') {
@@ -692,6 +694,8 @@ class LayoutManager {
      // Heuristic: if width is small (<= 12), assume grid units and convert.
      if (finalW <= 12) finalW = finalW * colW;
      if (finalH <= 12) finalH = finalH * rowH;
+     if (rules.minWidthPx) finalW = Math.max(finalW, Math.min(rules.minWidthPx, containerW));
+     if (rules.minHeightPx) finalH = Math.max(finalH, Math.min(rules.minHeightPx, containerH));
 
      let finalX = x;
      let finalY = y;
@@ -1040,8 +1044,8 @@ class LayoutManager {
       const canvas = this.getCanvasMetrics();
       const colW = canvas.width / this.gridColumns || COL_PX_ESTIMATE;
       const rowH = canvas.height / this.gridRows || COL_PX_ESTIMATE;
-      const minWidth = Math.round((rules.minW ? rules.minW * colW : GRID_SIZE * 4) / GRID_SIZE) * GRID_SIZE;
-      const minHeight = Math.round((rules.minH ? rules.minH * rowH : GRID_SIZE * 3) / GRID_SIZE) * GRID_SIZE;
+      const minWidth = Math.round(Math.max(rules.minW ? rules.minW * colW : GRID_SIZE * 4, rules.minWidthPx || 0) / GRID_SIZE) * GRID_SIZE;
+      const minHeight = Math.round(Math.max(rules.minH ? rules.minH * rowH : GRID_SIZE * 3, rules.minHeightPx || 0) / GRID_SIZE) * GRID_SIZE;
       let resizeFrame = null;
       let pendingResize = null;
 
@@ -1432,11 +1436,12 @@ class LayoutManager {
       if (widget.constructor.name === 'PomodoroWidget') {
         const preferredW = rules.defaultW ? rules.defaultW * colW : finalW;
         const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
-        finalW = Number.isFinite(finalW) && finalW > 0 ? finalW : preferredW;
-        finalH = Number.isFinite(finalH) && finalH > 0 ? finalH : preferredH;
-        // Pomodoro widgets should restore to the compact card shape, even if an older
-        // saved layout captured the previous oversized timer footprint.
-        finalH = preferredH;
+        const legacyDefaultW = 4 * colW;
+        const legacyDefaultH = 3 * rowH;
+        const hasLegacyDefaultWidth = Number.isFinite(finalW) && Math.abs(finalW - legacyDefaultW) <= GRID_SIZE;
+        const hasLegacyDefaultHeight = Number.isFinite(finalH) && Math.abs(finalH - legacyDefaultH) <= GRID_SIZE;
+        finalW = !Number.isFinite(finalW) || finalW <= 0 || hasLegacyDefaultWidth ? preferredW : finalW;
+        finalH = !Number.isFinite(finalH) || finalH <= 0 || hasLegacyDefaultHeight ? preferredH : finalH;
       }
 
       // Default fallback
@@ -1445,7 +1450,7 @@ class LayoutManager {
       if (finalX == null) finalX = 0;
       if (finalY == null) finalY = 0;
 
-      const constrained = this.getConstrainedSize(widget, finalW, finalH);
+      const constrained = this.getConstrainedSize(widget, finalW, finalH, { width: containerW, height: containerH });
       finalW = constrained.width;
       finalH = constrained.height;
 

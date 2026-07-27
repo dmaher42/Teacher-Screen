@@ -32,39 +32,13 @@ class PomodoroWidget {
         this.displayCard = document.createElement('section');
         this.displayCard.className = 'pomodoro-display';
 
-        this.displayHeader = document.createElement('div');
-        this.displayHeader.className = 'pomodoro-display__header';
-
-        this.phaseBadge = document.createElement('div');
-        this.phaseBadge.className = 'pomodoro-phase-badge';
-
-        this.rhythmBadge = document.createElement('div');
-        this.rhythmBadge.className = 'pomodoro-rhythm-badge';
-
-        this.displayHeader.append(this.phaseBadge, this.rhythmBadge);
-
         this.displayTime = document.createElement('div');
         this.displayTime.className = 'pomodoro-time';
+        this.displayTime.setAttribute('role', 'timer');
+        this.displayTime.setAttribute('aria-live', 'off');
+        this.displayTime.setAttribute('aria-atomic', 'true');
 
-        this.progressTrack = document.createElement('div');
-        this.progressTrack.className = 'pomodoro-progress';
-
-        this.progressFill = document.createElement('div');
-        this.progressFill.className = 'pomodoro-progress__fill';
-        this.progressTrack.appendChild(this.progressFill);
-
-        this.status = document.createElement('div');
-        this.status.className = 'widget-status pomodoro-status';
-        this.status.textContent = this.latestStatusMessage;
-
-        this.actionsRow = document.createElement('div');
-        this.actionsRow.className = 'pomodoro-actions';
-
-        this.startPauseButton = this.createControlButton('Start', () => this.toggleStartPause(), 'control-button modal-primary');
-        this.resetButton = this.createControlButton('Reset', () => this.reset(), 'control-button control-button--ghost');
-        this.actionsRow.append(this.startPauseButton, this.resetButton);
-
-        this.displayCard.append(this.displayHeader, this.displayTime, this.actionsRow, this.progressTrack, this.status);
+        this.displayCard.appendChild(this.displayTime);
 
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls pomodoro-settings-controls';
@@ -453,17 +427,12 @@ class PomodoroWidget {
     }
 
     render() {
-        this.phaseBadge.textContent = this.phase === 'break' ? 'Break' : 'Focus';
-        this.rhythmBadge.textContent = this.getRhythmConfig().label;
-        this.displayTime.textContent = this.getCountdownText();
-        this.startPauseButton.textContent = this.running ? 'Pause' : (this.phase === 'break' ? 'Resume' : 'Start');
-
-        const currentDuration = Math.max(1, this.getCurrentPhaseDurationSeconds());
-        const elapsed = Math.max(0, currentDuration - this.remainingSeconds);
-        const progress = Math.min(100, Math.max(0, (elapsed / currentDuration) * 100));
-        this.progressFill.style.width = `${progress}%`;
-
-        this.status.textContent = this.latestStatusMessage;
+        const phaseLabel = this.getPhaseLabel();
+        const countdownText = this.getCountdownText();
+        this.displayTime.textContent = countdownText;
+        this.displayTime.setAttribute('aria-label', `${phaseLabel} timer: ${countdownText}`);
+        this.displayCard.dataset.phase = this.phase;
+        this.displayCard.dataset.state = this.running ? 'running' : 'paused';
         this.updateModeButtons();
     }
 
@@ -476,9 +445,6 @@ class PomodoroWidget {
 
     setStatus(message) {
         this.latestStatusMessage = message || 'Ready to focus.';
-        if (this.status) {
-            this.status.textContent = this.latestStatusMessage;
-        }
     }
 
     openSettings() {

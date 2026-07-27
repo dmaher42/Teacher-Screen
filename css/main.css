@@ -6058,111 +6058,40 @@ body.projector-view .drawing-tool-surface {
 .pomodoro-widget-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     height: 100%;
     min-height: 0;
-    padding: 0 0 6px;
+    padding: 0;
     color: var(--text-primary, #0f172a);
     overflow: hidden;
 }
 
 .pomodoro-display {
     display: grid;
-    gap: 6px;
-    flex: 0 0 auto;
+    place-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
     min-height: 0;
-    padding: 10px 10px 10px;
-    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 82%, #ffffff 18%);
-    border-radius: 20px;
-    background:
-        radial-gradient(circle at top left, color-mix(in srgb, var(--primary-color, #8e82ff) 10%, transparent) 0, transparent 36%),
-        linear-gradient(180deg, color-mix(in srgb, var(--bg-surface, #f8fafc) 94%, #ffffff 6%), var(--card-background, #ffffff));
-    box-shadow: var(--shadow-soft, 0 2px 4px rgba(0,0,0,0.05));
-}
-
-.pomodoro-display__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.pomodoro-phase-badge,
-.pomodoro-rhythm-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 18%, var(--border-color-light, #e5e7eb) 82%);
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, #ffffff 90%);
-    color: color-mix(in srgb, var(--primary-color, #2d81ff) 88%, #0f172a 12%);
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    box-sizing: border-box;
+    padding: clamp(8px, 4cqi, 16px);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    container-type: inline-size;
 }
 
 .pomodoro-time {
-    align-self: center;
-    font-size: clamp(3.1rem, 7vw, 5.4rem);
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.06em;
+    max-width: 100%;
+    font-size: clamp(2rem, 22cqi, 4.75rem);
+    font-weight: 760;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    line-height: 0.9;
+    letter-spacing: -0.055em;
     color: color-mix(in srgb, var(--primary-color, #2d81ff) 92%, #111 8%);
     text-align: center;
-}
-
-.pomodoro-progress {
-    height: 8px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, #ffffff 16%);
-    overflow: hidden;
-}
-
-.pomodoro-progress__fill {
-    width: 0;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, var(--primary-color, #2d81ff), color-mix(in srgb, var(--primary-color, #2d81ff) 72%, #ffffff 28%));
-    transition: width 180ms linear;
-}
-
-.pomodoro-status {
-    margin: 0;
-    padding: 3px 8px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
-    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 82%, #ffffff 18%);
-    color: var(--text-secondary, #64748b);
-    font-size: 0.78rem;
-    line-height: 1.25;
-}
-
-.pomodoro-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 4px;
-    padding-top: 2px;
-}
-
-.pomodoro-actions button {
-    min-height: 26px;
-    padding: 3px 8px;
-    border-radius: 999px;
-}
-
-.pomodoro-actions .modal-primary {
-    background: color-mix(in srgb, var(--primary-color, #2d81ff) 10%, #ffffff 90%);
-    border: 1px solid color-mix(in srgb, var(--primary-color, #2d81ff) 30%, #ffffff 70%);
-    color: var(--primary-color, #2d81ff);
-}
-
-.pomodoro-actions .control-button--ghost {
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--border-color-light, #e5e7eb) 78%, #ffffff 22%);
-    color: var(--text-color, #333);
+    white-space: nowrap;
 }
 
 .pomodoro-settings-controls {
@@ -6238,13 +6167,12 @@ body.projector-view .drawing-tool-surface {
 }
 
 body.projector-view .pomodoro-widget-content {
-    gap: 12px;
     padding: 0;
     color: #f8fafc;
 }
 
 body.projector-view .pomodoro-display {
-    padding: 16px 18px 14px;
+    padding: clamp(10px, 4cqi, 22px);
     border-color: rgba(255, 255, 255, 0.12);
     background:
         radial-gradient(circle at top, rgba(147, 197, 253, 0.14), transparent 44%),
@@ -6252,28 +6180,11 @@ body.projector-view .pomodoro-display {
     box-shadow: 0 16px 40px rgba(2, 6, 23, 0.26);
 }
 
-body.projector-view .pomodoro-phase-badge,
-body.projector-view .pomodoro-rhythm-badge {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.08);
-    color: #f8fafc;
-}
-
 body.projector-view .pomodoro-time {
-    font-size: clamp(4rem, 8vw, 7rem);
+    font-size: clamp(2.5rem, 26cqi, 7rem);
     color: #ffffff;
 }
 
-body.projector-view .pomodoro-progress {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-body.projector-view .pomodoro-progress__fill {
-    background: linear-gradient(90deg, #60a5fa, #93c5fd);
-}
-
-body.projector-view .pomodoro-status,
-body.projector-view .pomodoro-actions,
 body.projector-view .pomodoro-settings-controls {
     display: none;
 }
@@ -10266,19 +10177,6 @@ body.is-classroom-active:not(.projector-view) .widget button:disabled {
     box-shadow: none;
     transform: none;
     cursor: not-allowed;
-}
-
-body.is-classroom-active:not(.projector-view) .pomodoro-actions .modal-primary {
-    border-color: var(--widget-chrome-accent-deep);
-    background: linear-gradient(135deg, #4ca3f8, var(--widget-chrome-accent-deep));
-    color: #ffffff;
-    box-shadow: 0 6px 14px rgba(23, 120, 218, 0.2);
-}
-
-body.is-classroom-active:not(.projector-view) .pomodoro-actions .modal-primary:hover {
-    border-color: #126cc3;
-    background: linear-gradient(135deg, #3498f4, #126fc9);
-    color: #ffffff;
 }
 
 body.is-classroom-active:not(.projector-view) .drawing-tool-tool.is-active {
