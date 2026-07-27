@@ -6066,6 +6066,7 @@ body.projector-view .drawing-tool-surface {
 }
 
 .pomodoro-display {
+    position: relative;
     display: grid;
     place-items: center;
     flex: 1 1 auto;
@@ -6092,6 +6093,42 @@ body.projector-view .drawing-tool-surface {
     color: color-mix(in srgb, var(--primary-color, #2d81ff) 92%, #111 8%);
     text-align: center;
     white-space: nowrap;
+}
+
+.pomodoro-inline-toggle {
+    position: absolute;
+    z-index: 3;
+    top: 6px;
+    left: 6px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid rgba(27, 74, 101, 0.12);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.84);
+    color: var(--widget-chrome-muted, #657f90);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+    font-size: 0.68rem;
+    opacity: 0.68;
+    cursor: pointer;
+    transition: opacity calc(140ms * (1 - var(--reduce-motion, 0))) ease,
+                color calc(140ms * (1 - var(--reduce-motion, 0))) ease,
+                background-color calc(140ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+.pomodoro-inline-toggle:hover,
+.pomodoro-inline-toggle:focus-visible,
+.pomodoro-display[data-state="running"] .pomodoro-inline-toggle {
+    opacity: 1;
+    color: var(--widget-chrome-accent-deep, #1778da);
+    background: rgba(64, 151, 245, 0.12);
+}
+
+.pomodoro-inline-toggle:focus-visible {
+    outline: 2px solid var(--a11y-focus-outline, #ffae00);
+    outline-offset: 1px;
 }
 
 body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header {
@@ -6231,6 +6268,7 @@ body.projector-view .pomodoro-time {
     color: #ffffff;
 }
 
+body.projector-view .pomodoro-inline-toggle,
 body.projector-view .pomodoro-settings-controls {
     display: none;
 }

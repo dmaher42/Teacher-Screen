@@ -767,6 +767,21 @@ async function runSmoke() {
         assert(await timerWidget.locator('.pomodoro-display').getAttribute('tabindex') === '0', 'Timer body should remain keyboard reachable as its move handle');
         assert(await timerWidget.locator('.pomodoro-display').evaluate((display) => getComputedStyle(display).cursor === 'grab'), 'Timer body should clearly behave as the drag handle');
         assert(await timerWidget.locator('.widget-header').evaluate((header) => getComputedStyle(header).position === 'absolute'), 'Timer options should float without increasing widget height');
+        const timerInlineToggle = timerWidget.locator('.pomodoro-inline-toggle');
+        assert(await timerInlineToggle.isVisible(), 'Compact timer should expose a start button inside the widget');
+        assert(await timerInlineToggle.getAttribute('aria-label') === 'Start timer', 'Inline timer control should explain that it starts the timer');
+        const timerTextBeforeStart = (await timerWidget.locator('.pomodoro-time').textContent()).trim();
+        await timerInlineToggle.click();
+        assert(await timerInlineToggle.getAttribute('aria-label') === 'Pause timer', 'Inline timer control should become Pause while running');
+        await page.waitForFunction((initialText) => {
+            const currentText = document.querySelector('.widget.pomodoro-widget .pomodoro-time')?.textContent?.trim();
+            return currentText && currentText !== initialText;
+        }, timerTextBeforeStart, { timeout: 3000 });
+        await timerInlineToggle.click();
+        assert(await timerInlineToggle.getAttribute('aria-label') === 'Start timer', 'Inline timer control should return to Start after pausing');
+        const timerTextAfterPause = (await timerWidget.locator('.pomodoro-time').textContent()).trim();
+        await page.waitForTimeout(1100);
+        assert((await timerWidget.locator('.pomodoro-time').textContent()).trim() === timerTextAfterPause, 'Inline Pause should stop the countdown');
         const timerOptionsButton = timerWidget.locator('.widget-header-menu > summary');
         assert(await timerOptionsButton.isVisible(), 'Compact timer should retain its options button');
         await timerOptionsButton.click();

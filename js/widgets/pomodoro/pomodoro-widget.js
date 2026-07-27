@@ -38,7 +38,15 @@ class PomodoroWidget {
         this.displayTime.setAttribute('aria-live', 'off');
         this.displayTime.setAttribute('aria-atomic', 'true');
 
-        this.displayCard.appendChild(this.displayTime);
+        this.inlineToggleButton = document.createElement('button');
+        this.inlineToggleButton.type = 'button';
+        this.inlineToggleButton.className = 'pomodoro-inline-toggle';
+        this.inlineToggleButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.toggleStartPause();
+        });
+
+        this.displayCard.append(this.displayTime, this.inlineToggleButton);
 
         this.controlsOverlay = document.createElement('div');
         this.controlsOverlay.className = 'widget-content-controls pomodoro-settings-controls';
@@ -433,6 +441,14 @@ class PomodoroWidget {
         this.displayTime.setAttribute('aria-label', `${phaseLabel} timer: ${countdownText}`);
         this.displayCard.dataset.phase = this.phase;
         this.displayCard.dataset.state = this.running ? 'running' : 'paused';
+        if (this.inlineToggleButton) {
+            const actionLabel = this.running ? 'Pause timer' : 'Start timer';
+            const actionIcon = this.running ? 'fa-pause' : 'fa-play';
+            this.inlineToggleButton.innerHTML = `<i class="fas ${actionIcon}" aria-hidden="true"></i>`;
+            this.inlineToggleButton.setAttribute('aria-label', actionLabel);
+            this.inlineToggleButton.setAttribute('aria-pressed', this.running ? 'true' : 'false');
+            this.inlineToggleButton.title = actionLabel;
+        }
         this.updateModeButtons();
     }
 
