@@ -1055,6 +1055,64 @@ async function runSmoke() {
         assert(slidesKeyboardIsolation.activeBeforeTyping && !slidesKeyboardIsolation.arrowPrevented, 'Slides should leave arrow keys alone while typing in another field');
         assert(slidesKeyboardIsolation.activeBeforeOutsidePointer && slidesKeyboardIsolation.clearedAfterOutsidePointer, 'Slides should release keyboard ownership when the teacher clicks elsewhere');
 
+        await page.locator('#project-screen-name-input').focus();
+        await smokeSlidesWidget.locator('.reveal-launch-btn').focus();
+        const teacherSlidesVisibilityResume = await page.evaluate(async () => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            if (!widget) throw new Error('Slides widget instance was not active for visibility checks');
+            const revealSurface = widget.inlineDeckContainer.querySelector('.reveal');
+            const originalRenderActiveDeck = widget.renderActiveDeck;
+            let rebuildCount = 0;
+            widget.renderActiveDeck = async () => {
+                rebuildCount += 1;
+                return null;
+            };
+            try {
+                widget.handleDocumentVisibilityChange();
+                await new Promise((resolve) => setTimeout(resolve, 250));
+            } finally {
+                widget.renderActiveDeck = originalRenderActiveDeck;
+            }
+            return {
+                rebuildCount,
+                sameSurface: revealSurface === widget.inlineDeckContainer.querySelector('.reveal')
+            };
+        });
+        assert(teacherSlidesVisibilityResume.rebuildCount === 0 && teacherSlidesVisibilityResume.sameSurface, 'Teacher Slides should not rebuild when the browser tab becomes visible again');
+
+        const externalSlidesVisibilityResume = await page.evaluate(async () => {
+            const previousActive = window.RevealManagerWidget.activeInstance;
+            const widget = new window.RevealManagerWidget();
+            widget.persistActiveDeckState = () => {};
+            widget.activeDeck = {
+                id: Date.now(),
+                name: 'External visibility check',
+                type: 'google-slides',
+                sourceUrl: 'https://docs.google.com/presentation/d/visibility-check/edit'
+            };
+            widget.renderExternalDeckScaffold(widget.activeDeck);
+            const externalSurface = widget.inlineDeckContainer.firstElementChild;
+            const originalRenderActiveDeck = widget.renderActiveDeck;
+            let rebuildCount = 0;
+            widget.renderActiveDeck = async () => {
+                rebuildCount += 1;
+                return null;
+            };
+            try {
+                widget.handleDocumentVisibilityChange();
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                return {
+                    rebuildCount,
+                    sameSurface: externalSurface === widget.inlineDeckContainer.firstElementChild
+                };
+            } finally {
+                widget.renderActiveDeck = originalRenderActiveDeck;
+                widget.remove();
+                window.RevealManagerWidget.activeInstance = previousActive;
+            }
+        });
+        assert(externalSlidesVisibilityResume.rebuildCount === 0 && externalSlidesVisibilityResume.sameSurface, 'Embedded Slides should keep the same frame when the browser tab becomes visible again');
+
         const originalSlidesSize = await smokeSlidesWidget.evaluate((widget) => ({
             width: widget.style.width,
             height: widget.style.height
@@ -1469,6 +1527,28 @@ async function runSmoke() {
         assert(await publicTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Projector tracker should keep individual names private');
         assert(await projectorPage.locator('#presentation-root:has(img[src^="blob:"])').textContent().then((text) => text.includes('Stored PowerPoint')), 'Projector should restore imported PowerPoint text from the shared local document store');
         assert(await projectorPage.locator('#presentation-root img[src^="blob:"]').count() === 1, 'Projector should restore imported PowerPoint images from the shared local document store');
+        const projectorSlidesVisibilityResume = await projectorPage.evaluate(async () => {
+            const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
+            if (!widget) throw new Error('Projector Slides widget was not available for visibility checks');
+            const revealSurface = widget.inlineDeckContainer.querySelector('.reveal');
+            const originalRenderActiveDeck = widget.renderActiveDeck;
+            let rebuildCount = 0;
+            widget.renderActiveDeck = async () => {
+                rebuildCount += 1;
+                return null;
+            };
+            try {
+                widget.handleDocumentVisibilityChange();
+                await new Promise((resolve) => setTimeout(resolve, 250));
+            } finally {
+                widget.renderActiveDeck = originalRenderActiveDeck;
+            }
+            return {
+                rebuildCount,
+                sameSurface: revealSurface === widget.inlineDeckContainer.querySelector('.reveal')
+            };
+        });
+        assert(projectorSlidesVisibilityResume.rebuildCount === 0 && projectorSlidesVisibilityResume.sameSurface, 'Projector Slides should not rebuild when the browser tab becomes visible again');
 
         await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
         const deletedStoredSlides = await page.evaluate(async (deckId) => {

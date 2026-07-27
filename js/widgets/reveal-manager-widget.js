@@ -910,7 +910,7 @@ class RevealManagerWidget {
 
     handleDocumentVisibilityChange() {
         if (document.visibilityState !== 'visible') return;
-        this.ensureDeckVisible();
+        this.ensureDeckVisible({ layoutExisting: false });
     }
 
     handleSceneChanged(payload = {}) {
@@ -2272,8 +2272,8 @@ class RevealManagerWidget {
         }
     }
 
-    ensureDeckVisible() {
-        if (!this.activeDeck) return;
+    ensureDeckVisible({ layoutExisting = true } = {}) {
+        if (!this.activeDeck || document.visibilityState !== 'visible') return;
 
         if (this.renderPromise) {
             return;
@@ -2286,14 +2286,27 @@ class RevealManagerWidget {
 
         this.reactivateTimeout = window.setTimeout(async () => {
             try {
+                if (document.visibilityState !== 'visible') return;
+
                 const { activateReveal, getRevealDeck, hasMountedReveal, layoutReveal } = await import('../utils/reveal-manager.js');
+
+                if (this.activeDeck.type !== 'html') {
+                    if (!this.inlineDeckContainer.childElementCount) {
+                        await this.renderActiveDeck({ preserveIndices: true });
+                    }
+                    return;
+                }
 
                 const deck = getRevealDeck(this.inlineDeckContainer) || this.revealDeck;
                 const mounted = hasMountedReveal(this.inlineDeckContainer);
 
-                if (!mounted || !deck) {
+                if (!mounted || (layoutExisting && !deck)) {
                     await this.renderActiveDeck({ preserveIndices: true });
                     this.reactivateTimeout = null;
+                    return;
+                }
+
+                if (!deck || !layoutExisting) {
                     return;
                 }
 
