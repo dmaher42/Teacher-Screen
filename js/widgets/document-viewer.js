@@ -1,64 +1,19 @@
-const DOCUMENT_VIEWER_DB_NAME = 'teacher-screen-documents';
-const DOCUMENT_VIEWER_DB_VERSION = 1;
-const DOCUMENT_VIEWER_STORE_NAME = 'pdfs';
 const DOCUMENT_VIEWER_MAX_PDF_BYTES = 50 * 1024 * 1024;
-let documentViewerDatabasePromise = null;
-
-function openDocumentViewerDatabase() {
-    if (documentViewerDatabasePromise) {
-        return documentViewerDatabasePromise;
-    }
-
-    documentViewerDatabasePromise = new Promise((resolve, reject) => {
-        if (typeof indexedDB === 'undefined') {
-            reject(new Error('Browser document storage is unavailable.'));
-            return;
-        }
-
-        const request = indexedDB.open(DOCUMENT_VIEWER_DB_NAME, DOCUMENT_VIEWER_DB_VERSION);
-        request.onupgradeneeded = () => {
-            const database = request.result;
-            if (!database.objectStoreNames.contains(DOCUMENT_VIEWER_STORE_NAME)) {
-                database.createObjectStore(DOCUMENT_VIEWER_STORE_NAME, { keyPath: 'id' });
-            }
-        };
-        request.onerror = () => reject(request.error || new Error('Unable to open document storage.'));
-        request.onblocked = () => reject(new Error('Document storage is blocked by another open Teacher Screen tab.'));
-        request.onsuccess = () => {
-            const database = request.result;
-            database.onversionchange = () => {
-                database.close();
-                documentViewerDatabasePromise = null;
-            };
-            resolve(database);
-        };
-    }).catch((error) => {
-        documentViewerDatabasePromise = null;
-        throw error;
-    });
-
-    return documentViewerDatabasePromise;
-}
 
 async function saveDocumentViewerPdf(record) {
-    const database = await openDocumentViewerDatabase();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction(DOCUMENT_VIEWER_STORE_NAME, 'readwrite');
-        transaction.oncomplete = () => resolve(record.id);
-        transaction.onerror = () => reject(transaction.error || new Error('Unable to save the PDF.'));
-        transaction.onabort = () => reject(transaction.error || new Error('Saving the PDF was cancelled.'));
-        transaction.objectStore(DOCUMENT_VIEWER_STORE_NAME).put(record);
-    });
+    const store = window.TeacherScreenDocumentStore;
+    if (!store || typeof store.savePdf !== 'function') {
+        throw new Error('Browser document storage is unavailable.');
+    }
+    return store.savePdf(record);
 }
 
 async function loadDocumentViewerPdf(id) {
-    const database = await openDocumentViewerDatabase();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction(DOCUMENT_VIEWER_STORE_NAME, 'readonly');
-        const request = transaction.objectStore(DOCUMENT_VIEWER_STORE_NAME).get(id);
-        request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => reject(request.error || new Error('Unable to restore the PDF.'));
-    });
+    const store = window.TeacherScreenDocumentStore;
+    if (!store || typeof store.loadPdf !== 'function') {
+        throw new Error('Browser document storage is unavailable.');
+    }
+    return store.loadPdf(id);
 }
 
 class DocumentViewerWidget {

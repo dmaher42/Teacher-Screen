@@ -3,6 +3,187 @@ const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/revea
 const REVEAL_SCRIPT_TIMEOUT_MS = 2500;
 const revealStateStore = new WeakMap();
 
+const SAFE_PRESENTATION_TAGS = new Set([
+    'a', 'abbr', 'aside', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup',
+    'dd', 'del', 'details', 'dfn', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'h1', 'h2',
+    'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'kbd', 'li', 'mark', 'ol', 'p', 'pre', 'q',
+    's', 'samp', 'section', 'small', 'source', 'span', 'strong', 'sub', 'summary', 'sup', 'table',
+    'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'track', 'u', 'ul', 'var', 'video', 'audio'
+]);
+const DROP_PRESENTATION_TAGS = new Set([
+    'base', 'button', 'embed', 'form', 'head', 'iframe', 'input', 'link', 'meta', 'noscript',
+    'object', 'option', 'portal', 'script', 'select', 'style', 'svg', 'template', 'textarea', 'title'
+]);
+const SAFE_PRESENTATION_ATTRIBUTES = new Set([
+    'alt', 'autoplay', 'class', 'colspan', 'controls', 'crossorigin', 'decoding', 'height', 'hidden',
+    'id', 'kind', 'label', 'lang', 'loading', 'loop', 'muted', 'open', 'playsinline', 'poster', 'preload',
+    'rel', 'reversed', 'role', 'rowspan', 'scope', 'start', 'target', 'title', 'type', 'width'
+]);
+const SAFE_PRESENTATION_STYLE_PROPERTIES = new Set([
+    'align-items', 'align-self', 'background', 'background-color', 'border', 'border-color',
+    'border-radius', 'border-style', 'border-width', 'bottom', 'box-sizing', 'color', 'display', 'flex',
+    'flex-basis', 'flex-direction', 'flex-grow', 'flex-shrink', 'flex-wrap', 'font-family', 'font-size',
+    'font-style', 'font-weight', 'gap', 'height', 'justify-content', 'left', 'letter-spacing',
+    'line-height', 'list-style', 'list-style-position', 'margin', 'margin-bottom', 'margin-left',
+    'margin-right', 'margin-top', 'max-height', 'max-width', 'min-height', 'min-width', 'object-fit',
+    'opacity', 'overflow', 'overflow-x', 'overflow-y', 'padding', 'padding-bottom', 'padding-left',
+    'padding-right', 'padding-top', 'position', 'right', 'text-align', 'text-decoration',
+    'text-transform', 'top', 'transform', 'transform-origin', 'vertical-align', 'white-space', 'width',
+    'z-index'
+]);
+const PRESENTATION_URL_ATTRIBUTES = new Set(['href', 'poster', 'src']);
+const PRESENTATION_DATA_URL_ATTRIBUTES = new Set([
+    'data-background', 'data-background-image', 'data-background-video', 'data-src'
+]);
+
+function isSafePresentationUrl(rawValue = '', tagName = '', attributeName = '') {
+    const value = String(rawValue || '').trim();
+    if (!value) return false;
+
+    if (value.startsWith('#')) return true;
+
+    if (/^data:/i.test(value)) {
+        if (tagName === 'img' && attributeName === 'src') {
+            return /^data:image\/(?:avif|gif|jpeg|png|webp);base64,/i.test(value);
+        }
+        if ((tagName === 'audio' || tagName === 'source') && attributeName === 'src') {
+            return /^data:audio\/(?:aac|mpeg|ogg|wav|webm);base64,/i.test(value);
+        }
+        if ((tagName === 'video' || tagName === 'source') && attributeName === 'src') {
+            return /^data:video\/(?:mp4|ogg|webm);base64,/i.test(value);
+        }
+        return false;
+    }
+
+    try {
+        const parsed = new URL(value, document.baseURI);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return true;
+        if (attributeName === 'href' && (parsed.protocol === 'mailto:' || parsed.protocol === 'tel:')) return true;
+        if (parsed.protocol === 'blob:' && ['audio', 'img', 'source', 'track', 'video'].includes(tagName)) return true;
+    } catch (error) {
+        return false;
+    }
+
+    return false;
+}
+
+function sanitizePresentationStyle(rawStyle = '') {
+    const declarations = String(rawStyle || '').split(';');
+    const safeDeclarations = [];
+
+    declarations.forEach((declaration) => {
+        const separatorIndex = declaration.indexOf(':');
+        if (separatorIndex <= 0) return;
+
+        const property = declaration.slice(0, separatorIndex).trim().toLowerCase();
+        const value = declaration.slice(separatorIndex + 1).trim();
+        if (!SAFE_PRESENTATION_STYLE_PROPERTIES.has(property) || !value) return;
+        if (/[<>\\]/.test(value)
+            || /(?:expression|javascript|vbscript)\s*[:(]/i.test(value)
+            || /(?:url|image-set)\s*\(/i.test(value)
+            || /@import|behavior\s*:|-moz-binding/i.test(value)) {
+            return;
+        }
+
+        safeDeclarations.push(`${property}: ${value}`);
+    });
+
+    return safeDeclarations.join('; ');
+}
+
+function sanitizePresentationElement(element) {
+    const tagName = element.tagName.toLowerCase();
+    if (!SAFE_PRESENTATION_TAGS.has(tagName)) {
+        if (DROP_PRESENTATION_TAGS.has(tagName)) {
+            element.remove();
+            return;
+        }
+
+        const children = Array.from(element.childNodes);
+        children.forEach(sanitizePresentationNode);
+        element.replaceWith(...children);
+        return;
+    }
+
+    Array.from(element.attributes).forEach((attribute) => {
+        const name = attribute.name.toLowerCase();
+        const value = attribute.value;
+
+        if (name.startsWith('on') || name === 'srcdoc' || name === 'formaction') {
+            element.removeAttribute(attribute.name);
+            return;
+        }
+
+        if (name === 'style') {
+            const safeStyle = sanitizePresentationStyle(value);
+            if (safeStyle) {
+                element.setAttribute('style', safeStyle);
+            } else {
+                element.removeAttribute(attribute.name);
+            }
+            return;
+        }
+
+        if (PRESENTATION_URL_ATTRIBUTES.has(name)) {
+            if (!isSafePresentationUrl(value, tagName, name)) {
+                element.removeAttribute(attribute.name);
+            }
+            return;
+        }
+
+        if (name.startsWith('data-')) {
+            if (name.includes('iframe')) {
+                element.removeAttribute(attribute.name);
+                return;
+            }
+
+            if (PRESENTATION_DATA_URL_ATTRIBUTES.has(name)) {
+                const looksLikeStyleValue = name === 'data-background'
+                    && !/[<>\\]/.test(value)
+                    && !/(?:url|image-set|expression)\s*\(/i.test(value)
+                    && ((typeof CSS !== 'undefined' && CSS.supports?.('color', value))
+                        || (/gradient\s*\(/i.test(value)
+                            && typeof CSS !== 'undefined'
+                            && CSS.supports?.('background-image', value)));
+                const urls = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+                if (!looksLikeStyleValue && (urls.length === 0 || !urls.every((url) => isSafePresentationUrl(url, tagName, name)))) {
+                    element.removeAttribute(attribute.name);
+                }
+            }
+            return;
+        }
+
+        if (name.startsWith('aria-') || SAFE_PRESENTATION_ATTRIBUTES.has(name)) {
+            return;
+        }
+
+        element.removeAttribute(attribute.name);
+    });
+
+    if (tagName === 'a' && element.getAttribute('target') === '_blank') {
+        element.setAttribute('rel', 'noopener noreferrer');
+    }
+
+    Array.from(element.childNodes).forEach(sanitizePresentationNode);
+}
+
+function sanitizePresentationNode(node) {
+    if (node.nodeType === Node.COMMENT_NODE) {
+        node.remove();
+        return;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        sanitizePresentationElement(node);
+    }
+}
+
+export function sanitizePresentationMarkup(html = '') {
+    const parsed = new DOMParser().parseFromString(typeof html === 'string' ? html : '', 'text/html');
+    Array.from(parsed.body.childNodes).forEach(sanitizePresentationNode);
+    return parsed.body.innerHTML;
+}
+
 function createRevealState(root = null) {
     return {
         initialized: false,
@@ -236,8 +417,9 @@ export function mountPresentationMarkup(container, html) {
     const root = ensurePresentationRoot(container);
     if (!root) return null;
 
+    const safeHtml = sanitizePresentationMarkup(html);
     const temp = document.createElement('div');
-    temp.innerHTML = html;
+    temp.innerHTML = safeHtml;
 
     const incomingReveal = temp.querySelector('.reveal');
     const slidesTarget = root.querySelector('.slides');
@@ -247,7 +429,7 @@ export function mountPresentationMarkup(container, html) {
         const incomingSlides = incomingReveal.querySelector('.slides');
         slidesTarget.innerHTML = incomingSlides ? incomingSlides.innerHTML : incomingReveal.innerHTML;
     } else {
-        slidesTarget.innerHTML = `<section>${html}</section>`;
+        slidesTarget.innerHTML = `<section>${safeHtml}</section>`;
     }
 
     return root;

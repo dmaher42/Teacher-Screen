@@ -488,6 +488,7 @@ async function runSmoke() {
         await runDocumentViewerPdfChecks(browser, baseUrl);
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
+        await installPdfStub(context);
         const pageErrors = [];
         const consoleErrors = [];
 
@@ -949,16 +950,284 @@ async function runSmoke() {
         await page.waitForFunction(() => document.querySelectorAll('.widget.quiz-game-widget').length === 1, { timeout: 10000 });
 
         await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
-        await page.locator('.widget.reveal-manager-widget .reveal-toggle-controls-btn').click();
-        await page.locator('.widget.reveal-manager-widget .reveal-deck-name').fill('Smoke Reveal Deck');
-        await page.locator('.widget.reveal-manager-widget .reveal-content-textarea').fill('<section><h2>Smoke Slide</h2><p>Deck content</p></section>');
-        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').click();
+        const smokeSlidesWidget = page.locator('.widget.reveal-manager-widget');
+        await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
+        assert(await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Reveal HTML should show only its HTML input');
+        assert(!await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'Reveal HTML should not show the external URL input');
+        await smokeSlidesWidget.locator('.reveal-source-type').selectOption('google-slides');
+        assert(await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'Google Slides should show its share URL input');
+        assert(!await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Google Slides should hide the Reveal HTML textarea');
+        await smokeSlidesWidget.locator('.reveal-source-type').selectOption('html');
+
+        await smokeSlidesWidget.locator('.reveal-deck-name').fill('Smoke Reveal Deck');
+        await page.evaluate(() => { window.__slidesSanitizerProbe = 0; });
+        await smokeSlidesWidget.locator('.reveal-content-textarea').fill('<section data-transition="fade" style="background-color: #fff; position: relative" onclick="window.__slidesSanitizerProbe=2"><h2>Smoke Slide</h2><p>Deck content</p><img alt="probe" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" onload="window.__slidesSanitizerProbe=1"><a href="javascript:window.__slidesSanitizerProbe=3">Unsafe</a><script>window.__slidesSanitizerProbe=4</script></section>');
+        await smokeSlidesWidget.locator('.reveal-launch-btn').click();
         await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck .slides section', { timeout: 10000 });
         await page.waitForFunction(() => {
             const status = document.querySelector('.widget.reveal-manager-widget .reveal-presenter-status');
             return status && /Unable to load Reveal deck/i.test(status.textContent || '');
         }, undefined, { timeout: 10000 });
-        assert(await page.locator('.widget.reveal-manager-widget .reveal-presenter-status').textContent().then((text) => /Unable to load Reveal deck/i.test(text)), 'Slides should fail gracefully when Reveal.js is unavailable');
+        assert(await smokeSlidesWidget.locator('.reveal-presenter-status').textContent().then((text) => /Unable to load Reveal deck/i.test(text)), 'Slides should fail gracefully when Reveal.js is unavailable');
+        const sanitizedSlidesState = await smokeSlidesWidget.evaluate((widget) => {
+            const section = widget.querySelector('.reveal-inline-deck .slides section');
+            const image = section?.querySelector('img');
+            const unsafeLink = section?.querySelector('a');
+            return {
+                probe: window.__slidesSanitizerProbe,
+                scriptCount: section?.querySelectorAll('script').length || 0,
+                sectionHandler: section?.getAttribute('onclick') || '',
+                imageHandler: image?.getAttribute('onload') || '',
+                linkHref: unsafeLink?.getAttribute('href') || '',
+                transition: section?.getAttribute('data-transition') || '',
+                backgroundColour: section?.style.backgroundColor || ''
+            };
+        });
+        assert(sanitizedSlidesState.probe === 0, 'Slides should never execute pasted event handlers or scripts');
+        assert(sanitizedSlidesState.scriptCount === 0 && !sanitizedSlidesState.sectionHandler && !sanitizedSlidesState.imageHandler, 'Slides should remove executable markup before mounting a pasted deck');
+        assert(!sanitizedSlidesState.linkHref && sanitizedSlidesState.transition === 'fade' && sanitizedSlidesState.backgroundColour, 'Slides should keep safe Reveal formatting while removing unsafe links');
+
+        const slidesKeyboardIsolation = await page.evaluate(() => {
+            const slidesWidget = document.querySelector('.widget.reveal-manager-widget');
+            const slidesButton = slidesWidget?.querySelector('.reveal-launch-btn');
+            const projectNameInput = document.querySelector('#project-screen-name-input');
+            slidesButton?.focus();
+            const activeBeforeTyping = window.RevealManagerWidget?.activeInstance?.element === slidesWidget?.querySelector('.reveal-manager-widget-content');
+            projectNameInput?.focus();
+            const arrowEvent = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+            projectNameInput?.dispatchEvent(arrowEvent);
+            slidesButton?.focus();
+            const activeBeforeOutsidePointer = window.RevealManagerWidget?.activeInstance?.element === slidesWidget?.querySelector('.reveal-manager-widget-content');
+            projectNameInput?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+            return {
+                activeBeforeTyping,
+                arrowPrevented: arrowEvent.defaultPrevented,
+                activeBeforeOutsidePointer,
+                clearedAfterOutsidePointer: window.RevealManagerWidget?.activeInstance === null
+            };
+        });
+        assert(slidesKeyboardIsolation.activeBeforeTyping && !slidesKeyboardIsolation.arrowPrevented, 'Slides should leave arrow keys alone while typing in another field');
+        assert(slidesKeyboardIsolation.activeBeforeOutsidePointer && slidesKeyboardIsolation.clearedAfterOutsidePointer, 'Slides should release keyboard ownership when the teacher clicks elsewhere');
+
+        const originalSlidesSize = await smokeSlidesWidget.evaluate((widget) => ({
+            width: widget.style.width,
+            height: widget.style.height
+        }));
+        await smokeSlidesWidget.evaluate((widget) => {
+            widget.style.width = '140px';
+            widget.style.height = '460px';
+        });
+        await page.waitForFunction(() => {
+            const widget = document.querySelector('.widget.reveal-manager-widget');
+            const topbar = widget?.querySelector('.reveal-manager__topbar');
+            return widget?.getBoundingClientRect().width <= 141 && topbar && topbar.scrollWidth <= topbar.clientWidth + 1;
+        }, undefined, { timeout: 10000 });
+        const narrowSlidesLayout = await smokeSlidesWidget.evaluate((widget) => {
+            const topbar = widget.querySelector('.reveal-manager__topbar');
+            const topbarRect = topbar?.getBoundingClientRect();
+            const buttons = Array.from(topbar?.querySelectorAll('button') || []);
+            return {
+                noHorizontalScroll: !!topbar && topbar.scrollWidth <= topbar.clientWidth + 1,
+                buttonsFit: !!topbarRect && buttons.every((button) => {
+                    const rect = button.getBoundingClientRect();
+                    return rect.left >= topbarRect.left - 1 && rect.right <= topbarRect.right + 1;
+                })
+            };
+        });
+        assert(narrowSlidesLayout.noHorizontalScroll && narrowSlidesLayout.buttonsFit, 'Slides controls should remain visible without sideways scrolling in a narrow widget');
+        await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
+        assert(await smokeSlidesWidget.locator('.reveal-manager-widget-content').evaluate((content) => (
+            getComputedStyle(content).overflowY === 'auto' && content.scrollHeight > content.clientHeight
+        )), 'Narrow Slides setup should scroll vertically when it is taller than the widget');
+        await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
+        await smokeSlidesWidget.evaluate((widget, originalSize) => {
+            widget.style.width = originalSize.width;
+            widget.style.height = originalSize.height;
+        }, originalSlidesSize);
+
+        const slidesStorageFailure = await page.evaluate(() => {
+            const storagePrototype = Storage.prototype;
+            const originalSetItem = storagePrototype.setItem;
+            const widget = new window.RevealManagerWidget();
+            storagePrototype.setItem = function setItemWithQuotaFailure(key, value) {
+                if (key === 'revealDecks') {
+                    const error = new Error('Storage is full');
+                    error.name = 'QuotaExceededError';
+                    throw error;
+                }
+                return originalSetItem.call(this, key, value);
+            };
+            let saved;
+            try {
+                saved = widget.saveDecks([{ id: 'too-large', name: 'Too large', html: '<section>Large</section>' }]);
+            } finally {
+                storagePrototype.setItem = originalSetItem;
+            }
+            const status = widget.statusLabel.textContent || '';
+            widget.remove();
+            return { saved, status };
+        });
+        assert(slidesStorageFailure.saved === false && /too large/i.test(slidesStorageFailure.status), 'Slides should explain when a PDF or PowerPoint deck is too large to save');
+
+        await smokeSlidesWidget.locator('.reveal-launch-btn').focus();
+        const storedSlidesDeck = await page.evaluate(async () => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            if (!widget) throw new Error('Slides widget instance was not active');
+            await widget.stopDeck();
+
+            const deckId = Date.now();
+            const storageId = widget.createImportedDeckStorageId(deckId);
+            const assetId = `${storageId}-smoke-image`;
+            const imageBytes = Uint8Array.from(
+                atob('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='),
+                (character) => character.charCodeAt(0)
+            );
+            const imageBlob = new Blob([imageBytes, new Uint8Array(6 * 1024 * 1024)], { type: 'image/gif' });
+            const preparedDeck = widget.buildRevealDeckFromImportedSlides({
+                id: deckId,
+                name: 'Stored Slides Smoke Deck',
+                storageId,
+                sourceFormat: 'pdf',
+                sourceName: 'stored-slides-smoke.pdf',
+                sourceSize: imageBlob.size,
+                slides: [`<section><h2>Stored slide asset</h2><img data-slide-asset-id="${assetId}" alt="Stored smoke image"></section>`]
+            });
+            const deckReference = await widget.persistImportedDeck(preparedDeck, [{
+                id: assetId,
+                blob: imageBlob,
+                mimeType: imageBlob.type,
+                alt: 'Stored smoke image'
+            }]);
+            const savedDecks = widget.getSavedDecks().filter((deck) => Number(deck?.id) !== deckId);
+            savedDecks.push(deckReference);
+            if (!widget.saveDecks(savedDecks)) throw new Error('Stored Slides smoke deck metadata was not saved');
+
+            widget.renderSavedDeckOptions();
+            widget.savedSelect.value = String(deckId);
+            widget.deckNameInput.value = deckReference.name;
+            widget.sourceTypeSelect.value = 'html';
+            widget.htmlInput.value = '';
+            await widget.launchDeck(deckReference, { preserveIndices: false });
+            widget.persistActiveDeckState();
+
+            const storedRecord = await window.TeacherScreenDocumentStore.loadSlideDeck(storageId);
+            const storedAssets = await window.TeacherScreenDocumentStore.loadSlideAssets(storageId);
+            const serialized = widget.serialize();
+            const localDecksText = localStorage.getItem(widget.storageKey) || '';
+            return {
+                deckId,
+                storageId,
+                localDecksText,
+                storedRecordUsesAssetReference: storedRecord?.content?.includes('data-slide-asset-id') === true,
+                storedAssetCount: storedAssets.length,
+                storedAssetIsBlob: storedAssets[0]?.blob instanceof Blob,
+                storedAssetBytes: storedAssets[0]?.blob?.size || 0,
+                serializedStorageId: serialized.activeDeck?.storageId || '',
+                serializedContent: serialized.activeDeck?.content || '',
+                runtimeImageSource: widget.inlineDeckContainer.querySelector('img')?.src || '',
+                htmlInputDisabled: widget.htmlInput.disabled
+            };
+        });
+        assert(!storedSlidesDeck.localDecksText.includes('data:image') && !storedSlidesDeck.localDecksText.includes('Stored slide asset'), 'Imported Slides metadata should stay small instead of embedding image or slide content in localStorage');
+        assert(storedSlidesDeck.storedRecordUsesAssetReference && storedSlidesDeck.storedAssetCount === 1 && storedSlidesDeck.storedAssetIsBlob && storedSlidesDeck.storedAssetBytes > 5 * 1024 * 1024, 'Imported Slides should store a deck larger than localStorage as a real image Blob in IndexedDB');
+        assert(storedSlidesDeck.serializedStorageId === storedSlidesDeck.storageId && !storedSlidesDeck.serializedContent, 'Classroom state should serialize only the imported deck storage reference');
+        assert(storedSlidesDeck.runtimeImageSource.startsWith('blob:') && storedSlidesDeck.htmlInputDisabled, 'Stored Slides should restore a runtime image without exposing temporary asset HTML for editing');
+        await page.waitForFunction((storageId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const layouts = [state.layout, ...(Array.isArray(state.pages) ? state.pages.map((pageState) => pageState?.snapshot?.layout) : [])];
+            return layouts.some((layout) => layout?.widgets?.some((widget) => (
+                widget?.type === 'RevealManagerWidget'
+                && widget?.data?.activeDeck?.storageId === storageId
+                && !widget?.data?.activeDeck?.content
+            )));
+        }, storedSlidesDeck.storageId, { timeout: 10000 });
+        assert(true, 'Classroom persistence should keep only the imported Slides storage reference');
+
+        await smokeSlidesWidget.locator('.reveal-deck-file-input').setInputFiles({
+            name: 'stored-import-smoke.pdf',
+            mimeType: 'application/pdf',
+            buffer: Buffer.from('%PDF-1.7\nSlides import smoke fixture')
+        });
+        await page.waitForFunction(() => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            return widget?.activeDeck?.sourceName === 'stored-import-smoke.pdf'
+                && widget.inlineDeckContainer.querySelectorAll('img[src^="blob:"]').length === 2;
+        }, { timeout: 15000 });
+        const importedPdfDeck = await page.evaluate(async () => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            if (!widget?.activeDeck?.storageId) throw new Error('Imported PDF deck did not receive a storage reference');
+            const reference = widget.getPersistentDeckReference(widget.activeDeck);
+            const storedRecord = await window.TeacherScreenDocumentStore.loadSlideDeck(reference.storageId);
+            const storedAssets = await window.TeacherScreenDocumentStore.loadSlideAssets(reference.storageId);
+            return {
+                deckId: reference.id,
+                storageId: reference.storageId,
+                localDecksText: localStorage.getItem(widget.storageKey) || '',
+                storedAssetCount: storedAssets.length,
+                allAssetsAreBlobs: storedAssets.every((asset) => asset.blob instanceof Blob),
+                manifestUsesReferences: (storedRecord?.content?.match(/data-slide-asset-id/g) || []).length === 2,
+                runtimeImageCount: widget.inlineDeckContainer.querySelectorAll('img[src^="blob:"]').length,
+                serializedContent: widget.serialize().activeDeck?.content || ''
+            };
+        });
+        assert(importedPdfDeck.storedAssetCount === 2 && importedPdfDeck.allAssetsAreBlobs && importedPdfDeck.manifestUsesReferences, 'PDF import should convert each page into a separately stored image Blob');
+        assert(importedPdfDeck.runtimeImageCount === 2 && !importedPdfDeck.serializedContent && !importedPdfDeck.localDecksText.includes('data:image'), 'PDF import should render from Blob URLs while keeping saved classroom data lightweight');
+
+        const importedPptxDeck = await page.evaluate(async () => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            if (!widget) throw new Error('Slides widget instance was not active for PowerPoint import');
+            const originalJsZip = window.JSZip;
+            const presentationXml = '<p:presentation xmlns:p="urn:p" xmlns:r="urn:r"><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>';
+            const presentationRels = '<Relationships><Relationship Id="rId1" Target="slides/slide1.xml"/></Relationships>';
+            const slideXml = '<p:sld xmlns:p="urn:p" xmlns:a="urn:a" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>Stored PowerPoint</a:t></a:r></a:p></p:txBody></p:sp><p:pic><p:blipFill><a:blip r:embed="rIdImg1"/></p:blipFill></p:pic></p:spTree></p:cSld></p:sld>';
+            const slideRels = '<Relationships><Relationship Id="rIdImg1" Target="../media/image1.gif"/></Relationships>';
+            const imageBytes = Uint8Array.from(
+                atob('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='),
+                (character) => character.charCodeAt(0)
+            );
+            const entries = {
+                'ppt/presentation.xml': { async: async () => presentationXml },
+                'ppt/_rels/presentation.xml.rels': { async: async () => presentationRels },
+                'ppt/slides/slide1.xml': { async: async () => slideXml },
+                'ppt/slides/_rels/slide1.xml.rels': { async: async () => slideRels },
+                'ppt/media/image1.gif': { async: async () => new Blob([imageBytes], { type: 'image/gif' }) }
+            };
+            const fakeZip = {
+                files: Object.fromEntries(Object.keys(entries).map((name) => [name, {}])),
+                file: (name) => entries[String(name || '').replace(/\\/g, '/')] || null
+            };
+            window.JSZip = { loadAsync: async () => fakeZip };
+
+            let deckReference;
+            try {
+                deckReference = await widget.importDeckFile(new File(
+                    [new Uint8Array([80, 75, 3, 4])],
+                    'stored-import-smoke.pptx',
+                    { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }
+                ));
+            } finally {
+                window.JSZip = originalJsZip;
+            }
+            if (!deckReference?.storageId) throw new Error('Imported PowerPoint deck did not receive a storage reference');
+            const storedRecord = await window.TeacherScreenDocumentStore.loadSlideDeck(deckReference.storageId);
+            const storedAssets = await window.TeacherScreenDocumentStore.loadSlideAssets(deckReference.storageId);
+            return {
+                deckId: deckReference.id,
+                storageId: deckReference.storageId,
+                storedAssetCount: storedAssets.length,
+                storedAssetIsBlob: storedAssets[0]?.blob instanceof Blob,
+                manifestHasText: storedRecord?.content?.includes('Stored PowerPoint') === true,
+                manifestUsesAssetReference: storedRecord?.content?.includes('data-slide-asset-id') === true,
+                runtimeHasText: widget.inlineDeckContainer.textContent.includes('Stored PowerPoint'),
+                runtimeImageCount: widget.inlineDeckContainer.querySelectorAll('img[src^="blob:"]').length,
+                serializedContent: widget.serialize().activeDeck?.content || ''
+            };
+        });
+        assert(importedPptxDeck.storedAssetCount === 1 && importedPptxDeck.storedAssetIsBlob && importedPptxDeck.manifestHasText && importedPptxDeck.manifestUsesAssetReference, 'PowerPoint import should store extracted text and image files without base64 content');
+        assert(
+            importedPptxDeck.runtimeHasText && importedPptxDeck.runtimeImageCount === 1 && !importedPptxDeck.serializedContent,
+            `PowerPoint import should render from its stored manifest while classroom state remains lightweight (${JSON.stringify(importedPptxDeck)})`
+        );
 
         await addWidget(page, 'url-viewer', '.widget.url-viewer-widget', 'Web Page');
 
@@ -1013,6 +1282,7 @@ async function runSmoke() {
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]', { timeout: 10000 });
         await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
         await waitForWidgetCount(page, 8, 'Switching back to deck page one should restore its widgets');
@@ -1044,6 +1314,7 @@ async function runSmoke() {
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]', { timeout: 10000 });
         await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
@@ -1107,6 +1378,7 @@ async function runSmoke() {
         await page.waitForSelector('.widget.drawing-tool-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.quiz-game-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.reveal-manager-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]', { timeout: 10000 });
         await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
@@ -1118,6 +1390,7 @@ async function runSmoke() {
         assert(await page.locator('.widget.url-viewer-widget').count() === 1, 'Saved deck should reload the Web Page widget');
         assert(await page.locator('.widget.notes-widget').count() === 1, 'Saved deck should reload the Notes widget');
         assert(await page.locator('.widget.behaviour-tracker-widget').count() === 1, 'Saved deck should reload the learning-time tracker');
+        assert(await page.locator('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]').count() === 1, 'Saved deck should restore imported Slides from IndexedDB without re-uploading');
         assert(await page.locator('.widget.behaviour-tracker-widget').textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Saved deck should keep names off the classroom canvas');
 
         await page.locator('#dashboard-tab').dispatchEvent('click');
@@ -1139,6 +1412,7 @@ async function runSmoke() {
         await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.pomodoro-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 15000 });
+        await projectorPage.waitForSelector('#presentation-root:has(img[src^="blob:"])', { timeout: 25000 });
         assert(await projectorPage.locator('.widget.rich-text-widget').count() === 1, 'Projector should render the quick Rich Text widget');
         assert(await projectorPage.locator('.widget.pomodoro-widget').count() === 1, 'Projector should render the saved Pomodoro widget');
         assert(await projectorPage.locator('.widget.drawing-tool-widget').count() === 1, 'Projector should render the saved Drawing Tool widget');
@@ -1147,6 +1421,58 @@ async function runSmoke() {
         assert(await publicTracker.locator('.behaviour-timer-value').textContent().then((text) => text.trim() !== '00:00'), 'Projector should show the saved class lost-time total');
         assert(await publicTracker.locator('.behaviour-student-name').count() === 0, 'Projector tracker should not render student-name controls');
         assert(await publicTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Projector tracker should keep individual names private');
+        assert(await projectorPage.locator('#presentation-root:has(img[src^="blob:"])').textContent().then((text) => text.includes('Stored PowerPoint')), 'Projector should restore imported PowerPoint text from the shared local document store');
+        assert(await projectorPage.locator('#presentation-root img[src^="blob:"]').count() === 1, 'Projector should restore imported PowerPoint images from the shared local document store');
+
+        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        const deletedStoredSlides = await page.evaluate(async (deckId) => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            if (!widget) throw new Error('Slides widget instance was not active for deletion');
+            const deck = widget.getSavedDeckById(deckId);
+            const storageId = deck?.storageId || '';
+            const deleted = await widget.deleteSavedDeckById(deckId);
+            const storedRecord = storageId ? await window.TeacherScreenDocumentStore.loadSlideDeck(storageId) : null;
+            const storedAssets = storageId ? await window.TeacherScreenDocumentStore.loadSlideAssets(storageId) : [];
+            const lastDeck = widget.getLastDeck();
+            return {
+                deleted,
+                storedRecord,
+                storedAssetCount: storedAssets.length,
+                lastDeckStillReferencesDeletedStorage: lastDeck?.storageId === storageId
+            };
+        }, storedSlidesDeck.deckId);
+        assert(deletedStoredSlides.deleted && !deletedStoredSlides.storedRecord && deletedStoredSlides.storedAssetCount === 0, 'Deleting an imported Slides deck should remove its manifest and image files');
+
+        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        const deletedImportedPdf = await page.evaluate(async (deckId) => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            const deck = widget?.getSavedDeckById(deckId);
+            const storageId = deck?.storageId || '';
+            const deleted = widget ? await widget.deleteSavedDeckById(deckId) : false;
+            return {
+                deleted,
+                storedRecord: storageId ? await window.TeacherScreenDocumentStore.loadSlideDeck(storageId) : null,
+                storedAssets: storageId ? await window.TeacherScreenDocumentStore.loadSlideAssets(storageId) : []
+            };
+        }, importedPdfDeck.deckId);
+        assert(deletedImportedPdf.deleted && !deletedImportedPdf.storedRecord && deletedImportedPdf.storedAssets.length === 0, 'Deleting an imported PDF deck should clean up every stored page image');
+
+        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        const deletedImportedPptx = await page.evaluate(async (deckId) => {
+            const widget = window.RevealManagerWidget?.activeInstance;
+            const deck = widget?.getSavedDeckById(deckId);
+            const storageId = deck?.storageId || '';
+            const deleted = widget ? await widget.deleteSavedDeckById(deckId) : false;
+            const lastDeck = widget?.getLastDeck();
+            return {
+                deleted,
+                storedRecord: storageId ? await window.TeacherScreenDocumentStore.loadSlideDeck(storageId) : null,
+                storedAssets: storageId ? await window.TeacherScreenDocumentStore.loadSlideAssets(storageId) : [],
+                lastDeckStillReferencesDeletedStorage: lastDeck?.storageId === storageId
+            };
+        }, importedPptxDeck.deckId);
+        assert(deletedImportedPptx.deleted && !deletedImportedPptx.storedRecord && deletedImportedPptx.storedAssets.length === 0, 'Deleting an imported PowerPoint deck should clean up every stored image');
+        assert(!deletedImportedPptx.lastDeckStillReferencesDeletedStorage, 'Deleting the active imported deck should clear its stale last-deck shortcut');
 
         page.once('dialog', (dialog) => dialog.accept());
         await page.locator('#reset-layout').dispatchEvent('click');

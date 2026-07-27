@@ -8632,6 +8632,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     width: 100%;
     height: 100%;
     min-height: 0;
+    container-type: inline-size;
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -8769,6 +8770,10 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+}
+
+.reveal-manager-row[hidden] {
+    display: none;
 }
 
 .reveal-manager__panel .reveal-manager-row {
@@ -9033,7 +9038,8 @@ body.is-classroom-active:not(.projector-view) .url-viewer-widget-content > .widg
 }
 
 body.is-classroom-active:not(.projector-view) .reveal-manager-widget-content {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body.is-classroom-active:not(.projector-view) .reveal-manager {
@@ -9041,8 +9047,8 @@ body.is-classroom-active:not(.projector-view) .reveal-manager {
 }
 
 body.is-classroom-active:not(.projector-view) .reveal-manager__topbar {
-    position: relative;
-    top: auto;
+    position: sticky;
+    top: 0;
     min-height: 50px;
     padding: 7px 10px;
     border: 0;
@@ -9075,6 +9081,49 @@ body.is-classroom-active:not(.projector-view) .reveal-manager__stage {
 body.is-classroom-active:not(.projector-view) .reveal-container,
 body.is-classroom-active:not(.projector-view) .reveal-external-embed-shell {
     border-radius: 13px;
+}
+
+@container (max-width: 420px) {
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar {
+        flex-wrap: wrap;
+        overflow: visible;
+    }
+
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status,
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-deck-indicator {
+        order: 5;
+        flex-basis: 100%;
+    }
+}
+
+@container (max-width: 260px) {
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-btn {
+        width: 100%;
+        min-width: 0;
+        padding-inline: 0.35rem;
+    }
+
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status,
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-deck-indicator {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (max-width: 170px) {
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status,
+    body.is-classroom-active:not(.projector-view) .reveal-manager__topbar .reveal-deck-indicator {
+        grid-column: 1;
+    }
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-actions {

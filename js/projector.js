@@ -15,6 +15,7 @@ window.__ProjectorConnection = {
 
 let activePresentationSourceKey = null;
 let activePresentationLoadPromise = null;
+let activePresentationObjectUrls = new Set();
 
 function isDedicatedRevealProjectorWidget(widgetData = {}) {
     const type = widgetData.type;
@@ -82,6 +83,7 @@ const PROJECTOR_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: 'js/utils/local-document-store.js', required: true },
     { src: 'js/utils/layout-manager.js', required: true },
     { src: 'js/utils/background-manager.js', required: true },
     { src: 'assets/sounds/sound-data.js', required: false },
@@ -160,8 +162,49 @@ function clearProjectorPresentationRoot() {
 
     destroyReveal(root);
     root.innerHTML = '';
+    activePresentationObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    activePresentationObjectUrls.clear();
     activePresentationSourceKey = null;
     activePresentationLoadPromise = null;
+}
+
+async function hydrateStoredPresentationDeck(deck = null) {
+    const storageId = typeof deck?.storageId === 'string' ? deck.storageId.trim() : '';
+    const store = window.TeacherScreenDocumentStore;
+    if (!storageId || !store || typeof store.loadSlideDeck !== 'function') {
+        return '';
+    }
+
+    const [storedDeck, assets] = await Promise.all([
+        store.loadSlideDeck(storageId),
+        store.loadSlideAssets(storageId)
+    ]);
+    if (!storedDeck || typeof storedDeck.content !== 'string') {
+        throw new Error('The imported projector deck is no longer stored on this device.');
+    }
+
+    const parsed = new DOMParser().parseFromString(storedDeck.content, 'text/html');
+    const assetsById = new Map((Array.isArray(assets) ? assets : []).map((asset) => [String(asset.id), asset]));
+    const nextObjectUrls = new Set();
+    try {
+        Array.from(parsed.body.querySelectorAll('[data-slide-asset-id]')).forEach((element) => {
+            const asset = assetsById.get(String(element.getAttribute('data-slide-asset-id') || ''));
+            if (!asset || !(asset.blob instanceof Blob)) {
+                throw new Error('An imported projector slide image is missing.');
+            }
+            const objectUrl = URL.createObjectURL(asset.blob);
+            nextObjectUrls.add(objectUrl);
+            element.setAttribute('src', objectUrl);
+            element.removeAttribute('data-slide-asset-id');
+        });
+    } catch (error) {
+        nextObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+        throw error;
+    }
+
+    activePresentationObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    activePresentationObjectUrls = nextObjectUrls;
+    return parsed.body.innerHTML;
 }
 
 function getDedicatedRevealDeckState(layout = null) {
@@ -176,8 +219,8 @@ function getDedicatedRevealDeckState(layout = null) {
         && widgetData.visibleOnProjector !== false
         && revealData
         && revealData.activeDeck
-        && typeof revealData.activeDeck.content === 'string'
-        && revealData.activeDeck.content.trim()
+        && ((typeof revealData.activeDeck.content === 'string' && revealData.activeDeck.content.trim())
+            || (typeof revealData.activeDeck.storageId === 'string' && revealData.activeDeck.storageId.trim()))
         );
     }) || null;
 }
@@ -194,7 +237,11 @@ function syncRevealDeckFromLayout(layout = null) {
         ? revealData.currentIndices
         : { h: 0, v: 0 };
 
-    loadPresentationHtml(revealData.activeDeck.content)
+    const contentPromise = revealData.activeDeck.storageId
+        ? hydrateStoredPresentationDeck(revealData.activeDeck)
+        : Promise.resolve(revealData.activeDeck.content);
+    contentPromise
+        .then((content) => loadPresentationHtml(content))
         .then(() => slideRevealWhenReady(indices.h || 0, indices.v || 0))
         .catch((error) => {
             console.warn('Unable to restore Reveal deck from saved layout', error);
@@ -228,7 +275,18 @@ async function syncRevealWidgetsOnProjector(data = {}) {
 
         widget.currentIndices = nextIndices;
 
-        if (data.html && typeof widget.launchDeck === 'function') {
+        const deckReference = data.deck && typeof data.deck === 'object' ? data.deck : null;
+        if (deckReference && typeof widget.launchDeck === 'function') {
+            const activeStorageId = String(widget.activeDeck?.storageId || '');
+            const nextStorageId = String(deckReference.storageId || '');
+            const needsReload = !widget.activeDeck
+                || (nextStorageId && activeStorageId !== nextStorageId)
+                || (!nextStorageId && Number(widget.activeDeck.id) !== Number(deckReference.id));
+            if (needsReload) {
+                await widget.launchDeck(deckReference, { preserveIndices: true });
+                return;
+            }
+        } else if (data.html && typeof widget.launchDeck === 'function') {
             const nextContent = String(data.html || '');
             const needsReload = !widget.activeDeck || widget.activeDeck.content !== nextContent;
 
@@ -363,6 +421,16 @@ const handleSlideSyncPayload = async (data = {}) => {
             .then(() => slideRevealWhenReady(data.h, data.v))
             .catch((error) => {
                 console.warn('Unable to load presentation HTML', error);
+            });
+        return;
+    }
+
+    if (data.deck?.storageId) {
+        hydrateStoredPresentationDeck(data.deck)
+            .then((content) => loadPresentationHtml(content))
+            .then(() => slideRevealWhenReady(data.h, data.v))
+            .catch((error) => {
+                console.warn('Unable to load stored presentation deck', error);
             });
         return;
     }

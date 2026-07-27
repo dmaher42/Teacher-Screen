@@ -1,4 +1,7 @@
 const eventBus = window.TeacherScreenEventBus ? window.TeacherScreenEventBus.eventBus : null;
+const SLIDE_IMPORT_MAX_SOURCE_BYTES = 50 * 1024 * 1024;
+const SLIDE_IMPORT_MAX_STORED_BYTES = 150 * 1024 * 1024;
+const SLIDE_ASSET_ID_ATTRIBUTE = 'data-slide-asset-id';
 
 class RevealManagerWidget {
     static activeInstance = null;
@@ -28,6 +31,7 @@ class RevealManagerWidget {
         this.deckSlideChangedHandler = null;
         this.renderVersion = 0;
         this.renderPromise = null;
+        this.runtimeObjectUrls = new Set();
 
         const appModeUtils = window.TeacherScreenAppMode || {};
         this.appMode = appModeUtils.APP_MODE || 'teacher';
@@ -136,6 +140,7 @@ class RevealManagerWidget {
         this.handleDeleteDeck = this.handleDeleteDeck.bind(this);
         this.handleToggleControls = this.handleToggleControls.bind(this);
         this.handleRootInteraction = this.handleRootInteraction.bind(this);
+        this.handleDocumentPointerDown = this.handleDocumentPointerDown.bind(this);
         this.handleDocumentVisibilityChange = this.handleDocumentVisibilityChange.bind(this);
         this.handleSceneChanged = this.handleSceneChanged.bind(this);
         this.handleSourceTypeChange = this.handleSourceTypeChange.bind(this);
@@ -156,6 +161,7 @@ class RevealManagerWidget {
         this.externalUrlInput.addEventListener('blur', () => this.updateSourceFields());
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
+        document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);
         document.addEventListener('visibilitychange', this.handleDocumentVisibilityChange);
 
         if (eventBus && typeof eventBus.on === 'function') {
@@ -184,6 +190,20 @@ class RevealManagerWidget {
         document.addEventListener('keydown', (event) => {
             const active = RevealManagerWidget.activeInstance;
             if (!active || !active.activeDeck) return;
+
+            const target = event.target instanceof Element ? event.target : null;
+            if (event.defaultPrevented
+                || event.altKey
+                || event.ctrlKey
+                || event.metaKey
+                || target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) {
+                return;
+            }
+
+            if (!active.element?.isConnected) {
+                RevealManagerWidget.activeInstance = null;
+                return;
+            }
 
             const directionMap = {
                 ArrowLeft: 'prev',
@@ -572,6 +592,7 @@ class RevealManagerWidget {
     updateSourceFields() {
         const sourceType = this.sourceTypeSelect?.value || 'html';
         const isExternal = this.isExternalSourceType(sourceType);
+        const isStoredImport = !isExternal && this.isStoredImportDeck(this.activeDeck);
 
         if (this.htmlRow) {
             this.htmlRow.hidden = isExternal;
@@ -587,6 +608,13 @@ class RevealManagerWidget {
                 : sourceType === 'powerpoint'
                     ? 'Paste the PowerPoint web presentation URL'
                     : 'Paste the share or present URL';
+        }
+
+        if (this.htmlInput) {
+            this.htmlInput.disabled = isStoredImport;
+            this.htmlInput.placeholder = isStoredImport
+                ? `Imported ${String(this.activeDeck.sourceFormat || 'slide').toUpperCase()} deck stored on this device. Re-import the file to replace it.`
+                : 'Paste full Reveal HTML here';
         }
 
         if (this.emptyState && !this.activeDeck) {
@@ -874,6 +902,12 @@ class RevealManagerWidget {
         this.activateDeck();
     }
 
+    handleDocumentPointerDown(event) {
+        if (RevealManagerWidget.activeInstance === this && !this.element.contains(event.target)) {
+            RevealManagerWidget.activeInstance = null;
+        }
+    }
+
     handleDocumentVisibilityChange() {
         if (document.visibilityState !== 'visible') return;
         this.ensureDeckVisible();
@@ -905,17 +939,37 @@ class RevealManagerWidget {
     }
 
     saveDecks(decks) {
-        localStorage.setItem(this.storageKey, JSON.stringify(decks));
-        this.emitSavedDecksChanged();
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(decks));
+            this.emitSavedDecksChanged();
+            return true;
+        } catch (error) {
+            console.warn('Unable to save reveal decks:', error);
+            const quotaExceeded = error?.name === 'QuotaExceededError'
+                || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+                || error?.code === 22
+                || error?.code === 1014;
+            this.setStatus(quotaExceeded
+                ? 'This deck is too large for Slides storage. Use Document Viewer for a PDF, or link Google Slides or PowerPoint.'
+                : 'This deck could not be saved in this browser.');
+            return false;
+        }
     }
 
     saveLastDeck(deck) {
-        const normalizedDeck = this.normalizeStoredDeck(deck);
+        const normalizedDeck = this.getPersistentDeckReference(deck);
         if (!normalizedDeck) {
-            return;
+            return false;
         }
 
-        localStorage.setItem(this.lastDeckStorageKey, JSON.stringify(normalizedDeck));
+        try {
+            localStorage.setItem(this.lastDeckStorageKey, JSON.stringify(normalizedDeck));
+            return true;
+        } catch (error) {
+            console.warn('Unable to save the last reveal deck:', error);
+            this.setStatus('Deck opened, but it is too large to restore automatically after closing.');
+            return false;
+        }
     }
 
     getLastDeck() {
@@ -951,6 +1005,22 @@ class RevealManagerWidget {
             };
         }
 
+        const storageId = typeof deck.storageId === 'string' ? deck.storageId.trim() : '';
+        if (storageId) {
+            return {
+                id: deck.id || Date.now(),
+                name: (deck.name || 'Untitled Deck').trim(),
+                type: 'html',
+                content: typeof deck.content === 'string' ? deck.content : '',
+                storageId,
+                storageKind: 'indexeddb',
+                sourceFormat: deck.sourceFormat === 'pptx' ? 'pptx' : 'pdf',
+                sourceName: String(deck.sourceName || '').trim(),
+                sourceSize: Math.max(0, Number(deck.sourceSize) || 0),
+                slideCount: Math.max(0, Number(deck.slideCount) || 0)
+            };
+        }
+
         if (typeof deck.content !== 'string') {
             return null;
         }
@@ -967,6 +1037,172 @@ class RevealManagerWidget {
         }
 
         return null;
+    }
+
+    isStoredImportDeck(deck = null) {
+        return !!(deck && typeof deck.storageId === 'string' && deck.storageId.trim());
+    }
+
+    getPersistentDeckReference(deck = null) {
+        const normalized = this.normalizeStoredDeck(deck);
+        if (!normalized) {
+            return null;
+        }
+
+        if (!this.isStoredImportDeck(normalized)) {
+            return normalized;
+        }
+
+        return {
+            id: normalized.id,
+            name: normalized.name,
+            type: 'html',
+            content: '',
+            storageId: normalized.storageId,
+            storageKind: 'indexeddb',
+            sourceFormat: normalized.sourceFormat,
+            sourceName: normalized.sourceName,
+            sourceSize: normalized.sourceSize,
+            slideCount: normalized.slideCount
+        };
+    }
+
+    getDocumentStore() {
+        const store = window.TeacherScreenDocumentStore;
+        if (!store || typeof store.saveSlideDeck !== 'function' || typeof store.loadSlideDeck !== 'function') {
+            throw new Error('Browser document storage is unavailable.');
+        }
+        return store;
+    }
+
+    createImportedDeckStorageId(deckId = Date.now()) {
+        const randomPart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        return `slides-${deckId}-${randomPart}`;
+    }
+
+    clearRuntimeObjectUrls() {
+        this.runtimeObjectUrls.forEach((url) => {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                // The browser may already have released the object URL.
+            }
+        });
+        this.runtimeObjectUrls.clear();
+    }
+
+    async hydrateStoredDeck(deck) {
+        if (!this.isStoredImportDeck(deck)) {
+            return deck;
+        }
+
+        const store = this.getDocumentStore();
+        const [storedDeck, assets] = await Promise.all([
+            store.loadSlideDeck(deck.storageId),
+            store.loadSlideAssets(deck.storageId)
+        ]);
+        if (!storedDeck || typeof storedDeck.content !== 'string' || !storedDeck.content.trim()) {
+            const error = new Error('The imported slide deck is no longer stored on this device.');
+            error.code = 'SLIDE_DECK_MISSING';
+            throw error;
+        }
+
+        const assetsById = new Map((Array.isArray(assets) ? assets : []).map((asset) => [String(asset.id), asset]));
+        const parsed = new DOMParser().parseFromString(storedDeck.content, 'text/html');
+        const assetElements = Array.from(parsed.body.querySelectorAll(`[${SLIDE_ASSET_ID_ATTRIBUTE}]`));
+        const nextObjectUrls = new Set();
+
+        try {
+            assetElements.forEach((element) => {
+                const assetId = String(element.getAttribute(SLIDE_ASSET_ID_ATTRIBUTE) || '');
+                const asset = assetsById.get(assetId);
+                if (!asset || !(asset.blob instanceof Blob)) {
+                    const error = new Error('One or more imported slide images are missing.');
+                    error.code = 'SLIDE_ASSET_MISSING';
+                    throw error;
+                }
+
+                const objectUrl = URL.createObjectURL(asset.blob);
+                nextObjectUrls.add(objectUrl);
+                element.setAttribute('src', objectUrl);
+                element.removeAttribute(SLIDE_ASSET_ID_ATTRIBUTE);
+            });
+        } catch (error) {
+            nextObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+            throw error;
+        }
+
+        this.clearRuntimeObjectUrls();
+        this.runtimeObjectUrls = nextObjectUrls;
+        return {
+            ...deck,
+            name: deck.name || storedDeck.name || 'Imported Deck',
+            content: parsed.body.innerHTML,
+            sourceFormat: deck.sourceFormat || storedDeck.sourceFormat || 'pdf',
+            sourceName: deck.sourceName || storedDeck.sourceName || '',
+            sourceSize: Number(deck.sourceSize) || Number(storedDeck.sourceSize) || 0,
+            slideCount: Number(deck.slideCount) || Number(storedDeck.slideCount) || 0
+        };
+    }
+
+    async persistImportedDeck(deck, assets = []) {
+        const normalized = this.normalizeStoredDeck(deck);
+        if (!normalized || !this.isStoredImportDeck(normalized) || !normalized.content.trim()) {
+            throw new Error('The imported slide deck could not be prepared for storage.');
+        }
+
+        const store = this.getDocumentStore();
+        await store.saveSlideDeck({
+            deck: {
+                id: normalized.storageId,
+                deckId: normalized.id,
+                name: normalized.name,
+                sourceFormat: normalized.sourceFormat,
+                sourceName: normalized.sourceName,
+                sourceSize: normalized.sourceSize,
+                slideCount: normalized.slideCount,
+                content: normalized.content,
+                updatedAt: Date.now()
+            },
+            assets
+        });
+        return this.getPersistentDeckReference(normalized);
+    }
+
+    async updateStoredDeckName(deck) {
+        if (!this.isStoredImportDeck(deck)) return false;
+        try {
+            return await this.getDocumentStore().updateSlideDeck(deck.storageId, { name: deck.name });
+        } catch (error) {
+            console.warn('Unable to update the stored slide deck name:', error);
+            return false;
+        }
+    }
+
+    async deleteStoredDeckData(deck) {
+        if (!this.isStoredImportDeck(deck)) return false;
+        try {
+            return await this.getDocumentStore().deleteSlideDeck(deck.storageId);
+        } catch (error) {
+            console.warn('Unable to delete stored slide deck data:', error);
+            this.setStatus('The deck was removed from the list, but its local slide files could not be cleaned up.');
+            return false;
+        }
+    }
+
+    clearLastDeckReference(deck) {
+        if (!deck) return;
+        const lastDeck = this.getLastDeck();
+        if (!lastDeck) return;
+        const sameDeck = Number(lastDeck.id) === Number(deck.id)
+            || (this.isStoredImportDeck(lastDeck)
+                && this.isStoredImportDeck(deck)
+                && lastDeck.storageId === deck.storageId);
+        if (sameDeck) {
+            localStorage.removeItem(this.lastDeckStorageKey);
+        }
     }
 
     renderSavedDeckOptions() {
@@ -1181,7 +1417,15 @@ class RevealManagerWidget {
         return deck;
     }
 
-    buildRevealDeckFromImportedSlides({ name = 'Imported Deck', slides = [] } = {}) {
+    buildRevealDeckFromImportedSlides({
+        id = Date.now(),
+        name = 'Imported Deck',
+        slides = [],
+        storageId = '',
+        sourceFormat = 'pdf',
+        sourceName = '',
+        sourceSize = 0
+    } = {}) {
         const deckName = String(name || 'Imported Deck').trim() || 'Imported Deck';
         const normalizedSlides = Array.isArray(slides) ? slides.filter(Boolean) : [];
         const slideMarkup = normalizedSlides.length > 0
@@ -1189,9 +1433,15 @@ class RevealManagerWidget {
             : '<section><h2>Imported Deck</h2><p>No slides were found in the selected file.</p></section>';
 
         return {
-            id: Date.now(),
+            id,
             name: deckName,
             type: 'html',
+            storageId,
+            storageKind: storageId ? 'indexeddb' : '',
+            sourceFormat: sourceFormat === 'pptx' ? 'pptx' : 'pdf',
+            sourceName: String(sourceName || '').trim(),
+            sourceSize: Math.max(0, Number(sourceSize) || 0),
+            slideCount: normalizedSlides.length,
             content: `
                 <div class="reveal">
                     <div class="slides">
@@ -1274,41 +1524,75 @@ class RevealManagerWidget {
             return null;
         }
 
+        if (Number(file.size) > SLIDE_IMPORT_MAX_SOURCE_BYTES) {
+            this.setStatus('This file is larger than 50 MB. Choose a smaller PDF or PowerPoint file.');
+            return null;
+        }
+
         const fileName = file.name || 'Imported Deck';
         const baseName = this.getImportedDeckBaseName(fileName);
         const lowerName = fileName.toLowerCase();
         const importedDeckName = `${baseName} Reveal`;
+        const deckId = Date.now();
+        const storageId = this.createImportedDeckStorageId(deckId);
 
-        let deck = null;
-        if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
-            deck = await this.importPdfDeck(file, importedDeckName);
-        } else if (lowerName.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-            deck = await this.importPptxDeck(file, importedDeckName);
-        } else {
-            this.setStatus('Choose a PDF or PPTX file.');
+        let imported = null;
+        try {
+            this.setStatus(`Preparing ${fileName} for local slide storage...`);
+            if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
+                imported = await this.importPdfDeck(file, importedDeckName, { deckId, storageId });
+            } else if (lowerName.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+                imported = await this.importPptxDeck(file, importedDeckName, { deckId, storageId });
+            } else {
+                this.setStatus('Choose a PDF or PPTX file.');
+                return null;
+            }
+        } catch (error) {
+            console.warn('Unable to import slide deck:', error);
+            const quotaExceeded = error?.name === 'QuotaExceededError';
+            this.setStatus(quotaExceeded
+                ? 'There is not enough browser storage for this slide deck. Remove an older local deck or choose a smaller file.'
+                : 'That slide deck could not be imported. The original file was not changed.');
             return null;
         }
 
-        if (!deck) {
+        if (!imported?.deck) {
+            return null;
+        }
+
+        let deck = null;
+        try {
+            deck = await this.persistImportedDeck(imported.deck, imported.assets);
+        } catch (error) {
+            console.warn('Unable to store imported slide deck:', error);
+            const quotaExceeded = error?.name === 'QuotaExceededError';
+            this.setStatus(quotaExceeded
+                ? 'There is not enough browser storage for this slide deck. Remove an older local deck or choose a smaller file.'
+                : 'This deck could not be saved on this device. Close other Teacher Screen tabs and try again.');
             return null;
         }
 
         const decks = this.getSavedDecks();
         decks.push(deck);
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            await this.deleteStoredDeckData(deck);
+            return null;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.sourceTypeSelect.value = 'html';
         this.deckNameInput.value = deck.name;
         this.externalUrlInput.value = '';
-        this.htmlInput.value = deck.content;
+        this.htmlInput.value = '';
         this.updateSourceFields();
-        this.launchDeck(deck, { preserveIndices: false });
-        this.setStatus(`Imported ${fileName}.`);
+        await this.launchDeck(deck, { preserveIndices: false });
+        if (this.revealDeck) {
+            this.setStatus(`Imported ${fileName}. Saved on this device for reload and projector use.`);
+        }
         return deck;
     }
 
-    async importPdfDeck(file, deckName) {
+    async importPdfDeck(file, deckName, { deckId = Date.now(), storageId = '' } = {}) {
         if (typeof pdfjsLib === 'undefined' || !pdfjsLib?.getDocument) {
             this.setStatus('PDF support is not available right now.');
             return null;
@@ -1317,6 +1601,8 @@ class RevealManagerWidget {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer), isEvalSupported: false }).promise;
         const slides = [];
+        const assets = [];
+        let storedBytes = 0;
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
             const page = await pdf.getPage(pageNumber);
@@ -1331,21 +1617,69 @@ class RevealManagerWidget {
                 viewport
             }).promise;
 
-            const imageData = canvas.toDataURL('image/png');
+            const imageBlob = await this.canvasToSlideBlob(canvas);
+            const assetId = `${storageId}-pdf-page-${pageNumber}`;
+            storedBytes += imageBlob.size;
+            if (storedBytes > SLIDE_IMPORT_MAX_STORED_BYTES) {
+                const error = new Error('The rendered slide deck is too large to store safely.');
+                error.name = 'QuotaExceededError';
+                throw error;
+            }
+            assets.push({
+                id: assetId,
+                blob: imageBlob,
+                mimeType: imageBlob.type || 'image/webp',
+                alt: `Imported PDF page ${pageNumber}`
+            });
             slides.push(`
                 <section>
-                    <img src="${imageData}" alt="Imported PDF page ${pageNumber}" style="width:100%;height:100%;object-fit:contain;">
+                    <img ${SLIDE_ASSET_ID_ATTRIBUTE}="${assetId}" alt="Imported PDF page ${pageNumber}" style="width:100%;height:100%;object-fit:contain;">
                 </section>
             `.trim());
+            canvas.width = 1;
+            canvas.height = 1;
+            if (typeof page.cleanup === 'function') page.cleanup();
         }
 
-        return this.buildRevealDeckFromImportedSlides({
-            name: deckName,
-            slides
+        if (typeof pdf.destroy === 'function') await pdf.destroy();
+        return {
+            deck: this.buildRevealDeckFromImportedSlides({
+                id: deckId,
+                name: deckName,
+                slides,
+                storageId,
+                sourceFormat: 'pdf',
+                sourceName: file.name || '',
+                sourceSize: file.size || 0
+            }),
+            assets
+        };
+    }
+
+    canvasToSlideBlob(canvas) {
+        if (!canvas || typeof canvas.toBlob !== 'function') {
+            return Promise.reject(new Error('This browser cannot prepare PDF pages for slide storage.'));
+        }
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((webpBlob) => {
+                if (webpBlob) {
+                    resolve(webpBlob);
+                    return;
+                }
+
+                canvas.toBlob((pngBlob) => {
+                    if (pngBlob) {
+                        resolve(pngBlob);
+                        return;
+                    }
+                    reject(new Error('A PDF page could not be converted into a stored slide image.'));
+                }, 'image/png');
+            }, 'image/webp', 0.9);
         });
     }
 
-    async importPptxDeck(file, deckName) {
+    async importPptxDeck(file, deckName, { deckId = Date.now(), storageId = '' } = {}) {
         if (typeof JSZip === 'undefined') {
             this.setStatus('PPTX support is not available right now.');
             return null;
@@ -1376,6 +1710,8 @@ class RevealManagerWidget {
         }
 
         const slides = [];
+        const assets = [];
+        let storedBytes = 0;
         for (let index = 0; index < slideIds.length; index += 1) {
             const relId = slideIds[index];
             const target = relMap.get(relId);
@@ -1389,21 +1725,44 @@ class RevealManagerWidget {
                 continue;
             }
 
-            const slideContent = await this.extractPptxSlideContent(zip, slidePath, slideXml, index + 1);
+            const slideContent = await this.extractPptxSlideContent(zip, slidePath, slideXml, index + 1, storageId);
+            slideContent.images.forEach((image) => {
+                if (!(image.blob instanceof Blob)) return;
+                storedBytes += image.blob.size;
+                assets.push({
+                    id: image.assetId,
+                    blob: image.blob,
+                    mimeType: image.mimeType,
+                    alt: image.alt
+                });
+            });
+            if (storedBytes > SLIDE_IMPORT_MAX_STORED_BYTES) {
+                const error = new Error('The extracted slide deck is too large to store safely.');
+                error.name = 'QuotaExceededError';
+                throw error;
+            }
             slides.push(this.buildRevealPptxSlide(slideContent, index + 1));
         }
 
-        return this.buildRevealDeckFromImportedSlides({
-            name: deckName,
-            slides
-        });
+        return {
+            deck: this.buildRevealDeckFromImportedSlides({
+                id: deckId,
+                name: deckName,
+                slides,
+                storageId,
+                sourceFormat: 'pptx',
+                sourceName: file.name || '',
+                sourceSize: file.size || 0
+            }),
+            assets
+        };
     }
 
-    async extractPptxSlideContent(zip, slidePath = '', slideXml = '', slideNumber = 1) {
+    async extractPptxSlideContent(zip, slidePath = '', slideXml = '', slideNumber = 1, storageId = '') {
         const doc = slideXml ? new DOMParser().parseFromString(slideXml, 'application/xml') : null;
         const textBlocks = this.extractPptxSlideTextBlocks(doc, slideNumber);
         const backgroundColor = this.extractPptxSlideBackgroundColor(doc);
-        const images = zip ? await this.extractPptxSlideImages(zip, slidePath, doc) : [];
+        const images = zip ? await this.extractPptxSlideImages(zip, slidePath, doc, storageId, slideNumber) : [];
 
         return {
             slideNumber,
@@ -1547,7 +1906,7 @@ class RevealManagerWidget {
         return '';
     }
 
-    async extractPptxSlideImages(zip, slidePath = '', doc = null) {
+    async extractPptxSlideImages(zip, slidePath = '', doc = null, storageId = '', slideNumber = 1) {
         if (!zip || !slidePath || !doc) {
             return [];
         }
@@ -1575,7 +1934,8 @@ class RevealManagerWidget {
             .filter(Boolean))];
 
         const images = [];
-        for (const embedId of embedIds) {
+        for (let imageIndex = 0; imageIndex < embedIds.length; imageIndex += 1) {
+            const embedId = embedIds[imageIndex];
             const target = relMap.get(embedId);
             if (!target) {
                 continue;
@@ -1583,10 +1943,12 @@ class RevealManagerWidget {
 
             const imagePath = this.resolvePptxRelativePath(slidePath, target);
             const mimeType = this.getMimeTypeForPath(imagePath);
-            const dataUrl = await this.getZipEntryDataUrl(zip, imagePath, mimeType);
-            if (dataUrl) {
+            const blob = await this.getZipEntryBlob(zip, imagePath, mimeType);
+            if (blob) {
                 images.push({
-                    src: dataUrl,
+                    assetId: `${storageId}-pptx-${slideNumber}-${imageIndex + 1}`,
+                    blob,
+                    mimeType,
                     alt: String(imagePath || 'image').split('/').pop() || 'image'
                 });
             }
@@ -1637,7 +1999,7 @@ class RevealManagerWidget {
         return mimeMap[extension] || 'application/octet-stream';
     }
 
-    async getZipEntryDataUrl(zip, entryPath = '', mimeType = 'application/octet-stream') {
+    async getZipEntryBlob(zip, entryPath = '', mimeType = 'application/octet-stream') {
         if (!zip || !entryPath) {
             return null;
         }
@@ -1652,8 +2014,8 @@ class RevealManagerWidget {
         for (const candidate of candidates) {
             const entry = zip.file(candidate);
             if (entry) {
-                const base64 = await entry.async('base64');
-                return `data:${mimeType};base64,${base64}`;
+                const blob = await entry.async('blob');
+                return blob.type === mimeType ? blob : blob.slice(0, blob.size, mimeType);
             }
         }
 
@@ -1667,8 +2029,8 @@ class RevealManagerWidget {
             return null;
         }
 
-        const base64 = await entry.async('base64');
-        return `data:${mimeType};base64,${base64}`;
+        const blob = await entry.async('blob');
+        return blob.type === mimeType ? blob : blob.slice(0, blob.size, mimeType);
     }
 
     buildRevealPptxSlide({ slideNumber = 1, backgroundColor = '', textBlocks = [], images = [] } = {}) {
@@ -1681,7 +2043,7 @@ class RevealManagerWidget {
                 <div style="display:grid; gap:0.6rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items:start;">
                     ${images.map((image) => `
                         <figure style="margin:0; padding:0.5rem; border:1px solid rgba(148,163,184,0.25); border-radius:12px; background:rgba(255,255,255,0.65);">
-                            <img src="${image.src}" alt="${this.escapeHtml(image.alt || `Slide ${slideNumber} image`)}" style="display:block; width:100%; height:auto; object-fit:contain;">
+                            <img ${SLIDE_ASSET_ID_ATTRIBUTE}="${this.escapeHtml(image.assetId || '')}" alt="${this.escapeHtml(image.alt || `Slide ${slideNumber} image`)}" style="display:block; width:100%; height:auto; object-fit:contain;">
                         </figure>
                     `).join('')}
                 </div>
@@ -1764,7 +2126,9 @@ class RevealManagerWidget {
         this.externalUrlInput.value = validation.normalizedUrl;
         this.htmlInput.value = '';
         this.updateSourceFields();
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            return null;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(nextDeck.id);
         this.setStatus(existingIndex >= 0 ? 'Saved link updated.' : 'Saved link added.');
@@ -2075,10 +2439,45 @@ class RevealManagerWidget {
         const normalizedDeck = this.normalizeStoredDeck(deck);
         if (!normalizedDeck) {
             this.setStatus('That deck could not be loaded.');
-            return;
+            return false;
         }
 
+        if (this.reactivateTimeout) {
+            clearTimeout(this.reactivateTimeout);
+            this.reactivateTimeout = null;
+        }
+        const pendingRender = this.renderPromise;
+        if (pendingRender) {
+            this.renderVersion += 1;
+            try {
+                await pendingRender;
+            } catch (error) {
+                console.warn('[Reveal] previous deck render did not finish cleanly', error);
+            }
+            this.renderPromise = null;
+        }
+        this.detachDeckListeners();
+
+        this.setStatus('Loading deck...');
+        const previousDeck = this.activeDeck;
         this.activeDeck = normalizedDeck;
+        let runtimeDeck = normalizedDeck;
+        try {
+            if (this.isStoredImportDeck(normalizedDeck)) {
+                runtimeDeck = await this.hydrateStoredDeck(normalizedDeck);
+            } else {
+                this.clearRuntimeObjectUrls();
+            }
+        } catch (error) {
+            this.activeDeck = previousDeck;
+            console.warn('Unable to restore imported slide deck:', error);
+            this.setStatus(error?.code === 'SLIDE_DECK_MISSING' || error?.code === 'SLIDE_ASSET_MISSING'
+                ? 'This imported deck is no longer stored on this device. Re-import the original file.'
+                : 'This imported deck could not be restored from browser storage.');
+            return false;
+        }
+
+        this.activeDeck = runtimeDeck;
 
         if (!preserveIndices) {
             this.currentIndices = { h: 0, v: 0 };
@@ -2086,17 +2485,20 @@ class RevealManagerWidget {
 
         this.updateDeckIndicator();
         this.updateControls();
-        this.savedSelect.value = String(deck.id || '');
+        this.savedSelect.value = String(runtimeDeck.id || '');
         this.toggleCompact(true);
-        this.setStatus('Loading deck...');
+        this.updateSourceFields();
 
         const loadedDeck = await this.renderActiveDeck({ preserveIndices });
         if (this.activeDeck.type === 'html' && !loadedDeck) {
-            return;
+            this.saveLastDeck(this.activeDeck);
+            this.persistActiveDeckState();
+            return false;
         }
 
         this.saveLastDeck(this.activeDeck);
         this.persistActiveDeckState();
+        return true;
     }
 
     async stopDeck() {
@@ -2113,6 +2515,7 @@ class RevealManagerWidget {
 
         this.inlineDeckContainer.innerHTML = '';
         this.inlineDeckContainer.__teacherScreenRevealDeck = null;
+        this.clearRuntimeObjectUrls();
         this.revealDeck = null;
         this.activeDeck = null;
         this.currentIndices = { h: 0, v: 0 };
@@ -2136,7 +2539,8 @@ class RevealManagerWidget {
             type: 'slideSync',
             h: this.currentIndices.h || 0,
             v: this.currentIndices.v || 0,
-            html: this.activeDeck.content
+            deck: this.getPersistentDeckReference(this.activeDeck),
+            html: this.isStoredImportDeck(this.activeDeck) ? '' : this.activeDeck.content
         };
 
         if (this.projectorWindow && !this.projectorWindow.closed) {
@@ -2209,7 +2613,9 @@ class RevealManagerWidget {
 
         const decks = this.getSavedDecks();
         decks.push(deck);
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            return;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.setStatus('Deck saved.');
@@ -2229,7 +2635,9 @@ class RevealManagerWidget {
 
         const decks = this.getSavedDecks();
         decks.push(deck);
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            return;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
         this.sourceTypeSelect.value = 'html';
@@ -2241,7 +2649,7 @@ class RevealManagerWidget {
         this.setStatus('Converted to Reveal.');
     }
 
-    handleLaunchSaved() {
+    async handleLaunchSaved() {
         const selectedId = Number(this.savedSelect.value);
         if (!selectedId) {
             this.setStatus('Choose a saved deck first.');
@@ -2259,9 +2667,9 @@ class RevealManagerWidget {
         this.deckNameInput.value = normalized.name;
         this.sourceTypeSelect.value = normalized.type || 'html';
         this.externalUrlInput.value = normalized.sourceUrl || '';
-        this.htmlInput.value = normalized.content || '';
+        this.htmlInput.value = this.isStoredImportDeck(normalized) ? '' : (normalized.content || '');
         this.updateSourceFields();
-        this.launchDeck(normalized, { preserveIndices: false });
+        await this.launchDeck(normalized, { preserveIndices: false });
     }
 
     async loadSavedDeckById(deckId) {
@@ -2276,7 +2684,7 @@ class RevealManagerWidget {
         this.deckNameInput.value = normalized.name;
         this.sourceTypeSelect.value = normalized.type || 'html';
         this.externalUrlInput.value = normalized.sourceUrl || '';
-        this.htmlInput.value = normalized.content || '';
+        this.htmlInput.value = this.isStoredImportDeck(normalized) ? '' : (normalized.content || '');
         this.updateSourceFields();
         await this.launchDeck(normalized, { preserveIndices: false });
         return !!this.activeDeck;
@@ -2292,7 +2700,7 @@ class RevealManagerWidget {
         this.deckNameInput.value = deck.name;
         this.sourceTypeSelect.value = deck.type || 'html';
         this.externalUrlInput.value = deck.sourceUrl || '';
-        this.htmlInput.value = deck.content || '';
+        this.htmlInput.value = this.isStoredImportDeck(deck) ? '' : (deck.content || '');
         this.updateSourceFields();
         await this.launchDeck(deck, { preserveIndices: false });
         return !!this.activeDeck;
@@ -2314,9 +2722,12 @@ class RevealManagerWidget {
             name: nextName.trim() || 'Untitled Deck'
         };
 
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            return;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(selectedId);
+        void this.updateStoredDeckName(decks[index]);
         this.setStatus('Deck renamed.');
     }
 
@@ -2338,9 +2749,12 @@ class RevealManagerWidget {
             name: trimmedName
         };
 
-        this.saveDecks(decks);
+        if (!this.saveDecks(decks)) {
+            return false;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(selectedId);
+        void this.updateStoredDeckName(decks[index]);
 
         if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
             this.activeDeck = {
@@ -2357,15 +2771,24 @@ class RevealManagerWidget {
         return true;
     }
 
-    handleDeleteDeck() {
+    async handleDeleteDeck() {
         const selectedId = Number(this.savedSelect.value);
         if (!selectedId) return;
 
-        const decks = this.getSavedDecks().filter((item) => item.id !== selectedId);
-        this.saveDecks(decks);
+        const savedDecks = this.getSavedDecks();
+        const deletedDeck = savedDecks.find((item) => Number(item?.id) === selectedId) || null;
+        const decks = savedDecks.filter((item) => Number(item?.id) !== selectedId);
+        if (!deletedDeck || !this.saveDecks(decks)) {
+            return;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = '';
-        this.setStatus('Deck deleted.');
+        this.clearLastDeckReference(deletedDeck);
+        const storedDataDeleted = !this.isStoredImportDeck(deletedDeck) || await this.deleteStoredDeckData(deletedDeck);
+        if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
+            await this.stopDeck();
+        }
+        if (storedDataDeleted) this.setStatus('Deck deleted.');
     }
 
     async deleteSavedDeckById(deckId) {
@@ -2374,18 +2797,24 @@ class RevealManagerWidget {
             return false;
         }
 
-        const nextDecks = this.getSavedDecks().filter((item) => Number(item?.id) !== selectedId);
-        if (nextDecks.length === this.getSavedDecks().length) {
+        const savedDecks = this.getSavedDecks();
+        const deletedDeck = savedDecks.find((item) => Number(item?.id) === selectedId) || null;
+        const nextDecks = savedDecks.filter((item) => Number(item?.id) !== selectedId);
+        if (!deletedDeck || nextDecks.length === savedDecks.length) {
             return false;
         }
 
-        this.saveDecks(nextDecks);
+        if (!this.saveDecks(nextDecks)) {
+            return false;
+        }
         this.renderSavedDeckOptions();
         this.savedSelect.value = '';
+        this.clearLastDeckReference(deletedDeck);
+        const storedDataDeleted = !this.isStoredImportDeck(deletedDeck) || await this.deleteStoredDeckData(deletedDeck);
 
         if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
             await this.stopDeck();
-        } else {
+        } else if (storedDataDeleted) {
             this.setStatus('Deck deleted.');
         }
 
@@ -2463,7 +2892,7 @@ class RevealManagerWidget {
     serialize() {
         return {
             type: 'RevealManagerWidget',
-            activeDeck: this.activeDeck,
+            activeDeck: this.getPersistentDeckReference(this.activeDeck),
             currentIndices: this.currentIndices
         };
     }
@@ -2482,9 +2911,9 @@ class RevealManagerWidget {
         this.deckNameInput.value = deck.name;
         this.sourceTypeSelect.value = deck.type || 'html';
         this.externalUrlInput.value = deck.sourceUrl || '';
-        this.htmlInput.value = deck.content || '';
+        this.htmlInput.value = this.isStoredImportDeck(deck) ? '' : (deck.content || '');
         this.updateSourceFields();
-        this.launchDeck(deck, { preserveIndices: true });
+        void this.launchDeck(deck, { preserveIndices: true });
     }
 
     setEditable() {}
@@ -2502,6 +2931,7 @@ class RevealManagerWidget {
         this.deckFileInput.removeEventListener('change', this.handleDeckFileSelection);
         this.element.removeEventListener('click', this.handleRootInteraction);
         this.element.removeEventListener('focusin', this.handleRootInteraction);
+        document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true);
         document.removeEventListener('visibilitychange', this.handleDocumentVisibilityChange);
 
         if (this.sceneChangeUnsubscribe) {
