@@ -6083,7 +6083,7 @@ body.projector-view .drawing-tool-surface {
 
 .pomodoro-time {
     max-width: 100%;
-    font-size: clamp(2rem, 22cqi, 4.75rem);
+    font-size: clamp(1.8rem, 20cqi, 4.25rem);
     font-weight: 760;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
@@ -6092,6 +6092,52 @@ body.projector-view .drawing-tool-surface {
     color: color-mix(in srgb, var(--primary-color, #2d81ff) 92%, #111 8%);
     text-align: center;
     white-space: nowrap;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header {
+    position: absolute;
+    z-index: 4;
+    top: 6px;
+    right: 6px;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-title {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-menu {
+    margin: 0;
+    pointer-events: auto;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-menu > summary {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    opacity: 0.68;
+    transition: opacity calc(140ms * (1 - var(--reduce-motion, 0))) ease,
+                background-color calc(140ms * (1 - var(--reduce-motion, 0))) ease;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget:hover > .widget-header .widget-header-menu > summary,
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-menu > summary:focus-visible,
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-menu[open] > summary {
+    opacity: 1;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget .pomodoro-display {
+    cursor: grab;
+    user-select: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget.is-dragging .pomodoro-display {
+    cursor: grabbing;
 }
 
 .pomodoro-settings-controls {

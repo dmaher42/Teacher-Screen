@@ -48,8 +48,8 @@ function isValidLayout(layout) {
 }
 
 const WIDGET_SIZE_RULES = {
-  PomodoroWidget: { minW: 2.5, minH: 1.25, minWidthPx: 160, defaultW: 2.5, defaultH: 1.25, maxW: 12, maxH: 5 },
-  TimerWidget: { minW: 2.5, minH: 1.25, minWidthPx: 160, defaultW: 2.5, defaultH: 1.25, maxW: 12, maxH: 5 },
+  PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
+  TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   BehaviourTrackerWidget: { minW: 5, minH: 6, defaultW: 6, defaultH: 8 },
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
@@ -487,6 +487,40 @@ class LayoutManager {
 
     header.setAttribute('aria-hidden', this.editable ? 'false' : 'true');
     header.toggleAttribute('inert', !this.editable);
+
+    const bodyDragHandle = widgetInfo.element.querySelector('.widget-body-drag-handle');
+    if (bodyDragHandle) {
+      bodyDragHandle.tabIndex = this.editable ? 0 : -1;
+    }
+  }
+
+  handleWidgetMoveKeydown(event, widgetElement) {
+    const step = event.shiftKey ? GRID_SIZE * 2 : GRID_SIZE;
+    const movement = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step]
+    }[event.key];
+    if (!movement || !this.editable) return;
+
+    event.preventDefault();
+    const widgetInfo = this.widgets.find(info => info.element === widgetElement);
+    if (!widgetInfo) return;
+
+    const bounded = this.normalizeWidgetDragBounds(
+      widgetInfo.x + movement[0],
+      widgetInfo.y + movement[1],
+      widgetInfo.width,
+      widgetInfo.height
+    );
+    widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+    widgetElement.style.left = `${widgetInfo.x}px`;
+    widgetElement.style.top = `${widgetInfo.y}px`;
+    this.resolveWidgetPlacementConflict(widgetInfo);
+    this.emitWidgetUpdate(widgetInfo);
+    this.saveLayout({ emitFull: false });
   }
 
   clampWidgetToContainer(widgetInfo) {
@@ -841,34 +875,7 @@ class LayoutManager {
     title.setAttribute('aria-label', `Move ${readableName}`);
     title.title = `Drag to move ${readableName}`;
     title.addEventListener('mousedown', () => title.focus({ preventScroll: true }));
-    title.addEventListener('keydown', (event) => {
-      const step = event.shiftKey ? GRID_SIZE * 2 : GRID_SIZE;
-      const movement = {
-        ArrowLeft: [-step, 0],
-        ArrowRight: [step, 0],
-        ArrowUp: [0, -step],
-        ArrowDown: [0, step]
-      }[event.key];
-      if (!movement || !this.editable) return;
-
-      event.preventDefault();
-      const widgetInfo = this.widgets.find(info => info.widget === widget);
-      if (!widgetInfo) return;
-
-      const bounded = this.normalizeWidgetDragBounds(
-        widgetInfo.x + movement[0],
-        widgetInfo.y + movement[1],
-        widgetInfo.width,
-        widgetInfo.height
-      );
-      widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-      widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
-      widgetElement.style.left = `${widgetInfo.x}px`;
-      widgetElement.style.top = `${widgetInfo.y}px`;
-      this.resolveWidgetPlacementConflict(widgetInfo);
-      this.emitWidgetUpdate(widgetInfo);
-      this.saveLayout({ emitFull: false });
-    });
+    title.addEventListener('keydown', (event) => this.handleWidgetMoveKeydown(event, widgetElement));
     header.appendChild(title);
 
     const menu = document.createElement('details');
@@ -1199,10 +1206,26 @@ class LayoutManager {
       widgetElement.style.top = `${pendingPosition.y}px`;
     };
 
-    widgetElement.addEventListener('mousedown', (e) => {
-      if (!this.editable) return;
+    const bodyDragHandle = widgetElement.querySelector('.pomodoro-display');
+    if (bodyDragHandle) {
+      bodyDragHandle.classList.add('widget-body-drag-handle');
+      bodyDragHandle.setAttribute('role', 'group');
+      bodyDragHandle.setAttribute('aria-label', 'Timer. Drag to move, or use the arrow keys.');
+      bodyDragHandle.title = 'Drag anywhere on the clock to move';
+      bodyDragHandle.tabIndex = this.editable ? 0 : -1;
+      bodyDragHandle.addEventListener('keydown', (event) => this.handleWidgetMoveKeydown(event, widgetElement));
+    }
 
-      const dragHandle = e.target.closest('.widget-header-title');
+    widgetElement.addEventListener('mousedown', (e) => {
+      if (!this.editable || e.button !== 0) return;
+
+      const interactiveTarget = e.target.closest('button, summary, a, input, select, textarea, [contenteditable="true"]');
+      if (interactiveTarget && widgetElement.contains(interactiveTarget)) return;
+
+      const timerBodyHandle = widgetElement.classList.contains('pomodoro-widget')
+        ? e.target.closest('.widget-body-drag-handle')
+        : null;
+      const dragHandle = timerBodyHandle || e.target.closest('.widget-header-title');
       if (!dragHandle || !widgetElement.contains(dragHandle)) return;
 
       isDragging = true;
@@ -1438,10 +1461,21 @@ class LayoutManager {
         const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
         const legacyDefaultW = 4 * colW;
         const legacyDefaultH = 3 * rowH;
-        const hasLegacyDefaultWidth = Number.isFinite(finalW) && Math.abs(finalW - legacyDefaultW) <= GRID_SIZE;
-        const hasLegacyDefaultHeight = Number.isFinite(finalH) && Math.abs(finalH - legacyDefaultH) <= GRID_SIZE;
-        finalW = !Number.isFinite(finalW) || finalW <= 0 || hasLegacyDefaultWidth ? preferredW : finalW;
-        finalH = !Number.isFinite(finalH) || finalH <= 0 || hasLegacyDefaultHeight ? preferredH : finalH;
+        const previousCompactDefaultW = 2.5 * colW;
+        const previousCompactDefaultH = 1.25 * rowH;
+        const matchesLegacyDefault = Number.isFinite(finalW) && Number.isFinite(finalH)
+          && Math.abs(finalW - legacyDefaultW) <= GRID_SIZE
+          && Math.abs(finalH - legacyDefaultH) <= GRID_SIZE;
+        const matchesPreviousCompactDefault = Number.isFinite(finalW) && Number.isFinite(finalH)
+          && Math.abs(finalW - previousCompactDefaultW) <= GRID_SIZE
+          && Math.abs(finalH - previousCompactDefaultH) <= GRID_SIZE;
+        if (matchesLegacyDefault || matchesPreviousCompactDefault) {
+          finalW = preferredW;
+          finalH = preferredH;
+        } else {
+          finalW = !Number.isFinite(finalW) || finalW <= 0 ? preferredW : finalW;
+          finalH = !Number.isFinite(finalH) || finalH <= 0 ? preferredH : finalH;
+        }
       }
 
       // Default fallback

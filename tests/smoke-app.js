@@ -763,10 +763,20 @@ async function runSmoke() {
         assert(await timerWidget.locator('.pomodoro-display > .pomodoro-time').count() === 1, 'Timer should show one clean countdown display');
         assert(await timerWidget.locator('.pomodoro-phase-badge, .pomodoro-rhythm-badge, .pomodoro-actions, .pomodoro-progress, .pomodoro-status').count() === 0, 'Timer canvas card should not repeat controls, badges, progress, or status text');
         assert(await timerWidget.locator('.pomodoro-time').textContent().then((text) => /^\d{2,}:\d{2}$/.test(text.trim())), 'Timer should display countdown time only');
+        assert(await timerWidget.locator('.widget-header-title').isHidden(), 'Timer should not spend canvas space on a visible title bar');
+        assert(await timerWidget.locator('.pomodoro-display').getAttribute('tabindex') === '0', 'Timer body should remain keyboard reachable as its move handle');
+        assert(await timerWidget.locator('.pomodoro-display').evaluate((display) => getComputedStyle(display).cursor === 'grab'), 'Timer body should clearly behave as the drag handle');
+        assert(await timerWidget.locator('.widget-header').evaluate((header) => getComputedStyle(header).position === 'absolute'), 'Timer options should float without increasing widget height');
+        const timerOptionsButton = timerWidget.locator('.widget-header-menu > summary');
+        assert(await timerOptionsButton.isVisible(), 'Compact timer should retain its options button');
+        await timerOptionsButton.click();
+        assert(await timerWidget.locator('.widget-header-menu__popover').isVisible(), 'Compact timer options should still open');
+        await timerOptionsButton.press('Escape');
+        assert(await timerWidget.locator('.widget-header-menu__popover').isHidden(), 'Compact timer options should close with Escape');
         const timerBoxBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
         const classroomCanvasBox = await getElementBox(page, '#widgets-container');
-        assert(timerBoxBeforeDrag.width <= classroomCanvasBox.width * 0.25, 'New timer should use no more than about one quarter of the canvas width');
-        assert(timerBoxBeforeDrag.height <= classroomCanvasBox.height * 0.2, 'New timer should keep a compact low-profile height');
+        assert(timerBoxBeforeDrag.width <= classroomCanvasBox.width * 0.22, 'New timer should use only about one fifth of the canvas width');
+        assert(timerBoxBeforeDrag.height <= classroomCanvasBox.height * 0.15, 'New timer should use a single compact row of canvas height');
         const timerDragDelta = await page.evaluate(() => {
             const timer = document.querySelector('.widget.pomodoro-widget');
             const canvas = document.querySelector('#widgets-container');
@@ -803,7 +813,7 @@ async function runSmoke() {
             return null;
         });
         assert(!!timerDragDelta, 'Timer drag check should find an open position on the classroom canvas');
-        await dragElementBy(page, '.widget.pomodoro-widget .widget-header-title', timerDragDelta.x, timerDragDelta.y);
+        await dragElementBy(page, '.widget.pomodoro-widget .pomodoro-display', timerDragDelta.x, timerDragDelta.y);
         const timerBoxAfterDrag = await getElementBox(page, '.widget.pomodoro-widget');
         assert(
             Math.abs(timerBoxAfterDrag.x - timerBoxBeforeDrag.x) > 20
