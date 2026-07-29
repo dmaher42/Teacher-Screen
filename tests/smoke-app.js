@@ -657,11 +657,48 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The compact widget grab bar should always remain visible');
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
         const richTextWidget = page.locator('.widget.rich-text-widget');
+        const richTextEditor = richTextWidget.locator('.ql-editor');
         const richTextToolbar = richTextWidget.locator('.rich-text-editor-toolbar');
         const moreFormatting = richTextToolbar.locator('.rich-text-toolbar-more');
+        const textColourMenu = richTextToolbar.locator('[data-format-menu="color"]');
+        const highlightColourMenu = richTextToolbar.locator('[data-format-menu="background"]');
         assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
         assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
         assert(await richTextToolbar.getByRole('button', { name: 'Present to students' }).isVisible(), 'Text Board should expose one-click Present mode');
+
+        if (await richTextEditor.count() === 1) {
+            const selectAllRichText = async (text = 'Selection safeguard') => {
+                await richTextEditor.evaluate((root, nextText) => {
+                    const editor = window.Quill?.find(root.parentElement);
+                    if (!editor || typeof editor.setText !== 'function') {
+                        throw new Error('Rich Text editor instance was not available');
+                    }
+                    editor.setText(nextText, 'api');
+                    editor.setSelection(0, nextText.length, 'api');
+                }, text);
+            };
+            const clearQuillSelectionMemory = async () => {
+                await richTextEditor.evaluate((root) => {
+                    const editor = window.Quill.find(root.parentElement);
+                    // Some browser focus changes can clear Quill's internal saved range while a palette is open.
+                    editor.selection.savedRange = null;
+                    editor.selection.lastRange = null;
+                });
+            };
+
+            await selectAllRichText();
+            await textColourMenu.locator('summary').click();
+            await clearQuillSelectionMemory();
+            await textColourMenu.getByRole('button', { name: 'Red text' }).click();
+            assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).color) === 'rgb(220, 38, 38)', 'Text colour should survive palette focus replacing the browser selection');
+
+            await selectAllRichText();
+            await highlightColourMenu.locator('summary').click();
+            await clearQuillSelectionMemory();
+            await highlightColourMenu.getByRole('button', { name: 'Yellow highlight' }).click();
+            assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).backgroundColor) === 'rgb(254, 240, 138)', 'Highlight should survive palette focus replacing the browser selection');
+        }
+
         await moreFormatting.locator('summary').click();
         assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
         assert(await moreFormatting.getByRole('button', { name: 'Learning intention' }).isVisible(), 'More should offer the Learning intention teaching block');

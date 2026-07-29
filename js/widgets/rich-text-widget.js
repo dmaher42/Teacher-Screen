@@ -16,6 +16,7 @@ class RichTextWidget {
     this.isDisplayMode = false;
     this.presentationMode = 'normal';
     this.isApplyingSmartFormatting = false;
+    this.lastEditorSelection = null;
     const appModeUtils = window.TeacherScreenAppMode || {};
     this.isProjectorMode = appModeUtils.isProjectorMode || (() => (
       window.APP_MODE === 'projector'
@@ -32,6 +33,8 @@ class RichTextWidget {
     this.handleTemplateBuilderClick = this.handleTemplateBuilderClick.bind(this);
     this.handleEditorToolbarChange = this.handleEditorToolbarChange.bind(this);
     this.handleEditorToolbarClick = this.handleEditorToolbarClick.bind(this);
+    this.handleEditorToolbarPointerDown = this.handleEditorToolbarPointerDown.bind(this);
+    this.handleEditorSelectionChange = this.handleEditorSelectionChange.bind(this);
     this.handleInlineEditClick = this.handleInlineEditClick.bind(this);
     this.syncToolbarState = this.syncToolbarState.bind(this);
     this.syncEditorLayout = this.syncEditorLayout.bind(this);
@@ -166,9 +169,10 @@ class RichTextWidget {
       }
 
       this.quill.on('text-change', this.handleTextChange);
-      this.quill.on('selection-change', this.syncToolbarState);
+      this.quill.on('selection-change', this.handleEditorSelectionChange);
       this.editorToolbar.addEventListener('change', this.handleEditorToolbarChange);
       this.editorToolbar.addEventListener('click', this.handleEditorToolbarClick);
+      this.editorToolbar.addEventListener('pointerdown', this.handleEditorToolbarPointerDown);
       this.syncToolbarState();
       this.updateDisplayModeUI();
       requestAnimationFrame(this.syncEditorLayout);
@@ -326,8 +330,7 @@ class RichTextWidget {
       ? event.target.value
       : '';
     if (toggleFormat) {
-      this.quill.focus();
-      const range = this.quill.getSelection(true) || { index: this.quill.getLength(), length: 0 };
+      const range = this.restoreEditorSelection();
       const current = this.quill.getFormat(range);
       this.quill.format(toggleFormat, !current[toggleFormat], 'user');
       event.target.value = '';
@@ -337,7 +340,7 @@ class RichTextWidget {
 
     const format = event.target.dataset.format;
     let value = event.target.value || false;
-    this.quill.focus();
+    this.restoreEditorSelection();
     if (format === 'header') {
       if (value === 'small') {
         this.quill.format('header', false, 'user');
@@ -356,14 +359,41 @@ class RichTextWidget {
     this.syncToolbarState();
   }
 
+  handleEditorSelectionChange(range) {
+    if (range) {
+      this.lastEditorSelection = { index: range.index, length: range.length };
+    }
+    this.syncToolbarState();
+  }
+
+  handleEditorToolbarPointerDown() {
+    const range = this.quill?.getSelection();
+    if (range) {
+      this.lastEditorSelection = { index: range.index, length: range.length };
+    }
+  }
+
+  restoreEditorSelection() {
+    const currentRange = this.quill.getSelection();
+    const rememberedRange = currentRange || this.lastEditorSelection;
+    const editorLength = this.quill.getLength();
+    const index = Math.max(0, Math.min(Number(rememberedRange?.index) || 0, editorLength));
+    const length = Math.max(0, Math.min(Number(rememberedRange?.length) || 0, editorLength - index));
+    const range = { index, length };
+
+    this.lastEditorSelection = range;
+    this.quill.focus();
+    this.quill.setSelection(range.index, range.length, 'silent');
+    return range;
+  }
+
   handleEditorToolbarClick(event) {
     const button = event.target.closest('button');
     if (!this.quill || !button || !this.editorToolbar.contains(button)) {
       return;
     }
 
-    this.quill.focus();
-    const range = this.quill.getSelection(true) || { index: this.quill.getLength(), length: 0 };
+    const range = this.restoreEditorSelection();
     const current = this.quill.getFormat(range);
 
     if (button.dataset.format) {
@@ -386,6 +416,7 @@ class RichTextWidget {
       const existingLink = typeof current.link === 'string' ? current.link : '';
       const url = window.prompt('Paste a link', existingLink);
       if (url !== null) {
+        this.restoreEditorSelection();
         this.quill.format('link', url.trim() || false, 'user');
       }
     } else if (button.dataset.action === 'undo') {
@@ -1094,12 +1125,13 @@ class RichTextWidget {
 
     if (this.quill && typeof this.quill.off === 'function') {
       this.quill.off('text-change', this.handleTextChange);
-      this.quill.off('selection-change', this.syncToolbarState);
+      this.quill.off('selection-change', this.handleEditorSelectionChange);
     }
 
     if (this.editorToolbar) {
       this.editorToolbar.removeEventListener('change', this.handleEditorToolbarChange);
       this.editorToolbar.removeEventListener('click', this.handleEditorToolbarClick);
+      this.editorToolbar.removeEventListener('pointerdown', this.handleEditorToolbarPointerDown);
     }
 
     if (this.templateDialog) {
