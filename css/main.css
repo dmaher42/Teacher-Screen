@@ -5170,6 +5170,31 @@ body.projector-view .rich-text-inline-edit-button {
     flex: 0 0 auto;
 }
 
+.rich-text-toolbar-colour-tools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu[open] {
+    grid-column: 1 / -1;
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu summary {
+    box-sizing: border-box;
+    width: 100%;
+    justify-content: flex-start;
+    border-color: color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 60%, #ffffff 40%);
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-colour-panel {
+    position: static;
+    width: auto;
+    margin-top: 0.4rem;
+    box-shadow: none;
+}
+
 .rich-text-toolbar-colour-menu summary {
     min-height: 30px;
     display: inline-flex;
@@ -10370,10 +10395,6 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
     scrollbar-width: none;
 }
 
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main:has(.rich-text-toolbar-colour-menu[open]) {
-    overflow: visible;
-}
-
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main::-webkit-scrollbar {
     display: none;
 }
@@ -10534,13 +10555,8 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .ric
 }
 
 @container rich-text-editor (max-width: 720px) {
-    .rich-text-control-text {
+    .rich-text-toolbar-main .rich-text-control-text {
         display: none;
-    }
-
-    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-menu summary {
-        width: 30px;
-        padding-inline: 7px;
     }
 }
 
@@ -10551,20 +10567,54 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .ric
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
-        padding: 2px;
+        min-height: 30px;
+        gap: 2px;
+        padding: 1px;
     }
 
-    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
-        min-width: 92px;
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group + .rich-text-toolbar-group {
+        padding-left: 1px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
+        gap: 3px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style {
+        min-width: 82px;
+        width: 82px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--align {
+        min-width: 62px;
+        width: 62px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field select {
+        min-height: 28px;
+        padding: 3px 20px 3px 7px;
+        font-size: 0.73rem;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field::after {
+        right: 7px;
+        width: 5px;
+        height: 5px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions {
+        gap: 2px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .rich-text-toolbar-actions button {
+        min-width: 28px;
+        min-height: 28px;
+        padding: 4px 5px;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
-        min-width: 32px;
-        width: 32px;
-        padding-inline: 6px;
-    }
-
-    .rich-text-toolbar-more__label {
-        display: none;
+        min-width: 62px;
+        width: auto;
+        padding-inline: 7px;
     }
 }

@@ -665,6 +665,24 @@ async function runSmoke() {
         assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
         assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
         assert(await richTextToolbar.locator('.rich-text-toolbar-present').count() === 0, 'Present should not take permanent space in the formatting toolbar');
+        assert(await richTextToolbar.locator('.rich-text-toolbar-main [data-format-menu]').count() === 0, 'Colour tools should not crowd the everyday formatting bar');
+
+        await richTextWidget.evaluate((widget) => {
+            widget.dataset.smokeOriginalWidth = widget.style.width;
+            widget.style.width = '418px';
+        });
+        assert(await moreFormatting.locator('.rich-text-toolbar-more__label').isVisible(), 'More should keep its text label when the Text Board is narrow');
+        assert(await moreFormatting.locator('.rich-text-toolbar-more__label').textContent() === 'More', 'The narrow formatting menu should remain clearly named');
+        assert(await richTextToolbar.locator('.rich-text-toolbar-main').evaluate((main) => main.scrollWidth <= main.clientWidth + 1), 'Everyday formatting controls should fit without hidden horizontal scrolling at the compact Text Board size');
+        await richTextWidget.evaluate((widget) => {
+            widget.style.width = widget.dataset.smokeOriginalWidth;
+            delete widget.dataset.smokeOriginalWidth;
+        });
+
+        await moreFormatting.locator(':scope > summary').click();
+        assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
+        assert(await textColourMenu.locator('summary').isVisible(), 'More should provide a labelled text colour control');
+        assert(await highlightColourMenu.locator('summary').isVisible(), 'More should provide a labelled highlight control');
 
         if (await richTextEditor.count() === 1) {
             const selectAllRichText = async (text = 'Selection safeguard') => {
@@ -687,17 +705,15 @@ async function runSmoke() {
             };
             const assertColourPaletteIsReachable = async (menu, label) => {
                 const state = await menu.locator('.rich-text-toolbar-colour-panel').evaluate((panel) => {
-                    const toolbarMain = panel.closest('.rich-text-toolbar-main');
+                    const moreMenu = panel.closest('.rich-text-toolbar-more');
                     const bounds = panel.getBoundingClientRect();
                     const hitTarget = document.elementFromPoint(bounds.left + 16, bounds.top + 16);
-                    const overflow = getComputedStyle(toolbarMain);
                     return {
-                        overflowX: overflow.overflowX,
-                        overflowY: overflow.overflowY,
+                        moreMenuOpen: moreMenu?.hasAttribute('open'),
                         panelReceivesPointer: panel.contains(hitTarget)
                     };
                 });
-                assert(state.overflowX === 'visible' && state.overflowY === 'visible', `${label} should not be clipped by the scrollable toolbar`);
+                assert(state.moreMenuOpen, `${label} should open without closing More`);
                 assert(state.panelReceivesPointer, `${label} should be visible and clickable below the toolbar`);
             };
 
@@ -716,8 +732,6 @@ async function runSmoke() {
             assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).backgroundColor) === 'rgb(254, 240, 138)', 'Highlight should survive palette focus replacing the browser selection');
         }
 
-        await moreFormatting.locator('summary').click();
-        assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
         assert(await moreFormatting.getByRole('button', { name: 'Learning intention' }).isVisible(), 'More should offer the Learning intention teaching block');
         assert(await moreFormatting.getByRole('button', { name: 'Success criteria' }).isVisible(), 'More should offer the Success criteria teaching block');
         assert(await moreFormatting.getByRole('button', { name: 'Warm-up' }).isVisible(), 'More should offer the Warm-up teaching block');
@@ -734,7 +748,7 @@ async function runSmoke() {
             const hitTarget = document.elementFromPoint(clearRect.left + (clearRect.width / 2), clearRect.top + (clearRect.height / 2));
             return !!hitTarget?.closest?.('.rich-text-toolbar-more-panel');
         }), 'More should reveal every advanced formatting control above the editor');
-        await moreFormatting.locator('summary').click();
+        await moreFormatting.locator(':scope > summary').click();
 
         assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => header.getBoundingClientRect().height <= 37), 'The permanent widget grab bar should stay about five percent slimmer');
         assert(await page.locator('.widget.rich-text-widget .widget-header .fa-grip-vertical').count() === 0, 'The draggable widget header should not show a redundant grip icon');

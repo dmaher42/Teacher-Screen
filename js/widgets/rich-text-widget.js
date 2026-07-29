@@ -223,48 +223,51 @@ class RichTextWidget {
             </select>
           </label>
         </div>
-        <div class="rich-text-toolbar-group rich-text-toolbar-group--colour" aria-label="Colour">
-          <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
-            <summary aria-label="Text colour" title="Text colour">
-              <i class="fa-solid fa-font rich-text-colour-control-icon" aria-hidden="true"></i>
-              <span class="rich-text-colour-control-label rich-text-control-text">Text colour</span>
-              <span class="rich-text-colour-preview" style="--swatch-color: #111827" aria-hidden="true"></span>
-            </summary>
-            <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Text colour palette">
-              <span class="rich-text-toolbar-menu-label">Text colour</span>
-              <div class="rich-text-toolbar-palette-swatches">
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #111827" data-format="color" data-value="#111827" aria-label="Black text" aria-pressed="false" title="Black text"><span class="visually-hidden">Black</span></button>
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #dc2626" data-format="color" data-value="#dc2626" aria-label="Red text" aria-pressed="false" title="Red text"><span class="visually-hidden">Red</span></button>
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #2563eb" data-format="color" data-value="#2563eb" aria-label="Blue text" aria-pressed="false" title="Blue text"><span class="visually-hidden">Blue</span></button>
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #16a34a" data-format="color" data-value="#16a34a" aria-label="Green text" aria-pressed="false" title="Green text"><span class="visually-hidden">Green</span></button>
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #7c3aed" data-format="color" data-value="#7c3aed" aria-label="Purple text" aria-pressed="false" title="Purple text"><span class="visually-hidden">Purple</span></button>
-                <button type="button" class="rich-text-swatch" style="--swatch-color: #ea580c" data-format="color" data-value="#ea580c" aria-label="Orange text" aria-pressed="false" title="Orange text"><span class="visually-hidden">Orange</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">&times;</span></button>
-              </div>
-            </div>
-          </details>
-          <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
-            <summary aria-label="Highlight colour" title="Highlight colour">
-              <i class="fa-solid fa-highlighter rich-text-colour-control-icon" aria-hidden="true"></i>
-              <span class="rich-text-colour-control-label rich-text-control-text">Highlight</span>
-              <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
-            </summary>
-            <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">
-              <span class="rich-text-toolbar-menu-label">Highlight colour</span>
-              <div class="rich-text-toolbar-palette-swatches">
-                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fef08a" data-format="background" data-value="#fef08a" aria-label="Yellow highlight" aria-pressed="false" title="Yellow highlight"><span class="visually-hidden">Yellow</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bbf7d0" data-format="background" data-value="#bbf7d0" aria-label="Green highlight" aria-pressed="false" title="Green highlight"><span class="visually-hidden">Green</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bfdbfe" data-format="background" data-value="#bfdbfe" aria-label="Blue highlight" aria-pressed="false" title="Blue highlight"><span class="visually-hidden">Blue</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fbcfe8" data-format="background" data-value="#fbcfe8" aria-label="Pink highlight" aria-pressed="false" title="Pink highlight"><span class="visually-hidden">Pink</span></button>
-                <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="background" data-value="" aria-label="Remove highlight" aria-pressed="false" title="Remove highlight"><span aria-hidden="true">&times;</span></button>
-              </div>
-            </div>
-          </details>
-        </div>
       </div>
       <details class="rich-text-toolbar-more">
         <summary aria-label="More formatting tools" title="More formatting tools"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="rich-text-toolbar-more__label">More</span></summary>
         <div class="rich-text-toolbar-more-panel">
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Colour</span>
+            <div class="rich-text-toolbar-colour-tools" aria-label="Colour formatting">
+              <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
+                <summary aria-label="Text colour" title="Text colour">
+                  <i class="fa-solid fa-font rich-text-colour-control-icon" aria-hidden="true"></i>
+                  <span class="rich-text-colour-control-label">Text colour</span>
+                  <span class="rich-text-colour-preview" style="--swatch-color: #111827" aria-hidden="true"></span>
+                </summary>
+                <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Text colour palette">
+                  <span class="rich-text-toolbar-menu-label">Text colour</span>
+                  <div class="rich-text-toolbar-palette-swatches">
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #111827" data-format="color" data-value="#111827" aria-label="Black text" aria-pressed="false" title="Black text"><span class="visually-hidden">Black</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #dc2626" data-format="color" data-value="#dc2626" aria-label="Red text" aria-pressed="false" title="Red text"><span class="visually-hidden">Red</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #2563eb" data-format="color" data-value="#2563eb" aria-label="Blue text" aria-pressed="false" title="Blue text"><span class="visually-hidden">Blue</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #16a34a" data-format="color" data-value="#16a34a" aria-label="Green text" aria-pressed="false" title="Green text"><span class="visually-hidden">Green</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #7c3aed" data-format="color" data-value="#7c3aed" aria-label="Purple text" aria-pressed="false" title="Purple text"><span class="visually-hidden">Purple</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #ea580c" data-format="color" data-value="#ea580c" aria-label="Orange text" aria-pressed="false" title="Orange text"><span class="visually-hidden">Orange</span></button>
+                    <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">&times;</span></button>
+                  </div>
+                </div>
+              </details>
+              <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
+                <summary aria-label="Highlight colour" title="Highlight colour">
+                  <i class="fa-solid fa-highlighter rich-text-colour-control-icon" aria-hidden="true"></i>
+                  <span class="rich-text-colour-control-label">Highlight</span>
+                  <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
+                </summary>
+                <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">
+                  <span class="rich-text-toolbar-menu-label">Highlight colour</span>
+                  <div class="rich-text-toolbar-palette-swatches">
+                    <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fef08a" data-format="background" data-value="#fef08a" aria-label="Yellow highlight" aria-pressed="false" title="Yellow highlight"><span class="visually-hidden">Yellow</span></button>
+                    <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bbf7d0" data-format="background" data-value="#bbf7d0" aria-label="Green highlight" aria-pressed="false" title="Green highlight"><span class="visually-hidden">Green</span></button>
+                    <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #bfdbfe" data-format="background" data-value="#bfdbfe" aria-label="Blue highlight" aria-pressed="false" title="Blue highlight"><span class="visually-hidden">Blue</span></button>
+                    <button type="button" class="rich-text-swatch rich-text-swatch--highlight" style="--swatch-color: #fbcfe8" data-format="background" data-value="#fbcfe8" aria-label="Pink highlight" aria-pressed="false" title="Pink highlight"><span class="visually-hidden">Pink</span></button>
+                    <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="background" data-value="" aria-label="Remove highlight" aria-pressed="false" title="Remove highlight"><span aria-hidden="true">&times;</span></button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Layout</span>
             <div class="rich-text-toolbar-more-row">
@@ -310,7 +313,8 @@ class RichTextWidget {
           return;
         }
         toolbar.querySelectorAll('details[open]').forEach((otherMenu) => {
-          if (otherMenu !== menu) {
+          const menusAreNested = otherMenu.contains(menu) || menu.contains(otherMenu);
+          if (otherMenu !== menu && !menusAreNested) {
             otherMenu.open = false;
           }
         });
