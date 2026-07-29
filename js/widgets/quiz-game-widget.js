@@ -605,7 +605,7 @@ class QuizGameWidget {
     }
 
     emitChange() {
-        document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+        window.TeacherScreenWidgetState.notifyChanged(this, 'quiz-updated');
     }
 
     updateResponsiveState(width = 0, height = 0) {

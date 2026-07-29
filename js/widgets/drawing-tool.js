@@ -572,7 +572,7 @@ class DrawingToolWidget {
     }
 
     emitWidgetChanged() {
-        document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+        window.TeacherScreenWidgetState.notifyChanged(this, 'drawing-updated');
     }
 
     scheduleWidgetChanged() {

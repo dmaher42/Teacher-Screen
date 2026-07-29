@@ -919,6 +919,7 @@ class RevealManagerWidget {
     }
 
     persistActiveDeckState() {
+        window.TeacherScreenWidgetState.notifyChanged(this, 'active-deck-updated');
         if (!eventBus || typeof eventBus.emit !== 'function') return;
 
         eventBus.emit('layout:updated', {
@@ -2547,6 +2548,7 @@ class RevealManagerWidget {
 
         this.updateCurrentIndices(event);
         this.emitPresentationState();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'slide-position-updated');
 
         const payload = {
             type: 'slideSync',

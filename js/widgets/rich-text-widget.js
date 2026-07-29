@@ -496,14 +496,14 @@ class RichTextWidget {
   handleDisplayModeClick() {
     this.isDisplayMode = !this.isDisplayMode;
     this.updateDisplayModeUI();
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'display-mode-updated');
   }
 
   enterPresentationMode() {
     this.presentationMode = 'fullscreen';
     this.isDisplayMode = true;
     this.updateDisplayModeUI();
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'presentation-mode-updated');
   }
 
   exitPresentationMode() {
@@ -515,7 +515,7 @@ class RichTextWidget {
     this.isDisplayMode = false;
     this.updateDisplayModeUI();
     this.quill?.focus();
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'presentation-mode-updated');
   }
 
   handleDocumentKeydown(event) {
@@ -542,7 +542,7 @@ class RichTextWidget {
     this.isDisplayMode = false;
     this.updateDisplayModeUI();
     this.quill?.focus();
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'display-mode-updated');
   }
 
   handleTemplateButtonClick(event) {
@@ -757,7 +757,7 @@ class RichTextWidget {
     this.quill.clipboard.dangerouslyPasteHTML(0, html);
     this.quill.setSelection(this.quill.getLength(), 0, 'silent');
     this.pendingContent = this.quill.root.innerHTML;
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'template-loaded');
   }
 
   handleTemplateBuilderClick() {
@@ -947,7 +947,7 @@ class RichTextWidget {
     this.maybeApplySmartFormatting(delta, source);
     this.pendingContent = this.quill.root.innerHTML;
     this.syncToolbarState();
-    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+    window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
   }
 
   insertHtml(html) {

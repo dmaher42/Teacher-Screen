@@ -1,6 +1,7 @@
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
+import './utils/widget-change-notifier.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';

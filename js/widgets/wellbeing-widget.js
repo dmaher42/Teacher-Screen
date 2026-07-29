@@ -155,6 +155,7 @@ class WellbeingWidget {
     toggleMode() {
         this.currentMode = this.currentMode === 'student' ? 'dashboard' : 'student';
         this.updateMode();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'wellbeing-mode-updated');
     }
 
     updateMode() {
@@ -181,6 +182,7 @@ class WellbeingWidget {
         if (this.currentMode === 'dashboard') {
             this.renderChart();
         }
+        window.TeacherScreenWidgetState.notifyChanged(this, 'wellbeing-response-recorded');
     }
 
     renderChart() {
@@ -241,6 +243,7 @@ class WellbeingWidget {
             history.push(entry);
             localStorage.setItem(this.historyKey, JSON.stringify(history));
             this.status.textContent = 'Saved today\'s check-in.';
+            window.TeacherScreenWidgetState.notifyChanged(this, 'wellbeing-history-saved');
         } catch (error) {
             console.warn('Failed to save well-being history', error);
             this.status.textContent = 'Could not save right now.';

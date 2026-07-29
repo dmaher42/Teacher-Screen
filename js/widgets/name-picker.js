@@ -243,6 +243,7 @@ class NamePickerWidget {
                 this.display.textContent = selectedName;
                 this.lastPicked = selectedName;
                 this.setStatus(`Picked ${selectedName}. ${groupData.names.length} remaining.`);
+                window.TeacherScreenWidgetState.notifyChanged(this, 'name-picked');
 
                 // If all names have been picked, change button to reset
                 if (groupData.names.length === 0) {
@@ -264,6 +265,7 @@ class NamePickerWidget {
         this.updateDisplayState();
         this.lastPicked = null;
         this.setStatus('Name list reset. Ready to pick again.');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'name-list-reset');
     }
 
     /**
@@ -388,9 +390,10 @@ class NamePickerWidget {
      * @param {string} groupName
      */
     switchGroup(groupName) {
-        if (!this.groups[groupName]) return;
+        if (!this.groups[groupName] || this.currentGroup === groupName) return;
         this.currentGroup = groupName;
         this.updateDisplayState();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'name-group-selected');
     }
 
     /**
@@ -466,6 +469,7 @@ class NamePickerWidget {
         this.refreshGroupOptions();
         this.updateDisplayState();
         this.setStatus(`Added group "${trimmedName}".`);
+        window.TeacherScreenWidgetState.notifyChanged(this, 'name-group-added');
         return true;
     }
 
@@ -479,6 +483,7 @@ class NamePickerWidget {
         this.currentGroup = 'Default' in this.groups ? 'Default' : Object.keys(this.groups)[0];
         this.refreshGroupOptions();
         this.updateDisplayState();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'name-group-deleted');
     }
 
     /**
@@ -511,6 +516,7 @@ class NamePickerWidget {
                 this.lastPicked = null;
                 this.updateDisplayState();
                 this.setStatus(`Imported ${importedNames.length} name(s).`);
+                window.TeacherScreenWidgetState.notifyChanged(this, 'names-imported');
             } else {
                 this.setStatus('No names found in file. Please try again.', 'warning');
             }

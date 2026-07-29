@@ -216,6 +216,95 @@ async function getElementBox(page, selector) {
     return box;
 }
 
+async function runWidgetSaveNotificationChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    await context.addInitScript(() => {
+        window.QRCode = {
+            toCanvas: () => Promise.resolve()
+        };
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+
+        await addWidget(page, 'name-picker', '.widget.name-picker-widget', 'Random Name Picker');
+        await addWidget(page, 'qr-code', '.qr-code-widget-content', 'QR Code');
+        await addWidget(page, 'document-viewer', '.widget.document-viewer-widget', 'Document Viewer');
+        await addWidget(page, 'wellbeing', '.widget.wellbeing-widget', 'Well-being Check-in');
+
+        // Let the normal add-widget save settle before proving later widget actions save themselves.
+        await page.waitForTimeout(700);
+
+        const nameDisplay = page.locator('.widget.name-picker-widget .name-picker-display');
+        await nameDisplay.dispatchEvent('click');
+        await page.waitForFunction(() => {
+            const text = document.querySelector('.widget.name-picker-widget .name-picker-display')?.textContent?.trim();
+            return text && text !== 'Click to pick' && text !== 'All Picked';
+        }, { timeout: 10000 });
+        await page.waitForTimeout(1800);
+        const pickedName = (await nameDisplay.textContent()).trim();
+
+        const qrText = 'https://example.com/teacher-screen-save-check';
+        const qrWidget = page.locator('.qr-code-widget-content');
+        await qrWidget.locator('.qr-input').evaluate((input, value) => {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }, qrText);
+        await qrWidget.getByRole('button', { name: 'Generate' }).dispatchEvent('click');
+
+        const documentUrl = 'https://example.com/document-save-check';
+        const documentWidget = page.locator('.widget.document-viewer-widget');
+        await documentWidget.locator('.document-viewer-url-input').evaluate((input, value) => {
+            input.value = value;
+        }, documentUrl);
+        await documentWidget.locator('.embed-button').dispatchEvent('click');
+
+        const wellbeingWidget = page.locator('.widget.wellbeing-widget');
+        await wellbeingWidget.locator('.wellbeing-option[data-key="great"]').dispatchEvent('click');
+        await wellbeingWidget.locator('.wellbeing-toggle-btn').dispatchEvent('click');
+
+        await page.waitForFunction(({ expectedName, expectedQrText, expectedDocumentUrl }) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const widgets = state.layout?.widgets || [];
+            const byType = (type) => widgets.find((widget) => widget.type === type)?.data;
+            return byType('NamePickerWidget')?.lastPicked === expectedName
+                && byType('QRCodeWidget')?.text === expectedQrText
+                && byType('DocumentViewerWidget')?.url === expectedDocumentUrl
+                && byType('WellbeingWidget')?.currentMode === 'dashboard'
+                && byType('WellbeingWidget')?.counts?.great === 1;
+        }, {
+            expectedName: pickedName,
+            expectedQrText: qrText,
+            expectedDocumentUrl: documentUrl
+        }, { timeout: 10000 });
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+        await page.waitForSelector('.qr-code-widget-content', { timeout: 10000 });
+        await page.waitForSelector('.widget.document-viewer-widget', { timeout: 10000 });
+        await page.waitForSelector('.widget.wellbeing-widget', { timeout: 10000 });
+
+        assert((await page.locator('.widget.name-picker-widget .name-picker-display').textContent()).trim() === pickedName, 'Delayed Random Name Picker actions should survive reload');
+        assert(await page.locator('.qr-code-widget-content .qr-input').inputValue() === qrText, 'Delayed QR Code changes should survive reload');
+        assert(await page.locator('.widget.document-viewer-widget iframe').getAttribute('src') === documentUrl, 'Delayed Document Viewer changes should survive reload');
+        assert(await page.locator('.widget.wellbeing-widget .wellbeing-dashboard-mode.active').count() === 1, 'Delayed Well-being mode changes should survive reload');
+        await page.locator('.widget.wellbeing-widget button', { hasText: "Save Today's Check-in" }).dispatchEvent('click');
+        await page.locator('.widget.wellbeing-widget button', { hasText: 'View History' }).dispatchEvent('click');
+        assert(await page.locator('.wellbeing-history-dialog').textContent().then((text) => text.includes('Great: 1')), 'Delayed Well-being responses should survive reload');
+    } finally {
+        await context.close();
+    }
+}
+
 async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 640 } });
     await makeExternalAssetsDeterministic(context);
@@ -545,6 +634,7 @@ async function runSmoke() {
         browser = await launchBrowser();
         await runDeckOrganisationChecks(browser, baseUrl);
         await runNewDeckNavigationChecks(browser, baseUrl);
+        await runWidgetSaveNotificationChecks(browser, baseUrl);
         await runTallWidgetVerticalMovementChecks(browser, baseUrl);
         await runDocumentViewerPdfChecks(browser, baseUrl);
         const context = await browser.newContext();

@@ -130,11 +130,20 @@ class UrlViewerWidget {
 
         this.reloadBtn.disabled = false;
         this.openNewTabBtn.disabled = false;
+
+        if (options.notifyChange !== false) {
+            window.TeacherScreenWidgetState.notifyChanged(this, 'url-loaded');
+        }
     }
 
-    setChromeless(enabled) {
-        this.chromeless = enabled === true;
+    setChromeless(enabled, { notifyChange = true } = {}) {
+        const nextChromeless = enabled === true;
+        const changed = this.chromeless !== nextChromeless;
+        this.chromeless = nextChromeless;
         this.element.classList.toggle('url-viewer-widget-content--chromeless', this.chromeless);
+        if (changed && notifyChange) {
+            window.TeacherScreenWidgetState.notifyChanged(this, 'url-view-updated');
+        }
     }
 
     enterPresentationMode() {
@@ -290,9 +299,9 @@ class UrlViewerWidget {
     }
 
     deserialize(data) {
-        this.setChromeless(data && data.chromeless === true);
+        this.setChromeless(data && data.chromeless === true, { notifyChange: false });
         if (data && data.url) {
-            this.loadUrl(data.url, { keepInput: true });
+            this.loadUrl(data.url, { keepInput: true, notifyChange: false });
         }
     }
 

@@ -134,6 +134,7 @@ class NoiseMeterWidget {
         this.startButton.textContent = 'Listening…';
         this.startButton.disabled = true;
         this.setStatus('Noise meter is now listening.');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'microphone-started');
     }
 
     /**
@@ -173,6 +174,7 @@ class NoiseMeterWidget {
         this.startButton.disabled = false;
         this.startButton.textContent = 'Start Measuring';
         this.setStatus('Microphone off. Press start to listen.');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'microphone-stopped');
     }
 
     /**

@@ -1,6 +1,7 @@
 import './utils/app-mode.js';
 import './utils/app-bus.js';
 import './core/event-bus.js';
+import './utils/widget-change-notifier.js';
 
 const LOCAL_ASSET_VERSION = '24';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;

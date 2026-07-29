@@ -186,9 +186,7 @@ class DocumentViewerWidget {
     }
 
     notifyChanged(action = 'document-state-changed') {
-        document.dispatchEvent(new CustomEvent('widgetChanged', {
-            detail: { widget: this, action }
-        }));
+        window.TeacherScreenWidgetState.notifyChanged(this, action);
     }
 
     handleUploadClick() {

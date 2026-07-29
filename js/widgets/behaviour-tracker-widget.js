@@ -129,9 +129,7 @@ class BehaviourTrackerWidget {
 
         this.render();
         this.renderControlWindow();
-        if (!this.projectorMode) {
-            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
-        }
+        window.TeacherScreenWidgetState.notifyChanged(this, 'learning-time-updated');
     }
 
     focusShortcuts() {

@@ -18,11 +18,14 @@ class QRCodeWidget {
         this.input.type = 'text';
         this.input.placeholder = 'Enter text or URL';
         this.input.className = 'qr-input';
+        this.input.addEventListener('input', () => {
+            window.TeacherScreenWidgetState.notifyChanged(this, 'qr-content-updated');
+        });
 
         // Button to generate QR code
         this.generateButton = document.createElement('button');
         this.generateButton.textContent = 'Generate';
-        this.generateButton.addEventListener('click', () => this.generate());
+        this.generateButton.addEventListener('click', () => this.generate({ notifyChange: true }));
 
         // Canvas to render the QR code
         this.canvas = document.createElement('canvas');
@@ -54,7 +57,7 @@ class QRCodeWidget {
     /**
      * Generate a QR code based on the current input value.
      */
-    generate() {
+    generate({ notifyChange = false } = {}) {
         const text = this.input.value.trim() || ' ';
         const size = this.getCanvasSize();
         if (typeof QRCode !== 'undefined') {
@@ -63,6 +66,10 @@ class QRCodeWidget {
             });
         } else {
             console.error('QRCode library is not loaded.');
+        }
+
+        if (notifyChange) {
+            window.TeacherScreenWidgetState.notifyChanged(this, 'qr-content-generated');
         }
     }
 
@@ -150,7 +157,7 @@ class QRCodeWidget {
 
         const applyGenerate = () => {
             this.input.value = contentInput.value;
-            this.generate();
+            this.generate({ notifyChange: true });
             syncStatus();
         };
 

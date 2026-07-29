@@ -297,6 +297,7 @@ class PomodoroWidget {
         this.render();
         this.emitTimerState('timer:updated');
         this.emitTimerState('timer:started', { minutes: this.remainingSeconds / 60, seconds: this.remainingSeconds });
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-started');
     }
 
     pause(emitEvent = true) {
@@ -309,6 +310,7 @@ class PomodoroWidget {
         this.setStatus(`${this.getPhaseLabel()} paused.`);
         this.render();
         this.emitTimerState('timer:updated');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-paused');
 
         if (emitEvent) {
             this.emitTimerState('timer:stopped');
@@ -324,6 +326,7 @@ class PomodoroWidget {
         this.setStatus('Ready to focus.');
         this.render();
         this.emitTimerState('timer:updated');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-reset');
 
         if (emitEvent) {
             this.emitTimerState('timer:reset');
@@ -343,6 +346,7 @@ class PomodoroWidget {
         this.remainingSeconds -= 1;
         this.render();
         this.emitTimerState('timer:updated');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-ticked');
     }
 
     advancePhase() {
@@ -361,6 +365,7 @@ class PomodoroWidget {
 
         this.render();
         this.emitTimerState('timer:updated');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-phase-advanced');
     }
 
     clearTimerInterval() {
@@ -396,6 +401,7 @@ class PomodoroWidget {
         this.render();
         this.emitTimerState('timer:updated');
         this.emitTimerState('timer:reset');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-rhythm-updated');
     }
 
     applyCustomRhythm(emitReset = true) {
@@ -417,6 +423,7 @@ class PomodoroWidget {
         this.setStatus(`Custom rhythm set to ${this.getRhythmConfig('custom').label}.`);
         this.render();
         this.emitTimerState('timer:updated');
+        window.TeacherScreenWidgetState.notifyChanged(this, 'timer-rhythm-updated');
 
         if (emitReset) {
             this.emitTimerState('timer:reset');

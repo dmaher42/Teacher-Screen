@@ -338,7 +338,7 @@ class NotesWidget {
             this.updatedAt = new Date().toISOString();
             this.updateDisplay();
             this.updateExpandedHeader();
-            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+            window.TeacherScreenWidgetState.notifyChanged(this, 'note-content-updated');
         };
         this.quillEditor.on('text-change', this.quillTextChangeHandler);
 
@@ -362,7 +362,7 @@ class NotesWidget {
 
         this.fallbackTextChangeHandler = () => {
             this.syncFallbackEditorContent();
-            document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+            window.TeacherScreenWidgetState.notifyChanged(this, 'note-content-updated');
         };
 
         textarea.addEventListener('input', this.fallbackTextChangeHandler);
@@ -451,6 +451,7 @@ class NotesWidget {
         this.title = saved.title;
         this.updatedAt = saved.updatedAt;
         this.updateDisplay();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'note-saved');
     }
 
     getTitleFromContent() {
