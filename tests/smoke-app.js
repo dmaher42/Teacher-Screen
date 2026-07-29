@@ -476,6 +476,66 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
     }
 }
 
+async function runDeckOrganisationChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    const page = await context.newPage();
+
+    try {
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.evaluate(() => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            if (!Array.isArray(presets) || presets.length === 0) {
+                throw new Error('Expected a seeded deck for the legacy shelf preservation check');
+            }
+
+            const sourceDeck = presets[0];
+            const legacyDeck = {
+                ...sourceDeck,
+                name: 'Legacy Deck',
+                seededLessonId: '',
+                className: '9A Science',
+                folderId: 'legacy-shelf',
+                projectState: {
+                    ...sourceDeck.projectState,
+                    projectName: 'Legacy Deck'
+                }
+            };
+            localStorage.setItem('classroomLayoutPresets', JSON.stringify([...presets, legacyDeck]));
+            localStorage.setItem('classroomLayoutFolders', JSON.stringify([{
+                id: 'legacy-shelf',
+                name: 'Archived Organisation',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            }]));
+        });
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const legacyCard = page.locator('.dashboard-screen-card', { hasText: 'Legacy Deck' });
+        assert(await legacyCard.count() === 1, 'A deck with legacy shelf data should remain available');
+        assert(!await legacyCard.textContent().then((text) => text.includes('Archived Organisation')), 'Deck cards should not show legacy shelf names');
+        assert(await page.locator('#dashboard-folder-list, #dashboard-create-folder-btn, .dashboard-shelves, #preset-folder-select').count() === 0, 'Shelf controls should stay hidden when legacy shelf data exists');
+
+        await legacyCard.locator('button', { hasText: 'Load' }).click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.locator('#save-project-screen-btn').dispatchEvent('click');
+        await page.waitForFunction(() => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.some((preset) => preset?.name === 'Legacy Deck' && preset?.folderId === 'legacy-shelf');
+        }, { timeout: 10000 });
+
+        const shelfRecordPreserved = await page.evaluate(() => {
+            const folders = JSON.parse(localStorage.getItem('classroomLayoutFolders') || '[]');
+            return folders.some((folder) => folder?.id === 'legacy-shelf');
+        });
+        assert(shelfRecordPreserved, 'Existing shelf records should remain stored for import and export compatibility');
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -483,6 +543,7 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        await runDeckOrganisationChecks(browser, baseUrl);
         await runNewDeckNavigationChecks(browser, baseUrl);
         await runTallWidgetVerticalMovementChecks(browser, baseUrl);
         await runDocumentViewerPdfChecks(browser, baseUrl);
@@ -517,9 +578,7 @@ async function runSmoke() {
             const launchCards = Array.from(document.querySelectorAll('.dashboard-launch-card'));
             const launchCardRects = launchCards.map((card) => card.getBoundingClientRect());
             const commandPanel = document.querySelector('.dashboard-command-panel');
-            const deckShelves = document.querySelector('.dashboard-sidebar__section');
-            const folderList = document.querySelector('#dashboard-folder-list');
-            const createFolderButton = document.querySelector('#dashboard-create-folder-btn');
+            const organisationSection = document.querySelector('.dashboard-sidebar__section');
             const loadLatestButton = document.querySelector('#dashboard-load-latest-btn');
             const navigationItems = Array.from(document.querySelectorAll('.dashboard-nav-item'));
             const activeNavigationItems = navigationItems.filter((item) => item.classList.contains('is-active'));
@@ -539,9 +598,10 @@ async function runSmoke() {
                 longTitlePanelHeight,
                 lessonSubtitle: lessonSubtitle?.textContent?.trim() || '',
                 readyLabelCount: commandPanel?.querySelectorAll('.dashboard-command-panel__label').length || 0,
-                deckShelvesHeight: deckShelves?.getBoundingClientRect().height || 0,
-                folderListMaxHeight: folderList ? getComputedStyle(folderList).maxHeight : '',
-                createFolderInsideShelves: !!(deckShelves && createFolderButton && deckShelves.contains(createFolderButton)),
+                organisationHeading: organisationSection?.querySelector('h3')?.textContent?.trim() || '',
+                shelfControlCount: document.querySelectorAll('#dashboard-folder-list, #dashboard-create-folder-btn, .dashboard-shelves').length,
+                folderFieldCount: document.querySelectorAll('#preset-folder-select').length,
+                moveActionCount: Array.from(document.querySelectorAll('button')).filter((button) => button.textContent?.trim() === 'Move').length,
                 utilityMenuLabels: Array.from(document.querySelectorAll('#dashboard-utility-menu button')).map((button) => button.textContent?.trim()),
                 teacherProfileName: document.querySelector('.dashboard-brand h2')?.textContent?.trim() || '',
                 navigationLabels: navigationItems.map((item) => item.textContent?.trim()),
@@ -567,9 +627,10 @@ async function runSmoke() {
         assert(desktopDashboardScale.longTitlePanelHeight <= 88, 'Desktop dashboard command strip should stay compact with a long lesson title');
         assert(desktopDashboardScale.lessonSubtitle === 'Page 1 of 1', 'Dashboard subtitle should sit beneath the deck title and describe the active page');
         assert(desktopDashboardScale.readyLabelCount === 0, 'Dashboard should make the deck title the primary focus without a Ready to Teach label');
-        assert(desktopDashboardScale.deckShelvesHeight >= 300, 'Deck Shelves should receive the main share of the desktop sidebar');
-        assert(desktopDashboardScale.folderListMaxHeight === 'none', 'Deck Shelves should not use the old fixed-height scrolling window');
-        assert(desktopDashboardScale.createFolderInsideShelves, 'Create Folder should sit with the Deck Shelves controls');
+        assert(desktopDashboardScale.organisationHeading === 'Your Classes', 'The dashboard should present Classes as the single deck organisation system');
+        assert(desktopDashboardScale.shelfControlCount === 0, 'Deck Shelf controls should no longer compete with Classes');
+        assert(desktopDashboardScale.folderFieldCount === 0, 'The advanced deck manager should not expose a second folder system');
+        assert(desktopDashboardScale.moveActionCount === 0, 'Deck actions should not offer movement into hidden shelves');
         assert(desktopDashboardScale.teacherProfileName === 'Teacher', 'Sidebar should show a compact teacher profile');
         assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Classes|Favourites|Recent', 'Sidebar should expose the five primary navigation destinations');
         assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Dashboard', 'Dashboard should be the only active navigation item on launch');
@@ -1707,7 +1768,7 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-primary-nav__list').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length === 3), 'Mobile primary navigation should use a compact three-column layout');
         assert(await mobilePage.locator('.dashboard-nav-item.is-active').count() === 1, 'Mobile sidebar should keep exactly one primary destination active');
         assert(await mobilePage.locator('.dashboard-main').evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'Mobile dashboard content should not create horizontal scrolling');
-        assert(await mobilePage.locator('#dashboard-folder-list').evaluate((element) => getComputedStyle(element).overflowX === 'auto'), 'Mobile Deck Shelves should use a compact horizontal shelf');
+        assert(await mobilePage.locator('#dashboard-folder-list, #dashboard-create-folder-btn, .dashboard-shelves').count() === 0, 'Mobile should use Classes without a second Deck Shelves system');
         assert(await mobilePage.locator('#dashboard-utility-menu > summary').isVisible(), 'Mobile dashboard should keep utility links inside the compact options menu');
         assert(await mobilePage.locator('.dashboard-sidebar__footer').count() === 0, 'Mobile dashboard should not render a separate utility footer');
         assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 300), 'Mobile dashboard lesson actions should stay above the deck library');

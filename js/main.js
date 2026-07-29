@@ -3569,7 +3569,7 @@ class ClassroomScreenApp {
         });
         const preset = {
             name: screenName,
-            className: folder.name,
+            className: '',
             period: '',
             folderId: folder.id,
             projectState: {
@@ -4411,9 +4411,8 @@ class ClassroomScreenApp {
             const subtext = document.createElement('span');
             subtext.className = 'preset-subtext';
             const classInfo = preset.className || 'No Class';
-            const folderInfo = this.getFolderLabel(preset.folderId) || 'No Folder';
             const periodInfo = preset.period || 'Any Period';
-            subtext.textContent = `${classInfo} - ${folderInfo} - ${periodInfo}`;
+            subtext.textContent = `${classInfo} - ${periodInfo}`;
 
             const metaLine = document.createElement('span');
             metaLine.className = 'preset-meta';
@@ -4460,13 +4459,6 @@ class ClassroomScreenApp {
             renameButton.dataset.action = 'rename';
             renameButton.dataset.name = preset.name;
 
-            const moveButton = document.createElement('button');
-            moveButton.type = 'button';
-            moveButton.className = 'control-button';
-            moveButton.textContent = 'Move';
-            moveButton.dataset.action = 'move';
-            moveButton.dataset.name = preset.name;
-
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 'control-button';
@@ -4485,7 +4477,6 @@ class ClassroomScreenApp {
                 if (action === 'overwrite') this.overwritePreset(presetName);
                 if (action === 'rename') this.renamePreset(presetName);
                 if (action === 'duplicate') this.clonePreset(presetName);
-                if (action === 'move') this.movePresetToFolder(presetName);
                 if (action === 'delete') this.deletePreset(presetName);
             });
 
@@ -4493,7 +4484,6 @@ class ClassroomScreenApp {
             actions.appendChild(overwriteButton);
             actions.appendChild(renameButton);
             actions.appendChild(duplicateButton);
-            actions.appendChild(moveButton);
             actions.appendChild(deleteButton);
 
             item.appendChild(mainInfo);
@@ -5787,9 +5777,7 @@ class ClassroomScreenApp {
         this.dashboardNavigationMode = navigationMode;
 
         const selectedClassName = String(this.dashboardSelectedClassName || '').trim();
-        const selectedFolderId = String(this.dashboardSelectedFolderId || '').trim();
         const searchQuery = String(this.dashboardSearchQuery || '').trim().toLowerCase();
-        const folderStats = this.getFolderStats();
         const classProfiles = this.getPresetClassNames();
         const sortedPresets = this.presets
             .map((preset) => this.normalizePresetRecord(preset))
@@ -5808,13 +5796,11 @@ class ClassroomScreenApp {
             navigationPresets = sortedPresets.filter((preset) => preset.isFavorite);
         } else if (navigationMode === 'recent') {
             navigationPresets = sortedPresets.filter((preset) => Number(preset.usageCount || 0) > 0);
-        } else if (navigationMode === 'library' && selectedFolderId) {
-            navigationPresets = sortedPresets.filter((preset) => preset.folderId === selectedFolderId);
         }
 
         const visiblePresets = navigationPresets.filter((preset) => {
             const presetClass = String(preset.className || '').trim();
-            const searchText = `${preset.name || ''} ${presetClass} ${preset.period || ''} ${this.getFolderLabel(preset.folderId) || ''}`.toLowerCase();
+            const searchText = `${preset.name || ''} ${presetClass} ${preset.period || ''}`.toLowerCase();
             return !searchQuery || searchText.includes(searchQuery);
         });
 
@@ -5822,7 +5808,7 @@ class ClassroomScreenApp {
             ? visiblePresets.slice(0, 6)
             : visiblePresets;
         const currentLabel = navigationMode === 'library'
-            ? (selectedFolderId ? (this.getFolderLabel(selectedFolderId) || 'Deck shelf') : 'All lesson decks')
+            ? 'All lesson decks'
             : navigationMode === 'classes'
                 ? (selectedClassName || 'All classes')
                 : navigationMode === 'favorites'
@@ -5843,8 +5829,6 @@ class ClassroomScreenApp {
             { label: 'All Decks', count: sortedPresets.length, className: '' },
             ...classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }))
         ];
-        const folderItems = folderStats.map((item) => ({ label: item.name, count: item.count, folderId: item.id }));
-
         this.dashboardRoot.innerHTML = `
             <div class="dashboard-layout">
                 <aside class="dashboard-sidebar">
@@ -5891,19 +5875,9 @@ class ClassroomScreenApp {
                     </nav>
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">
-                            <h3>Classes</h3>
+                            <h3>Your Classes</h3>
                         </div>
                         <div class="dashboard-class-list" id="dashboard-class-list" aria-label="Filter decks by class"></div>
-                        <div class="dashboard-shelves">
-                            <div class="dashboard-sidebar__section-header">
-                                <h3>Deck Shelves</h3>
-                                <button id="dashboard-create-folder-btn" class="dashboard-new-folder-btn" type="button" aria-label="Create deck shelf" title="Create deck shelf">
-                                    <i class="fa-solid fa-folder-plus" aria-hidden="true"></i>
-                                    <span>New shelf</span>
-                                </button>
-                            </div>
-                            <div class="dashboard-folder-list" id="dashboard-folder-list" aria-label="Filter decks by shelf"></div>
-                        </div>
                     </div>
                 </aside>
                 <main class="dashboard-main">
@@ -5956,7 +5930,7 @@ class ClassroomScreenApp {
                             </div>
                         </div>
                         <div class="dashboard-search-row">
-                            <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search saved decks" placeholder="Search decks, classes, or periods" value="${escapeHtml(this.dashboardSearchQuery)}">
+                            <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search saved decks" placeholder="Search decks or classes" value="${escapeHtml(this.dashboardSearchQuery)}">
                             <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
@@ -5982,73 +5956,6 @@ class ClassroomScreenApp {
                     this.renderDashboard();
                 });
                 classList.appendChild(button);
-            });
-        }
-
-        const folderList = this.dashboardRoot.querySelector('#dashboard-folder-list');
-        if (folderList) {
-            if (folderItems.length === 0) {
-                folderList.innerHTML = '<p class="dashboard-shelves__empty">No custom shelves</p>';
-            }
-
-            folderItems.forEach((folder) => {
-                const row = document.createElement('div');
-                row.className = 'dashboard-folder-row';
-
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = `dashboard-folder${navigationMode === 'library' && folder.folderId === selectedFolderId ? ' is-active' : ''}`;
-                button.dataset.folderId = folder.folderId;
-                button.setAttribute('aria-pressed', navigationMode === 'library' && folder.folderId === selectedFolderId ? 'true' : 'false');
-                button.innerHTML = `<span>${escapeHtml(folder.label)}</span><span class="dashboard-folder__count">${folder.count}</span>`;
-                button.addEventListener('click', () => {
-                    this.dashboardNavigationMode = 'library';
-                    this.dashboardSelectedClassName = '';
-                    this.dashboardSelectedFolderId = folder.folderId;
-                    this.dashboardSearchQuery = '';
-                    this.renderDashboard();
-                });
-
-                row.appendChild(button);
-
-                if (navigationMode === 'library' && folder.folderId && folder.folderId === selectedFolderId) {
-                    const actions = document.createElement('div');
-                    actions.className = 'dashboard-folder-row__actions';
-
-                    const newScreenButton = document.createElement('button');
-                    newScreenButton.type = 'button';
-                    newScreenButton.className = 'dashboard-folder-row__action dashboard-folder-row__action--primary';
-                    newScreenButton.textContent = 'New Deck';
-                    newScreenButton.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        this.createBlankScreenInFolder(folder.folderId);
-                    });
-
-                    const renameButton = document.createElement('button');
-                    renameButton.type = 'button';
-                    renameButton.className = 'dashboard-folder-row__action';
-                    renameButton.textContent = 'Rename';
-                    renameButton.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        this.renameFolder(folder.folderId);
-                    });
-
-                    const deleteButton = document.createElement('button');
-                    deleteButton.type = 'button';
-                    deleteButton.className = 'dashboard-folder-row__action dashboard-folder-row__action--danger';
-                    deleteButton.textContent = 'Delete';
-                    deleteButton.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        this.deleteFolder(folder.folderId);
-                    });
-
-                    actions.appendChild(newScreenButton);
-                    actions.appendChild(renameButton);
-                    actions.appendChild(deleteButton);
-                    row.appendChild(actions);
-                }
-
-                folderList.appendChild(row);
             });
         }
 
@@ -6082,7 +5989,7 @@ class ClassroomScreenApp {
                             </div>
                             <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
                         </div>
-                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}${this.getFolderLabel(preset.folderId) ? ` &middot; ${escapeHtml(this.getFolderLabel(preset.folderId))}` : ''}</p>
+                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}</p>
                     `;
 
                     const favoriteButton = card.querySelector('.dashboard-favorite-btn');
@@ -6111,16 +6018,9 @@ class ClassroomScreenApp {
                     renameButton.textContent = 'Rename Deck';
                     renameButton.addEventListener('click', () => this.renamePreset(preset.name));
 
-                    const moveButton = document.createElement('button');
-                    moveButton.type = 'button';
-                    moveButton.className = 'dashboard-link-btn';
-                    moveButton.textContent = 'Move';
-                    moveButton.addEventListener('click', () => this.movePresetToFolder(preset.name));
-
                     actions.appendChild(loadButton);
                     actions.appendChild(renameButton);
                     actions.appendChild(duplicateButton);
-                    actions.appendChild(moveButton);
                     card.appendChild(actions);
                     screenGrid.appendChild(card);
                 });
@@ -6148,11 +6048,6 @@ class ClassroomScreenApp {
                 }
                 this.toggleSectionsMenu(true);
             });
-        }
-
-        const createFolderButton = this.dashboardRoot.querySelector('#dashboard-create-folder-btn');
-        if (createFolderButton) {
-            createFolderButton.addEventListener('click', () => this.createFolderFromDashboard());
         }
 
         const utilityMenu = this.dashboardRoot.querySelector('#dashboard-utility-menu');
@@ -6241,22 +6136,6 @@ class ClassroomScreenApp {
         const loadLatestButton = this.dashboardRoot.querySelector('#dashboard-load-latest-btn');
         if (loadLatestButton) {
             loadLatestButton.addEventListener('click', () => {
-                if (selectedFolderId) {
-                    const latestPreset = selectedFolderId
-                        ? this.getLatestPresetForFolder(selectedFolderId)
-                        : heroPreset;
-
-                    if (!latestPreset) {
-                        this.showNotification(selectedFolderId
-                            ? `No saved deck found in ${this.getFolderLabel(selectedFolderId) || 'that folder'}.`
-                            : 'No saved deck found.', 'warning');
-                        return;
-                    }
-
-                    this.loadPresetFromDashboard(latestPreset.name);
-                    return;
-                }
-
                 if (heroPreset?.name) {
                     this.loadPresetFromDashboard(heroPreset.name);
                 }
