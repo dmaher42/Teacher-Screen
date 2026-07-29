@@ -10379,6 +10379,10 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
     scrollbar-width: none;
 }
 
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main:has(.rich-text-toolbar-colour-menu[open]) {
+    overflow: visible;
+}
+
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main::-webkit-scrollbar {
     display: none;
 }

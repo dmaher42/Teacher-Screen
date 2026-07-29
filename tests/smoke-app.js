@@ -685,15 +685,32 @@ async function runSmoke() {
                     editor.selection.lastRange = null;
                 });
             };
+            const assertColourPaletteIsReachable = async (menu, label) => {
+                const state = await menu.locator('.rich-text-toolbar-colour-panel').evaluate((panel) => {
+                    const toolbarMain = panel.closest('.rich-text-toolbar-main');
+                    const bounds = panel.getBoundingClientRect();
+                    const hitTarget = document.elementFromPoint(bounds.left + 16, bounds.top + 16);
+                    const overflow = getComputedStyle(toolbarMain);
+                    return {
+                        overflowX: overflow.overflowX,
+                        overflowY: overflow.overflowY,
+                        panelReceivesPointer: panel.contains(hitTarget)
+                    };
+                });
+                assert(state.overflowX === 'visible' && state.overflowY === 'visible', `${label} should not be clipped by the scrollable toolbar`);
+                assert(state.panelReceivesPointer, `${label} should be visible and clickable below the toolbar`);
+            };
 
             await selectAllRichText();
             await textColourMenu.locator('summary').click();
+            await assertColourPaletteIsReachable(textColourMenu, 'Text colour palette');
             await clearQuillSelectionMemory();
             await textColourMenu.getByRole('button', { name: 'Red text' }).click();
             assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).color) === 'rgb(220, 38, 38)', 'Text colour should survive palette focus replacing the browser selection');
 
             await selectAllRichText();
             await highlightColourMenu.locator('summary').click();
+            await assertColourPaletteIsReachable(highlightColourMenu, 'Highlight palette');
             await clearQuillSelectionMemory();
             await highlightColourMenu.getByRole('button', { name: 'Yellow highlight' }).click();
             assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).backgroundColor) === 'rgb(254, 240, 138)', 'Highlight should survive palette focus replacing the browser selection');
