@@ -822,8 +822,10 @@ async function runSmoke() {
             widget.dataset.smokeOriginalWidth = widget.style.width;
             widget.style.width = '418px';
         });
-        assert(await moreFormatting.locator('.rich-text-toolbar-more__label').isVisible(), 'More should keep its text label when the Text Board is narrow');
-        assert(await moreFormatting.locator('.rich-text-toolbar-more__label').textContent() === 'More', 'The narrow formatting menu should remain clearly named');
+        assert(await richTextToolbar.locator('.rich-text-control-text').count() === 0, 'List controls should use compact icons without redundant text labels');
+        assert(await moreFormatting.locator('.rich-text-toolbar-more__label').count() === 0, 'More should use its compact icon without a redundant text label');
+        assert(await moreFormatting.locator(':scope > summary').getAttribute('aria-label') === 'More formatting tools', 'The compact More icon should keep a clear accessible name');
+        assert(await moreFormatting.locator(':scope > summary').evaluate((summary) => summary.getBoundingClientRect().width <= 34), 'The compact More icon should reclaim toolbar space');
         assert(await richTextToolbar.locator('.rich-text-toolbar-main').evaluate((main) => main.scrollWidth <= main.clientWidth + 1), 'Everyday formatting controls should fit without hidden horizontal scrolling at the compact Text Board size');
         await richTextWidget.evaluate((widget) => {
             widget.style.width = widget.dataset.smokeOriginalWidth;

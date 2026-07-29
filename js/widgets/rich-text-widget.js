@@ -211,8 +211,8 @@ class RichTextWidget {
         </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
           <div class="rich-text-toolbar-actions">
-            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><i class="fa-solid fa-list-ul" aria-hidden="true"></i><span class="rich-text-control-text">Bullets</span></button>
-            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><i class="fa-solid fa-list-ol" aria-hidden="true"></i><span class="rich-text-control-text">Numbered</span></button>
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><i class="fa-solid fa-list-ul" aria-hidden="true"></i></button>
+            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><i class="fa-solid fa-list-ol" aria-hidden="true"></i></button>
           </div>
           <label class="rich-text-toolbar-field rich-text-toolbar-field--align">
             <span class="visually-hidden">Alignment</span>
@@ -225,7 +225,7 @@ class RichTextWidget {
         </div>
       </div>
       <details class="rich-text-toolbar-more">
-        <summary aria-label="More formatting tools" title="More formatting tools"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span class="rich-text-toolbar-more__label">More</span></summary>
+        <summary aria-label="More formatting tools" title="More formatting tools"><i class="fa-solid fa-sliders" aria-hidden="true"></i></summary>
         <div class="rich-text-toolbar-more-panel">
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Colour</span>

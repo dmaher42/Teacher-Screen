@@ -10515,7 +10515,9 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more {
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
     position: static;
-    min-width: 70px;
+    width: 30px;
+    min-width: 30px;
+    padding-inline: 5px;
     border-color: rgba(27, 74, 101, 0.14);
     background: var(--widget-chrome-surface);
     box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
@@ -10552,12 +10554,6 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section {
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions button {
     border-color: rgba(27, 74, 101, 0.13);
     background: var(--widget-chrome-surface);
-}
-
-@container rich-text-editor (max-width: 720px) {
-    .rich-text-toolbar-main .rich-text-control-text {
-        display: none;
-    }
 }
 
 @container rich-text-editor (max-width: 470px) {
@@ -10613,8 +10609,8 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .ric
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
-        min-width: 62px;
-        width: auto;
-        padding-inline: 7px;
+        min-width: 28px;
+        width: 28px;
+        padding-inline: 4px;
     }
 }
