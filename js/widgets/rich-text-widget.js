@@ -232,8 +232,7 @@ class RichTextWidget {
             <div class="rich-text-toolbar-colour-tools" aria-label="Colour formatting">
               <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
                 <summary aria-label="Text colour" title="Text colour">
-                  <i class="fa-solid fa-font rich-text-colour-control-icon" aria-hidden="true"></i>
-                  <span class="rich-text-colour-control-label">Text colour</span>
+                  <span class="rich-text-colour-letter" aria-hidden="true">A</span>
                   <span class="rich-text-colour-preview" style="--swatch-color: #111827" aria-hidden="true"></span>
                 </summary>
                 <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Text colour palette">
@@ -252,7 +251,6 @@ class RichTextWidget {
               <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
                 <summary aria-label="Highlight colour" title="Highlight colour">
                   <i class="fa-solid fa-highlighter rich-text-colour-control-icon" aria-hidden="true"></i>
-                  <span class="rich-text-colour-control-label">Highlight</span>
                   <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
                 </summary>
                 <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">

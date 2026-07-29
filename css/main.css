@@ -5195,28 +5195,42 @@ body.projector-view .rich-text-inline-edit-button {
 }
 
 .rich-text-toolbar-colour-tools {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: relative;
+    display: flex;
+    align-items: flex-start;
     gap: 0.4rem;
 }
 
 .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu[open] {
-    grid-column: 1 / -1;
+    flex-basis: 42px;
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu {
+    position: static;
 }
 
 .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu summary {
     box-sizing: border-box;
-    width: 100%;
-    justify-content: flex-start;
+    width: 42px;
+    min-width: 42px;
+    height: 38px;
+    justify-content: center;
     border-color: color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 60%, #ffffff 40%);
 }
 
 .rich-text-toolbar-more-panel .rich-text-toolbar-colour-panel {
-    position: static;
+    position: absolute;
+    top: 44px;
+    right: 0;
+    left: 0;
     width: auto;
-    margin-top: 0.4rem;
+    margin-top: 0;
     box-shadow: none;
+}
+
+.rich-text-toolbar-colour-tools:has(.rich-text-toolbar-colour-menu[open]) {
+    padding-bottom: 72px;
 }
 
 .rich-text-toolbar-colour-menu summary {
@@ -5254,8 +5268,10 @@ body.projector-view .rich-text-inline-edit-button {
     text-align: center;
 }
 
-.rich-text-colour-control-label {
-    white-space: nowrap;
+.rich-text-colour-letter {
+    font-size: 1.05rem;
+    font-weight: 900;
+    line-height: 1;
 }
 
 .rich-text-colour-preview {
@@ -5289,6 +5305,10 @@ body.projector-view .rich-text-inline-edit-button {
 .rich-text-toolbar-colour-menu--highlight .rich-text-toolbar-colour-panel {
     right: 0;
     left: auto;
+}
+
+.rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu--highlight .rich-text-toolbar-colour-panel {
+    left: 0;
 }
 
 .rich-text-toolbar-menu-label {
@@ -10645,16 +10665,42 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section + 
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu summary {
-    min-height: 32px;
-    padding: 5px 8px;
+    position: relative;
+    inset: auto;
+    width: 42px;
+    min-width: 42px;
+    height: 38px;
+    min-height: 38px;
+    padding: 4px 7px 7px;
     border-color: rgba(27, 74, 101, 0.12);
     background: var(--widget-chrome-soft);
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-colour-preview {
-    right: auto;
+    right: 8px;
+    bottom: 4px;
     left: 8px;
-    width: 14px;
+    width: auto;
+    height: 3px;
+    border: 0;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.12);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu--highlight summary {
+    border-color: rgba(202, 138, 4, 0.24);
+    background: color-mix(in srgb, #fef08a 38%, var(--widget-chrome-surface) 62%);
+    color: #76550a;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu--highlight summary:hover,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu--highlight[open] summary {
+    border-color: rgba(202, 138, 4, 0.42);
+    background: color-mix(in srgb, #fef08a 54%, var(--widget-chrome-surface) 46%);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu--highlight .rich-text-colour-preview {
+    display: none;
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions button,

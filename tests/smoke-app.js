@@ -854,8 +854,13 @@ async function runSmoke() {
 
         await moreFormatting.locator(':scope > summary').click();
         assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
-        assert(await textColourMenu.locator('summary').isVisible(), 'More should provide a labelled text colour control');
-        assert(await highlightColourMenu.locator('summary').isVisible(), 'More should provide a labelled highlight control');
+        assert(await textColourMenu.locator('summary').isVisible(), 'More should provide an accessible text colour control');
+        assert(await highlightColourMenu.locator('summary').isVisible(), 'More should provide an accessible highlight control');
+        assert(await textColourMenu.locator('.rich-text-colour-letter').textContent() === 'A', 'Text colour should use a compact bold A trigger');
+        assert(await richTextToolbar.locator('.rich-text-colour-control-label').count() === 0, 'Colour triggers should not use space on visible text labels');
+        assert(await textColourMenu.locator('summary').evaluate((summary) => summary.getBoundingClientRect().width <= 44), 'Text colour should remain a compact action button');
+        assert(await highlightColourMenu.locator('summary').evaluate((summary) => summary.getBoundingClientRect().width <= 44), 'Highlight should remain a compact action button');
+        assert(await highlightColourMenu.locator('summary').evaluate((summary) => getComputedStyle(summary).backgroundColor !== 'rgba(0, 0, 0, 0)'), 'Highlight should keep its subtle colour accent');
         assert(await moreFormatting.locator('.rich-text-toolbar-more-panel').evaluate((panel) => {
             const widgetBounds = panel.closest('.widget')?.getBoundingClientRect();
             const panelBounds = panel.getBoundingClientRect();
@@ -906,6 +911,7 @@ async function runSmoke() {
             await clearQuillSelectionMemory();
             await textColourMenu.getByRole('button', { name: 'Red text' }).click();
             assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).color) === 'rgb(220, 38, 38)', 'Text colour should survive palette focus replacing the browser selection');
+            assert(await textColourMenu.locator('.rich-text-colour-preview').evaluate((preview) => getComputedStyle(preview).backgroundColor) === 'rgb(220, 38, 38)', 'Text colour trigger should show the active colour in its underline');
 
             await selectAllRichText();
             await highlightColourMenu.locator('summary').click();
