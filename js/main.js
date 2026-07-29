@@ -925,6 +925,7 @@ class ClassroomScreenApp {
         const shouldOpen = forceOpen === null ? this.sectionsMenu.hidden : forceOpen;
         this.sectionsMenu.hidden = !shouldOpen;
         this.sectionsToggleButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        document.body.classList.toggle('is-sections-menu-open', shouldOpen);
     }
 
     closeSectionsMenu() {
@@ -5770,7 +5771,7 @@ class ClassroomScreenApp {
         const dashboardSubtitle = activePageName && activePageName.toLowerCase() !== defaultPageName.toLowerCase()
             ? `${activePageName} • ${pageSummary}`
             : pageSummary;
-        const navigationModes = new Set(['dashboard', 'library', 'classes', 'favorites', 'recent']);
+        const navigationModes = new Set(['dashboard', 'library', 'favorites', 'recent']);
         const navigationMode = navigationModes.has(this.dashboardNavigationMode)
             ? this.dashboardNavigationMode
             : 'dashboard';
@@ -5789,7 +5790,7 @@ class ClassroomScreenApp {
             });
 
         let navigationPresets = sortedPresets;
-        if (navigationMode === 'classes' && selectedClassName) {
+        if (navigationMode === 'library' && selectedClassName) {
             const targetClass = selectedClassName.toLowerCase();
             navigationPresets = sortedPresets.filter((preset) => String(preset.className || '').trim().toLowerCase() === targetClass);
         } else if (navigationMode === 'favorites') {
@@ -5808,10 +5809,8 @@ class ClassroomScreenApp {
             ? visiblePresets.slice(0, 6)
             : visiblePresets;
         const currentLabel = navigationMode === 'library'
-            ? 'All lesson decks'
-            : navigationMode === 'classes'
-                ? (selectedClassName || 'All classes')
-                : navigationMode === 'favorites'
+            ? (selectedClassName || 'All lesson decks')
+            : navigationMode === 'favorites'
                     ? 'Pinned lesson decks'
                     : navigationMode === 'recent'
                         ? 'Recently opened'
@@ -5821,14 +5820,10 @@ class ClassroomScreenApp {
         const navigationItems = [
             { mode: 'dashboard', label: 'Dashboard', icon: 'fa-house' },
             { mode: 'library', label: 'Library', icon: 'fa-book-open' },
-            { mode: 'classes', label: 'Classes', icon: 'fa-graduation-cap' },
             { mode: 'favorites', label: 'Favourites', icon: 'fa-star' },
             { mode: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
         ];
-        const classItems = [
-            { label: 'All Decks', count: sortedPresets.length, className: '' },
-            ...classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }))
-        ];
+        const classItems = classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }));
         this.dashboardRoot.innerHTML = `
             <div class="dashboard-layout">
                 <aside class="dashboard-sidebar">
@@ -5926,7 +5921,7 @@ class ClassroomScreenApp {
                             </div>
                             <div class="dashboard-toolbar__meta">
                                 <span class="dashboard-chip">${shownPresets.length} shown</span>
-                                <span class="dashboard-chip">${classProfiles.length} classes</span>
+                                <span class="dashboard-chip">${classProfiles.length} ${classProfiles.length === 1 ? 'class' : 'classes'}</span>
                             </div>
                         </div>
                         <div class="dashboard-search-row">
@@ -5941,15 +5936,23 @@ class ClassroomScreenApp {
 
         const classList = this.dashboardRoot.querySelector('#dashboard-class-list');
         if (classList) {
+            if (classItems.length === 0) {
+                classList.innerHTML = '<p class="dashboard-class-list__empty">Classes appear when a saved deck has a class name.</p>';
+            }
+
             classItems.forEach((item) => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = `dashboard-filter${navigationMode === 'classes' && item.className === selectedClassName ? ' is-active' : ''}`;
+                const isSelectedClass = navigationMode === 'library' && item.className === selectedClassName;
+                const deckCountLabel = `${item.count} ${item.count === 1 ? 'deck' : 'decks'}`;
+                button.className = `dashboard-filter${isSelectedClass ? ' is-active' : ''}`;
                 button.dataset.className = item.className;
-                button.setAttribute('aria-pressed', navigationMode === 'classes' && item.className === selectedClassName ? 'true' : 'false');
-                button.innerHTML = `<span>${escapeHtml(item.label)}</span><span class="dashboard-folder__count">${item.count}</span>`;
+                button.setAttribute('aria-label', `${item.label}, ${deckCountLabel}`);
+                button.setAttribute('aria-pressed', isSelectedClass ? 'true' : 'false');
+                button.title = `Show ${deckCountLabel} for ${item.label}`;
+                button.innerHTML = `<span class="dashboard-filter__label">${escapeHtml(item.label)}</span><span class="dashboard-folder__count" aria-hidden="true">${item.count}</span>`;
                 button.addEventListener('click', () => {
-                    this.dashboardNavigationMode = 'classes';
+                    this.dashboardNavigationMode = 'library';
                     this.dashboardSelectedClassName = item.className;
                     this.dashboardSelectedFolderId = '';
                     this.dashboardSearchQuery = '';
@@ -5966,7 +5969,7 @@ class ClassroomScreenApp {
                     ? 'No favourites yet. Use the star on a lesson deck to pin it here.'
                     : navigationMode === 'recent'
                         ? 'No recently opened decks yet. Open a lesson deck and it will appear here.'
-                        : navigationMode === 'classes' && selectedClassName
+                        : selectedClassName
                             ? `No saved decks found for ${selectedClassName}.`
                             : 'No saved decks match this view.';
                 screenGrid.innerHTML = `<div class="dashboard-empty">${escapeHtml(emptyMessage)}</div>`;
