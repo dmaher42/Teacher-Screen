@@ -4974,6 +4974,16 @@ body.projector-view .rich-text-widget-inner .rich-text-inline-actions {
     display: inline-flex;
 }
 
+.rich-text-inline-edit-button--exit {
+    border-color: color-mix(in srgb, var(--primary-color, #2d81ff) 48%, transparent);
+    background: color-mix(in srgb, var(--primary-color, #2d81ff) 16%, #ffffff 84%);
+    color: color-mix(in srgb, var(--primary-color, #2d81ff) 76%, #172033 24%);
+}
+
+.rich-text-inline-edit-button--exit:hover {
+    background: color-mix(in srgb, var(--primary-color, #2d81ff) 24%, #ffffff 76%);
+}
+
 body.projector-view .rich-text-inline-edit-button {
     display: none;
 }
@@ -5110,7 +5120,7 @@ body.projector-view .rich-text-inline-edit-button {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.28rem 0.4rem;
-    padding: 0.28rem 10.2rem 0.28rem 0.35rem;
+    padding: 0.28rem 4.75rem 0.28rem 0.35rem;
 }
 
 .rich-text-toolbar-main {
@@ -5424,33 +5434,6 @@ body.projector-view .rich-text-inline-edit-button {
     opacity: 0.46;
 }
 
-.rich-text-toolbar-present {
-    position: absolute;
-    top: 0.28rem;
-    right: 0.35rem;
-    z-index: 1;
-    min-height: 30px;
-    padding: 0.25rem 0.6rem;
-    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 58%, transparent);
-    border-radius: 7px;
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 16%, #ffffff 84%);
-    color: #111827;
-    font: inherit;
-    font-size: 0.76rem;
-    font-weight: 850;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.rich-text-toolbar-present:hover {
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 24%, #ffffff 76%);
-}
-
-.rich-text-toolbar-present:focus-visible {
-    outline: 3px solid var(--a11y-focus-outline, #ffae00);
-    outline-offset: 2px;
-}
-
 @container (max-width: 520px) {
     .rich-text-editor-toolbar {
         padding-right: 0.35rem;
@@ -5462,11 +5445,6 @@ body.projector-view .rich-text-inline-edit-button {
 
     .rich-text-toolbar-more summary {
         position: static;
-    }
-
-    .rich-text-toolbar-present {
-        position: static;
-        margin-left: auto;
     }
 
     .rich-text-toolbar-colour-panel {
@@ -5794,6 +5772,19 @@ body.projector-view .rich-text-widget-inner[data-presentation-mode="focus"] .ql-
     border-radius: 0;
     background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, var(--card-background, #ffffff) 8%);
     box-shadow: none;
+}
+
+body.rich-text-presenting {
+    overflow: hidden;
+}
+
+body.rich-text-presenting:not(.projector-view) #top-nav,
+body.rich-text-presenting:not(.projector-view) #teacher-panel,
+body.rich-text-presenting:not(.projector-view) .panel-backdrop,
+body.rich-text-presenting:not(.projector-view) #lesson-quick-actions,
+body.rich-text-presenting:not(.projector-view) .project-switcher--corner {
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 body.projector-view .rich-text-widget-inner[data-presentation-mode="fullscreen"].display-mode {
@@ -10356,7 +10347,7 @@ body.is-classroom-active:not(.projector-view) .rich-text-editor-container {
 
 body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 7px;
     padding: 6px 7px;
@@ -10511,22 +10502,6 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary {
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more summary::after {
     content: none;
-}
-
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-present {
-    position: static;
-    min-height: 34px;
-    padding: 6px 11px;
-    border-color: rgba(64, 151, 245, 0.28);
-    border-radius: 9px;
-    background: rgba(64, 151, 245, 0.12);
-    color: var(--widget-chrome-accent-deep);
-    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
-}
-
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-present:hover {
-    border-color: rgba(64, 151, 245, 0.4);
-    background: rgba(64, 151, 245, 0.2);
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-colour-panel,

@@ -957,6 +957,42 @@ class LayoutManager {
       menuItems.appendChild(minimizeButton);
     }
 
+    const widgetMenuActions = typeof widget.getHeaderMenuActions === 'function'
+      ? widget.getHeaderMenuActions()
+      : [];
+
+    widgetMenuActions.forEach((action) => {
+      if (!action?.label || typeof action.onSelect !== 'function') return;
+
+      const actionButton = document.createElement('button');
+      actionButton.className = ['widget-header-menu__item', action.className]
+        .filter(Boolean)
+        .join(' ');
+      actionButton.type = 'button';
+      actionButton.setAttribute('role', 'menuitem');
+      actionButton.setAttribute('aria-label', action.ariaLabel || action.label);
+      actionButton.title = action.title || action.label;
+
+      if (action.iconClass) {
+        const icon = document.createElement('i');
+        icon.className = action.iconClass;
+        icon.setAttribute('aria-hidden', 'true');
+        actionButton.appendChild(icon);
+      }
+
+      const label = document.createElement('span');
+      label.textContent = action.label;
+      actionButton.appendChild(label);
+
+      actionButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeMenu();
+        action.onSelect();
+      });
+
+      menuItems.appendChild(actionButton);
+    });
+
     // Settings menu item.
     const settingsBtn = document.createElement('button');
     settingsBtn.className = 'widget-header-settings-btn widget-header-menu__item';

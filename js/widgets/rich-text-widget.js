@@ -36,8 +36,10 @@ class RichTextWidget {
     this.handleEditorToolbarPointerDown = this.handleEditorToolbarPointerDown.bind(this);
     this.handleEditorSelectionChange = this.handleEditorSelectionChange.bind(this);
     this.handleInlineEditClick = this.handleInlineEditClick.bind(this);
+    this.handleDocumentKeydown = this.handleDocumentKeydown.bind(this);
     this.syncToolbarState = this.syncToolbarState.bind(this);
     this.syncEditorLayout = this.syncEditorLayout.bind(this);
+    document.addEventListener('keydown', this.handleDocumentKeydown);
 
     this.controlsOverlay = document.createElement('div');
     this.controlsOverlay.className = 'widget-content-controls rich-text-settings-controls';
@@ -300,7 +302,6 @@ class RichTextWidget {
           </div>
         </div>
       </details>
-      <button type="button" class="rich-text-toolbar-present" data-action="present" aria-label="Present to students" title="Present to students">Present</button>
     `;
 
     toolbar.querySelectorAll('details').forEach((menu) => {
@@ -319,6 +320,21 @@ class RichTextWidget {
 
   getControls() {
     return this.controlsOverlay;
+  }
+
+  getHeaderMenuActions() {
+    if (this.isProjectorMode()) {
+      return [];
+    }
+
+    return [{
+      className: 'rich-text-present-menu-item',
+      iconClass: 'fas fa-expand',
+      label: 'Present',
+      ariaLabel: 'Present Text Board',
+      title: 'Present Text Board',
+      onSelect: () => this.enterPresentationMode()
+    }];
   }
 
   handleEditorToolbarChange(event) {
@@ -423,11 +439,6 @@ class RichTextWidget {
       this.quill.history?.undo();
     } else if (button.dataset.action === 'redo') {
       this.quill.history?.redo();
-    } else if (button.dataset.action === 'present') {
-      this.presentationMode = 'fullscreen';
-      this.isDisplayMode = true;
-      this.updateDisplayModeUI();
-      document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
     }
 
     this.syncToolbarState();
@@ -484,8 +495,43 @@ class RichTextWidget {
     document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
   }
 
+  enterPresentationMode() {
+    this.presentationMode = 'fullscreen';
+    this.isDisplayMode = true;
+    this.updateDisplayModeUI();
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+  }
+
+  exitPresentationMode() {
+    if (!this.isDisplayMode || this.presentationMode !== 'fullscreen') {
+      return;
+    }
+
+    this.presentationMode = 'normal';
+    this.isDisplayMode = false;
+    this.updateDisplayModeUI();
+    this.quill?.focus();
+    document.dispatchEvent(new CustomEvent('widgetChanged', { detail: { widget: this } }));
+  }
+
+  handleDocumentKeydown(event) {
+    if (event.key !== 'Escape' || this.isProjectorMode()) {
+      return;
+    }
+
+    if (this.isDisplayMode && this.presentationMode === 'fullscreen') {
+      event.preventDefault();
+      this.exitPresentationMode();
+    }
+  }
+
   handleInlineEditClick() {
     if (!this.isDisplayMode) {
+      return;
+    }
+
+    if (this.presentationMode === 'fullscreen') {
+      this.exitPresentationMode();
       return;
     }
 
@@ -1074,6 +1120,25 @@ class RichTextWidget {
     this.displayModeButton.textContent = this.isDisplayMode ? 'Edit' : 'Display';
     this.displayModeButton.setAttribute('aria-pressed', this.isDisplayMode ? 'true' : 'false');
 
+    const isPresenting = this.isDisplayMode && this.presentationMode === 'fullscreen';
+    if (!this.isProjectorMode()) {
+      const hasActivePresentation = document.querySelector(
+        '.rich-text-widget-inner.display-mode[data-presentation-mode="fullscreen"]:not(.is-projector-mode)'
+      );
+      document.body?.classList.toggle('rich-text-presenting', !!hasActivePresentation);
+    }
+
+    if (this.inlineEditButton) {
+      this.inlineEditButton.textContent = isPresenting ? 'Exit Present' : 'Edit';
+      this.inlineEditButton.title = isPresenting ? 'Exit presentation mode (Esc)' : 'Show text toolbar';
+      this.inlineEditButton.setAttribute('aria-label', isPresenting ? 'Exit presentation mode' : 'Show text toolbar');
+      this.inlineEditButton.toggleAttribute('aria-keyshortcuts', isPresenting);
+      if (isPresenting) {
+        this.inlineEditButton.setAttribute('aria-keyshortcuts', 'Escape');
+      }
+      this.inlineEditButton.classList.toggle('rich-text-inline-edit-button--exit', isPresenting);
+    }
+
     const modeLabels = {
       normal: 'Normal display layout',
       large: 'Large text display layout',
@@ -1108,6 +1173,10 @@ class RichTextWidget {
   }
 
   remove() {
+    document.removeEventListener('keydown', this.handleDocumentKeydown);
+    if (this.isDisplayMode && this.presentationMode === 'fullscreen') {
+      document.body?.classList.remove('rich-text-presenting');
+    }
     this.displayModeButton.removeEventListener('click', this.handleDisplayModeClick);
     this.inlineEditButton?.removeEventListener('click', this.handleInlineEditClick);
     this.templateBuilderButton.removeEventListener('click', this.handleTemplateBuilderClick);

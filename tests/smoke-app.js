@@ -664,7 +664,7 @@ async function runSmoke() {
         const highlightColourMenu = richTextToolbar.locator('[data-format-menu="background"]');
         assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
         assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
-        assert(await richTextToolbar.getByRole('button', { name: 'Present to students' }).isVisible(), 'Text Board should expose one-click Present mode');
+        assert(await richTextToolbar.locator('.rich-text-toolbar-present').count() === 0, 'Present should not take permanent space in the formatting toolbar');
 
         if (await richTextEditor.count() === 1) {
             const selectAllRichText = async (text = 'Selection safeguard') => {
@@ -745,7 +745,26 @@ async function runSmoke() {
             const menuRect = header.querySelector('.widget-header-menu > summary')?.getBoundingClientRect();
             return !!titleRect && !!menuRect && menuRect.left - titleRect.right <= 8;
         }), 'The widget options menu should stay beside the title instead of colliding with corner controls');
-        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__popover').isHidden(), 'Widget options should stay hidden until requested');
+        const richTextOptionsToggle = page.locator('.widget.rich-text-widget .widget-header-menu > summary');
+        const richTextOptionsMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
+        assert(await richTextOptionsMenu.isHidden(), 'Widget options should stay hidden until requested');
+        await richTextOptionsToggle.click();
+        const presentTextBoard = richTextOptionsMenu.getByRole('menuitem', { name: 'Present Text Board' });
+        assert(await presentTextBoard.isVisible(), 'Text Board options should include Present');
+        await presentTextBoard.click();
+        assert(await richTextWidget.locator('.rich-text-widget-inner.display-mode[data-presentation-mode="fullscreen"]').count() === 1, 'Present should open the Text Board in full-screen display mode');
+        assert(await page.locator('.project-switcher--corner').evaluate((element) => getComputedStyle(element).visibility === 'hidden'), 'Text Board presentation should prevent the page switcher from blocking the exit control');
+        const exitPresentButton = richTextWidget.getByRole('button', { name: 'Exit presentation mode' });
+        assert(await exitPresentButton.isVisible(), 'Present mode should expose a clear Exit Present button');
+        assert((await exitPresentButton.textContent()).trim() === 'Exit Present', 'The presentation exit control should use an unambiguous label');
+        await exitPresentButton.click();
+        assert(await richTextWidget.locator('.rich-text-widget-inner[data-presentation-mode="normal"]:not(.display-mode)').count() === 1, 'Exit Present should restore Text Board editing mode');
+        assert(await richTextToolbar.isVisible(), 'Exit Present should restore the formatting toolbar');
+
+        await richTextOptionsToggle.click();
+        await presentTextBoard.click();
+        await page.keyboard.press('Escape');
+        assert(await richTextWidget.locator('.rich-text-widget-inner[data-presentation-mode="normal"]:not(.display-mode)').count() === 1, 'Escape should also exit Text Board presentation mode');
         await openTeacherPanel(page);
         assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Teacher Controls should not change the permanent widget interaction state');
         const teacherControlsScale = await page.locator('#teacher-panel').evaluate((panel) => {
@@ -779,7 +798,7 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
-        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 3, 'The widget options menu should contain minimise, settings, and remove actions');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 4, 'The Text Board options menu should contain minimise, present, settings, and remove actions');
         const widgetMenuScale = await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
             const popoverRect = popover.getBoundingClientRect();
             const items = Array.from(popover.querySelectorAll('.widget-header-menu__item'));
