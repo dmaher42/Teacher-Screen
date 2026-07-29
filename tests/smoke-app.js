@@ -836,6 +836,16 @@ async function runSmoke() {
         assert(await moreFormatting.getAttribute('open') !== null, 'More should open the advanced formatting panel');
         assert(await textColourMenu.locator('summary').isVisible(), 'More should provide a labelled text colour control');
         assert(await highlightColourMenu.locator('summary').isVisible(), 'More should provide a labelled highlight control');
+        assert(await moreFormatting.locator('.rich-text-toolbar-more-panel').evaluate((panel) => {
+            const widgetBounds = panel.closest('.widget')?.getBoundingClientRect();
+            const panelBounds = panel.getBoundingClientRect();
+            const discussionButton = panel.querySelector('[data-insert="discussion-question"]');
+            return !!widgetBounds
+                && panelBounds.left >= widgetBounds.left
+                && panelBounds.right <= widgetBounds.right
+                && panelBounds.bottom <= widgetBounds.bottom
+                && discussionButton.scrollWidth <= discussionButton.clientWidth + 1;
+        }), 'More should stay inside the Text Board without clipping its longest teaching-block label');
 
         if (await richTextEditor.count() === 1) {
             const selectAllRichText = async (text = 'Selection safeguard') => {

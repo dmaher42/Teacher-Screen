@@ -10389,7 +10389,12 @@ body.is-classroom-active:not(.projector-view) .rich-text-widget-inner.is-project
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
     flex-wrap: nowrap;
-    gap: 5px;
+    gap: 0;
+    padding: 3px;
+    border: 1px solid rgba(27, 74, 101, 0.12);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -10400,19 +10405,19 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main::-webkit-s
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
-    min-height: 34px;
+    min-height: 30px;
     gap: 3px;
-    padding: 3px;
-    border: 1px solid rgba(27, 74, 101, 0.12);
-    border-radius: 11px;
-    background: rgba(255, 255, 255, 0.92);
-    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group + .rich-text-toolbar-group {
-    margin-left: 0;
-    padding-left: 3px;
-    border-left: 1px solid rgba(27, 74, 101, 0.12);
+    margin-left: 4px;
+    padding-left: 4px;
+    border-left: 1px solid rgba(27, 74, 101, 0.14);
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
@@ -10539,21 +10544,63 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel {
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel {
     right: 7px;
     top: calc(100% + 7px);
-    width: min(300px, calc(100% - 14px));
-    padding: 10px;
+    box-sizing: border-box;
+    width: min(330px, calc(100% - 14px));
+    max-height: min(340px, var(--rich-text-more-max-height, 340px), calc(100vh - 140px));
+    gap: 9px;
+    padding: 11px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(64, 151, 245, 0.38) transparent;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(64, 151, 245, 0.38);
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section {
-    gap: 7px;
-    padding: 8px;
-    border: 1px solid rgba(27, 74, 101, 0.1);
-    border-radius: 10px;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section + .rich-text-toolbar-more-section {
+    padding-top: 9px;
+    border-top: 1px solid rgba(27, 74, 101, 0.11);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu summary {
+    min-height: 32px;
+    padding: 5px 8px;
+    border-color: rgba(27, 74, 101, 0.12);
     background: var(--widget-chrome-soft);
 }
 
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions button {
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-colour-preview {
+    right: auto;
+    left: 8px;
+    width: 14px;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions button,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid button {
+    min-height: 32px;
+    padding: 6px 8px;
     border-color: rgba(27, 74, 101, 0.13);
     background: var(--widget-chrome-surface);
+    font-size: 0.69rem;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid {
+    gap: 5px;
 }
 
 @container rich-text-editor (max-width: 470px) {
@@ -10565,15 +10612,17 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .ric
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
         min-height: 30px;
         gap: 2px;
-        padding: 1px;
+        padding: 0;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group + .rich-text-toolbar-group {
-        padding-left: 1px;
+        margin-left: 3px;
+        padding-left: 3px;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
-        gap: 3px;
+        gap: 0;
+        padding: 2px;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style {

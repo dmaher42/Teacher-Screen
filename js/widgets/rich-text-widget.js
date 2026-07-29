@@ -312,6 +312,14 @@ class RichTextWidget {
         if (!menu.open) {
           return;
         }
+        if (menu.classList.contains('rich-text-toolbar-more')) {
+          const widgetBounds = toolbar.closest('.widget')?.getBoundingClientRect();
+          const toolbarBounds = toolbar.getBoundingClientRect();
+          if (widgetBounds) {
+            const availableHeight = Math.max(120, Math.floor(widgetBounds.bottom - toolbarBounds.bottom - 14));
+            menu.style.setProperty('--rich-text-more-max-height', `${availableHeight}px`);
+          }
+        }
         toolbar.querySelectorAll('details[open]').forEach((otherMenu) => {
           const menusAreNested = otherMenu.contains(menu) || menu.contains(otherMenu);
           if (otherMenu !== menu && !menusAreNested) {
