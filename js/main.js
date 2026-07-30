@@ -5829,13 +5829,21 @@ class ClassroomScreenApp {
                 <aside class="dashboard-sidebar">
                     <div class="dashboard-brand">
                         <div class="dashboard-brand__mark" aria-hidden="true">T</div>
-                        <div class="dashboard-brand__copy">
-                            <p class="dashboard-brand__eyebrow">Teacher Screen</p>
-                            <h2>Teacher</h2>
+                        <h2>Teacher Screen</h2>
+                    </div>
+                    <nav class="dashboard-primary-nav" aria-label="Teacher navigation">
+                        <div class="dashboard-primary-nav__list">
+                            ${navigationItems.map((item) => `
+                                <button class="dashboard-nav-item${navigationMode === item.mode ? ' is-active' : ''}" type="button" data-dashboard-mode="${item.mode}"${navigationMode === item.mode ? ' aria-current="page"' : ''}>
+                                    <span class="dashboard-nav-item__icon" aria-hidden="true"><i class="fa-solid ${item.icon}"></i></span>
+                                    <span>${item.label}</span>
+                                </button>
+                            `).join('')}
                         </div>
                         <details id="dashboard-utility-menu" class="dashboard-utility-menu">
-                            <summary aria-label="Open teacher options" title="Teacher options">
-                                <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                            <summary class="dashboard-nav-item dashboard-utility-menu__trigger" aria-label="More teacher options" title="More teacher options">
+                                <span class="dashboard-nav-item__icon" aria-hidden="true"><i class="fa-solid fa-ellipsis"></i></span>
+                                <span>More</span>
                             </summary>
                             <div class="dashboard-utility-menu__popover" role="menu" aria-label="Teacher options">
                                 <button id="dashboard-sections-btn" type="button" role="menuitem">
@@ -5856,17 +5864,6 @@ class ClassroomScreenApp {
                                 </button>
                             </div>
                         </details>
-                    </div>
-                    <nav class="dashboard-primary-nav" aria-label="Teacher navigation">
-                        <p class="dashboard-sidebar__label">Navigation</p>
-                        <div class="dashboard-primary-nav__list">
-                            ${navigationItems.map((item) => `
-                                <button class="dashboard-nav-item${navigationMode === item.mode ? ' is-active' : ''}" type="button" data-dashboard-mode="${item.mode}"${navigationMode === item.mode ? ' aria-current="page"' : ''}>
-                                    <span class="dashboard-nav-item__icon" aria-hidden="true"><i class="fa-solid ${item.icon}"></i></span>
-                                    <span>${item.label}</span>
-                                </button>
-                            `).join('')}
-                        </div>
                     </nav>
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">

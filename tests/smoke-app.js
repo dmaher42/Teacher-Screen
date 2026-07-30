@@ -673,7 +673,6 @@ async function runSmoke() {
             const navigationItems = Array.from(document.querySelectorAll('.dashboard-nav-item'));
             const activeNavigationItems = navigationItems.filter((item) => item.classList.contains('is-active'));
             const classFilters = Array.from(document.querySelectorAll('.dashboard-filter'));
-            const brandEyebrow = document.querySelector('.dashboard-brand__eyebrow');
             const lessonTitle = commandPanel?.querySelector('h1');
             const lessonSubtitle = commandPanel?.querySelector('.dashboard-command-panel__subtitle');
             const originalLessonTitle = lessonTitle?.textContent || '';
@@ -694,8 +693,15 @@ async function runSmoke() {
                 folderFieldCount: document.querySelectorAll('#preset-folder-select').length,
                 moveActionCount: Array.from(document.querySelectorAll('button')).filter((button) => button.textContent?.trim() === 'Move').length,
                 utilityMenuLabels: Array.from(document.querySelectorAll('#dashboard-utility-menu button')).map((button) => button.textContent?.trim()),
-                teacherProfileName: document.querySelector('.dashboard-brand h2')?.textContent?.trim() || '',
-                brandEyebrowFits: Boolean(brandEyebrow && brandEyebrow.scrollWidth <= brandEyebrow.clientWidth + 1),
+                brandTitle: document.querySelector('.dashboard-brand h2')?.textContent?.trim() || '',
+                brandTitleFits: (() => {
+                    const title = document.querySelector('.dashboard-brand h2');
+                    if (!title) return false;
+                    const textRange = document.createRange();
+                    textRange.selectNodeContents(title);
+                    return textRange.getBoundingClientRect().width <= title.clientWidth - 2;
+                })(),
+                navigationCaptionCount: document.querySelectorAll('.dashboard-sidebar__label').length,
                 navigationLabels: navigationItems.map((item) => item.textContent?.trim()),
                 activeNavigationLabels: activeNavigationItems.map((item) => item.textContent?.trim()),
                 navigationItemHeight: navigationItems[0]?.getBoundingClientRect().height || 0,
@@ -723,9 +729,10 @@ async function runSmoke() {
         assert(desktopDashboardScale.shelfControlCount === 0, 'Deck Shelf controls should no longer compete with Classes');
         assert(desktopDashboardScale.folderFieldCount === 0, 'The advanced deck manager should not expose a second folder system');
         assert(desktopDashboardScale.moveActionCount === 0, 'Deck actions should not offer movement into hidden shelves');
-        assert(desktopDashboardScale.teacherProfileName === 'Teacher', 'Sidebar should show a compact teacher profile');
-        assert(desktopDashboardScale.brandEyebrowFits, 'Teacher Screen brand text should fit without clipping');
-        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Favourites|Recent', 'Sidebar should expose four distinct primary navigation destinations');
+        assert(desktopDashboardScale.brandTitle === 'Teacher Screen', 'Sidebar should show the app name once as its clear title');
+        assert(desktopDashboardScale.brandTitleFits, 'Sidebar app name should fit without clipping or an ellipsis');
+        assert(desktopDashboardScale.navigationCaptionCount === 0, 'Sidebar should not repeat an unnecessary Navigation caption');
+        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Favourites|Recent|More', 'Sidebar should expose four destinations and one labelled More menu');
         assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Dashboard', 'Dashboard should be the only active navigation item on launch');
         assert(desktopDashboardScale.navigationItemHeight >= 40, 'Primary navigation items should have clear touch-friendly height');
         assert(desktopDashboardScale.classFilterLabels.join('|') === 'Year 7 English', 'Class filters should be generated from saved deck metadata without duplicating Library');
@@ -1897,7 +1904,7 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-nav-item.is-active').count() === 1, 'Mobile sidebar should keep exactly one primary destination active');
         assert(await mobilePage.locator('.dashboard-main').evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'Mobile dashboard content should not create horizontal scrolling');
         assert(await mobilePage.locator('#dashboard-folder-list, #dashboard-create-folder-btn, .dashboard-shelves').count() === 0, 'Mobile should use Classes without a second Deck Shelves system');
-        assert(await mobilePage.locator('#dashboard-utility-menu > summary').isVisible(), 'Mobile dashboard should keep utility links inside the compact options menu');
+        assert(await mobilePage.locator('#dashboard-utility-menu > summary').textContent().then((text) => text.trim() === 'More'), 'Mobile dashboard should expose utility links through a clearly labelled More item');
         assert(await mobilePage.locator('.dashboard-sidebar__footer').count() === 0, 'Mobile dashboard should not render a separate utility footer');
         assert(await mobilePage.locator('.dashboard-command-panel').evaluate((element) => element.getBoundingClientRect().height < 300), 'Mobile dashboard lesson actions should stay above the deck library');
         assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the deck library into the first screenful');

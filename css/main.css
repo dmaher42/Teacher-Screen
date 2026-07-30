@@ -9703,12 +9703,7 @@ body.is-dashboard-active .dashboard-sidebar {
 body.is-dashboard-active .dashboard-brand {
     position: relative;
     z-index: 20;
-    gap: 7px;
-    min-width: 0;
-}
-
-body.is-dashboard-active .dashboard-brand__copy {
-    flex: 1 1 auto;
+    gap: 9px;
     min-width: 0;
 }
 
@@ -9718,51 +9713,28 @@ body.is-dashboard-active .dashboard-brand__mark {
     border-radius: 11px;
 }
 
-body.is-dashboard-active .dashboard-brand__eyebrow {
-    overflow: hidden;
-    font-size: 0.48rem;
-    letter-spacing: 0.035em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 body.is-dashboard-active .dashboard-brand h2 {
+    flex: 1 1 auto;
     overflow: hidden;
-    font-size: 1rem;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.875rem;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 body.is-dashboard-active .dashboard-utility-menu {
     position: relative;
-    margin-left: auto;
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
 }
 
 body.is-dashboard-active .dashboard-utility-menu > summary {
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    padding: 0;
     list-style: none;
-    border: 1px solid rgba(218, 241, 253, 0.14);
-    border-radius: 10px;
-    background: rgba(232, 247, 255, 0.07);
-    color: rgba(240, 250, 255, 0.86);
-    cursor: pointer;
 }
 
 body.is-dashboard-active .dashboard-utility-menu > summary::-webkit-details-marker {
     display: none;
-}
-
-body.is-dashboard-active .dashboard-utility-menu > summary:hover,
-body.is-dashboard-active .dashboard-utility-menu > summary:focus-visible,
-body.is-dashboard-active .dashboard-utility-menu[open] > summary {
-    border-color: rgba(79, 178, 255, 0.5);
-    background: rgba(47, 143, 244, 0.2);
-    color: #ffffff;
 }
 
 body.is-dashboard-active .dashboard-utility-menu > summary:focus-visible,
@@ -9816,15 +9788,6 @@ body.is-dashboard-active .dashboard-utility-menu__popover button i {
     text-align: center;
 }
 
-body.is-dashboard-active .dashboard-sidebar__label {
-    margin: 0;
-    color: rgba(224, 244, 255, 0.52);
-    font-size: 0.62rem;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
 body.is-dashboard-active .dashboard-primary-nav {
     display: grid;
     gap: 6px;
@@ -9861,7 +9824,8 @@ body.is-dashboard-active .dashboard-nav-item {
 }
 
 body.is-dashboard-active .dashboard-nav-item:hover,
-body.is-dashboard-active .dashboard-nav-item:focus-visible {
+body.is-dashboard-active .dashboard-nav-item:focus-visible,
+body.is-dashboard-active .dashboard-utility-menu[open] > .dashboard-utility-menu__trigger {
     border-color: rgba(101, 199, 255, 0.2);
     background: rgba(232, 247, 255, 0.08);
     color: #ffffff;
