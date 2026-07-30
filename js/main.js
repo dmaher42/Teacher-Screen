@@ -187,6 +187,7 @@ class ClassroomScreenApp {
         this.mainPagePrev = document.getElementById('main-page-prev');
         this.mainPageCurrent = document.getElementById('main-page-current');
         this.mainPageNext = document.getElementById('main-page-next');
+        this.mainPageAdd = document.getElementById('main-page-add');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.projectScreenNameInput = document.getElementById('project-screen-name-input');
@@ -771,6 +772,10 @@ class ClassroomScreenApp {
                     this.switchToPage(targetPage.id);
                 }
             });
+        }
+
+        if (this.mainPageAdd) {
+            this.mainPageAdd.addEventListener('click', () => this.createNewPage());
         }
 
         if (this.newProjectButton) {

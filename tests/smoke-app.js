@@ -1653,8 +1653,9 @@ async function runSmoke() {
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         await waitForWidgetCount(page, 8, 'Deck page one should contain the tracker, quick text, and smoke-test widgets');
 
-        await openTeacherPanel(page);
-        await page.locator('#new-page-btn').click();
+        await closeTeacherPanel(page);
+        assert(await page.locator('#main-page-add').isVisible(), 'The classroom page strip should expose an Add page button');
+        await page.locator('#main-page-add').click();
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             return state && Array.isArray(state.pages) && state.pages.length >= 2;
@@ -1663,6 +1664,7 @@ async function runSmoke() {
         assert(behaviourControls.isClosed(), 'Changing deck pages should close the old private behaviour controls');
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'New blank page should not show instructional placeholder text');
 
+        await openTeacherPanel(page);
         await page.locator('#teacher-page-switcher [data-page-id]').first().click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
