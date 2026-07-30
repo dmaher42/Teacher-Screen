@@ -2,15 +2,17 @@ class BackgroundManager {
   constructor(containerElement) {
     this.container = containerElement;
     this.currentTheme = 'theme-ocean';
+    const oceanDefaultGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
     this.themeDefaults = {
       'theme-light': { type: 'solid', value: '#ffffff', source: 'theme-default' },
-      'theme-ocean': { type: 'solid', value: '#0f172a', source: 'theme-default' },
+      'theme-ocean': { type: 'gradient', value: oceanDefaultGradient, source: 'theme-default' },
       'theme-professional': { type: 'solid', value: '#111827', source: 'theme-default' }
     };
     this.defaultBackground = this.getThemeDefaultBackground(this.currentTheme);
     this.backgrounds = {
       solid: ['#ffffff', '#f0f0f0', '#e6f3f7'],
       gradient: [
+        oceanDefaultGradient,
         'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)',
         'linear-gradient(to top, #a8edea 0%, #fed6e3 100%)'
       ],
@@ -75,6 +77,15 @@ class BackgroundManager {
       return;
     }
 
+    const isSavedDefaultForCurrentTheme = savedBackground.source === 'theme-default'
+      && savedBackground.theme === themeName;
+
+    if (isSavedDefaultForCurrentTheme) {
+      this.currentBackground = { ...savedBackground };
+      this.applyBackground();
+      return;
+    }
+
     if (savedBackground.source === 'theme-default' || this.isLegacyDefaultBackground(savedBackground)) {
       this.currentBackground = { ...this.defaultBackground };
       this.saveBackground();
@@ -130,6 +141,12 @@ class BackgroundManager {
   syncTheme(themeName) {
     this.currentTheme = themeName || this.currentTheme;
     this.defaultBackground = this.getThemeDefaultBackground(this.currentTheme);
+
+    const isSavedDefaultForCurrentTheme = this.currentBackground?.source === 'theme-default'
+      && this.currentBackground.theme === this.currentTheme;
+    if (isSavedDefaultForCurrentTheme) {
+      return;
+    }
 
     if (this.currentBackground?.source === 'theme-default' || this.isLegacyDefaultBackground(this.currentBackground)) {
       this.currentBackground = { ...this.defaultBackground };

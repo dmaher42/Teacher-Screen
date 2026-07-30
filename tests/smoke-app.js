@@ -530,6 +530,7 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
 }
 
 async function runNewDeckNavigationChecks(browser, baseUrl) {
+    const oceanDefaultGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
 
@@ -552,14 +553,62 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
             return {
                 projectName: state.projectName,
                 pageCount: Array.isArray(state.pages) ? state.pages.length : 0,
-                widgetCount: Array.isArray(state.layout?.widgets) ? state.layout.widgets.length : -1
+                widgetCount: Array.isArray(state.layout?.widgets) ? state.layout.widgets.length : -1,
+                background: state.background,
+                pageBackground: state.pages?.[0]?.snapshot?.background,
+                renderedBackgroundImage: document.querySelector('#student-view')?.style.backgroundImage || '',
+                selectedGradientCount: document.querySelectorAll('#background-selector .background-swatch.is-selected').length
             };
         });
 
         assert(newDeckState.projectName === deckName, 'New Deck should save the chosen deck name');
         assert(newDeckState.pageCount === 1, 'New Deck should start with one page');
         assert(newDeckState.widgetCount === 0, 'New Deck should open a blank classroom');
+        assert(newDeckState.background?.type === 'gradient' && newDeckState.background?.value === oceanDefaultGradient, 'New Deck should use the Ocean twilight gradient');
+        assert(newDeckState.pageBackground?.type === 'gradient' && newDeckState.pageBackground?.value === oceanDefaultGradient, 'New Deck should save the Ocean twilight gradient with its first page');
+        assert(newDeckState.renderedBackgroundImage.includes('linear-gradient'), 'New Deck should visibly render its gradient on the classroom canvas');
+        assert(newDeckState.selectedGradientCount === 1, 'Background picker should show the default gradient as selected');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'New Deck should open the classroom in lesson mode');
+
+        const projectorPage = await context.newPage();
+        await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.waitForFunction(() => document.querySelector('#student-view')?.style.backgroundImage.includes('linear-gradient'), undefined, { timeout: 20000 });
+        assert((await projectorPage.locator('#student-view').evaluate((element) => element.style.backgroundImage)).includes('linear-gradient'), 'Projector should render the new deck gradient');
+        await projectorPage.close();
+
+        await page.evaluate(() => {
+            const savedOceanBackground = {
+                type: 'solid',
+                value: '#0f172a',
+                source: 'theme-default',
+                theme: 'theme-ocean'
+            };
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            state.background = savedOceanBackground;
+            if (state.pages?.[0]?.snapshot) {
+                state.pages[0].snapshot.background = savedOceanBackground;
+            }
+            localStorage.setItem('background', JSON.stringify(savedOceanBackground));
+            localStorage.setItem('classroomScreenState', JSON.stringify(state));
+        });
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-create-btn', { timeout: 15000 });
+        await page.waitForFunction(() => {
+            const studentView = document.querySelector('#student-view');
+            return Boolean(studentView?.style.backgroundImage || studentView?.style.backgroundColor);
+        }, undefined, { timeout: 10000 });
+        const restoredExistingDeck = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return {
+                backgroundImage: document.querySelector('#student-view')?.style.backgroundImage || '',
+                backgroundColor: document.querySelector('#student-view')?.style.backgroundColor || '',
+                storedBackground: JSON.parse(localStorage.getItem('background') || 'null'),
+                stateBackground: state.background,
+                pageBackground: state.pages?.[0]?.snapshot?.background
+            };
+        });
+        assert(restoredExistingDeck.backgroundImage === 'none', 'An existing deck should keep its previously saved background');
+        assert(restoredExistingDeck.backgroundColor === 'rgb(15, 23, 42)', 'An existing deck should retain its saved Ocean solid colour');
     } finally {
         await context.close();
     }
