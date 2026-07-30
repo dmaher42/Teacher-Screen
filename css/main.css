@@ -2729,8 +2729,7 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
 }
 
 .project-switcher.project-switcher--corner .page-switcher__nav,
-.project-switcher.project-switcher--corner .page-switcher__current,
-.project-switcher.project-switcher--corner .page-switcher__add {
+.project-switcher.project-switcher--corner .page-switcher__current {
     appearance: none;
     border: 1px solid color-mix(in srgb, var(--border-color, #dfe4e2) 82%, transparent);
     background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
@@ -2754,24 +2753,13 @@ body.is-dashboard-active .dashboard-screen-card__actions .dashboard-link-btn {
     font-size: 0.8rem;
 }
 
-.project-switcher.project-switcher--corner .page-switcher__add {
-    width: 18px;
-    padding: 0;
-    border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 38%, transparent);
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 14%, var(--card-background, #ffffff) 86%);
-    color: color-mix(in srgb, var(--primary-color, #8e82ff) 78%, #0f172a 22%);
-    font-size: 0.9rem;
-    cursor: pointer;
-}
-
 .project-switcher.project-switcher--corner .page-switcher__current {
     min-width: 22px;
     cursor: pointer;
 }
 
 .project-switcher.project-switcher--corner .page-switcher__nav:not(:disabled):hover,
-.project-switcher.project-switcher--corner .page-switcher__current:hover,
-.project-switcher.project-switcher--corner .page-switcher__add:hover {
+.project-switcher.project-switcher--corner .page-switcher__current:hover {
     border-color: color-mix(in srgb, var(--primary-color, #8e82ff) 40%, #ffffff 60%);
     background: color-mix(in srgb, var(--primary-color, #8e82ff) 10%, var(--card-background, #ffffff) 90%);
 }
@@ -9307,8 +9295,7 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 }
 
 body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__nav,
-body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__current,
-body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__add {
+body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__current {
     min-height: 24px;
     height: 24px;
     border: 0;
@@ -9317,12 +9304,6 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 
 body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__nav {
     width: 24px;
-}
-
-body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__add {
-    width: 24px;
-    background: var(--classroom-polish-blue);
-    color: #ffffff;
 }
 
 body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher--corner .page-switcher__current {

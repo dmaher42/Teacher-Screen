@@ -187,7 +187,6 @@ class ClassroomScreenApp {
         this.mainPagePrev = document.getElementById('main-page-prev');
         this.mainPageCurrent = document.getElementById('main-page-current');
         this.mainPageNext = document.getElementById('main-page-next');
-        this.mainPageAdd = document.getElementById('main-page-add');
         this.teacherCurrentProjectName = document.getElementById('teacher-current-project-name');
         this.teacherCurrentProjectPageSummary = document.getElementById('teacher-current-project-page-summary');
         this.projectScreenNameInput = document.getElementById('project-screen-name-input');
@@ -770,12 +769,10 @@ class ClassroomScreenApp {
                 const targetPage = activeIndex >= 0 && activeIndex < pages.length - 1 ? pages[activeIndex + 1] : null;
                 if (targetPage && targetPage.id) {
                     this.switchToPage(targetPage.id);
+                } else {
+                    this.createNewPage();
                 }
             });
-        }
-
-        if (this.mainPageAdd) {
-            this.mainPageAdd.addEventListener('click', () => this.createNewPage());
         }
 
         if (this.newProjectButton) {
@@ -2888,8 +2885,10 @@ class ClassroomScreenApp {
         }
 
         if (this.mainPageNext) {
-            this.mainPageNext.disabled = !canMoveRight;
-            this.mainPageNext.title = canMoveRight ? 'Next page' : 'No next page';
+            const nextActionLabel = canMoveRight ? 'Next page' : 'Add page';
+            this.mainPageNext.disabled = false;
+            this.mainPageNext.title = nextActionLabel;
+            this.mainPageNext.setAttribute('aria-label', nextActionLabel);
         }
     }
 

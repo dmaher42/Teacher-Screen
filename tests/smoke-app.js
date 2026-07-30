@@ -1654,8 +1654,11 @@ async function runSmoke() {
         await waitForWidgetCount(page, 8, 'Deck page one should contain the tracker, quick text, and smoke-test widgets');
 
         await closeTeacherPanel(page);
-        assert(await page.locator('#main-page-add').isVisible(), 'The classroom page strip should expose an Add page button');
-        await page.locator('#main-page-add').click();
+        const mainPageNext = page.locator('#main-page-next');
+        assert(await page.locator('#main-page-add').count() === 0, 'The classroom page strip should not use a separate Add page button');
+        assert(await mainPageNext.getAttribute('aria-label') === 'Add page', 'The final-page next arrow should identify its Add page action');
+        assert(await mainPageNext.isEnabled(), 'The final-page next arrow should remain available to add a page');
+        await mainPageNext.click();
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             return state && Array.isArray(state.pages) && state.pages.length >= 2;
@@ -1675,6 +1678,19 @@ async function runSmoke() {
         await page.waitForSelector('.widget.url-viewer-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.notes-widget', { timeout: 10000 });
         await waitForWidgetCount(page, 8, 'Switching back to deck page one should restore its widgets');
+
+        await closeTeacherPanel(page);
+        assert(await mainPageNext.getAttribute('aria-label') === 'Next page', 'The next arrow should identify its navigation action when another page exists');
+        await mainPageNext.click();
+        await page.waitForFunction(() => document.getElementById('main-page-current')?.textContent === '2', { timeout: 10000 });
+        const pageCountAfterNextNavigation = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return Array.isArray(state.pages) ? state.pages.length : 0;
+        });
+        assert(pageCountAfterNextNavigation === 2, 'The next arrow should navigate to an existing page without creating another page');
+        await page.locator('#main-page-prev').click();
+        await page.waitForFunction(() => document.getElementById('main-page-current')?.textContent === '1', { timeout: 10000 });
+        await waitForWidgetCount(page, 8, 'Returning from the existing next page should restore page one widgets');
 
         await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
