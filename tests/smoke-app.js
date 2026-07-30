@@ -1737,9 +1737,25 @@ async function runSmoke() {
             return Array.isArray(state.pages) ? state.pages.length : 0;
         });
         assert(pageCountAfterNextNavigation === 2, 'The next arrow should navigate to an existing page without creating another page');
-        await page.locator('#main-page-prev').click();
+
+        const mainPageCurrent = page.locator('#main-page-current');
+        assert((await mainPageCurrent.getAttribute('aria-label'))?.includes('Manage or delete this page'), 'The page number should identify its page-management action');
+        await mainPageCurrent.click();
+        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        assert(await page.locator('.project-page-advanced').getAttribute('open') !== null, 'The page number should reveal the current page actions');
+        assert(await page.locator('#delete-page-btn').isVisible(), 'The revealed page actions should include Delete Page');
+
+        page.once('dialog', (dialog) => dialog.accept());
+        await page.locator('#delete-page-btn').click();
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return document.getElementById('main-page-current')?.textContent === '1'
+                && Array.isArray(state.pages)
+                && state.pages.length === 1;
+        }, { timeout: 10000 });
+        await closeTeacherPanel(page);
         await page.waitForFunction(() => document.getElementById('main-page-current')?.textContent === '1', { timeout: 10000 });
-        await waitForWidgetCount(page, 8, 'Returning from the existing next page should restore page one widgets');
+        await waitForWidgetCount(page, 8, 'Deleting page two should restore page one and its widgets');
 
         await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');

@@ -635,7 +635,7 @@ class ClassroomScreenApp {
         this.setupDialogControls();
 
         // Accordion Cards
-        const detailsElements = document.querySelectorAll('.control-card details');
+        const detailsElements = document.querySelectorAll('.control-card > details');
         detailsElements.forEach(details => {
             details.addEventListener('toggle', () => {
                 if (details.open) {
@@ -757,7 +757,7 @@ class ClassroomScreenApp {
 
         if (this.mainPageCurrent) {
             this.mainPageCurrent.addEventListener('click', () => {
-                this.openManageScreensMenu();
+                this.openCurrentPageActions();
             });
         }
 
@@ -2828,8 +2828,8 @@ class ClassroomScreenApp {
 
         if (this.mainPageCurrent) {
             this.mainPageCurrent.textContent = currentPageLabel;
-            this.mainPageCurrent.title = pageSummary;
-            this.mainPageCurrent.setAttribute('aria-label', `${pageSummary}. Open screen controls.`);
+            this.mainPageCurrent.title = `Manage or delete this page (${pageSummary})`;
+            this.mainPageCurrent.setAttribute('aria-label', `${pageSummary}. Manage or delete this page.`);
         }
 
         [this.teacherPageSwitcher].forEach((container) => {
@@ -6267,6 +6267,21 @@ class ClassroomScreenApp {
         this.closeDialog(this.widgetModal);
         this.closeSectionsMenu();
         this.handleNavClick('classroom', { openTeacherPanel: true });
+    }
+
+    openCurrentPageActions() {
+        this.openTeacherControls();
+
+        window.requestAnimationFrame(() => {
+            const pageActions = this.teacherPanel?.querySelector('.project-page-advanced');
+            if (pageActions) {
+                pageActions.open = true;
+            }
+
+            if (this.deletePageButton) {
+                this.deletePageButton.scrollIntoView({ block: 'nearest' });
+            }
+        });
     }
 
     createFolderFromDashboard() {
