@@ -707,7 +707,7 @@ async function runSmoke() {
         await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
         const optionalDependencyFailures = await page.evaluate(() => window.__TeacherDependencyFailures || []);
         assert(optionalDependencyFailures.length > 0, 'Teacher app should continue after optional online scripts stall');
-        assert(await page.title() === 'Custom Classroom Screen', 'Teacher app page title should load');
+        assert(await page.title() === 'Teacher Screen', 'Teacher app page title should load');
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
         assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
         assert(await page.locator('#dashboard-open-classroom-btn.dashboard-launch-card--primary').isVisible(), 'Dashboard should make Open Classroom the primary action');
