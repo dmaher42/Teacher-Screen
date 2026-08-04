@@ -305,6 +305,78 @@ async function runWidgetSaveNotificationChecks(browser, baseUrl) {
     }
 }
 
+async function runBottomWidgetContainmentChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1899, height: 707 } });
+    await makeExternalAssetsDeterministic(context);
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.locator('#lesson-quick-actions [data-quick-widget="name-picker"]').click();
+        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+
+        const namePickerBeforeDrag = await getElementBox(page, '.widget.name-picker-widget');
+        await dragElementBy(page, '.widget.name-picker-widget .widget-header-title', 0, 1000);
+        const namePickerAfterDrag = await getElementBox(page, '.widget.name-picker-widget');
+        const canvasAfterDrag = await getElementBox(page, '#widgets-container');
+        const quickActionsAfterDrag = await getElementBox(page, '#lesson-quick-actions');
+        assert(
+            namePickerAfterDrag.y - namePickerBeforeDrag.y >= 100,
+            'A standard widget should still move meaningfully toward the bottom of the classroom'
+        );
+        assert(
+            Math.abs(namePickerAfterDrag.height - namePickerBeforeDrag.height) <= 1,
+            'Dragging a standard widget should not resize it'
+        );
+        assert(
+            namePickerAfterDrag.y >= canvasAfterDrag.y
+                && namePickerAfterDrag.y + namePickerAfterDrag.height <= canvasAfterDrag.y + canvasAfterDrag.height + 1,
+            'A standard widget should remain fully inside the classroom canvas when dragged to the bottom'
+        );
+        assert(
+            namePickerAfterDrag.y + namePickerAfterDrag.height <= quickActionsAfterDrag.y + 1,
+            'A bottom-positioned widget should stop above the lesson quick actions'
+        );
+
+        await page.waitForTimeout(700);
+        const savedNamePicker = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const activePage = Array.isArray(state.pages)
+                ? state.pages.find((pageRecord) => pageRecord?.id === state.activePageId)
+                : null;
+            const widget = activePage?.snapshot?.layout?.widgets?.find((item) => item.type === 'NamePickerWidget');
+            return widget ? { y: widget.y, height: widget.height } : null;
+        });
+        assert(
+            Math.abs(savedNamePicker?.y - namePickerAfterDrag.y) <= 20
+                && Math.abs(savedNamePicker?.height - namePickerAfterDrag.height) <= 20,
+            'A bottom-positioned widget should save its visible size and position'
+        );
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        const namePickerAfterReload = await getElementBox(page, '.widget.name-picker-widget');
+        const canvasAfterReload = await getElementBox(page, '#widgets-container');
+        assert(
+            Math.abs(namePickerAfterReload.y - namePickerAfterDrag.y) <= 20
+                && Math.abs(namePickerAfterReload.height - namePickerAfterDrag.height) <= 20,
+            'A bottom-positioned widget should restore its visible size and position after reload'
+        );
+        assert(
+            namePickerAfterReload.y >= canvasAfterReload.y
+                && namePickerAfterReload.y + namePickerAfterReload.height <= canvasAfterReload.y + canvasAfterReload.height + 1,
+            'A reloaded bottom-positioned widget should remain fully inside the classroom canvas'
+        );
+    } finally {
+        await context.close();
+    }
+}
+
 async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 640 } });
     await makeExternalAssetsDeterministic(context);
@@ -320,29 +392,34 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         const tallWidgetBeforeDrag = await getElementBox(page, '.widget.reveal-manager-widget');
         await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, 320);
         const tallWidgetAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget');
-        const tallWidgetHeaderAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget .widget-header');
         const canvasAfterTallDrag = await getElementBox(page, '#widgets-container');
         assert(
-            tallWidgetAfterDrag.y - tallWidgetBeforeDrag.y >= 220,
+            tallWidgetAfterDrag.y - tallWidgetBeforeDrag.y >= 80,
             'Tall widgets should have meaningful vertical travel instead of being locked by their full height'
         );
         assert(
-            tallWidgetHeaderAfterDrag.y >= canvasAfterTallDrag.y
-                && tallWidgetHeaderAfterDrag.y + tallWidgetHeaderAfterDrag.height <= canvasAfterTallDrag.y + canvasAfterTallDrag.height,
-            'A vertically moved widget should keep its grab bar safely inside the classroom canvas'
+            Math.abs(tallWidgetAfterDrag.height - tallWidgetBeforeDrag.height) <= 1,
+            'Dragging a tall widget should not silently resize it'
+        );
+        assert(
+            tallWidgetAfterDrag.y >= canvasAfterTallDrag.y
+                && tallWidgetAfterDrag.y + tallWidgetAfterDrag.height <= canvasAfterTallDrag.y + canvasAfterTallDrag.height + 1,
+            'A vertically moved tall widget should remain fully inside the classroom canvas'
         );
 
         await page.waitForTimeout(700);
-        const savedTallWidgetY = await page.evaluate(() => {
+        const savedTallWidget = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const activePage = Array.isArray(state.pages)
                 ? state.pages.find((pageRecord) => pageRecord?.id === state.activePageId)
                 : null;
-            return activePage?.snapshot?.layout?.widgets?.find((widget) => widget.type === 'RevealManagerWidget')?.y;
+            const widget = activePage?.snapshot?.layout?.widgets?.find((item) => item.type === 'RevealManagerWidget');
+            return widget ? { y: widget.y, height: widget.height } : null;
         });
         assert(
-            Math.abs(savedTallWidgetY - tallWidgetAfterDrag.y) <= 20,
-            `A moved tall widget should save its vertical position before reload (saved ${savedTallWidgetY}, rendered ${tallWidgetAfterDrag.y})`
+            Math.abs(savedTallWidget?.y - tallWidgetAfterDrag.y) <= 20
+                && Math.abs(savedTallWidget?.height - tallWidgetAfterDrag.height) <= 20,
+            `A moved tall widget should save its unchanged size and new position before reload (saved ${JSON.stringify(savedTallWidget)}, rendered y ${tallWidgetAfterDrag.y}, height ${tallWidgetAfterDrag.height})`
         );
 
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -350,9 +427,16 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         const tallWidgetAfterReload = await getElementBox(page, '.widget.reveal-manager-widget');
+        const canvasAfterTallReload = await getElementBox(page, '#widgets-container');
         assert(
-            Math.abs(tallWidgetAfterReload.y - tallWidgetAfterDrag.y) <= 20,
-            `A tall widget should keep its intentional vertical position after reload (restored ${tallWidgetAfterReload.y}, expected ${tallWidgetAfterDrag.y})`
+            Math.abs(tallWidgetAfterReload.y - tallWidgetAfterDrag.y) <= 20
+                && Math.abs(tallWidgetAfterReload.height - tallWidgetAfterDrag.height) <= 20,
+            `A tall widget should keep its unchanged size and intentional vertical position after reload (restored y ${tallWidgetAfterReload.y}, height ${tallWidgetAfterReload.height})`
+        );
+        assert(
+            tallWidgetAfterReload.y >= canvasAfterTallReload.y
+                && tallWidgetAfterReload.y + tallWidgetAfterReload.height <= canvasAfterTallReload.y + canvasAfterTallReload.height + 1,
+            'A reloaded tall widget should remain fully inside the classroom canvas'
         );
 
         await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, -600);
@@ -361,6 +445,27 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         assert(
             tallWidgetAfterUpwardDrag.y <= canvasAfterUpwardDrag.y + 24,
             'Tall widgets should still move back to the top of the classroom canvas'
+        );
+        assert(
+            tallWidgetAfterUpwardDrag.y + tallWidgetAfterUpwardDrag.height <= canvasAfterUpwardDrag.y + canvasAfterUpwardDrag.height + 1,
+            'A tall widget moved back to the top should remain fully inside the classroom canvas'
+        );
+        assert(
+            Math.abs(tallWidgetAfterUpwardDrag.height - tallWidgetBeforeDrag.height) <= 1,
+            'Moving a tall widget back upward should preserve its height'
+        );
+
+        const tallWidgetBeforeKeyboardMove = await getElementBox(page, '.widget.reveal-manager-widget');
+        await page.locator('.widget.reveal-manager-widget .widget-header-title').focus();
+        await page.locator('.widget.reveal-manager-widget .widget-header-title').press('ArrowDown');
+        const tallWidgetAfterKeyboardMove = await getElementBox(page, '.widget.reveal-manager-widget');
+        assert(
+            tallWidgetAfterKeyboardMove.y - tallWidgetBeforeKeyboardMove.y >= 15,
+            'Keyboard movement should still move a tall widget down within the canvas'
+        );
+        assert(
+            Math.abs(tallWidgetAfterKeyboardMove.height - tallWidgetBeforeKeyboardMove.height) <= 1,
+            'Keyboard movement should not silently resize a tall widget'
         );
     } finally {
         await context.close();
@@ -684,6 +789,7 @@ async function runSmoke() {
         await runDeckOrganisationChecks(browser, baseUrl);
         await runNewDeckNavigationChecks(browser, baseUrl);
         await runWidgetSaveNotificationChecks(browser, baseUrl);
+        await runBottomWidgetContainmentChecks(browser, baseUrl);
         await runTallWidgetVerticalMovementChecks(browser, baseUrl);
         await runDocumentViewerPdfChecks(browser, baseUrl);
         const context = await browser.newContext();

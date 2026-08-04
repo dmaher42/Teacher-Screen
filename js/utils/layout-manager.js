@@ -5,7 +5,6 @@ const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
 const TEACHER_CANVAS_MARGIN = 16;
 const TEACHER_CANVAS_BOTTOM_INSET = 0;
 const TEACHER_WIDGET_GAP = GRID_SIZE;
-const TEACHER_WIDGET_VISIBLE_DRAG_HEIGHT = 40;
 const MINIMIZED_WIDGET_HEIGHT = GRID_SIZE * 2;
 const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
 const layoutManagerApplyAppModeToWidget = (widgetInstance) => (window.TeacherScreenAppMode && typeof window.TeacherScreenAppMode.applyAppModeToWidget === 'function'
@@ -474,21 +473,7 @@ class LayoutManager {
   }
 
   normalizeWidgetDragBounds(x, y, width, height) {
-    const bounded = this.normalizeWidgetBounds(x, y, width, height);
-    if (!layoutManagerIsTeacherMode()) return bounded;
-
-    const canvas = this.getCanvasMetrics();
-    const requestedHeight = Number.isFinite(height) && height > 0 ? height : bounded.height;
-    const keepEntireWidgetVisible = requestedHeight > canvas.height;
-    const visibleHeight = keepEntireWidgetVisible
-      ? bounded.height
-      : Math.min(bounded.height, TEACHER_WIDGET_VISIBLE_DRAG_HEIGHT);
-    const maxY = canvas.minY + Math.max(0, canvas.height - visibleHeight);
-
-    return {
-      ...bounded,
-      y: clamp(Number.isFinite(y) ? y : canvas.minY, canvas.minY, maxY)
-    };
+    return this.normalizeWidgetBounds(x, y, width, height);
   }
 
   updateWidgetChrome(widgetInfo) {
