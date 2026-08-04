@@ -70,7 +70,7 @@ const WIDGET_SIZE_RULES = {
 const WIDGET_DISPLAY_NAMES = {
   BehaviourTrackerWidget: 'Learning-Time Tracker',
   PomodoroWidget: 'Timer',
-  RevealManagerWidget: 'Slides',
+  RevealManagerWidget: 'Presentation',
   RichTextWidget: 'Text Board',
   UrlViewerWidget: 'Web Page'
 };
@@ -993,21 +993,23 @@ class LayoutManager {
       menuItems.appendChild(actionButton);
     });
 
-    // Settings menu item.
-    const settingsBtn = document.createElement('button');
-    settingsBtn.className = 'widget-header-settings-btn widget-header-menu__item';
-    settingsBtn.type = 'button';
-    settingsBtn.setAttribute('role', 'menuitem');
-    settingsBtn.innerHTML = '<i class="fas fa-cog" aria-hidden="true"></i><span>Widget settings</span>';
-    settingsBtn.setAttribute('aria-label', 'Open Settings');
-    settingsBtn.title = 'Widget Settings';
-    settingsBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMenu();
-        const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
-        document.dispatchEvent(event);
-    });
-    menuItems.appendChild(settingsBtn);
+    // Settings menu item. Widgets with complete inline controls can hide this duplicate entry.
+    if (widget?.showSettingsMenu !== false) {
+      const settingsBtn = document.createElement('button');
+      settingsBtn.className = 'widget-header-settings-btn widget-header-menu__item';
+      settingsBtn.type = 'button';
+      settingsBtn.setAttribute('role', 'menuitem');
+      settingsBtn.innerHTML = '<i class="fas fa-cog" aria-hidden="true"></i><span>Widget settings</span>';
+      settingsBtn.setAttribute('aria-label', 'Open Settings');
+      settingsBtn.title = 'Widget Settings';
+      settingsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeMenu();
+          const event = new CustomEvent('openWidgetSettings', { detail: { widget } });
+          document.dispatchEvent(event);
+      });
+      menuItems.appendChild(settingsBtn);
+    }
 
     // Remove menu item.
     const removeBtn = document.createElement('button');

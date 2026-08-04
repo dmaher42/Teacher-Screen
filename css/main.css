@@ -8827,6 +8827,10 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     padding: 0.55rem 0.65rem 0.65rem;
 }
 
+.reveal-manager__section[hidden] {
+    display: none;
+}
+
 .reveal-manager__section summary {
     cursor: pointer;
     font-weight: 600;
@@ -8836,6 +8840,17 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .reveal-manager__section summary::-webkit-details-marker {
     display: none;
+}
+
+.reveal-saved-manage {
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--border-soft-2);
+}
+
+.reveal-saved-manage > summary {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
 }
 
 .reveal-manager__stage {
@@ -10414,6 +10429,265 @@ body.is-classroom-active:not(.projector-view) .widget :where(input[type="text"],
     background: var(--widget-chrome-surface);
     color: var(--widget-chrome-ink);
     box-shadow: inset 0 1px 1px rgba(21, 54, 74, 0.04);
+}
+
+/* Presentation chooser polish */
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel {
+    gap: 10px;
+    padding: 12px;
+    background:
+        linear-gradient(180deg, rgba(245, 250, 255, 0.98), rgba(240, 247, 253, 0.96));
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 760px);
+    box-sizing: border-box;
+    min-width: 0;
+    margin-inline: auto;
+    padding: 14px;
+    border: 1px solid var(--widget-chrome-line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 28px rgba(31, 72, 110, 0.08), 0 2px 8px rgba(31, 72, 110, 0.04);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section[hidden] {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section > * {
+    min-width: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section-title {
+    margin: 0;
+    color: var(--widget-chrome-ink);
+    font-size: 0.95rem;
+    font-weight: 760;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-fields {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.85fr) minmax(220px, 1.15fr);
+    gap: 10px;
+    min-width: 0;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    min-width: 0;
+    align-content: start;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-row[hidden] {
+    display: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    color: var(--widget-chrome-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.025em;
+    line-height: 1.2;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field-optional {
+    color: color-mix(in srgb, var(--widget-chrome-muted) 72%, transparent);
+    font-size: 0.64rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field :where(input, select, textarea) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 11px;
+    border: 1px solid var(--widget-chrome-line);
+    border-radius: 11px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: inset 0 1px 1px rgba(21, 54, 74, 0.04), 0 1px 2px rgba(31, 72, 110, 0.03);
+    font: inherit;
+    font-size: 0.86rem;
+    line-height: 1.25;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field :where(input, select, textarea):hover {
+    border-color: rgba(64, 151, 245, 0.36);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-field :where(input, select, textarea):focus-visible {
+    outline: 0;
+    border-color: var(--widget-chrome-accent);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(64, 151, 245, 0.16), inset 0 1px 1px rgba(21, 54, 74, 0.03);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-content-textarea {
+    min-height: 104px;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-external-validation[data-state] {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    border-left: 3px solid #f59e0b;
+    border-radius: 10px;
+    background: #fff9e9;
+    color: #8a4b08;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-external-validation[data-state]::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    margin-top: 0.33em;
+    border-radius: 999px;
+    background: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-external-validation[data-state="error"] {
+    border-color: rgba(239, 68, 68, 0.26);
+    border-left-color: #ef4444;
+    background: #fff3f2;
+    color: #a12820;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-external-validation[data-state="error"]::before {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.11);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions {
+    gap: 8px;
+    min-width: 0;
+    margin-top: 1px;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-btn {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-height: 40px;
+    min-width: 0;
+    padding: 8px 14px;
+    border: 1px solid var(--widget-chrome-line);
+    border-radius: 11px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    box-shadow: 0 3px 9px rgba(31, 72, 110, 0.08);
+    font-size: 0.8rem;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: normal;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-btn-primary {
+    border-color: var(--widget-chrome-accent-deep);
+    background: linear-gradient(135deg, #4ca3f8, var(--widget-chrome-accent-deep));
+    color: #ffffff;
+    box-shadow: 0 7px 16px rgba(23, 120, 218, 0.2);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-btn-primary:hover {
+    border-color: #126cc3;
+    background: linear-gradient(135deg, #3498f4, #126fc9);
+    color: #ffffff;
+    box-shadow: 0 9px 20px rgba(23, 120, 218, 0.24);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-btn-secondary:hover {
+    border-color: rgba(64, 151, 245, 0.38);
+    background: rgba(64, 151, 245, 0.09);
+    color: var(--widget-chrome-accent-deep);
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-save-btn {
+    border-color: transparent;
+    background: transparent;
+    color: var(--widget-chrome-muted);
+    box-shadow: none;
+}
+
+body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel .reveal-save-btn:hover {
+    border-color: transparent;
+    background: rgba(64, 151, 245, 0.08);
+    color: var(--widget-chrome-accent-deep);
+    box-shadow: none;
+}
+
+@container (max-width: 520px) {
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel {
+        padding: 10px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section {
+        padding: 12px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions .reveal-open-input-btn {
+        grid-column: 1 / -1;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions .reveal-btn {
+        width: 100%;
+    }
+}
+
+@container (max-width: 300px) {
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__panel {
+        padding: 7px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section {
+        gap: 10px;
+        padding: 10px;
+        border-radius: 13px;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager__section-title,
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions .reveal-btn {
+        overflow-wrap: anywhere;
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.is-classroom-active:not(.projector-view) .widget.reveal-manager-widget .reveal-manager-actions .reveal-open-input-btn {
+        grid-column: 1;
+    }
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-editor-container {

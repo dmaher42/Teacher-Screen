@@ -83,9 +83,9 @@ export const WidgetRegistry = {
     'reveal-manager': {
         key: 'reveal-manager',
         className: 'RevealManagerWidget',
-        label: 'Slides',
+        label: 'Presentation',
         icon: '🖥️',
-        description: 'Present a slide deck',
+        description: 'Open PowerPoint, PDF, or Google Slides',
         category: 'Secondary',
         create: () => new RevealManagerWidget()
     },

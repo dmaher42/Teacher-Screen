@@ -36,6 +36,7 @@ class RevealManagerWidget {
         const appModeUtils = window.TeacherScreenAppMode || {};
         this.appMode = appModeUtils.APP_MODE || 'teacher';
         this.isTeacherMode = appModeUtils.isTeacherMode || (() => this.appMode === 'teacher');
+        this.showSettingsMenu = false;
 
         this.element = document.createElement('div');
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
@@ -43,53 +44,64 @@ class RevealManagerWidget {
         this.element.innerHTML = `
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
-                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-btn" title="Load or stop the current deck">Open</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" title="Previous slide">Prev</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide">Next</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-launch-btn" title="Close presentation" hidden>Close</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" title="Previous slide" hidden>Previous</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide" hidden>Next</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-projector-btn" title="Show this presentation on the projector" hidden>Show on projector</button>
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-toggle-controls-btn" aria-label="Open deck setup" title="Open deck setup">Deck Setup</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-toggle-controls-btn" aria-label="Choose presentation" aria-expanded="false" title="Choose presentation">Choose presentation</button>
                 </div>
 
                 <div class="reveal-manager__panel advanced-controls" hidden>
-                    <details class="reveal-manager__section" open>
-                        <summary>Import</summary>
-                        <div class="reveal-manager-row">
-                            <select class="reveal-source-type" aria-label="Select presentation source type">
-                                <option value="html">Reveal HTML</option>
-                                <option value="google-slides">Google Slides</option>
-                                <option value="powerpoint">PowerPoint</option>
-                            </select>
+                    <section class="reveal-manager__section reveal-manager__open-section" aria-label="Open presentation">
+                        <h3 class="reveal-manager__section-title">Open presentation</h3>
+                        <div class="reveal-manager-fields">
+                            <label class="reveal-field">
+                                <span class="reveal-field-label">Source</span>
+                                <select class="reveal-source-type" aria-label="Select presentation source type">
+                                    <option value="google-slides" selected>Google Slides link</option>
+                                    <option value="powerpoint">PowerPoint link</option>
+                                    <option value="html">Reveal HTML (advanced)</option>
+                                </select>
+                            </label>
+                            <label class="reveal-field">
+                                <span class="reveal-field-label">Name <span class="reveal-field-optional">Optional</span></span>
+                                <input type="text" class="reveal-deck-name" aria-label="Presentation name" placeholder="e.g. Lesson introduction">
+                            </label>
                         </div>
-                        <div class="reveal-manager-row">
-                            <input type="text" class="reveal-deck-name" placeholder="Deck name">
-                        </div>
-                        <div class="reveal-manager-row reveal-external-row" hidden>
-                            <input type="text" class="reveal-external-url" placeholder="Paste the share or present URL">
-                        </div>
-                        <p class="reveal-external-validation" hidden></p>
-                        <div class="reveal-manager-row reveal-html-row">
-                            <textarea class="reveal-content-textarea" placeholder="Paste full Reveal HTML here"></textarea>
-                        </div>
+                        <label class="reveal-field reveal-manager-row reveal-external-row" hidden>
+                            <span class="reveal-field-label">Presentation link</span>
+                            <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Presentation link" placeholder="Paste the share or present URL">
+                        </label>
+                        <p class="reveal-external-validation" role="status" aria-live="polite" hidden></p>
+                        <label class="reveal-field reveal-manager-row reveal-html-row">
+                            <span class="reveal-field-label">Reveal HTML</span>
+                            <textarea class="reveal-content-textarea" aria-label="Reveal HTML" placeholder="Paste full Reveal HTML here"></textarea>
+                        </label>
                         <div class="reveal-manager-row reveal-manager-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">Import Slides</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-open-input-btn">Open presentation</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-convert-btn">Choose PowerPoint or PDF</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save for later</button>
                         </div>
                         <input type="file" class="reveal-deck-file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
-                    </details>
+                    </section>
 
-                    <details class="reveal-manager__section" open>
-                        <summary>Saved</summary>
+                    <details class="reveal-manager__section reveal-saved-section" open hidden>
+                        <summary>Saved presentations</summary>
                         <div class="reveal-manager-row">
-                            <select class="reveal-saved-select" aria-label="Select saved deck">
-                                <option value="">Select saved deck</option>
+                            <select class="reveal-saved-select" aria-label="Select saved presentation">
+                                <option value="">Choose saved presentation</option>
                             </select>
                             <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-launch-saved-btn">Open</button>
                         </div>
-                        <div class="reveal-manager-row reveal-manager-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
-                        </div>
+                        <details class="reveal-saved-manage">
+                            <summary>Manage saved presentations</summary>
+                            <div class="reveal-manager-row reveal-manager-actions">
+                                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-rename-btn">Rename</button>
+                                <button type="button" class="control-button reveal-btn reveal-btn-danger reveal-delete-btn">Delete</button>
+                            </div>
+                        </details>
                     </details>
                 </div>
 
@@ -107,6 +119,7 @@ class RevealManagerWidget {
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.prevButton = this.element.querySelector('.reveal-prev-btn');
         this.nextButton = this.element.querySelector('.reveal-next-btn');
+        this.projectorButton = this.element.querySelector('.reveal-projector-btn');
         this.deckIndicator = this.element.querySelector('.reveal-deck-indicator');
         this.statusLabel = this.element.querySelector('.reveal-presenter-status');
         this.toggleControlsButton = this.element.querySelector('.reveal-toggle-controls-btn');
@@ -118,9 +131,11 @@ class RevealManagerWidget {
         this.htmlRow = this.element.querySelector('.reveal-html-row');
         this.externalRow = this.element.querySelector('.reveal-external-row');
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
+        this.openFromSetupButton = this.element.querySelector('.reveal-open-input-btn');
         this.saveButton = this.element.querySelector('.reveal-save-btn');
         this.convertButton = this.element.querySelector('.reveal-convert-btn');
         this.deckFileInput = this.element.querySelector('.reveal-deck-file-input');
+        this.savedSection = this.element.querySelector('.reveal-saved-section');
         this.savedSelect = this.element.querySelector('.reveal-saved-select');
         this.launchSavedButton = this.element.querySelector('.reveal-launch-saved-btn');
         this.renameButton = this.element.querySelector('.reveal-rename-btn');
@@ -129,8 +144,10 @@ class RevealManagerWidget {
         this.emptyState = this.element.querySelector('.reveal-manager-empty');
 
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
+        this.handleOpenFromSetup = this.handleOpenFromSetup.bind(this);
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
+        this.handleProjectorClick = this.handleProjectorClick.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleConvertButtonClick = this.handleConvertButtonClick.bind(this);
         this.handleDeckFileSelection = this.handleDeckFileSelection.bind(this);
@@ -147,8 +164,10 @@ class RevealManagerWidget {
         this.openProjector = this.openProjector.bind(this);
 
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
+        this.openFromSetupButton.addEventListener('click', this.handleOpenFromSetup);
         this.prevButton.addEventListener('click', this.handlePrevClick);
         this.nextButton.addEventListener('click', this.handleNextClick);
+        this.projectorButton.addEventListener('click', this.handleProjectorClick);
         this.saveButton.addEventListener('click', this.handleSaveDeck);
         this.convertButton.addEventListener('click', this.handleConvertButtonClick);
         this.deckFileInput.addEventListener('change', this.handleDeckFileSelection);
@@ -644,18 +663,24 @@ class RevealManagerWidget {
             return;
         }
 
-        const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
-        this.deckIndicator.textContent = `${deckName} - ${this.getSourceTypeLabel(this.activeDeck.type)}`;
+        const deckName = (this.activeDeck.name || 'Untitled presentation').trim();
+        const sourceLabel = this.getSourceTypeLabel(this.activeDeck.type);
+        this.deckIndicator.textContent = deckName === sourceLabel ? sourceLabel : `${deckName} - ${sourceLabel}`;
         this.deckIndicator.hidden = false;
     }
 
     updateControls() {
         const hasDeck = !!this.activeDeck;
         const isLiveRevealDeck = hasDeck && this.activeDeck.type === 'html';
-        this.launchButton.textContent = hasDeck ? 'Stop' : 'Open';
+        this.launchButton.textContent = 'Close';
+        this.launchButton.hidden = !hasDeck;
         this.prevButton.disabled = !isLiveRevealDeck;
+        this.prevButton.hidden = !isLiveRevealDeck;
         this.nextButton.disabled = !isLiveRevealDeck;
+        this.nextButton.hidden = !isLiveRevealDeck;
+        this.projectorButton.hidden = !hasDeck;
         this.emptyState.hidden = true;
+        this.toggleCompact(this.isCompact);
     }
 
     getControls() {
@@ -731,7 +756,7 @@ class RevealManagerWidget {
         savedSection.appendChild(savedHeading);
 
         const savedLabel = document.createElement('label');
-        savedLabel.textContent = 'Saved deck';
+        savedLabel.textContent = 'Saved presentation';
         const settingsSavedSelect = document.createElement('select');
         savedLabel.appendChild(settingsSavedSelect);
         savedSection.appendChild(savedLabel);
@@ -791,9 +816,9 @@ class RevealManagerWidget {
                 const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
                 statusText.textContent = this.activeDeck.type === 'html'
                     ? `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`
-                    : `${deckName} ready as a ${this.getSourceTypeLabel(this.activeDeck.type)} source. Use Projector to open the live deck.`;
+                    : `${deckName} is ready. Use Show on projector when the class should see it.`;
             } else {
-                statusText.textContent = 'No deck currently open.';
+                statusText.textContent = 'No presentation selected.';
             }
         };
 
@@ -886,9 +911,15 @@ class RevealManagerWidget {
         this.isCompact = compact;
         this.element.classList.toggle('reveal-manager--compact', compact);
         this.panelContainer.hidden = compact;
-        this.toggleControlsButton.textContent = compact ? 'Deck Setup' : 'Hide Setup';
-        this.toggleControlsButton.title = compact ? 'Open deck setup' : 'Hide deck setup';
-        this.toggleControlsButton.setAttribute('aria-label', compact ? 'Open deck setup' : 'Hide deck setup');
+        const buttonLabel = compact
+            ? (this.activeDeck ? 'Change presentation' : 'Choose presentation')
+            : 'Hide choices';
+        this.toggleControlsButton.textContent = buttonLabel;
+        this.toggleControlsButton.title = buttonLabel;
+        this.toggleControlsButton.setAttribute('aria-label', buttonLabel);
+        this.toggleControlsButton.setAttribute('aria-expanded', String(!compact));
+        this.toggleControlsButton.classList.toggle('reveal-btn-primary', compact && !this.activeDeck);
+        this.toggleControlsButton.classList.toggle('reveal-btn-secondary', !compact || !!this.activeDeck);
     }
 
     handleToggleControls(event) {
@@ -951,8 +982,8 @@ class RevealManagerWidget {
                 || error?.code === 22
                 || error?.code === 1014;
             this.setStatus(quotaExceeded
-                ? 'This deck is too large for Slides storage. Use Document Viewer for a PDF, or link Google Slides or PowerPoint.'
-                : 'This deck could not be saved in this browser.');
+                ? 'This presentation is too large for local storage. Use Document Viewer for a PDF, or link Google Slides or PowerPoint.'
+                : 'This presentation could not be saved in this browser.');
             return false;
         }
     }
@@ -968,7 +999,7 @@ class RevealManagerWidget {
             return true;
         } catch (error) {
             console.warn('Unable to save the last reveal deck:', error);
-            this.setStatus('Deck opened, but it is too large to restore automatically after closing.');
+            this.setStatus('Presentation opened, but it is too large to restore automatically after closing.');
             return false;
         }
     }
@@ -1188,7 +1219,7 @@ class RevealManagerWidget {
             return await this.getDocumentStore().deleteSlideDeck(deck.storageId);
         } catch (error) {
             console.warn('Unable to delete stored slide deck data:', error);
-            this.setStatus('The deck was removed from the list, but its local slide files could not be cleaned up.');
+            this.setStatus('The presentation was removed from the list, but its local slide files could not be cleaned up.');
             return false;
         }
     }
@@ -1210,7 +1241,7 @@ class RevealManagerWidget {
         const decks = this.getSavedDecks();
         const selectedValue = this.savedSelect.value;
 
-        this.savedSelect.innerHTML = '<option value="">Select saved deck</option>';
+        this.savedSelect.innerHTML = '<option value="">Choose saved presentation</option>';
 
         decks.forEach((deck) => {
             const normalized = this.normalizeStoredDeck(deck);
@@ -1224,6 +1255,10 @@ class RevealManagerWidget {
 
         if (selectedValue) {
             this.savedSelect.value = selectedValue;
+        }
+
+        if (this.savedSection) {
+            this.savedSection.hidden = decks.length === 0;
         }
     }
 
@@ -1360,7 +1395,7 @@ class RevealManagerWidget {
 
     promptForExternalSourceConversion() {
         const currentUrl = (this.externalUrlInput?.value || this.activeDeck?.sourceUrl || '').trim();
-        const promptMessage = 'Paste the slide deck URL';
+        const promptMessage = 'Paste the presentation link';
         const response = window.prompt(promptMessage, currentUrl);
         if (response === null) {
             return null;
@@ -1368,7 +1403,7 @@ class RevealManagerWidget {
 
         const sourceUrl = String(response || '').trim();
         if (!sourceUrl) {
-            this.setStatus('Paste a slide deck URL first.');
+            this.setStatus('Paste a presentation link first.');
             return null;
         }
 
@@ -1552,8 +1587,8 @@ class RevealManagerWidget {
             console.warn('Unable to import slide deck:', error);
             const quotaExceeded = error?.name === 'QuotaExceededError';
             this.setStatus(quotaExceeded
-                ? 'There is not enough browser storage for this slide deck. Remove an older local deck or choose a smaller file.'
-                : 'That slide deck could not be imported. The original file was not changed.');
+                ? 'There is not enough browser storage for this presentation. Remove an older local presentation or choose a smaller file.'
+                : 'That presentation could not be imported. The original file was not changed.');
             return null;
         }
 
@@ -1568,8 +1603,8 @@ class RevealManagerWidget {
             console.warn('Unable to store imported slide deck:', error);
             const quotaExceeded = error?.name === 'QuotaExceededError';
             this.setStatus(quotaExceeded
-                ? 'There is not enough browser storage for this slide deck. Remove an older local deck or choose a smaller file.'
-                : 'This deck could not be saved on this device. Close other Teacher Screen tabs and try again.');
+                ? 'There is not enough browser storage for this presentation. Remove an older local presentation or choose a smaller file.'
+                : 'This presentation could not be saved on this device. Close other Teacher Screen tabs and try again.');
             return null;
         }
 
@@ -2334,7 +2369,7 @@ class RevealManagerWidget {
             this.revealDeck = null;
             const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
             this.setStatus(externalRuntime?.canMirrorInApp
-                ? `${externalRuntime.sourceLabel} ready. Projector opens the live deck in a separate window.`
+                ? `${externalRuntime.sourceLabel} ready. Use Show on projector when the class should see it.`
                 : `${this.getSourceTypeLabel(this.activeDeck.type)} link ready. Use an embeddable link to mirror it inside Teacher Screen and the projector.`);
             return null;
         }
@@ -2452,7 +2487,7 @@ class RevealManagerWidget {
     async launchDeck(deck, { preserveIndices = false } = {}) {
         const normalizedDeck = this.normalizeStoredDeck(deck);
         if (!normalizedDeck) {
-            this.setStatus('That deck could not be loaded.');
+            this.setStatus('That presentation could not be opened.');
             return false;
         }
 
@@ -2472,7 +2507,7 @@ class RevealManagerWidget {
         }
         this.detachDeckListeners();
 
-        this.setStatus('Loading deck...');
+        this.setStatus('Opening presentation...');
         const previousDeck = this.activeDeck;
         this.activeDeck = normalizedDeck;
         let runtimeDeck = normalizedDeck;
@@ -2610,16 +2645,35 @@ class RevealManagerWidget {
         this.navigate('next');
     }
 
-    handleLaunchFromInputs() {
+    handleProjectorClick(event) {
+        event.stopPropagation();
+        this.openProjector();
+    }
+
+    async handleOpenFromSetup(event) {
+        event?.stopPropagation();
+
         if (this.activeDeck) {
-            this.stopDeck();
-            return;
+            await this.stopDeck();
         }
 
         const deck = this.buildDeckFromInputs();
-        if (!deck) return;
+        if (!deck) return false;
 
-        this.launchDeck(deck, { preserveIndices: false });
+        await this.launchDeck(deck, { preserveIndices: false });
+        if (this.activeDeck) {
+            this.toggleCompact(true);
+        }
+        return !!this.activeDeck;
+    }
+
+    async handleLaunchFromInputs() {
+        if (this.activeDeck) {
+            await this.stopDeck();
+            return;
+        }
+
+        this.toggleCompact(false);
     }
 
     handleSaveDeck() {
@@ -2633,7 +2687,7 @@ class RevealManagerWidget {
         }
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(deck.id);
-        this.setStatus('Deck saved.');
+        this.setStatus('Presentation saved.');
     }
 
     handleConvertToRevealDeck() {
@@ -2667,7 +2721,7 @@ class RevealManagerWidget {
     async handleLaunchSaved() {
         const selectedId = Number(this.savedSelect.value);
         if (!selectedId) {
-            this.setStatus('Choose a saved deck first.');
+            this.setStatus('Choose a saved presentation first.');
             return;
         }
 
@@ -2675,7 +2729,7 @@ class RevealManagerWidget {
         const normalized = this.normalizeStoredDeck(deck);
 
         if (!normalized) {
-            this.setStatus('That saved deck is not supported in the rebuilt widget.');
+            this.setStatus('That saved presentation is not supported.');
             return;
         }
 
@@ -2685,6 +2739,9 @@ class RevealManagerWidget {
         this.htmlInput.value = this.isStoredImportDeck(normalized) ? '' : (normalized.content || '');
         this.updateSourceFields();
         await this.launchDeck(normalized, { preserveIndices: false });
+        if (this.activeDeck) {
+            this.toggleCompact(true);
+        }
     }
 
     async loadSavedDeckById(deckId) {
@@ -2692,7 +2749,7 @@ class RevealManagerWidget {
         const normalized = this.normalizeStoredDeck(deck);
 
         if (!normalized) {
-            this.setStatus('That saved deck is not supported in the rebuilt widget.');
+            this.setStatus('That saved presentation is not supported.');
             return false;
         }
 
@@ -2743,7 +2800,7 @@ class RevealManagerWidget {
         this.renderSavedDeckOptions();
         this.savedSelect.value = String(selectedId);
         void this.updateStoredDeckName(decks[index]);
-        this.setStatus('Deck renamed.');
+        this.setStatus('Presentation renamed.');
     }
 
     renameSavedDeckById(deckId, nextName) {
@@ -2782,7 +2839,7 @@ class RevealManagerWidget {
             this.persistActiveDeckState();
         }
 
-        this.setStatus('Deck renamed.');
+        this.setStatus('Presentation renamed.');
         return true;
     }
 
@@ -2803,7 +2860,7 @@ class RevealManagerWidget {
         if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
             await this.stopDeck();
         }
-        if (storedDataDeleted) this.setStatus('Deck deleted.');
+        if (storedDataDeleted) this.setStatus('Presentation deleted.');
     }
 
     async deleteSavedDeckById(deckId) {
@@ -2830,7 +2887,7 @@ class RevealManagerWidget {
         if (this.activeDeck && Number(this.activeDeck.id) === selectedId) {
             await this.stopDeck();
         } else if (storedDataDeleted) {
-            this.setStatus('Deck deleted.');
+            this.setStatus('Presentation deleted.');
         }
 
         return true;
@@ -2838,7 +2895,7 @@ class RevealManagerWidget {
 
     openProjector() {
         if (!this.activeDeck) {
-            this.setStatus('Load a deck before opening the projector.');
+            this.setStatus('Choose a presentation before opening the projector.');
             return false;
         }
 
@@ -2935,8 +2992,10 @@ class RevealManagerWidget {
 
     remove() {
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
+        this.openFromSetupButton.removeEventListener('click', this.handleOpenFromSetup);
         this.prevButton.removeEventListener('click', this.handlePrevClick);
         this.nextButton.removeEventListener('click', this.handleNextClick);
+        this.projectorButton.removeEventListener('click', this.handleProjectorClick);
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);
         this.renameButton.removeEventListener('click', this.handleRenameDeck);

@@ -315,7 +315,7 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
+        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Presentation');
 
         const tallWidgetBeforeDrag = await getElementBox(page, '.widget.reveal-manager-widget');
         await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, 320);
@@ -1327,21 +1327,92 @@ async function runSmoke() {
         await generatedQuizWidget.locator('.widget-remove-btn').dispatchEvent('click');
         await page.waitForFunction(() => document.querySelectorAll('.widget.quiz-game-widget').length === 1, { timeout: 10000 });
 
-        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Slides');
+        await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Presentation');
         const smokeSlidesWidget = page.locator('.widget.reveal-manager-widget');
+        assert(await smokeSlidesWidget.locator('.widget-header-title').textContent().then((text) => text.trim() === 'Presentation'), 'The presentation tool should not compete with classroom Deck terminology');
+        assert(await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').textContent().then((text) => text.trim() === 'Choose presentation'), 'A new Presentation should expose one clear starting action');
+        assert(!await smokeSlidesWidget.locator('.reveal-launch-btn').isVisible(), 'A new Presentation should not show Open before a source is chosen');
+        assert(!await smokeSlidesWidget.locator('.reveal-projector-btn').isVisible(), 'Projector should stay hidden until a presentation is ready');
+        await smokeSlidesWidget.locator('.widget-header-menu > summary').click();
+        assert(await smokeSlidesWidget.locator('.widget-header-settings-btn').count() === 0, 'Presentation should not duplicate its chooser in Widget Settings');
+        assert(await smokeSlidesWidget.locator('.widget-remove-btn').count() === 1, 'Presentation options should retain the essential remove action');
+        await smokeSlidesWidget.locator('.widget-header-menu > summary').click();
         await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
-        assert(await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Reveal HTML should show only its HTML input');
-        assert(!await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'Reveal HTML should not show the external URL input');
-        await smokeSlidesWidget.locator('.reveal-source-type').selectOption('google-slides');
-        assert(await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'Google Slides should show its share URL input');
-        assert(!await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Google Slides should hide the Reveal HTML textarea');
+        assert(await smokeSlidesWidget.locator('.reveal-manager__panel').isVisible(), 'Choose presentation should open the one canonical chooser');
+        assert(await smokeSlidesWidget.locator('.reveal-source-type').inputValue() === 'google-slides', 'The chooser should default to the common Google Slides link path');
+        assert(await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'The default chooser should show the presentation link input');
+        assert(!await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Technical Reveal HTML should stay out of the default path');
+        assert(await smokeSlidesWidget.locator('.reveal-convert-btn').textContent().then((text) => text.trim() === 'Choose PowerPoint or PDF'), 'The file route should say exactly what it opens');
+        assert(!await smokeSlidesWidget.locator('.reveal-saved-section').isVisible(), 'Saved presentations should stay hidden when none exist');
+        const presentationChooserPolish = await smokeSlidesWidget.evaluate((widget) => {
+            const section = widget.querySelector('.reveal-manager__open-section');
+            const sectionRect = section?.getBoundingClientRect();
+            const visibleFields = Array.from(section?.querySelectorAll('select, input:not([type="file"]), textarea') || [])
+                .filter((control) => control.getClientRects().length > 0);
+            const actionButtons = Array.from(section?.querySelectorAll('.reveal-manager-actions button') || [])
+                .filter((button) => button.getClientRects().length > 0);
+            const primary = section?.querySelector('.reveal-open-input-btn');
+            const secondary = section?.querySelector('.reveal-convert-btn');
+            const save = section?.querySelector('.reveal-save-btn');
+            const primaryStyle = primary ? getComputedStyle(primary) : null;
+            const secondaryStyle = secondary ? getComputedStyle(secondary) : null;
+            const saveStyle = save ? getComputedStyle(save) : null;
+            const controls = [...visibleFields, ...actionButtons];
+            return {
+                semanticSection: section?.tagName === 'SECTION'
+                    && section.querySelector('.reveal-manager__section-title')?.textContent.trim() === 'Open presentation',
+                visibleFieldsLabelled: visibleFields.length === 3
+                    && visibleFields.every((control) => control.closest('label')?.querySelector('.reveal-field-label')),
+                liveValidation: section?.querySelector('.reveal-external-validation')?.getAttribute('role') === 'status'
+                    && section.querySelector('.reveal-external-validation')?.getAttribute('aria-live') === 'polite',
+                noHorizontalOverflow: !!section && section.scrollWidth <= section.clientWidth + 1,
+                controlsFit: !!sectionRect && controls.every((control) => {
+                    const rect = control.getBoundingClientRect();
+                    return rect.left >= sectionRect.left - 1 && rect.right <= sectionRect.right + 1;
+                }),
+                readableFields: visibleFields.every((control) => {
+                    const style = getComputedStyle(control);
+                    const fontSize = Number.parseFloat(style.fontSize);
+                    return control.getBoundingClientRect().height >= 38 && fontSize >= 13 && fontSize <= 17;
+                }),
+                touchFriendlyActions: actionButtons.every((button) => button.getBoundingClientRect().height >= 38),
+                clearActionHierarchy: !!primaryStyle
+                    && !!secondaryStyle
+                    && primaryStyle.backgroundImage !== 'none'
+                    && primaryStyle.backgroundImage !== secondaryStyle.backgroundImage
+                    && primaryStyle.color === 'rgb(255, 255, 255)'
+                    && saveStyle?.boxShadow === 'none'
+            };
+        });
+        assert(presentationChooserPolish.semanticSection && presentationChooserPolish.visibleFieldsLabelled && presentationChooserPolish.liveValidation, 'Presentation chooser should use a clear labelled form hierarchy');
+        assert(presentationChooserPolish.noHorizontalOverflow && presentationChooserPolish.controlsFit, 'Presentation chooser controls should stay inside the polished card');
+        assert(presentationChooserPolish.readableFields && presentationChooserPolish.touchFriendlyActions && presentationChooserPolish.clearActionHierarchy, 'Presentation chooser should keep readable fields and one clear primary action');
+        await smokeSlidesWidget.locator('.reveal-external-url').fill('https://docs.google.com/presentation/d/1NOf1lzIqOJNSCcSIKxhKGbBgrZ3TkBZDJ8peCLPgFLo/edit?usp=sharing');
+        const presentationWarningLayout = await smokeSlidesWidget.locator('.reveal-external-validation').evaluate((warning) => {
+            const section = warning.closest('.reveal-manager__open-section');
+            const warningRect = warning.getBoundingClientRect();
+            const sectionRect = section?.getBoundingClientRect();
+            return {
+                visible: !warning.hidden && getComputedStyle(warning).display !== 'none',
+                wrapsCleanly: warning.scrollWidth <= warning.clientWidth + 1,
+                fitsCard: !!sectionRect && warningRect.left >= sectionRect.left - 1 && warningRect.right <= sectionRect.right + 1,
+                compactText: Number.parseFloat(getComputedStyle(warning).fontSize) <= 14
+            };
+        });
+        assert(presentationWarningLayout.visible && presentationWarningLayout.wrapsCleanly && presentationWarningLayout.fitsCard && presentationWarningLayout.compactText, 'Presentation link advice should stay compact and contained');
         await smokeSlidesWidget.locator('.reveal-source-type').selectOption('html');
+        assert(await smokeSlidesWidget.locator('.reveal-html-row').isVisible(), 'Reveal HTML should remain available as an advanced source');
+        assert(!await smokeSlidesWidget.locator('.reveal-external-row').isVisible(), 'Reveal HTML should hide the presentation link input');
 
         await smokeSlidesWidget.locator('.reveal-deck-name').fill('Smoke Reveal Deck');
         await page.evaluate(() => { window.__slidesSanitizerProbe = 0; });
         await smokeSlidesWidget.locator('.reveal-content-textarea').fill('<section data-transition="fade" style="background-color: #fff; position: relative" onclick="window.__slidesSanitizerProbe=2"><h2>Smoke Slide</h2><p>Deck content</p><img alt="probe" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" onload="window.__slidesSanitizerProbe=1"><a href="javascript:window.__slidesSanitizerProbe=3">Unsafe</a><script>window.__slidesSanitizerProbe=4</script></section>');
-        await smokeSlidesWidget.locator('.reveal-launch-btn').click();
+        await smokeSlidesWidget.locator('.reveal-open-input-btn').click();
         await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck .slides section', { timeout: 10000 });
+        assert(!await smokeSlidesWidget.locator('.reveal-manager__panel').isVisible(), 'Opening a presentation should collapse the chooser');
+        assert(await smokeSlidesWidget.locator('.reveal-launch-btn').textContent().then((text) => text.trim() === 'Close'), 'A loaded presentation should expose Close instead of a second Open route');
+        assert(await smokeSlidesWidget.locator('.reveal-projector-btn').isVisible(), 'A loaded presentation should expose Show on projector');
+        assert(await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').textContent().then((text) => text.trim() === 'Change presentation'), 'A loaded presentation should expose one clear change route');
         await page.waitForFunction(() => {
             const status = document.querySelector('.widget.reveal-manager-widget .reveal-presenter-status');
             return status && /Unable to load Reveal deck/i.test(status.textContent || '');
@@ -1475,6 +1546,24 @@ async function runSmoke() {
         assert(await smokeSlidesWidget.locator('.reveal-manager-widget-content').evaluate((content) => (
             getComputedStyle(content).overflowY === 'auto' && content.scrollHeight > content.clientHeight
         )), 'Narrow Slides setup should scroll vertically when it is taller than the widget');
+        const narrowPresentationChooser = await smokeSlidesWidget.evaluate((widget) => {
+            const content = widget.querySelector('.reveal-manager-widget-content');
+            const section = widget.querySelector('.reveal-manager__open-section');
+            const sectionRect = section?.getBoundingClientRect();
+            const controls = Array.from(section?.querySelectorAll('select, input:not([type="file"]), textarea, button') || [])
+                .filter((control) => control.getClientRects().length > 0);
+            return {
+                noHorizontalOverflow: !!content
+                    && !!section
+                    && content.scrollWidth <= content.clientWidth + 1
+                    && section.scrollWidth <= section.clientWidth + 1,
+                controlsFit: !!sectionRect && controls.every((control) => {
+                    const rect = control.getBoundingClientRect();
+                    return rect.left >= sectionRect.left - 1 && rect.right <= sectionRect.right + 1;
+                })
+            };
+        });
+        assert(narrowPresentationChooser.noHorizontalOverflow && narrowPresentationChooser.controlsFit, 'Narrow Presentation chooser should keep every field and action inside the widget');
         await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
         await smokeSlidesWidget.evaluate((widget, originalSize) => {
             widget.style.width = originalSize.width;

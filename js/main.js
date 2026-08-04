@@ -6363,7 +6363,7 @@ class ClassroomScreenApp {
             NamePicker: 'Random Name Picker',
             Notes: 'Quick Notes',
             QRCode: 'QR Code',
-            RevealManager: 'Slides',
+            RevealManager: 'Presentation',
             RichText: 'Rich Text Board',
             UrlViewer: 'URL Viewer',
             Wellbeing: 'Well-being'
