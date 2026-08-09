@@ -4,6 +4,7 @@ const GRID_SIZE = 20; // Widgets will snap to a 20px grid
 const COL_PX_ESTIMATE = 80; // Rough estimate for legacy constraint conversion
 const TEACHER_CANVAS_MARGIN = 16;
 const TEACHER_CANVAS_BOTTOM_INSET = 0;
+const TEACHER_TOOLBAR_GAP = TEACHER_CANVAS_MARGIN;
 const TEACHER_WIDGET_GAP = GRID_SIZE;
 const MINIMIZED_WIDGET_HEIGHT = GRID_SIZE * 2;
 const layoutManagerIsTeacherMode = () => (window.TeacherScreenAppMode ? window.TeacherScreenAppMode.isTeacherMode() : true);
@@ -186,6 +187,76 @@ class LayoutManager {
       height,
       minX: margin,
       minY: margin
+    };
+  }
+
+  getTeacherToolbarObstacle() {
+    if (!layoutManagerIsTeacherMode() || !this.container?.isConnected) return null;
+
+    const toolbar = document.getElementById('lesson-quick-actions');
+    if (!toolbar) return null;
+
+    const toolbarStyle = window.getComputedStyle(toolbar);
+    if (toolbarStyle.display === 'none' || toolbarStyle.visibility === 'hidden') return null;
+
+    const containerRect = this.container.getBoundingClientRect();
+    const toolbarRect = toolbar.getBoundingClientRect();
+    if (containerRect.width <= 0 || containerRect.height <= 0
+      || toolbarRect.width <= 0 || toolbarRect.height <= 0) {
+      return null;
+    }
+
+    return {
+      left: toolbarRect.left - containerRect.left,
+      top: toolbarRect.top - containerRect.top,
+      right: toolbarRect.right - containerRect.left,
+      bottom: toolbarRect.bottom - containerRect.top
+    };
+  }
+
+  keepWidgetClearOfTeacherToolbar(bounds, canvas, toolbarObstacle = this.getTeacherToolbarObstacle()) {
+    if (!toolbarObstacle) return bounds;
+
+    const overlapsToolbarHorizontally = bounds.x + bounds.width > toolbarObstacle.left - TEACHER_TOOLBAR_GAP
+      && bounds.x < toolbarObstacle.right + TEACHER_TOOLBAR_GAP;
+    const overlapsToolbarVertically = bounds.y + bounds.height > toolbarObstacle.top - TEACHER_TOOLBAR_GAP
+      && bounds.y < toolbarObstacle.bottom + TEACHER_TOOLBAR_GAP;
+
+    if (!overlapsToolbarHorizontally || !overlapsToolbarVertically) return bounds;
+
+    const highestSafeY = toolbarObstacle.top - TEACHER_TOOLBAR_GAP - bounds.height;
+
+    if (highestSafeY >= canvas.minY) {
+      return {
+        ...bounds,
+        y: Math.min(bounds.y, highestSafeY)
+      };
+    }
+
+    const maximumCanvasX = canvas.minX + Math.max(0, canvas.width - bounds.width);
+    const sideCandidates = [
+      toolbarObstacle.left - TEACHER_TOOLBAR_GAP - bounds.width,
+      toolbarObstacle.right + TEACHER_TOOLBAR_GAP
+    ]
+      .filter((candidateX) => candidateX >= canvas.minX && candidateX <= maximumCanvasX)
+      .sort((a, b) => Math.abs(a - bounds.x) - Math.abs(b - bounds.x));
+
+    if (sideCandidates.length > 0) {
+      return {
+        ...bounds,
+        x: sideCandidates[0]
+      };
+    }
+
+    const maximumHeightAboveToolbar = Math.max(
+      GRID_SIZE * 4,
+      toolbarObstacle.top - TEACHER_TOOLBAR_GAP - canvas.minY
+    );
+
+    return {
+      ...bounds,
+      y: canvas.minY,
+      height: Math.min(bounds.height, maximumHeightAboveToolbar)
     };
   }
 
@@ -454,6 +525,7 @@ class LayoutManager {
 
   normalizeWidgetBounds(x, y, width, height) {
     const canvas = this.getCanvasMetrics();
+    const toolbarObstacle = this.getTeacherToolbarObstacle();
     const requestedWidth = Number.isFinite(width) && width > 0 ? width : 320;
     const requestedHeight = Number.isFinite(height) && height > 0 ? height : 240;
     const minimumHeight = requestedHeight <= MINIMIZED_WIDGET_HEIGHT
@@ -464,12 +536,14 @@ class LayoutManager {
     const maxX = canvas.minX + Math.max(0, canvas.width - safeWidth);
     const maxY = canvas.minY + Math.max(0, canvas.height - safeHeight);
 
-    return {
+    const bounded = {
       x: clamp(Number.isFinite(x) ? x : canvas.minX, canvas.minX, maxX),
       y: clamp(Number.isFinite(y) ? y : canvas.minY, canvas.minY, maxY),
       width: safeWidth,
       height: safeHeight
     };
+
+    return this.keepWidgetClearOfTeacherToolbar(bounded, canvas, toolbarObstacle);
   }
 
   normalizeWidgetDragBounds(x, y, width, height) {

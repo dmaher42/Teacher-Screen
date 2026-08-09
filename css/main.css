@@ -398,7 +398,7 @@ details:focus-visible,
     overflow: hidden;
     position: relative;
     box-sizing: border-box;
-    padding-bottom: 82px;
+    padding-bottom: 0;
 }
 
 .dashboard-shell {
@@ -1317,7 +1317,7 @@ body.is-dashboard-active.is-sections-menu-open .sections-menu {
     position: relative;
     width: 100%;
     height: 100%;
-    padding-bottom: 82px;
+    padding-bottom: 0;
     transition: width 0.3s ease;
     box-sizing: border-box;
 }

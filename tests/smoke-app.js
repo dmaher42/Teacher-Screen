@@ -306,74 +306,150 @@ async function runWidgetSaveNotificationChecks(browser, baseUrl) {
 }
 
 async function runBottomWidgetContainmentChecks(browser, baseUrl) {
-    const context = await browser.newContext({ viewport: { width: 1899, height: 707 } });
-    await makeExternalAssetsDeterministic(context);
+    const desktopContext = await browser.newContext({ viewport: { width: 1899, height: 707 } });
+    await makeExternalAssetsDeterministic(desktopContext);
 
     try {
-        const page = await context.newPage();
+        const page = await desktopContext.newPage();
         await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await page.locator('#lesson-quick-actions [data-quick-widget="name-picker"]').click();
-        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+        await page.locator('#lesson-quick-actions [data-quick-widget="timer"]').click();
+        await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
 
-        const namePickerBeforeDrag = await getElementBox(page, '.widget.name-picker-widget');
-        await dragElementBy(page, '.widget.name-picker-widget .widget-header-title', 0, 1000);
-        const namePickerAfterDrag = await getElementBox(page, '.widget.name-picker-widget');
-        const canvasAfterDrag = await getElementBox(page, '#widgets-container');
-        const quickActionsAfterDrag = await getElementBox(page, '#lesson-quick-actions');
+        const timerBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
+        await dragElementBy(page, '.widget.pomodoro-widget .pomodoro-display', -1000, 1000);
+        const timerInLowerCorner = await getElementBox(page, '.widget.pomodoro-widget');
+        const toolbarAtCorner = await getElementBox(page, '#lesson-quick-actions');
+        const canvasAtCorner = await getElementBox(page, '#widgets-container');
+
         assert(
-            namePickerAfterDrag.y - namePickerBeforeDrag.y >= 100,
-            'A standard widget should still move meaningfully toward the bottom of the classroom'
+            timerInLowerCorner.y + timerInLowerCorner.height > toolbarAtCorner.y + 20,
+            'A small widget should move into the open lower corner beside the lesson toolbar'
         );
         assert(
-            Math.abs(namePickerAfterDrag.height - namePickerBeforeDrag.height) <= 1,
-            'Dragging a standard widget should not resize it'
+            timerInLowerCorner.x + timerInLowerCorner.width <= toolbarAtCorner.x - 8,
+            'A lower-corner widget should remain clear of the lesson toolbar horizontally'
         );
         assert(
-            namePickerAfterDrag.y >= canvasAfterDrag.y
-                && namePickerAfterDrag.y + namePickerAfterDrag.height <= canvasAfterDrag.y + canvasAfterDrag.height + 1,
-            'A standard widget should remain fully inside the classroom canvas when dragged to the bottom'
+            timerInLowerCorner.y + timerInLowerCorner.height <= canvasAtCorner.y + canvasAtCorner.height + 1,
+            'A lower-corner widget should remain fully inside the classroom canvas'
         );
         assert(
-            namePickerAfterDrag.y + namePickerAfterDrag.height <= quickActionsAfterDrag.y + 1,
-            'A bottom-positioned widget should stop above the lesson quick actions'
+            Math.abs(timerInLowerCorner.height - timerBeforeDrag.height) <= 1,
+            'Moving a widget beside the lesson toolbar should not resize it'
         );
 
         await page.waitForTimeout(700);
-        const savedNamePicker = await page.evaluate(() => {
-            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
-            const activePage = Array.isArray(state.pages)
-                ? state.pages.find((pageRecord) => pageRecord?.id === state.activePageId)
-                : null;
-            const widget = activePage?.snapshot?.layout?.widgets?.find((item) => item.type === 'NamePickerWidget');
-            return widget ? { y: widget.y, height: widget.height } : null;
-        });
-        assert(
-            Math.abs(savedNamePicker?.y - namePickerAfterDrag.y) <= 20
-                && Math.abs(savedNamePicker?.height - namePickerAfterDrag.height) <= 20,
-            'A bottom-positioned widget should save its visible size and position'
-        );
-
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         await page.locator('#dashboard-open-classroom-btn').click();
-        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        const namePickerAfterReload = await getElementBox(page, '.widget.name-picker-widget');
-        const canvasAfterReload = await getElementBox(page, '#widgets-container');
+        await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
+        await page.waitForTimeout(150);
+
+        const timerAfterReload = await getElementBox(page, '.widget.pomodoro-widget');
         assert(
-            Math.abs(namePickerAfterReload.y - namePickerAfterDrag.y) <= 20
-                && Math.abs(namePickerAfterReload.height - namePickerAfterDrag.height) <= 20,
-            'A bottom-positioned widget should restore its visible size and position after reload'
+            Math.abs(timerAfterReload.x - timerInLowerCorner.x) <= 20
+                && Math.abs(timerAfterReload.y - timerInLowerCorner.y) <= 20,
+            'A lower-corner widget position should survive reload'
+        );
+
+        const toolbarBeforeCollision = await getElementBox(page, '#lesson-quick-actions');
+        const horizontalMove = (toolbarBeforeCollision.x + (toolbarBeforeCollision.width / 2))
+            - (timerAfterReload.x + (timerAfterReload.width / 2));
+        await dragElementBy(page, '.widget.pomodoro-widget .pomodoro-display', horizontalMove, 1000);
+        const timerAboveToolbar = await getElementBox(page, '.widget.pomodoro-widget');
+        const toolbarAfterCollision = await getElementBox(page, '#lesson-quick-actions');
+
+        assert(
+            timerAboveToolbar.x < toolbarAfterCollision.x + toolbarAfterCollision.width
+                && timerAboveToolbar.x + timerAboveToolbar.width > toolbarAfterCollision.x,
+            'The collision check should position the widget over the toolbar column'
         );
         assert(
-            namePickerAfterReload.y >= canvasAfterReload.y
-                && namePickerAfterReload.y + namePickerAfterReload.height <= canvasAfterReload.y + canvasAfterReload.height + 1,
-            'A reloaded bottom-positioned widget should remain fully inside the classroom canvas'
+            timerAboveToolbar.y + timerAboveToolbar.height <= toolbarAfterCollision.y - 8,
+            'A widget in the toolbar column should stop above the lesson toolbar'
+        );
+        assert(
+            Math.abs(timerAboveToolbar.height - timerBeforeDrag.height) <= 1,
+            'Avoiding the lesson toolbar should not resize a standard widget'
+        );
+
+        await page.locator('.widget.pomodoro-widget .pomodoro-display').focus();
+        for (let step = 0; step < 12; step += 1) {
+            await page.keyboard.press('ArrowDown');
+        }
+        const timerAfterKeyboardMove = await getElementBox(page, '.widget.pomodoro-widget');
+        assert(
+            timerAfterKeyboardMove.y + timerAfterKeyboardMove.height <= toolbarAfterCollision.y - 8,
+            'Keyboard movement should also keep a widget above the lesson toolbar'
+        );
+
+        await page.locator('#lesson-quick-actions [data-quick-widget="name-picker"]').click();
+        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+        await page.waitForTimeout(300);
+        await dragElementBy(page, '.widget.name-picker-widget .resize-handle.bottom', 0, 1000);
+        const tallSideWidget = await getElementBox(page, '.widget.name-picker-widget');
+        const toolbarBesideTallWidget = await getElementBox(page, '#lesson-quick-actions');
+
+        assert(
+            tallSideWidget.x + tallSideWidget.width <= toolbarBesideTallWidget.x - 8,
+            'A tall side widget should stay horizontally clear of the lesson toolbar'
+        );
+        assert(
+            tallSideWidget.y + tallSideWidget.height > toolbarBesideTallWidget.y + 20,
+            'A tall side widget should use the full safe height beside the lesson toolbar'
+        );
+
+        await page.waitForTimeout(700);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+        await page.waitForTimeout(150);
+        const tallSideWidgetAfterReload = await getElementBox(page, '.widget.name-picker-widget');
+        const toolbarAfterTallReload = await getElementBox(page, '#lesson-quick-actions');
+
+        assert(
+            Math.abs(tallSideWidgetAfterReload.height - tallSideWidget.height) <= 20,
+            'A tall side widget should keep its height after reload'
+        );
+        assert(
+            tallSideWidgetAfterReload.y + tallSideWidgetAfterReload.height > toolbarAfterTallReload.y + 20,
+            'A reloaded tall side widget should remain beside, not above, the lesson toolbar'
         );
     } finally {
-        await context.close();
+        await desktopContext.close();
+    }
+
+    const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await makeExternalAssetsDeterministic(mobileContext);
+
+    try {
+        const mobilePage = await mobileContext.newPage();
+        await mobilePage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await mobilePage.locator('#dashboard-open-classroom-btn').click();
+        await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await mobilePage.locator('#lesson-quick-actions [data-quick-widget="timer"]').click();
+        await mobilePage.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
+
+        const mobileTimerBeforeDrag = await getElementBox(mobilePage, '.widget.pomodoro-widget');
+        await dragElementBy(mobilePage, '.widget.pomodoro-widget .pomodoro-display', 0, 1000);
+        const mobileTimerAfterDrag = await getElementBox(mobilePage, '.widget.pomodoro-widget');
+        const mobileToolbar = await getElementBox(mobilePage, '#lesson-quick-actions');
+
+        assert(
+            mobileTimerAfterDrag.y + mobileTimerAfterDrag.height <= mobileToolbar.y - 8,
+            'A mobile widget should stop above the nearly full-width lesson toolbar'
+        );
+        assert(
+            Math.abs(mobileTimerAfterDrag.height - mobileTimerBeforeDrag.height) <= 1,
+            'Moving a mobile widget toward the toolbar should not resize it'
+        );
+    } finally {
+        await mobileContext.close();
     }
 }
 
@@ -393,9 +469,14 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, 320);
         const tallWidgetAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget');
         const canvasAfterTallDrag = await getElementBox(page, '#widgets-container');
+        const toolbarAfterTallDrag = await getElementBox(page, '#lesson-quick-actions');
         assert(
-            tallWidgetAfterDrag.y - tallWidgetBeforeDrag.y >= 80,
-            'Tall widgets should have meaningful vertical travel instead of being locked by their full height'
+            tallWidgetAfterDrag.y - tallWidgetBeforeDrag.y >= 20,
+            'A wide tall widget should still move down as far as the lesson toolbar safely allows'
+        );
+        assert(
+            tallWidgetAfterDrag.y + tallWidgetAfterDrag.height <= toolbarAfterTallDrag.y - 8,
+            'A wide tall widget that cannot fit beside the lesson toolbar should stop above it'
         );
         assert(
             Math.abs(tallWidgetAfterDrag.height - tallWidgetBeforeDrag.height) <= 1,
