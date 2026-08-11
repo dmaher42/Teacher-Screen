@@ -11,6 +11,7 @@
     "check:structure": "node verify_accessibility.js",
     "check:pwa": "node tests/pwa-contract.js",
     "check:ai": "node tests/ai-api-contract.js",
+    "check:deck-library": "node tests/smoke-app.js --deck-library-only",
     "check:resources": "node tests/smoke-app.js --resources-only",
     "check:projector-powerpoint": "node tests/smoke-app.js --projector-powerpoint-only",
     "check:smoke": "node tests/smoke-app.js"

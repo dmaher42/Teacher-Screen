@@ -255,12 +255,14 @@ class ClassroomScreenApp {
         this.isTeacherPanelOpen = false;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
+        this.dismissedSeededLessonsKey = 'teacherScreenDismissedSeededLessons';
         this.foldersKey = 'classroomLayoutFolders';
         this.folders = [];
-        this.dashboardNavigationMode = 'dashboard';
+        this.dashboardNavigationMode = 'library';
         this.dashboardSelectedClassName = '';
         this.dashboardSelectedFolderId = '';
         this.dashboardSearchQuery = '';
+        this.dashboardExpandedDeckId = null;
         this.resourceLibraryState = new ResourceLibraryState();
         this.localResourceProvider = new LocalFolderResourceProvider();
         this.googleDriveResourceProvider = new GoogleDriveResourceProvider();
@@ -273,7 +275,7 @@ class ClassroomScreenApp {
         this.resourceLibraryMessage = '';
         this.resourceLibraryRefreshId = 0;
         this.resourceFallbackRootIds = new Map();
-        this.hasSavedState = !!localStorage.getItem('classroomScreenState');
+        this.hasRestoredSavedState = false;
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
         this.schemaVersion = 1; // Numeric schema version for data migrations
@@ -806,21 +808,9 @@ class ClassroomScreenApp {
                 const typedName = this.projectScreenNameInput.value.trim();
                 const normalizedState = this.normalizeProjectState(this.projectState);
                 const resolvedName = typedName || normalizedState.projectName || DEFAULT_PROJECT_NAME;
-
-                this.projectState = {
-                    ...normalizedState,
-                    projectName: resolvedName
-                };
-
-                if (this.currentProjectName) {
-                    this.currentProjectName.textContent = resolvedName;
-                }
-                if (this.teacherCurrentProjectName) {
-                    this.teacherCurrentProjectName.textContent = resolvedName;
-                }
-
-                this.projectScreenNameInput.title = `Current screen: ${resolvedName}`;
-                this.saveState();
+                this.projectScreenNameInput.title = resolvedName === normalizedState.projectName
+                    ? `Current deck: ${resolvedName}`
+                    : `Save or rename to use: ${resolvedName}`;
             });
         }
 
@@ -2202,6 +2192,7 @@ class ClassroomScreenApp {
         const snapshot = {
             version: this.appVersion,
             schemaVersion: this.schemaVersion,
+            currentDeckId: normalizedProjectState.currentDeckId || '',
             projectName,
             activePageId: nextActivePageId,
             pages: nextPages,
@@ -2217,6 +2208,7 @@ class ClassroomScreenApp {
         snapshot.timerStates = cloneSerializableData(activePageSnapshot.timerStates);
         snapshot.lessonPlan = cloneSerializableData(activePageSnapshot.lessonPlan);
         this.projectState = {
+            currentDeckId: normalizedProjectState.currentDeckId || '',
             projectName,
             activePageId: nextActivePageId,
             pages: cloneSerializableData(nextPages)
@@ -2233,6 +2225,7 @@ class ClassroomScreenApp {
 
     getDefaultProjectState() {
         return {
+            currentDeckId: '',
             projectName: DEFAULT_PROJECT_NAME,
             activePageId: DEFAULT_PAGE_ID,
             pages: []
@@ -2326,6 +2319,7 @@ class ClassroomScreenApp {
                 snapshot: this.createBlankPageSnapshot()
             });
             this.projectState = {
+                currentDeckId: normalizedState.currentDeckId || '',
                 projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
                 activePageId: blankPage.id,
                 pages: [blankPage]
@@ -2346,6 +2340,7 @@ class ClassroomScreenApp {
             : this.normalizePageRecord(page, index, normalizedState)));
 
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: activePage.id,
             pages: cloneSerializableData(nextPages)
@@ -2382,6 +2377,7 @@ class ClassroomScreenApp {
         reorderedPages.splice(targetIndex, 0, movedPage);
 
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: movedPage.id,
             pages: cloneSerializableData(reorderedPages)
@@ -2393,14 +2389,21 @@ class ClassroomScreenApp {
     }
 
     createNewProject(projectName = null) {
+        const suggestedName = this.getUniquePresetName(DEFAULT_PROJECT_NAME);
         const requestedName = typeof projectName === 'string' && projectName.trim()
             ? projectName.trim()
-            : window.prompt('Enter a project name', DEFAULT_PROJECT_NAME);
+            : window.prompt('Enter a project name', suggestedName);
         if (requestedName === null) {
             return false;
         }
 
         const resolvedProjectName = requestedName && requestedName.trim() ? requestedName.trim() : DEFAULT_PROJECT_NAME;
+        if (this.presets.some((preset) => String(preset?.name || '').trim().toLowerCase() === resolvedProjectName.toLowerCase())) {
+            this.showNotification(`Deck "${resolvedProjectName}" already exists.`, 'warning');
+            return false;
+        }
+
+        const currentDeckId = this.createDeckId();
         const blankPage = this.createPageRecord({
             id: this.makeUniquePageId(),
             name: DEFAULT_PAGE_NAME,
@@ -2408,6 +2411,7 @@ class ClassroomScreenApp {
         });
 
         this.projectState = {
+            currentDeckId,
             projectName: resolvedProjectName,
             activePageId: blankPage.id,
             pages: [blankPage]
@@ -2416,6 +2420,28 @@ class ClassroomScreenApp {
         this.applyPageSnapshot(blankPage.snapshot);
         this.renderProjectControls();
         this.saveStateImmediately();
+        const now = Date.now();
+        const projectState = this.buildStateSnapshot();
+        this.presets.push({
+            id: currentDeckId,
+            name: resolvedProjectName,
+            className: '',
+            period: '',
+            folderId: '',
+            isFavorite: false,
+            projectState: cloneSerializableData(projectState),
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.layout),
+            lessonPlan: cloneSerializableData(projectState.lessonPlan),
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: now,
+            usageCount: 0
+        });
+        this.dashboardExpandedDeckId = currentDeckId;
+        this.savePresets();
+        this.renderPresetList();
         this.showNotification(`Created deck "${resolvedProjectName}".`);
         return true;
     }
@@ -2425,6 +2451,19 @@ class ClassroomScreenApp {
         const requestedName = this.projectScreenNameInput?.value.trim() || normalizedState.projectName || DEFAULT_PROJECT_NAME;
         if (!requestedName) {
             this.showNotification('Enter a deck name first.', 'warning');
+            return;
+        }
+
+        const currentDeckId = normalizedState.currentDeckId || '';
+        const duplicate = this.presets.find((preset) => preset
+            && preset.name === requestedName
+            && preset.id !== currentDeckId);
+        if (duplicate) {
+            if (this.projectScreenNameInput) {
+                this.projectScreenNameInput.value = normalizedState.projectName || DEFAULT_PROJECT_NAME;
+                this.projectScreenNameInput.title = `Current deck: ${normalizedState.projectName || DEFAULT_PROJECT_NAME}`;
+            }
+            this.showNotification(`Deck "${requestedName}" already exists.`, 'warning');
             return;
         }
 
@@ -2439,9 +2478,23 @@ class ClassroomScreenApp {
             this.projectScreenNameInput.value = requestedName;
         }
 
-        const existingPreset = this.presets.find((preset) => preset && preset.name === requestedName);
+        const existingPreset = currentDeckId
+            ? this.getPresetRecord(currentDeckId)
+            : this.presets.find((preset) => preset && preset.name === normalizedState.projectName);
         if (existingPreset) {
-            this.overwritePreset(requestedName);
+            if (existingPreset.name !== requestedName) {
+                const existingIndex = this.getPresetIndex(existingPreset.id);
+                this.presets[existingIndex] = {
+                    ...existingPreset,
+                    name: requestedName,
+                    projectState: cloneSerializableData({
+                        ...existingPreset.projectState,
+                        currentDeckId: existingPreset.id,
+                        projectName: requestedName
+                    })
+                };
+            }
+            this.overwritePreset(existingPreset.id || existingPreset.name);
         } else {
             if (this.presetNameInput) {
                 this.presetNameInput.value = requestedName;
@@ -2467,8 +2520,9 @@ class ClassroomScreenApp {
             return;
         }
 
+        const currentDeckId = normalizedState.currentDeckId || '';
         const duplicate = this.presets.find((preset) => preset && preset.name === trimmedName);
-        if (duplicate && duplicate.name !== currentName) {
+        if (duplicate && duplicate.id !== currentDeckId) {
             this.showNotification(`Deck "${trimmedName}" already exists.`, 'warning');
             return;
         }
@@ -2481,19 +2535,25 @@ class ClassroomScreenApp {
 
         this.saveState();
 
-        const presetIndex = this.presets.findIndex((preset) => preset && preset.name === currentName);
+        const presetIndex = currentDeckId ? this.getPresetIndex(currentDeckId) : this.getPresetIndex(currentName);
         if (presetIndex !== -1) {
             const preset = this.normalizePresetRecord(this.presets[presetIndex]);
             if (preset) {
-                this.presets[presetIndex] = {
+                if (preset.seededLessonId) {
+                    this.dismissSeededLesson(preset.seededLessonId);
+                }
+                const renamedPreset = {
                     ...preset,
                     name: trimmedName,
                     projectState: cloneSerializableData({
                         ...(preset.projectState || this.buildPresetProjectState(preset)),
+                        currentDeckId: preset.id,
                         projectName: trimmedName
                     }),
                     updatedAt: now
                 };
+                delete renamedPreset.seededLessonId;
+                this.presets[presetIndex] = renamedPreset;
                 this.savePresets();
                 this.renderPresetList();
                 this.renderDashboard();
@@ -2523,6 +2583,7 @@ class ClassroomScreenApp {
 
         const nextPages = [...pages, page];
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: page.id,
             pages: cloneSerializableData(nextPages)
@@ -2549,6 +2610,7 @@ class ClassroomScreenApp {
         }
 
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: targetPage.id,
             pages: cloneSerializableData(pages)
@@ -2577,6 +2639,7 @@ class ClassroomScreenApp {
         const nextPages = [...pages.slice(0, insertIndex), duplicate, ...pages.slice(insertIndex)];
 
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: duplicate.id,
             pages: cloneSerializableData(nextPages)
@@ -2608,6 +2671,7 @@ class ClassroomScreenApp {
 
         const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: activePage.id,
             pages: pages.map((page) => (page.id === activePage.id
@@ -2652,6 +2716,7 @@ class ClassroomScreenApp {
         }
 
         this.projectState = {
+            currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: nextActivePage.id,
             pages: cloneSerializableData(nextPages)
@@ -2698,6 +2763,35 @@ class ClassroomScreenApp {
         };
     }
 
+    createDeckId() {
+        if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+            return `deck-${globalThis.crypto.randomUUID()}`;
+        }
+
+        return `deck-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    getPresetIndex(identifier) {
+        const value = typeof identifier === 'string' ? identifier.trim() : '';
+        if (!value) {
+            return -1;
+        }
+
+        const idMatch = this.presets.findIndex((preset) => preset && preset.id === value);
+        return idMatch !== -1
+            ? idMatch
+            : this.presets.findIndex((preset) => preset && preset.name === value);
+    }
+
+    getPresetRecord(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
+        return presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+    }
+
+    getCurrentDeckId() {
+        return this.normalizeProjectState(this.projectState).currentDeckId || '';
+    }
+
     buildPresetProjectState(preset = {}) {
         const source = preset && typeof preset === 'object' ? preset : {};
         const projectName = typeof source.projectName === 'string' && source.projectName.trim()
@@ -2709,6 +2803,9 @@ class ClassroomScreenApp {
         if (source.projectState && typeof source.projectState === 'object') {
             const normalized = this.normalizeProjectState(source.projectState);
             return {
+                currentDeckId: typeof source.id === 'string' && source.id.trim()
+                    ? source.id.trim()
+                    : normalized.currentDeckId || '',
                 projectName: normalized.projectName || projectName,
                 activePageId: normalized.activePageId || DEFAULT_PAGE_ID,
                 pages: cloneSerializableData(normalized.pages)
@@ -2738,6 +2835,7 @@ class ClassroomScreenApp {
         });
 
         return {
+            currentDeckId: typeof source.id === 'string' && source.id.trim() ? source.id.trim() : '',
             projectName: legacyState.projectName || projectName,
             activePageId: legacyState.activePageId || DEFAULT_PAGE_ID,
             pages: cloneSerializableData(legacyState.pages)
@@ -2773,6 +2871,9 @@ class ClassroomScreenApp {
 
     normalizeProjectState(state = {}) {
         const sourceState = state && typeof state === 'object' ? state : {};
+        const currentDeckId = typeof sourceState.currentDeckId === 'string'
+            ? sourceState.currentDeckId.trim()
+            : '';
         const projectName = typeof sourceState.projectName === 'string' && sourceState.projectName.trim()
             ? sourceState.projectName.trim()
             : DEFAULT_PROJECT_NAME;
@@ -2797,6 +2898,7 @@ class ClassroomScreenApp {
 
         return {
             ...sourceState,
+            currentDeckId,
             projectName,
             activePageId: activePage.id,
             pages,
@@ -3292,6 +3394,7 @@ class ClassroomScreenApp {
             if (existingPreset?.seededLessonId === lessonPreset.seededLessonId) {
                 this.presets[existingIndex] = {
                     ...lessonPreset,
+                    id: existingPreset.id || lessonPreset.id,
                     createdAt: Number.isFinite(existingPreset.createdAt) ? existingPreset.createdAt : lessonPreset.createdAt,
                     lastUsedAt: Number.isFinite(existingPreset.lastUsedAt) ? existingPreset.lastUsedAt : lessonPreset.lastUsedAt,
                     usageCount: Number.isFinite(existingPreset.usageCount) ? existingPreset.usageCount : lessonPreset.usageCount,
@@ -3306,6 +3409,24 @@ class ClassroomScreenApp {
         this.presets.push(lessonPreset);
         this.savePresets();
         return true;
+    }
+
+    getDismissedSeededLessonIds() {
+        const stored = safeParseLocalStorage(this.dismissedSeededLessonsKey);
+        return new Set(Array.isArray(stored)
+            ? stored.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim())
+            : []);
+    }
+
+    dismissSeededLesson(seedId) {
+        const resolvedId = typeof seedId === 'string' ? seedId.trim() : '';
+        if (!resolvedId) {
+            return;
+        }
+
+        const dismissed = this.getDismissedSeededLessonIds();
+        dismissed.add(resolvedId);
+        localStorage.setItem(this.dismissedSeededLessonsKey, JSON.stringify([...dismissed]));
     }
 
     ensureSeededPlannerLayout(lessonPreset) {
@@ -3357,9 +3478,13 @@ class ClassroomScreenApp {
             this.buildRhetoricLessonPreset(),
             this.buildPersuasionLessonFlowPreset()
         ];
+        const dismissedSeedIds = this.getDismissedSeededLessonIds();
         let changed = false;
 
         lessonPresets.forEach((lessonPreset) => {
+            if (dismissedSeedIds.has(lessonPreset.seededLessonId)) {
+                return;
+            }
             changed = this.upsertSeededLessonPreset(lessonPreset) || changed;
             this.ensureSeededPlannerLayout(lessonPreset);
         });
@@ -3369,30 +3494,130 @@ class ClassroomScreenApp {
 
     setupPresetControls() {
         const storedPresets = safeParseLocalStorage(this.presetsKey);
+        const hadStoredPresets = Array.isArray(storedPresets) && storedPresets.length > 0;
+        const restoredState = this.normalizeProjectState(this.projectState);
         const hadLegacyProjectState = Array.isArray(storedPresets)
             && storedPresets.some((preset) => preset && typeof preset === 'object' && (!preset.projectState || typeof preset.projectState !== 'object'));
-        this.presets = Array.isArray(storedPresets)
-            ? storedPresets.map((preset) => this.normalizePresetRecord(preset)).filter(Boolean)
-            : [];
+        this.presets = this.normalizePresetCollection(storedPresets, {
+            preferredDeckId: this.hasRestoredSavedState ? restoredState.currentDeckId : '',
+            preferredName: this.hasRestoredSavedState ? restoredState.projectName : ''
+        });
 
         const hasLegacyFields = Array.isArray(storedPresets)
             && storedPresets.some((preset) => preset && typeof preset === 'object' && (!Number.isFinite(preset.createdAt) || !Number.isFinite(preset.updatedAt) || !Number.isFinite(preset.lastUsedAt)));
-        if (hasLegacyFields || hadLegacyProjectState) {
+        const storedIds = Array.isArray(storedPresets)
+            ? storedPresets.map((preset) => (typeof preset?.id === 'string' ? preset.id.trim() : '')).filter(Boolean)
+            : [];
+        const hasLegacyIdentity = !Array.isArray(storedPresets)
+            || storedIds.length !== storedPresets.length
+            || new Set(storedIds).size !== storedIds.length;
+        if (hasLegacyFields || hadLegacyProjectState || hasLegacyIdentity) {
             this.savePresets();
         }
 
         this.loadFolders();
         this.ensureSeededLessonPresets();
+        this.ensureCurrentProjectDeck({
+            allowLegacyNameMatch: this.hasRestoredSavedState,
+            preferExistingDeck: !this.hasRestoredSavedState && hadStoredPresets
+        });
         this.renderPresetList();
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
     }
 
     savePresets() {
+        this.presets = this.normalizePresetCollection(this.presets);
         localStorage.setItem(this.presetsKey, JSON.stringify(this.presets));
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
         this.renderFolderOptions();
+    }
+
+    ensureCurrentProjectDeck(options = {}) {
+        const allowLegacyNameMatch = options.allowLegacyNameMatch === true;
+        const preferExistingDeck = options.preferExistingDeck === true;
+        const state = this.normalizeProjectState(this.projectState);
+        let presetIndex = state.currentDeckId ? this.getPresetIndex(state.currentDeckId) : -1;
+
+        if (presetIndex === -1 && allowLegacyNameMatch) {
+            const matches = this.presets
+                .map((preset, index) => ({ preset: this.normalizePresetRecord(preset), index }))
+                .filter(({ preset }) => preset && preset.name === state.projectName);
+            if (matches.length === 1) {
+                presetIndex = matches[0].index;
+            }
+        }
+
+        if (presetIndex !== -1) {
+            const preset = this.normalizePresetRecord(this.presets[presetIndex]);
+            if (!preset) {
+                return null;
+            }
+
+            this.presets[presetIndex] = preset;
+            this.projectState = {
+                currentDeckId: preset.id,
+                projectName: preset.name,
+                activePageId: state.activePageId,
+                pages: cloneSerializableData(state.pages)
+            };
+            this.savePresets();
+            this.saveStateImmediately();
+            return preset;
+        }
+
+        if (preferExistingDeck) {
+            const existingPreset = [...this.presets]
+                .map((preset) => this.normalizePresetRecord(preset))
+                .filter(Boolean)
+                .sort((a, b) => Number(b.lastUsedAt || b.updatedAt || b.createdAt || 0)
+                    - Number(a.lastUsedAt || a.updatedAt || a.createdAt || 0))[0];
+            if (existingPreset) {
+                const projectState = {
+                    ...this.buildPresetProjectState(existingPreset),
+                    currentDeckId: existingPreset.id,
+                    projectName: existingPreset.name
+                };
+                this.applyState(cloneSerializableData(projectState));
+                this.savePresets();
+                this.saveStateImmediately();
+                return existingPreset;
+            }
+        }
+
+        const currentDeckId = this.createDeckId();
+        const projectName = this.getUniquePresetName(state.projectName || DEFAULT_PROJECT_NAME);
+        this.projectState = {
+            currentDeckId,
+            projectName,
+            activePageId: state.activePageId,
+            pages: cloneSerializableData(state.pages)
+        };
+        const projectState = this.buildStateSnapshot();
+        const now = Date.now();
+        const preset = this.normalizePresetRecord({
+            id: currentDeckId,
+            name: projectName,
+            className: '',
+            period: '',
+            folderId: '',
+            isFavorite: false,
+            projectState: cloneSerializableData(projectState),
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.layout),
+            lessonPlan: cloneSerializableData(projectState.lessonPlan),
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: now,
+            usageCount: 0
+        });
+
+        this.presets.push(preset);
+        this.savePresets();
+        this.saveStateImmediately();
+        return preset;
     }
 
     normalizeFolderRecord(folder) {
@@ -3585,17 +3810,20 @@ class ClassroomScreenApp {
 
         const screenName = this.getUniquePresetName(trimmedName);
         const now = Date.now();
+        const id = this.createDeckId();
         const blankPage = this.createPageRecord({
             id: DEFAULT_PAGE_ID,
             name: DEFAULT_PAGE_NAME,
             snapshot: this.createBlankPageSnapshot()
         });
         const preset = {
+            id,
             name: screenName,
             className: '',
             period: '',
             folderId: folder.id,
             projectState: {
+                currentDeckId: id,
                 projectName: screenName,
                 activePageId: blankPage.id,
                 pages: [blankPage]
@@ -3619,7 +3847,7 @@ class ClassroomScreenApp {
         this.renderPresetList();
         this.renderDashboard();
         this.handleNavClick('classroom');
-        this.loadPreset(screenName);
+        this.loadPreset(id);
         this.showNotification(`Created "${screenName}" in "${folder.name}".`);
     }
 
@@ -3852,7 +4080,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        this.loadPreset(latestPreset.name);
+        this.loadPreset(latestPreset.id);
         if (this.classProfileSelect) {
             this.classProfileSelect.value = latestPreset.className || '';
         }
@@ -3871,7 +4099,7 @@ class ClassroomScreenApp {
             return;
         }
 
-        this.loadPreset(latestPreset.name);
+        this.loadPreset(latestPreset.id);
         if (this.presetFolderSelect) {
             this.presetFolderSelect.value = latestPreset.folderId || '';
         }
@@ -3901,10 +4129,21 @@ class ClassroomScreenApp {
                 : now;
         const updatedAt = Number.isFinite(preset.updatedAt) ? preset.updatedAt : createdAt;
         const lastUsedAt = Number.isFinite(preset.lastUsedAt) ? preset.lastUsedAt : updatedAt;
-        const projectState = this.buildPresetProjectState(preset);
+        const seededDeckId = typeof preset.seededLessonId === 'string' && preset.seededLessonId.trim()
+            ? `deck-${preset.seededLessonId.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
+            : '';
+        const id = typeof preset.id === 'string' && preset.id.trim()
+            ? preset.id.trim()
+            : seededDeckId || this.createDeckId();
+        const projectState = {
+            ...this.buildPresetProjectState({ ...preset, id }),
+            currentDeckId: id,
+            projectName: name
+        };
 
         return {
             ...preset,
+            id,
             name,
             className: typeof preset.className === 'string' ? preset.className.trim() : '',
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
@@ -3926,8 +4165,64 @@ class ClassroomScreenApp {
         };
     }
 
-    touchPresetUsage(name) {
-        const presetIndex = this.presets.findIndex((preset) => preset.name === name);
+    normalizePresetCollection(presets = this.presets, options = {}) {
+        const preferredDeckId = typeof options.preferredDeckId === 'string' ? options.preferredDeckId.trim() : '';
+        const preferredName = typeof options.preferredName === 'string' ? options.preferredName.trim() : '';
+        const normalizedPresets = (Array.isArray(presets) ? presets : [])
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean);
+        const preferredIndex = preferredDeckId && preferredName
+            ? normalizedPresets.findIndex((preset) => preset.id === preferredDeckId && preset.name === preferredName)
+            : -1;
+        const ownerById = new Map();
+
+        normalizedPresets.forEach((preset, index) => {
+            const ownerIndex = ownerById.get(preset.id);
+            if (ownerIndex === undefined) {
+                ownerById.set(preset.id, index);
+                return;
+            }
+
+            if (index === preferredIndex) {
+                const displacedPreset = normalizedPresets[ownerIndex];
+                const replacementId = this.createDeckId();
+                normalizedPresets[ownerIndex] = {
+                    ...displacedPreset,
+                    id: replacementId,
+                    projectState: cloneSerializableData({
+                        ...displacedPreset.projectState,
+                        currentDeckId: replacementId,
+                        projectName: displacedPreset.name
+                    })
+                };
+                ownerById.set(preset.id, index);
+                return;
+            }
+
+            const replacementId = this.createDeckId();
+            normalizedPresets[index] = {
+                ...preset,
+                id: replacementId,
+                projectState: cloneSerializableData({
+                    ...preset.projectState,
+                    currentDeckId: replacementId,
+                    projectName: preset.name
+                })
+            };
+        });
+
+        return normalizedPresets.map((preset) => ({
+            ...preset,
+            projectState: cloneSerializableData({
+                ...preset.projectState,
+                currentDeckId: preset.id,
+                projectName: preset.name
+            })
+        }));
+    }
+
+    touchPresetUsage(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
         if (presetIndex === -1) {
             return null;
         }
@@ -3950,8 +4245,8 @@ class ClassroomScreenApp {
         return nextPreset;
     }
 
-    clonePreset(name) {
-        const originalPreset = this.presets.find((preset) => preset.name === name);
+    clonePreset(identifier) {
+        const originalPreset = this.getPresetRecord(identifier);
         const normalizedOriginal = this.normalizePresetRecord(originalPreset);
         if (!normalizedOriginal) {
             this.showNotification('Deck not found.', 'error');
@@ -3976,24 +4271,35 @@ class ClassroomScreenApp {
         }
 
         const now = Date.now();
+        const id = this.createDeckId();
         const clone = {
             ...normalizedOriginal,
+            id,
             name: trimmedName,
             isFavorite: false,
+            projectState: cloneSerializableData({
+                ...normalizedOriginal.projectState,
+                currentDeckId: id,
+                projectName: trimmedName
+            }),
             createdAt: now,
             updatedAt: now,
             lastUsedAt: now,
             usageCount: 0
         };
+        delete clone.seededLessonId;
 
         this.presets.push(clone);
         this.savePresets();
         this.renderPresetList();
+        this.dashboardExpandedDeckId = id;
+        this.renderDashboard();
+        this.focusDashboardDeckControl(id, '.dashboard-deck-toggle');
         this.showNotification(`Duplicated "${normalizedOriginal.name}" as "${trimmedName}".`);
     }
 
-    renamePreset(name) {
-        const presetIndex = this.presets.findIndex((preset) => preset.name === name);
+    renamePreset(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
         if (presetIndex === -1) {
             this.showNotification('Deck not found.', 'error');
             return;
@@ -4017,17 +4323,39 @@ class ClassroomScreenApp {
         }
 
         const duplicate = this.presets.find((preset) => preset.name === trimmedName);
-        if (duplicate && duplicate.name !== currentPreset.name) {
+        if (duplicate && duplicate.id !== currentPreset.id) {
             this.showNotification(`Deck "${trimmedName}" already exists.`, 'error');
             return;
         }
 
         const now = Date.now();
-        this.presets[presetIndex] = {
+        if (currentPreset.seededLessonId) {
+            this.dismissSeededLesson(currentPreset.seededLessonId);
+        }
+        const renamedPreset = {
             ...currentPreset,
             name: trimmedName,
+            projectState: cloneSerializableData({
+                ...currentPreset.projectState,
+                currentDeckId: currentPreset.id,
+                projectName: trimmedName
+            }),
             updatedAt: now
         };
+        delete renamedPreset.seededLessonId;
+        this.presets[presetIndex] = renamedPreset;
+
+        if (this.getCurrentDeckId() === currentPreset.id) {
+            const state = this.normalizeProjectState(this.projectState);
+            this.projectState = {
+                currentDeckId: currentPreset.id,
+                projectName: trimmedName,
+                activePageId: state.activePageId,
+                pages: cloneSerializableData(state.pages)
+            };
+            this.saveStateImmediately();
+            this.renderProjectControls();
+        }
 
         if (this.presetNameInput && this.presetNameInput.value === currentPreset.name) {
             this.presetNameInput.value = trimmedName;
@@ -4036,11 +4364,12 @@ class ClassroomScreenApp {
         this.savePresets();
         this.renderPresetList();
         this.renderDashboard();
+        this.focusDashboardDeckControl(currentPreset.id, '.dashboard-deck-toggle');
         this.showNotification(`Deck renamed to "${trimmedName}".`);
     }
 
-    togglePresetFavorite(name) {
-        const presetIndex = this.presets.findIndex((preset) => preset && preset.name === name);
+    togglePresetFavorite(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
         if (presetIndex === -1) {
             this.showNotification('Deck not found.', 'error');
             return;
@@ -4060,6 +4389,7 @@ class ClassroomScreenApp {
         this.savePresets();
         this.renderPresetList();
         this.renderDashboard();
+        this.focusDashboardDeckControl(currentPreset.id, '.dashboard-favorite-btn');
         this.showNotification(isFavorite
             ? `Added "${currentPreset.name}" to Favourites.`
             : `Removed "${currentPreset.name}" from Favourites.`);
@@ -4072,7 +4402,7 @@ class ClassroomScreenApp {
 
         this.presets.forEach((preset) => {
             const option = document.createElement('option');
-            option.value = preset.name;
+            option.value = preset.id;
             option.textContent = preset.name;
             this.layoutPresetSelect.appendChild(option);
         });
@@ -4099,9 +4429,18 @@ class ClassroomScreenApp {
         }
 
         const now = Date.now();
+        const id = this.createDeckId();
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : '';
+        const currentState = this.normalizeProjectState(this.projectState);
+        this.projectState = {
+            currentDeckId: id,
+            projectName: name,
+            activePageId: currentState.activePageId,
+            pages: cloneSerializableData(currentState.pages)
+        };
         const projectState = this.buildStateSnapshot();
         const preset = {
+            id,
             name,
             className,
             period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
@@ -4118,39 +4457,42 @@ class ClassroomScreenApp {
         };
 
         this.presets.push(preset);
+        this.dashboardExpandedDeckId = id;
         this.savePresets();
+        this.saveStateImmediately();
         this.renderPresetList();
+        this.renderDashboard();
         if (this.presetNameInput) {
             this.presetNameInput.value = name;
         }
         this.showNotification(`Deck "${name}" saved.`);
     }
 
-    loadPreset(name) {
-        const preset = this.presets.find((item) => item.name === name);
+    loadPreset(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
+        const preset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
         if (!preset) {
             this.showNotification('Deck not found.', 'error');
             return false;
         }
 
-        const projectState = preset.projectState && typeof preset.projectState === 'object'
-            ? this.normalizeProjectState(preset.projectState)
-            : this.buildPresetProjectState(preset);
+        const projectState = {
+            ...(preset.projectState && typeof preset.projectState === 'object'
+                ? this.normalizeProjectState(preset.projectState)
+                : this.buildPresetProjectState(preset)),
+            currentDeckId: preset.id,
+            projectName: preset.name
+        };
 
-        if (!preset.projectState || typeof preset.projectState !== 'object') {
-            const presetIndex = this.presets.findIndex((item) => item.name === preset.name);
-            if (presetIndex !== -1) {
-                this.presets[presetIndex] = {
-                    ...preset,
-                    projectState: cloneSerializableData(projectState),
-                    theme: projectState.theme,
-                    background: cloneSerializableData(projectState.background),
-                    layout: cloneSerializableData(projectState.layout),
-                    lessonPlan: cloneSerializableData(projectState.lessonPlan)
-                };
-                this.savePresets();
-            }
-        }
+        this.presets[presetIndex] = {
+            ...preset,
+            projectState: cloneSerializableData(projectState),
+            theme: projectState.theme,
+            background: cloneSerializableData(projectState.background),
+            layout: cloneSerializableData(projectState.layout),
+            lessonPlan: cloneSerializableData(projectState.lessonPlan)
+        };
+        this.savePresets();
         this.applyState(cloneSerializableData(projectState));
         if (this.presetNameInput) this.presetNameInput.value = preset.name || '';
         if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
@@ -4161,47 +4503,105 @@ class ClassroomScreenApp {
 
         this.updateProjectorVisibility();
         this.saveState();
-        this.touchPresetUsage(preset.name);
+        this.dashboardExpandedDeckId = preset.id;
+        this.touchPresetUsage(preset.id);
         this.showNotification(`Deck "${preset.name}" loaded.`);
         return true;
     }
 
-    loadPresetFromDashboard(name) {
-        const loaded = this.loadPreset(name);
+    loadPresetFromDashboard(identifier) {
+        const preset = this.getPresetRecord(identifier);
+        const isCurrent = preset && preset.id === this.getCurrentDeckId();
+        const loaded = isCurrent ? Boolean(this.touchPresetUsage(preset.id)) : this.loadPreset(identifier);
         if (loaded) {
             this.handleNavClick('classroom');
         }
     }
 
+    arrangePresetFromDashboard(identifier) {
+        const preset = this.getPresetRecord(identifier);
+        const isCurrent = preset && preset.id === this.getCurrentDeckId();
+        const loaded = isCurrent ? Boolean(this.touchPresetUsage(preset.id)) : this.loadPreset(identifier);
+        if (loaded) {
+            this.handleNavClick('classroom', { openTeacherPanel: true });
+        }
+    }
+
+    presentPresetFromDashboard(identifier) {
+        const preset = this.getPresetRecord(identifier);
+        const isCurrent = preset && preset.id === this.getCurrentDeckId();
+        const loaded = isCurrent ? Boolean(this.touchPresetUsage(preset.id)) : this.loadPreset(identifier);
+        if (!loaded) {
+            return;
+        }
+
+        this.saveStateImmediately();
+        const projectorUrl = new URL('projector.html', window.location.href).toString();
+        const projectorWindow = window.open(projectorUrl, '_blank');
+        if (projectorWindow) {
+            projectorWindow.opener = null;
+        } else {
+            this.showNotification('Allow pop-ups to open the projector window.', 'warning');
+        }
+    }
+
+    focusDashboardDeckControl(deckId, selector = '.dashboard-deck-toggle') {
+        if (!deckId) {
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            const card = Array.from(this.dashboardRoot?.querySelectorAll('.dashboard-screen-card[data-deck-id]') || [])
+                .find((item) => item.dataset.deckId === deckId);
+            const target = card?.querySelector(selector)
+                || this.dashboardRoot?.querySelector('.dashboard-screen-card:not([hidden]) .dashboard-deck-toggle')
+                || this.dashboardRoot?.querySelector('#dashboard-search-input')
+                || this.dashboardRoot?.querySelector('#dashboard-create-btn');
+            target?.focus({ preventScroll: true });
+        });
+    }
+
     applyLayoutPreset() {
         if (!this.layoutPresetSelect) return;
 
-        const selectedName = this.layoutPresetSelect.value;
-        if (!selectedName) {
+        const selectedDeckId = this.layoutPresetSelect.value;
+        if (!selectedDeckId) {
             this.showNotification('Select a screen first.', 'error');
             return;
         }
 
-        this.loadPreset(selectedName);
+        this.loadPreset(selectedDeckId);
     }
 
-    overwritePreset(name) {
+    overwritePreset(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
+        const existingPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        const name = existingPreset?.name || '';
         if (this.presetNameInput) this.presetNameInput.value = name;
 
         const className = this.presetClassInput ? this.presetClassInput.value.trim() : '';
         const period = this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '';
 
-        const presetIndex = this.presets.findIndex(preset => preset.name === name);
-        if (presetIndex === -1) {
+        if (!existingPreset) {
             this.showNotification('Deck not found.', 'error');
             return;
         }
-        const existingPreset = this.normalizePresetRecord(this.presets[presetIndex]);
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : (existingPreset?.folderId || '');
         const now = Date.now();
+        const currentState = this.normalizeProjectState(this.projectState);
+        this.projectState = {
+            currentDeckId: existingPreset.id,
+            projectName: name,
+            activePageId: currentState.activePageId,
+            pages: cloneSerializableData(currentState.pages)
+        };
         const projectState = this.buildStateSnapshot();
-        this.presets[presetIndex] = {
+        if (existingPreset.seededLessonId) {
+            this.dismissSeededLesson(existingPreset.seededLessonId);
+        }
+        const overwrittenPreset = {
             ...existingPreset,
+            id: existingPreset.id,
             name,
             className,
             period,
@@ -4216,28 +4616,63 @@ class ClassroomScreenApp {
             lastUsedAt: Number.isFinite(existingPreset?.lastUsedAt) ? existingPreset.lastUsedAt : now,
             usageCount: Number.isFinite(existingPreset?.usageCount) ? existingPreset.usageCount : 0
         };
+        delete overwrittenPreset.seededLessonId;
+        this.presets[presetIndex] = overwrittenPreset;
         this.savePresets();
+        this.saveStateImmediately();
         this.renderPresetList();
+        this.dashboardExpandedDeckId = existingPreset.id;
+        this.renderDashboard();
+        this.focusDashboardDeckControl(existingPreset.id, '.dashboard-deck-toggle');
         this.showNotification(`Deck "${name}" overwritten.`);
     }
 
-    deletePreset(name) {
-        const presetIndex = this.presets.findIndex(preset => preset.name === name);
-        if (presetIndex === -1) {
+    deletePreset(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
+        const preset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!preset) {
             this.showNotification('Deck not found.', 'error');
-            return;
+            return false;
         }
-        if (!confirm(`Delete deck "${name}"?`)) {
-            return;
+        const isCurrent = preset.id === this.getCurrentDeckId();
+        if (isCurrent && this.presets.length <= 1) {
+            this.showNotification('Create another deck before deleting your current deck.', 'warning');
+            return false;
+        }
+        if (!confirm(`Delete deck "${preset.name}"?`)) {
+            return false;
+        }
+        if (preset.seededLessonId) {
+            this.dismissSeededLesson(preset.seededLessonId);
         }
         this.presets.splice(presetIndex, 1);
         this.savePresets();
         this.renderPresetList();
-        this.showNotification(`Deck "${name}" deleted.`);
+        if (isCurrent) {
+            const nextPreset = [...this.presets]
+                .map((item) => this.normalizePresetRecord(item))
+                .filter(Boolean)
+                .sort((a, b) => Number(b.lastUsedAt || b.updatedAt || 0) - Number(a.lastUsedAt || a.updatedAt || 0))[0];
+            if (nextPreset) {
+                this.loadPreset(nextPreset.id);
+                this.dashboardExpandedDeckId = nextPreset.id;
+            }
+        } else if (this.dashboardExpandedDeckId === preset.id) {
+            this.dashboardExpandedDeckId = null;
+        }
+        this.renderDashboard();
+        const nextFocusId = this.dashboardExpandedDeckId || this.getCurrentDeckId();
+        if (nextFocusId) {
+            this.focusDashboardDeckControl(nextFocusId, '.dashboard-deck-toggle');
+        } else {
+            window.requestAnimationFrame(() => this.dashboardRoot?.querySelector('#dashboard-create-btn')?.focus({ preventScroll: true }));
+        }
+        this.showNotification(`Deck "${preset.name}" deleted.`);
+        return true;
     }
 
-    movePresetToFolder(name) {
-        const presetIndex = this.presets.findIndex((preset) => preset.name === name);
+    movePresetToFolder(identifier) {
+        const presetIndex = this.getPresetIndex(identifier);
         if (presetIndex === -1) {
             this.showNotification('Deck not found.', 'error');
             return;
@@ -4337,9 +4772,10 @@ class ClassroomScreenApp {
             this.importSummary.style.color = 'green';
 
             // Normalize imported presets
-            this.presets = parsed.presets
-                .map((preset) => this.normalizePresetRecord(preset))
-                .filter(Boolean);
+            this.presets = this.normalizePresetCollection(parsed.presets, {
+                preferredDeckId: state.currentDeckId,
+                preferredName: state.projectName
+            });
             if (Array.isArray(parsed.folders)) {
                 this.folders = parsed.folders
                     .map((folder) => this.normalizeFolderRecord(folder))
@@ -4354,6 +4790,7 @@ class ClassroomScreenApp {
             if (state.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(state.lessonPlan);
 
             this.projectState = {
+                currentDeckId: state.currentDeckId || '',
                 projectName: state.projectName,
                 activePageId: state.activePageId,
                 pages: cloneSerializableData(state.pages)
@@ -4368,6 +4805,7 @@ class ClassroomScreenApp {
                     return widget;
             });
 
+            this.ensureCurrentProjectDeck({ allowLegacyNameMatch: true });
             this.updateProjectorVisibility();
             this.saveState();
             this.renderProjectControls();
@@ -4459,48 +4897,48 @@ class ClassroomScreenApp {
             loadButton.className = 'control-button';
             loadButton.textContent = 'Load';
             loadButton.dataset.action = 'load';
-            loadButton.dataset.name = preset.name;
+            loadButton.dataset.id = preset.id;
 
             const overwriteButton = document.createElement('button');
             overwriteButton.type = 'button';
             overwriteButton.className = 'control-button';
             overwriteButton.textContent = 'Overwrite';
             overwriteButton.dataset.action = 'overwrite';
-            overwriteButton.dataset.name = preset.name;
+            overwriteButton.dataset.id = preset.id;
 
             const duplicateButton = document.createElement('button');
             duplicateButton.type = 'button';
             duplicateButton.className = 'control-button';
             duplicateButton.textContent = 'Duplicate';
             duplicateButton.dataset.action = 'duplicate';
-            duplicateButton.dataset.name = preset.name;
+            duplicateButton.dataset.id = preset.id;
 
             const renameButton = document.createElement('button');
             renameButton.type = 'button';
             renameButton.className = 'control-button';
             renameButton.textContent = 'Rename Deck';
             renameButton.dataset.action = 'rename';
-            renameButton.dataset.name = preset.name;
+            renameButton.dataset.id = preset.id;
 
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 'control-button';
             deleteButton.textContent = 'Delete';
             deleteButton.dataset.action = 'delete';
-            deleteButton.dataset.name = preset.name;
+            deleteButton.dataset.id = preset.id;
 
             item.addEventListener('click', (e) => {
                 const button = e.target.closest('button');
                 if (!button) return;
 
                 const action = button.dataset.action;
-                const presetName = button.dataset.name;
+                const presetId = button.dataset.id;
 
-                if (action === 'load') this.loadPreset(presetName);
-                if (action === 'overwrite') this.overwritePreset(presetName);
-                if (action === 'rename') this.renamePreset(presetName);
-                if (action === 'duplicate') this.clonePreset(presetName);
-                if (action === 'delete') this.deletePreset(presetName);
+                if (action === 'load') this.loadPreset(presetId);
+                if (action === 'overwrite') this.overwritePreset(presetId);
+                if (action === 'rename') this.renamePreset(presetId);
+                if (action === 'duplicate') this.clonePreset(presetId);
+                if (action === 'delete') this.deletePreset(presetId);
             });
 
             actions.appendChild(loadButton);
@@ -4519,12 +4957,16 @@ class ClassroomScreenApp {
     }
 
     loadSavedState() {
+        let restored = false;
         loadSavedState({
-            applyState: (state) => this.applyState(state),
+            applyState: (state) => {
+                restored = this.applyState(state) === true;
+            },
             resetAppState,
             showNotification: (message) => this.showNotification(message),
             schemaVersion: this.schemaVersion
         });
+        this.hasRestoredSavedState = restored;
     }
 
     applyState(state) {
@@ -4533,6 +4975,7 @@ class ClassroomScreenApp {
             state = runMigrations(state, this.schemaVersion);
             state = this.normalizeProjectState(state);
             this.projectState = {
+                currentDeckId: state.currentDeckId || '',
                 projectName: state.projectName,
                 activePageId: state.activePageId,
                 pages: cloneSerializableData(state.pages)
@@ -4541,7 +4984,7 @@ class ClassroomScreenApp {
             if (!isValidLayout(state.layout)) {
                 console.warn('Invalid layout detected. Resetting layout state.');
                 resetAppState();
-                return;
+                return false;
             }
 
             const activePage = state.pages.find((page) => page.id === state.activePageId) || state.pages[0];
@@ -4549,10 +4992,12 @@ class ClassroomScreenApp {
                 this.applyPageSnapshot(activePage.snapshot);
             }
             this.renderProjectControls();
+            return true;
         } catch (err) {
             console.error('State load failed; resetting.', err);
             localStorage.removeItem('classroomScreenState');
             this.showNotification("Your previous screen state was corrupted; reset to defaults.", "warning");
+            return false;
         }
     }
 
@@ -6583,10 +7028,11 @@ class ClassroomScreenApp {
         const resourceSearchSelectionEnd = shouldRestoreResourceSearch ? activeElement.selectionEnd : null;
 
         const projectState = this.normalizeProjectState(this.projectState);
+        const currentDeckId = projectState.currentDeckId || '';
+        const projectName = projectState.projectName || DEFAULT_PROJECT_NAME;
         const pages = Array.isArray(projectState.pages) ? projectState.pages : [];
         const activePage = this.getActiveProjectPage(projectState);
         const activePageIndex = this.getActiveProjectPageIndex(projectState);
-        const projectName = projectState.projectName || DEFAULT_PROJECT_NAME;
         const pageSummary = pages.length > 0
             ? `Page ${activePageIndex >= 0 ? activePageIndex + 1 : 1} of ${pages.length}`
             : 'Page 1 of 1';
@@ -6595,10 +7041,13 @@ class ClassroomScreenApp {
         const dashboardSubtitle = activePageName && activePageName.toLowerCase() !== defaultPageName.toLowerCase()
             ? `${activePageName} • ${pageSummary}`
             : pageSummary;
-        const navigationModes = new Set(['dashboard', 'library', 'resources', 'favorites', 'recent']);
-        const navigationMode = navigationModes.has(this.dashboardNavigationMode)
-            ? this.dashboardNavigationMode
-            : 'dashboard';
+        const navigationModes = new Set(['library', 'resources', 'favorites', 'recent']);
+        const requestedNavigationMode = this.dashboardNavigationMode === 'dashboard'
+            ? 'library'
+            : this.dashboardNavigationMode;
+        const navigationMode = navigationModes.has(requestedNavigationMode)
+            ? requestedNavigationMode
+            : 'library';
         this.dashboardNavigationMode = navigationMode;
         const isResourceLibrary = navigationMode === 'resources';
 
@@ -6609,6 +7058,8 @@ class ClassroomScreenApp {
             .map((preset) => this.normalizePresetRecord(preset))
             .filter(Boolean)
             .sort((a, b) => {
+                if (a.id === currentDeckId && b.id !== currentDeckId) return -1;
+                if (b.id === currentDeckId && a.id !== currentDeckId) return 1;
                 const aStamp = Number.isFinite(a.lastUsedAt) ? a.lastUsedAt : Number.isFinite(a.updatedAt) ? a.updatedAt : a.createdAt || 0;
                 const bStamp = Number.isFinite(b.lastUsedAt) ? b.lastUsedAt : Number.isFinite(b.updatedAt) ? b.updatedAt : b.createdAt || 0;
                 return bStamp - aStamp;
@@ -6630,21 +7081,24 @@ class ClassroomScreenApp {
             return !searchQuery || searchText.includes(searchQuery);
         });
 
-        const shownPresets = navigationMode === 'dashboard' || navigationMode === 'recent'
-            ? visiblePresets.slice(0, 6)
-            : visiblePresets;
+        const shownPresets = visiblePresets;
         const currentLabel = navigationMode === 'library'
             ? (selectedClassName || 'All lesson decks')
             : navigationMode === 'favorites'
                     ? 'Pinned lesson decks'
                     : navigationMode === 'recent'
                         ? 'Recently opened'
-                        : 'Recent decks';
-        const heroPreset = visiblePresets[0] || sortedPresets[0] || null;
+                        : 'All lesson decks';
+
+        if (this.dashboardExpandedDeckId === null) {
+            this.dashboardExpandedDeckId = shownPresets.find((preset) => preset.id === currentDeckId)?.id || '';
+        }
+        const expandedDeckId = shownPresets.some((preset) => preset.id === this.dashboardExpandedDeckId)
+            ? this.dashboardExpandedDeckId
+            : '';
 
         const navigationItems = [
-            { mode: 'dashboard', label: 'Dashboard', icon: 'fa-house' },
-            { mode: 'library', label: 'Library', icon: 'fa-book-open' },
+            { mode: 'library', label: 'Deck Library', icon: 'fa-book-open' },
             { mode: 'resources', label: 'Resources', icon: 'fa-folder-open' },
             { mode: 'favorites', label: 'Favourites', icon: 'fa-star' },
             { mode: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
@@ -6711,64 +7165,26 @@ class ClassroomScreenApp {
                     </div>
                 </aside>
                 <main class="dashboard-main">
-                    <section class="dashboard-command-panel" aria-label="Main menu actions">
-                        <div class="dashboard-command-panel__header">
-                            <h1>${escapeHtml(projectName)}</h1>
-                            <p class="dashboard-command-panel__subtitle">${escapeHtml(dashboardSubtitle)}</p>
-                        </div>
-                        <div class="dashboard-command-grid">
-                            <button id="dashboard-open-classroom-btn" class="dashboard-launch-card dashboard-launch-card--primary" type="button" aria-label="Open Classroom">
-                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
-                                <span class="dashboard-launch-card__text">
-                                    <strong>Classroom</strong>
-                                    <small>Continue teaching with this deck</small>
-                                </span>
-                            </button>
-                            <button id="dashboard-create-btn" class="dashboard-launch-card" type="button" aria-label="Create New Deck">
-                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-plus"></i></span>
-                                <span class="dashboard-launch-card__text">
-                                    <strong>New Deck</strong>
-                                    <small>Build a fresh lesson screen</small>
-                                </span>
-                            </button>
-                            <button id="dashboard-teacher-controls-btn" class="dashboard-launch-card" type="button" aria-label="Arrange Deck">
-                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
-                                <span class="dashboard-launch-card__text">
-                                    <strong>Arrange</strong>
-                                    <small>Edit pages, theme, and widgets</small>
-                                </span>
-                            </button>
-                            <button id="dashboard-resources-btn" class="dashboard-launch-card" type="button" aria-label="Open Resources">
-                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span>
-                                <span class="dashboard-launch-card__text">
-                                    <strong>Resources</strong>
-                                    <small>Open teaching files and folders</small>
-                                </span>
-                            </button>
-                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector.html', window.location.href).toString())}" target="_blank" rel="noopener noreferrer" aria-label="Open Projector">
-                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
-                                <span class="dashboard-launch-card__text">
-                                    <strong>Projector</strong>
-                                    <small>Launch the student-facing window</small>
-                                </span>
-                            </a>
-                        </div>
-                    </section>
-
                     ${isResourceLibrary ? this.renderResourceLibraryMarkup() : `<section class="dashboard-library-panel" aria-label="Deck library">
                         <div class="dashboard-toolbar">
-                            <div>
+                            <div class="dashboard-toolbar__heading">
                                 <p class="dashboard-toolbar__label">Deck Library</p>
-                                <h2>${escapeHtml(currentLabel)}</h2>
+                                <h1>${escapeHtml(currentLabel)}</h1>
+                                <p>Choose a deck to reveal its classroom, arranging, presenting, and management options.</p>
                             </div>
-                            <div class="dashboard-toolbar__meta">
-                                <span class="dashboard-chip">${shownPresets.length} shown</span>
-                                <span class="dashboard-chip">${classProfiles.length} ${classProfiles.length === 1 ? 'class' : 'classes'}</span>
+                            <div class="dashboard-toolbar__side">
+                                <button id="dashboard-create-btn" class="dashboard-new-deck-btn" type="button">
+                                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                    <span>New Deck</span>
+                                </button>
+                                <div class="dashboard-toolbar__meta" aria-label="Deck library summary">
+                                    <span class="dashboard-chip">${shownPresets.length} ${shownPresets.length === 1 ? 'deck' : 'decks'}</span>
+                                    <span class="dashboard-chip">${classProfiles.length} ${classProfiles.length === 1 ? 'class' : 'classes'}</span>
+                                </div>
                             </div>
                         </div>
                         <div class="dashboard-search-row">
                             <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search saved decks" placeholder="Search decks or classes" value="${escapeHtml(this.dashboardSearchQuery)}">
-                            <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
                     </section>`}
@@ -6798,7 +7214,13 @@ class ClassroomScreenApp {
                     this.dashboardSelectedClassName = item.className;
                     this.dashboardSelectedFolderId = '';
                     this.dashboardSearchQuery = '';
+                    this.dashboardExpandedDeckId = null;
                     this.renderDashboard();
+                    window.requestAnimationFrame(() => {
+                        Array.from(this.dashboardRoot?.querySelectorAll('.dashboard-filter[data-class-name]') || [])
+                            .find((filter) => filter.dataset.className === item.className)
+                            ?.focus({ preventScroll: true });
+                    });
                 });
                 classList.appendChild(button);
             });
@@ -6816,72 +7238,137 @@ class ClassroomScreenApp {
                             : 'No saved decks match this view.';
                 screenGrid.innerHTML = `<div class="dashboard-empty">${escapeHtml(emptyMessage)}</div>`;
             } else {
-                shownPresets.forEach((preset) => {
-                    const isCurrentPreset = preset.name === projectName;
+                shownPresets.forEach((preset, index) => {
+                    const isCurrentPreset = preset.id === currentDeckId;
+                    const isExpanded = preset.id === expandedDeckId;
                     const card = document.createElement('article');
-                    card.className = `dashboard-screen-card${isCurrentPreset ? ' is-current' : ''}`;
-                    if (isCurrentPreset) {
-                        card.setAttribute('aria-label', `${preset.name || 'Untitled Deck'}, current deck`);
-                    }
+                    const panelId = `dashboard-deck-details-${index}`;
+                    const toggleId = `dashboard-deck-toggle-${index}`;
+                    const pageCount = Array.isArray(preset.projectState?.pages) && preset.projectState.pages.length
+                        ? preset.projectState.pages.length
+                        : 1;
+                    const savedLabel = this.formatDashboardDate(preset.updatedAt || preset.createdAt);
+                    const classLabel = preset.className || 'No class';
+                    card.className = `dashboard-screen-card${isCurrentPreset ? ' is-current' : ''}${isExpanded ? ' is-expanded' : ''}`;
+                    card.dataset.deckId = preset.id;
+                    card.setAttribute('aria-label', `${preset.name || 'Untitled Deck'}${isCurrentPreset ? ', current deck' : ''}`);
                     card.innerHTML = `
-                        <div class="dashboard-screen-card__header">
-                            <div class="dashboard-screen-card__heading">
-                                <h3>${escapeHtml(preset.name || 'Untitled Deck')}</h3>
-                                ${isCurrentPreset ? '<span class="dashboard-current-badge">Current</span>' : ''}
-                                <button class="dashboard-favorite-btn${preset.isFavorite ? ' is-active' : ''}" type="button" aria-label="${preset.isFavorite ? 'Remove from Favourites' : 'Add to Favourites'}" aria-pressed="${preset.isFavorite ? 'true' : 'false'}" title="${preset.isFavorite ? 'Remove from Favourites' : 'Add to Favourites'}">
-                                    <i class="${preset.isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
+                        <div class="dashboard-deck-row">
+                            <h2 class="dashboard-deck-heading">
+                                <button id="${toggleId}" class="dashboard-deck-toggle" type="button" data-deck-action="toggle" data-deck-id="${escapeHtml(preset.id)}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${panelId}">
+                                <span class="dashboard-deck-toggle__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                                <span class="dashboard-deck-toggle__copy">
+                                    <span class="dashboard-screen-card__heading">
+                                        <span class="dashboard-deck-title">${escapeHtml(preset.name || 'Untitled Deck')}</span>
+                                        ${isCurrentPreset ? '<span class="dashboard-current-badge">Current</span>' : ''}
+                                    </span>
+                                    <span class="dashboard-deck-subtitle">${escapeHtml(classLabel)}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</span>
+                                </span>
+                                <span class="dashboard-deck-summary">${pageCount} ${pageCount === 1 ? 'page' : 'pages'}<small>Saved ${escapeHtml(savedLabel)}</small></span>
+                                <span class="dashboard-deck-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                                 </button>
-                            </div>
-                            <p>${escapeHtml(preset.className || 'No class')}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</p>
+                            </h2>
+                            <button class="dashboard-favorite-btn${preset.isFavorite ? ' is-active' : ''}" type="button" data-deck-action="favorite" data-deck-id="${escapeHtml(preset.id)}" aria-label="${preset.isFavorite ? 'Remove' : 'Add'} ${escapeHtml(preset.name || 'Untitled Deck')} ${preset.isFavorite ? 'from' : 'to'} Favourites" aria-pressed="${preset.isFavorite ? 'true' : 'false'}" title="${preset.isFavorite ? 'Remove from Favourites' : 'Add to Favourites'}">
+                                <i class="${preset.isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
+                            </button>
                         </div>
-                        <p class="dashboard-screen-card__meta">Saved ${escapeHtml(this.formatDashboardDate(preset.updatedAt || preset.createdAt))}</p>
+                        <div id="${panelId}" class="dashboard-screen-card__details" role="region" aria-labelledby="${toggleId}"${isExpanded ? '' : ' hidden'}>
+                            <div class="dashboard-deck-details__context">
+                                <span><i class="fa-regular fa-file-lines" aria-hidden="true"></i> ${pageCount} ${pageCount === 1 ? 'page' : 'pages'}</span>
+                                <span><i class="fa-regular fa-clock" aria-hidden="true"></i> Saved ${escapeHtml(savedLabel)}</span>
+                            </div>
+                            <div class="dashboard-screen-card__actions" role="group" aria-label="Actions for ${escapeHtml(preset.name || 'Untitled Deck')}">
+                                <button ${isCurrentPreset ? 'id="dashboard-open-classroom-btn"' : ''} class="control-button control-button--primary" type="button" data-deck-action="open" data-deck-id="${escapeHtml(preset.id)}">
+                                    <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                                    <span>${isCurrentPreset ? 'Continue Classroom' : 'Open Classroom'}</span>
+                                </button>
+                                <button ${isCurrentPreset ? 'id="dashboard-teacher-controls-btn"' : ''} class="control-button" type="button" data-deck-action="arrange" data-deck-id="${escapeHtml(preset.id)}">
+                                    <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                                    <span>Arrange</span>
+                                </button>
+                                <button ${isCurrentPreset ? 'id="dashboard-open-projector-btn"' : ''} class="control-button" type="button" data-deck-action="present" data-deck-id="${escapeHtml(preset.id)}">
+                                    <i class="fa-solid fa-display" aria-hidden="true"></i>
+                                    <span>Present</span>
+                                </button>
+                                <details class="dashboard-deck-more">
+                                    <summary>More</summary>
+                                    <div class="dashboard-deck-more__actions">
+                                        <button class="control-button" type="button" data-deck-action="rename" data-deck-id="${escapeHtml(preset.id)}">Rename</button>
+                                        <button class="control-button" type="button" data-deck-action="duplicate" data-deck-id="${escapeHtml(preset.id)}">Duplicate</button>
+                                        <button class="control-button dashboard-deck-delete" type="button" data-deck-action="delete" data-deck-id="${escapeHtml(preset.id)}">Delete</button>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
                     `;
-
-                    const favoriteButton = card.querySelector('.dashboard-favorite-btn');
-                    if (favoriteButton) {
-                        favoriteButton.addEventListener('click', () => this.togglePresetFavorite(preset.name));
-                    }
-
-                    const actions = document.createElement('div');
-                    actions.className = 'dashboard-screen-card__actions';
-
-                    const loadButton = document.createElement('button');
-                    loadButton.type = 'button';
-                    loadButton.className = 'control-button control-button--primary';
-                    loadButton.textContent = isCurrentPreset ? 'Reload' : 'Load';
-                    loadButton.addEventListener('click', () => this.loadPresetFromDashboard(preset.name));
-
-                    const duplicateButton = document.createElement('button');
-                    duplicateButton.type = 'button';
-                    duplicateButton.className = 'control-button';
-                    duplicateButton.textContent = 'Duplicate';
-                    duplicateButton.addEventListener('click', () => this.clonePreset(preset.name));
-
-                    const renameButton = document.createElement('button');
-                    renameButton.type = 'button';
-                    renameButton.className = 'control-button';
-                    renameButton.textContent = 'Rename Deck';
-                    renameButton.addEventListener('click', () => this.renamePreset(preset.name));
-
-                    actions.appendChild(loadButton);
-                    actions.appendChild(renameButton);
-                    actions.appendChild(duplicateButton);
-                    card.appendChild(actions);
                     screenGrid.appendChild(card);
                 });
             }
         }
 
+        this.dashboardRoot.querySelectorAll('[data-deck-action]').forEach((control) => {
+            control.addEventListener('click', () => {
+                const deckId = control.dataset.deckId || '';
+                const action = control.dataset.deckAction || '';
+                if (!deckId) {
+                    return;
+                }
+
+                if (action === 'toggle') {
+                    const shouldExpand = control.getAttribute('aria-expanded') !== 'true';
+                    this.dashboardExpandedDeckId = shouldExpand ? deckId : '';
+                    this.dashboardRoot.querySelectorAll('.dashboard-screen-card[data-deck-id]').forEach((card) => {
+                        const isExpanded = shouldExpand && card.dataset.deckId === deckId;
+                        card.classList.toggle('is-expanded', isExpanded);
+                        const toggle = card.querySelector('.dashboard-deck-toggle');
+                        const panel = card.querySelector('.dashboard-screen-card__details');
+                        toggle?.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+                        if (panel) {
+                            panel.hidden = !isExpanded;
+                        }
+                        card.querySelectorAll('.dashboard-deck-more[open]').forEach((details) => {
+                            details.open = false;
+                        });
+                    });
+                }
+                if (action === 'favorite') this.togglePresetFavorite(deckId);
+                if (action === 'open') this.loadPresetFromDashboard(deckId);
+                if (action === 'arrange') this.arrangePresetFromDashboard(deckId);
+                if (action === 'present') this.presentPresetFromDashboard(deckId);
+                if (action === 'rename') this.renamePreset(deckId);
+                if (action === 'duplicate') this.clonePreset(deckId);
+                if (action === 'delete') this.deletePreset(deckId);
+            });
+        });
+
+        this.dashboardRoot.querySelectorAll('.dashboard-deck-more').forEach((details) => {
+            details.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape' || !details.open) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                details.open = false;
+                details.querySelector('summary')?.focus();
+            });
+        });
+
         this.dashboardRoot.querySelectorAll('[data-dashboard-mode]').forEach((button) => {
             button.addEventListener('click', () => {
-                const mode = button.dataset.dashboardMode || 'dashboard';
-                this.dashboardNavigationMode = navigationModes.has(mode) ? mode : 'dashboard';
+                const mode = button.dataset.dashboardMode || 'library';
+                this.dashboardNavigationMode = navigationModes.has(mode) ? mode : 'library';
                 this.dashboardSelectedClassName = '';
                 this.dashboardSelectedFolderId = '';
                 this.dashboardSearchQuery = '';
+                this.dashboardExpandedDeckId = null;
                 this.renderDashboard();
+                const focusNavigationButton = () => {
+                    this.dashboardRoot?.querySelector(`[data-dashboard-mode="${mode}"]`)?.focus({ preventScroll: true });
+                };
                 if (this.dashboardNavigationMode === 'resources') {
-                    void this.refreshResourceLibrary({ restore: true });
+                    void this.refreshResourceLibrary({ restore: true }).finally(() => window.requestAnimationFrame(focusNavigationButton));
+                } else {
+                    window.requestAnimationFrame(focusNavigationButton);
                 }
             });
         });
@@ -6949,21 +7436,6 @@ class ClassroomScreenApp {
             });
         }
 
-        const teacherControlsButton = this.dashboardRoot.querySelector('#dashboard-teacher-controls-btn');
-        if (teacherControlsButton) {
-            teacherControlsButton.addEventListener('click', () => this.openTeacherControls());
-        }
-
-        const resourcesButton = this.dashboardRoot.querySelector('#dashboard-resources-btn');
-        if (resourcesButton) {
-            resourcesButton.addEventListener('click', () => this.openResourceLibrary());
-        }
-
-        const openClassroomButton = this.dashboardRoot.querySelector('#dashboard-open-classroom-btn');
-        if (openClassroomButton) {
-            openClassroomButton.addEventListener('click', () => this.handleNavClick('classroom'));
-        }
-
         const searchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', (event) => {
@@ -6982,15 +7454,6 @@ class ClassroomScreenApp {
                         && Number.isInteger(selectionEnd)) {
                         replacementSearchInput.setSelectionRange(selectionStart, selectionEnd);
                     }
-                }
-            });
-        }
-
-        const loadLatestButton = this.dashboardRoot.querySelector('#dashboard-load-latest-btn');
-        if (loadLatestButton) {
-            loadLatestButton.addEventListener('click', () => {
-                if (heroPreset?.name) {
-                    this.loadPresetFromDashboard(heroPreset.name);
                 }
             });
         }
