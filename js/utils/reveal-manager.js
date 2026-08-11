@@ -1,6 +1,7 @@
 const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js';
 const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css';
 const REVEAL_SCRIPT_TIMEOUT_MS = 2500;
+const INLINE_PRESENTATION_ROOT_SELECTOR = '[data-reveal-presentation-root]';
 const revealStateStore = new WeakMap();
 
 const SAFE_PRESENTATION_TAGS = new Set([
@@ -205,11 +206,11 @@ function resolvePresentationRoot(container, createIfMissing = false) {
         return null;
     }
 
-    if (container.id === 'presentation-root') {
+    if (container.id === 'presentation-root' || container.matches?.(INLINE_PRESENTATION_ROOT_SELECTOR)) {
         return container;
     }
 
-    let root = container.querySelector('#presentation-root');
+    let root = container.querySelector(INLINE_PRESENTATION_ROOT_SELECTOR);
     if (!root && createIfMissing) {
         root = ensurePresentationRoot(container);
     }
@@ -305,12 +306,13 @@ function ensureRevealScript() {
 function ensurePresentationRoot(container) {
     if (!container) return null;
 
-    let root = container.id === 'presentation-root'
+    let root = container.id === 'presentation-root' || container.matches?.(INLINE_PRESENTATION_ROOT_SELECTOR)
         ? container
-        : container.querySelector('#presentation-root');
+        : container.querySelector(INLINE_PRESENTATION_ROOT_SELECTOR);
     if (!root) {
         root = document.createElement('div');
-        root.id = 'presentation-root';
+        root.dataset.revealPresentationRoot = 'true';
+        root.className = 'reveal-presentation-root';
         container.appendChild(root);
     }
 

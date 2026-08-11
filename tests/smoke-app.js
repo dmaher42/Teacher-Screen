@@ -890,6 +890,202 @@ async function runFocusedResourceLibraryChecks(browser, baseUrl) {
     }
 }
 
+async function runPowerPointProjectorRestoreChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+    const consoleWarnings = [];
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+            if (message.type() === 'warning') {
+                consoleWarnings.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const seedPage = await context.newPage();
+        await seedPage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await seedPage.waitForFunction(() => Boolean(window.TeacherScreenDocumentStore?.saveSlideDeck), null, { timeout: 15000 });
+        const seededDeck = await seedPage.evaluate(async () => {
+            const deckId = 90210;
+            const storageId = 'slides-projector-powerpoint-restore-smoke';
+            const assetId = `${storageId}-image`;
+            const imageBytes = Uint8Array.from(
+                atob('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='),
+                (character) => character.charCodeAt(0)
+            );
+            const content = `<section><h2>Stored PowerPoint</h2><img data-slide-asset-id="${assetId}" alt="Stored PowerPoint image"></section>`;
+            const activeDeck = {
+                id: deckId,
+                name: 'Stored PowerPoint',
+                type: 'html',
+                content: '',
+                storageId,
+                sourceFormat: 'pptx',
+                sourceName: 'stored-powerpoint-smoke.pptx',
+                sourceSize: imageBytes.byteLength,
+                slideCount: 1
+            };
+            const layout = {
+                mode: 'dashboard',
+                viewport: { width: 1280, height: 720 },
+                widgets: [{
+                    id: 'projector-powerpoint-smoke-widget',
+                    type: 'RevealManagerWidget',
+                    x: 20,
+                    y: 20,
+                    width: 720,
+                    height: 520,
+                    visibleOnProjector: true,
+                    projectorVisibilityConfigured: true,
+                    data: {
+                        type: 'RevealManagerWidget',
+                        activeDeck,
+                        currentIndices: { h: 0, v: 0 }
+                    }
+                }]
+            };
+
+            await window.TeacherScreenDocumentStore.saveSlideDeck({
+                deck: {
+                    id: storageId,
+                    deckId,
+                    name: activeDeck.name,
+                    sourceFormat: activeDeck.sourceFormat,
+                    sourceName: activeDeck.sourceName,
+                    sourceSize: activeDeck.sourceSize,
+                    slideCount: activeDeck.slideCount,
+                    content,
+                    updatedAt: Date.now()
+                },
+                assets: [{
+                    id: assetId,
+                    deckId: storageId,
+                    blob: new Blob([imageBytes], { type: 'image/gif' }),
+                    mimeType: 'image/gif',
+                    alt: 'Stored PowerPoint image'
+                }]
+            });
+
+            localStorage.setItem('classroomScreenState', JSON.stringify({
+                schemaVersion: 1,
+                theme: 'theme-professional',
+                background: { type: 'solid', value: '#0f172a' },
+                layout,
+                activePageId: 'powerpoint-projector-page',
+                pages: [{
+                    id: 'powerpoint-projector-page',
+                    name: 'Page 1',
+                    snapshot: {
+                        background: { type: 'solid', value: '#0f172a' },
+                        layout
+                    }
+                }]
+            }));
+
+            const storedDeck = await window.TeacherScreenDocumentStore.loadSlideDeck(storageId);
+            const storedAssets = await window.TeacherScreenDocumentStore.loadSlideAssets(storageId);
+            return {
+                storageId,
+                storedDeckReady: storedDeck?.content?.includes('Stored PowerPoint') === true,
+                storedAssetCount: storedAssets.length,
+                storedAssetIsBlob: storedAssets[0]?.blob instanceof Blob
+            };
+        });
+
+        assert(
+            seededDeck.storedDeckReady && seededDeck.storedAssetCount === 1 && seededDeck.storedAssetIsBlob,
+            'PowerPoint projector regression should seed one durable stored slide image'
+        );
+        await seedPage.reload({ waitUntil: 'domcontentloaded' });
+        await seedPage.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]', { state: 'attached', timeout: 15000 });
+        assert(true, 'Teacher view should restore the seeded PowerPoint before projector startup checks');
+
+        const requestedIterations = Number.parseInt(process.env.POWERPOINT_PROJECTOR_ITERATIONS || '10', 10);
+        const iterations = Math.max(1, Math.min(20, Number.isFinite(requestedIterations) ? requestedIterations : 10));
+        for (let iteration = 1; iteration <= iterations; iteration += 1) {
+            const projectorPage = await context.newPage();
+            try {
+                await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+                await projectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), null, { timeout: 15000 });
+                try {
+                    await projectorPage.waitForSelector('.widget.reveal-manager-widget [data-reveal-presentation-root]:has(img[src^="blob:"])', { timeout: 10000 });
+                } catch (error) {
+                    const evidence = await projectorPage.evaluate(async (storageId) => {
+                        const store = window.TeacherScreenDocumentStore;
+                        const storedDeck = await store?.loadSlideDeck?.(storageId);
+                        const assets = await store?.loadSlideAssets?.(storageId);
+                        return {
+                            topLevelPresentationHtml: document.querySelector('body > #presentation-root')?.innerHTML || '',
+                            presentationRootIdCount: document.querySelectorAll('#presentation-root').length,
+                            inlinePresentationCount: document.querySelectorAll('.widget.reveal-manager-widget .reveal-inline-deck').length,
+                            inlineBlobImageCount: document.querySelectorAll('.widget.reveal-manager-widget img[src^="blob:"]').length,
+                            storedDeckReady: storedDeck?.content?.includes('Stored PowerPoint') === true,
+                            storedAssetCount: Array.isArray(assets) ? assets.length : -1,
+                            storedAssetIsBlob: assets?.[0]?.blob instanceof Blob,
+                            dependencyFailures: window.__ProjectorDependencyFailures || []
+                        };
+                    }, seededDeck.storageId);
+                    throw new Error(
+                        `PowerPoint projector restore iteration ${iteration} failed (`
+                        + `${JSON.stringify(evidence)}; pageErrors=${JSON.stringify(pageErrors.slice(-6))}; `
+                        + `consoleErrors=${JSON.stringify(consoleErrors.slice(-6))}; warnings=${JSON.stringify(consoleWarnings.slice(-6))})`
+                    );
+                }
+
+                const projectorMode = await projectorPage.evaluate(() => {
+                    const widgets = window.__TeacherScreenProjectorApp?.getRevealWidgets?.() || [];
+                    return {
+                        appMode: window.TeacherScreenAppMode?.APP_MODE || '',
+                        allWidgetsAreProjectorMode: widgets.length > 0 && widgets.every((widget) => (
+                            widget.isProjectorMode?.() === true && widget.isTeacherMode?.() === false
+                        )),
+                        presentationRootIdCount: document.querySelectorAll('#presentation-root').length,
+                        topLevelPresentationEmpty: !document.querySelector('body > #presentation-root')?.childElementCount
+                    };
+                });
+                assert(
+                    projectorMode.appMode === 'projector' && projectorMode.allWidgetsAreProjectorMode,
+                    `Restored Presentation widgets should use projector mode without teacher sync feedback (${iteration}/${iterations})`
+                );
+                assert(
+                    projectorMode.presentationRootIdCount === 1,
+                    `Projector should keep one unique full-screen presentation root (${iteration}/${iterations})`
+                );
+                assert(
+                    projectorMode.topLevelPresentationEmpty,
+                    `Opening the classroom projector should not cover other widgets with an unsolicited full-screen presentation (${iteration}/${iterations})`
+                );
+
+                const inlinePresentation = projectorPage.locator('.widget.reveal-manager-widget [data-reveal-presentation-root]');
+                assert(
+                    await inlinePresentation.textContent().then((text) => text.includes('Stored PowerPoint')),
+                    `Projector should restore stored PowerPoint text on startup (${iteration}/${iterations})`
+                );
+                assert(
+                    await inlinePresentation.locator('img[src^="blob:"]').count() === 1,
+                    `Projector should restore the stored PowerPoint image on startup (${iteration}/${iterations})`
+                );
+
+            } finally {
+                await projectorPage.close();
+            }
+        }
+
+        assert(pageErrors.length === 0, `PowerPoint projector restore should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `PowerPoint projector restore should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runDocumentViewerPdfChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await makeExternalAssetsDeterministic(context);
@@ -1151,6 +1347,11 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        if (process.argv.includes('--projector-powerpoint-only')) {
+            await runPowerPointProjectorRestoreChecks(browser, baseUrl);
+            console.log('PowerPoint projector restore browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--resources-only')) {
             await runFocusedResourceLibraryChecks(browser, baseUrl);
             console.log('Resource Library browser checks passed.');
@@ -2449,11 +2650,56 @@ async function runSmoke() {
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
 
         const projectorPage = await context.newPage();
+        const projectorWarnings = [];
+        projectorPage.on('console', (message) => {
+            if (message.type() === 'warning') projectorWarnings.push(message.text());
+        });
         await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.pomodoro-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 15000 });
-        await projectorPage.waitForSelector('#presentation-root:has(img[src^="blob:"])', { timeout: 25000 });
+        try {
+            await projectorPage.waitForSelector('.widget.reveal-manager-widget [data-reveal-presentation-root]:has(img[src^="blob:"])', { timeout: 25000 });
+        } catch (error) {
+            const projectorEvidence = await projectorPage.evaluate(async () => {
+                const app = window.__TeacherScreenProjectorApp;
+                const store = window.TeacherScreenDocumentStore;
+                const savedState = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+                const savedPresentation = savedState.layout?.widgets?.find((widget) => widget.type === 'RevealManagerWidget')?.data?.activeDeck || null;
+                const widgets = app?.getRevealWidgets?.() || [];
+                const widgetEvidence = await Promise.all(widgets.map(async (widget) => {
+                    const storageId = String(widget.activeDeck?.storageId || '');
+                    const storedDeck = storageId ? await store?.loadSlideDeck?.(storageId) : null;
+                    const storedAssets = storageId ? await store?.loadSlideAssets?.(storageId) : [];
+                    return {
+                        connected: widget.element?.isConnected === true,
+                        inlineConnected: widget.inlineDeckContainer?.isConnected === true,
+                        appMode: widget.appMode,
+                        teacherMode: widget.isTeacherMode?.(),
+                        storageId,
+                        activeName: widget.activeDeck?.name || '',
+                        activeContentLength: String(widget.activeDeck?.content || '').length,
+                        hasRenderPromise: Boolean(widget.renderPromise),
+                        hasRevealDeck: Boolean(widget.revealDeck),
+                        inlineChildCount: widget.inlineDeckContainer?.childElementCount || 0,
+                        inlineBlobImageCount: widget.inlineDeckContainer?.querySelectorAll('img[src^="blob:"]').length || 0,
+                        status: widget.statusLabel?.textContent || '',
+                        storedDeckReady: storedDeck?.content?.includes('Stored PowerPoint') === true,
+                        storedAssetCount: Array.isArray(storedAssets) ? storedAssets.length : -1,
+                        storedAssetIsBlob: storedAssets?.[0]?.blob instanceof Blob
+                    };
+                }));
+                return {
+                    presentationWidgetCount: widgets.length,
+                    inlineRootCount: document.querySelectorAll('[data-reveal-presentation-root]').length,
+                    topLevelPresentationHtml: document.querySelector('body > #presentation-root')?.innerHTML || '',
+                    savedPresentation,
+                    widgetEvidence,
+                    dependencyFailures: window.__ProjectorDependencyFailures || []
+                };
+            });
+            throw new Error(`Projector PowerPoint restore did not settle (${JSON.stringify(projectorEvidence)}; warnings=${JSON.stringify(projectorWarnings.slice(-10))})`);
+        }
         assert(await projectorPage.locator('.widget.rich-text-widget').count() === 1, 'Projector should render the quick Rich Text widget');
         assert(await projectorPage.locator('.widget.pomodoro-widget').count() === 1, 'Projector should render the saved Pomodoro widget');
         assert(await projectorPage.locator('.widget.drawing-tool-widget').count() === 1, 'Projector should render the saved Drawing Tool widget');
@@ -2462,8 +2708,9 @@ async function runSmoke() {
         assert(await publicTracker.locator('.behaviour-timer-value').textContent().then((text) => text.trim() !== '00:00'), 'Projector should show the saved class lost-time total');
         assert(await publicTracker.locator('.behaviour-student-name').count() === 0, 'Projector tracker should not render student-name controls');
         assert(await publicTracker.textContent().then((text) => !text.includes('Alex') && !text.includes('Bailey')), 'Projector tracker should keep individual names private');
-        assert(await projectorPage.locator('#presentation-root:has(img[src^="blob:"])').textContent().then((text) => text.includes('Stored PowerPoint')), 'Projector should restore imported PowerPoint text from the shared local document store');
-        assert(await projectorPage.locator('#presentation-root img[src^="blob:"]').count() === 1, 'Projector should restore imported PowerPoint images from the shared local document store');
+        const projectorPresentation = projectorPage.locator('.widget.reveal-manager-widget [data-reveal-presentation-root]');
+        assert(await projectorPresentation.textContent().then((text) => text.includes('Stored PowerPoint')), 'Projector should restore imported PowerPoint text from the shared local document store');
+        assert(await projectorPresentation.locator('img[src^="blob:"]').count() === 1, 'Projector should restore imported PowerPoint images from the shared local document store');
         const projectorSlidesVisibilityResume = await projectorPage.evaluate(async () => {
             const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
             if (!widget) throw new Error('Projector Slides widget was not available for visibility checks');
@@ -2486,6 +2733,7 @@ async function runSmoke() {
             };
         });
         assert(projectorSlidesVisibilityResume.rebuildCount === 0 && projectorSlidesVisibilityResume.sameSurface, 'Projector Slides should not rebuild when the browser tab becomes visible again');
+        await projectorPage.close();
 
         await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
         const deletedStoredSlides = await page.evaluate(async (deckId) => {

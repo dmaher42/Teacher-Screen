@@ -12,6 +12,7 @@
     "check:pwa": "node tests/pwa-contract.js",
     "check:ai": "node tests/ai-api-contract.js",
     "check:resources": "node tests/smoke-app.js --resources-only",
+    "check:projector-powerpoint": "node tests/smoke-app.js --projector-powerpoint-only",
     "check:smoke": "node tests/smoke-app.js"
   },
   "devDependencies": {

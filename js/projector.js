@@ -1,3 +1,4 @@
+import './utils/app-mode.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
