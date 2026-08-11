@@ -3,7 +3,7 @@ import './utils/app-bus.js';
 import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
-const LOCAL_ASSET_VERSION = '25';
+const LOCAL_ASSET_VERSION = '26';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
@@ -144,7 +144,7 @@ const init = async () => {
     }
 
     try {
-        await import('./main.js');
+        await import(withLocalAssetVersion('./main.js'));
     } catch (error) {
         console.error('[bootstrap] Failed to load main application scripts:', error);
         throw error;

@@ -711,6 +711,7 @@ async function runResourceLibraryFlowChecks(page) {
     await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
     assert(await page.locator('.dashboard-nav-item[data-dashboard-mode="resources"].is-active').count() === 1, 'Resources action should open the Resource Library and activate Resources navigation');
     assert(await page.locator('.dashboard-resources-panel h2').textContent().then((text) => text.trim() === 'Teaching resources'), 'Resources should open as a teacher-focused dashboard panel');
+    assert(await page.locator('.resource-supported-note').count() === 0, 'Resources should not show the removed file-type helper strip');
 
     await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked', null, { timeout: 10000 });
     assert(await page.locator('#resource-connect-btn').textContent().then((text) => text.trim() === 'Choose folder'), 'Local resources should begin with one clear Choose folder action');

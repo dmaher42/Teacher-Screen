@@ -6010,7 +6010,6 @@ class ClassroomScreenApp {
                     <div class="resource-breadcrumbs" aria-label="Current resource folder">${breadcrumbMarkup}</div>
                     <input id="resource-search-input" class="resource-search" type="search" aria-label="Search teaching resources" placeholder="Search this resource view" value="${escapeHtml(this.resourceLibrarySearchQuery)}">
                 </div>
-                <p class="resource-supported-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> PDFs open in Document Viewer, PowerPoints and Google Slides open in Presentation, and images can become the current deck background.</p>
                 <input id="resource-folder-fallback-input" type="file" multiple webkitdirectory directory hidden aria-label="Choose a teaching resources folder">
                 <div class="resource-grid" aria-live="polite">${cardsMarkup}</div>
             </section>

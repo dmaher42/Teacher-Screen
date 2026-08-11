@@ -11593,21 +11593,6 @@ body.is-dashboard-active .resource-empty p {
     line-height: 1.45;
 }
 
-body.is-dashboard-active .resource-supported-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    min-width: 0;
-    margin: 0;
-    padding: 8px 10px;
-    border-radius: 10px;
-    background: rgba(47, 143, 244, 0.055);
-    color: #5b7583;
-    font-size: 0.7rem;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-}
-
 body.is-dashboard-active .resource-source-tab:focus-visible,
 body.is-dashboard-active .resource-breadcrumb:focus-visible,
 body.is-dashboard-active .resource-card:focus-visible,
