@@ -62,6 +62,20 @@ assert(studentMain.tagName === 'SECTION', 'Student main should be a <section> el
 assert(studentMain.getAttribute('role') === 'main', 'Student main should have role="main"');
 assert(studentMain.getAttribute('aria-label') === 'Student view', 'Student main should have aria-label="Student view"');
 
+const reminderDock = assertElement('classroom-reminder-dock');
+assert(reminderDock.tagName === 'ASIDE', 'Classroom reminder dock should be an <aside> element');
+const reminderTitleId = reminderDock.getAttribute('aria-labelledby');
+assert(reminderTitleId && document.getElementById(reminderTitleId), 'Classroom reminder dock should have an accessible title');
+const reminderToggle = assertElement('classroom-reminder-toggle');
+assert(Boolean(reminderToggle.getAttribute('aria-label')), 'Classroom reminder toggle should have an accessible name');
+const reminderPanelId = reminderToggle.getAttribute('aria-controls');
+const reminderPanel = reminderPanelId ? document.getElementById(reminderPanelId) : null;
+assert(Boolean(reminderPanel), 'Classroom reminder toggle should control a real panel');
+assert(reminderToggle.getAttribute('aria-expanded') === String(!reminderPanel.hasAttribute('hidden')), 'Reminder toggle state should match panel visibility');
+const reminderForm = assertElement('classroom-reminder-form');
+assert(Boolean(reminderForm.querySelector('label[for="classroom-reminder-input"]')), 'Classroom reminder input should have a label');
+assert(Boolean(reminderForm.querySelector('fieldset legend')), 'Classroom reminder scope choices should have a legend');
+
 // Teacher controls and primary app controls
 const teacherPanel = assertElement('teacher-panel');
 assert(teacherPanel.tagName === 'ASIDE', 'Teacher panel should be an <aside> element');

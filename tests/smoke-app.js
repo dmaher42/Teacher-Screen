@@ -216,6 +216,14 @@ async function getElementBox(page, selector) {
     return box;
 }
 
+async function getPairedProjectorUrl(page, baseUrl) {
+    const syncToken = await page.evaluate(() => window.__TeacherProjectorSyncToken || '');
+    assert(Boolean(syncToken), 'Teacher window should provide a projector pairing token');
+    const projectorUrl = new URL(`${baseUrl}/projector.html`);
+    projectorUrl.searchParams.set('syncToken', syncToken);
+    return projectorUrl.toString();
+}
+
 async function runWidgetSaveNotificationChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
@@ -1303,7 +1311,7 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
         await page.setViewportSize({ width: 1280, height: 720 });
 
         const projectorPage = await context.newPage();
-        await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
         assert(await projectorPage.locator('.widget.document-viewer-widget canvas').count() === 1, 'Projector should restore an uploaded PDF from local document storage');
         assert(!(await projectorPage.locator('.widget.document-viewer-widget').textContent()).includes('uploaded again'), 'Projector should not ask for a PDF that is already stored on this device');
@@ -1375,7 +1383,7 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
         assert(await page.locator('#teacher-panel.open').count() === 0, 'New Deck should open the classroom in lesson mode');
 
         const projectorPage = await context.newPage();
-        await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForFunction(() => document.querySelector('#student-view')?.style.backgroundImage.includes('linear-gradient'), undefined, { timeout: 20000 });
         assert((await projectorPage.locator('#student-view').evaluate((element) => element.style.backgroundImage)).includes('linear-gradient'), 'Projector should render the new deck gradient');
         await projectorPage.close();
@@ -2012,6 +2020,504 @@ async function runDeckLibraryStartupSafetyChecks(browser, baseUrl) {
     }
 }
 
+async function runReminderSystemChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    const fixtureClassName = 'Reminder Smoke Class';
+    const deckAName = 'Reminder Smoke Deck A';
+    const renamedDeckAName = 'Reminder Smoke Deck A Renamed';
+    const deckBName = 'Reminder Smoke Deck B';
+    const duplicateDeckName = 'Reminder Smoke Deck A Copy';
+    const classPublicText = 'Bring persuasive drafts to class';
+    const deckPublicText = 'Collect this lesson exit tickets';
+    const deckPrivateText = 'Privately follow up with a family';
+    const classroomPublicText = 'Classroom-added public reminder';
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.evaluate(({ fixtureClassName, deckAName, deckBName }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            if (!Array.isArray(presets) || presets.length === 0) {
+                throw new Error('Expected a seeded deck for reminder smoke fixtures');
+            }
+
+            const sourceDeck = presets[0];
+            const now = Date.now();
+            const createLegacyDeck = (name, offset) => {
+                const fixture = JSON.parse(JSON.stringify(sourceDeck));
+                delete fixture.id;
+                delete fixture.classId;
+                fixture.name = name;
+                fixture.seededLessonId = '';
+                fixture.className = fixtureClassName;
+                fixture.createdAt = now + offset;
+                fixture.updatedAt = now + offset;
+                fixture.lastUsedAt = now + offset;
+                fixture.usageCount = 0;
+                fixture.projectState = {
+                    ...(fixture.projectState || {}),
+                    projectName: name
+                };
+                return fixture;
+            };
+
+            localStorage.setItem('classroomLayoutPresets', JSON.stringify([
+                createLegacyDeck(deckAName, 2),
+                createLegacyDeck(deckBName, 1)
+            ]));
+            const activeState = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            activeState.projectName = deckAName;
+            delete activeState.activeDeckId;
+            delete activeState.activeClassId;
+            delete activeState.activeClassName;
+            localStorage.setItem('classroomScreenState', JSON.stringify(activeState));
+            localStorage.removeItem('teacherScreenClassReminders');
+        }, { fixtureClassName, deckAName, deckBName });
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForSelector('.dashboard-screen-card[data-deck-id]', { timeout: 10000 });
+
+        const migratedDecks = await page.evaluate(({ deckAName, deckBName }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const selectDeck = (name) => {
+                const preset = presets.find((candidate) => candidate?.name === name);
+                return preset ? { id: preset.id, classId: preset.classId, className: preset.className } : null;
+            };
+            return {
+                deckA: selectDeck(deckAName),
+                deckB: selectDeck(deckBName)
+            };
+        }, { deckAName, deckBName });
+        assert(!!migratedDecks.deckA?.id && !!migratedDecks.deckB?.id, 'Legacy decks should receive persistent reminder IDs on startup');
+        assert(migratedDecks.deckA.id !== migratedDecks.deckB.id, 'Migrated decks should receive distinct reminder IDs');
+        assert(
+            !!migratedDecks.deckA.classId && migratedDecks.deckA.classId === migratedDecks.deckB.classId,
+            'Decks in the same class should share one stable class ID'
+        );
+        await page.waitForFunction((expectedDeckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.activeDeckId === expectedDeckId && Boolean(state.activeClassId);
+        }, migratedDecks.deckA.id, { timeout: 10000 });
+        assert(true, 'A legacy active deck should reconnect to its migrated reminder identity on startup');
+
+        const deckAId = migratedDecks.deckA.id;
+        const deckBId = migratedDecks.deckB.id;
+        const classId = migratedDecks.deckA.classId;
+        const deckACard = page.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
+        const deckBCard = page.locator(`.dashboard-screen-card[data-deck-id="${deckBId}"]`);
+        assert(await deckACard.count() === 1 && await deckBCard.count() === 1, 'Migrated reminder decks should render as distinct dashboard cards');
+
+        await deckACard.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckAId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        assert(await deckACard.locator('[data-reminder-action="expand"]').getAttribute('aria-expanded') === 'true', 'Deck reminder button should expand its inline panel');
+
+        const addDashboardReminder = async (scope, text, showOnClassroom) => {
+            const form = deckACard.locator(`.dashboard-reminder-form[data-reminder-scope="${scope}"]`);
+            await form.locator('input[name="text"]').fill(text);
+            if (showOnClassroom) {
+                await form.locator('input[name="showOnClassroom"]').check();
+            }
+            await form.locator('button[type="submit"]').click();
+            await page.waitForFunction((expectedText) => {
+                const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+                return store.reminders?.some((reminder) => reminder?.text === expectedText);
+            }, text, { timeout: 10000 });
+        };
+
+        await addDashboardReminder('class', classPublicText, true);
+        await addDashboardReminder('deck', deckPublicText, true);
+        await addDashboardReminder('deck', deckPrivateText, false);
+
+        const reminderRecords = await page.evaluate(({ classPublicText, deckPublicText, deckPrivateText }) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            const byText = (text) => store.reminders?.find((reminder) => reminder?.text === text) || null;
+            return {
+                classPublic: byText(classPublicText),
+                deckPublic: byText(deckPublicText),
+                deckPrivate: byText(deckPrivateText)
+            };
+        }, { classPublicText, deckPublicText, deckPrivateText });
+        assert(
+            reminderRecords.classPublic?.scope === 'class'
+                && reminderRecords.classPublic?.classId === classId
+                && reminderRecords.classPublic?.showOnClassroom === true,
+            'Class reminder should persist against the shared class and be marked student-visible'
+        );
+        assert(
+            reminderRecords.deckPublic?.scope === 'deck'
+                && reminderRecords.deckPublic?.deckId === deckAId
+                && reminderRecords.deckPublic?.showOnClassroom === true,
+            'Public deck reminder should persist only against its deck'
+        );
+        assert(
+            reminderRecords.deckPrivate?.scope === 'deck'
+                && reminderRecords.deckPrivate?.deckId === deckAId
+                && reminderRecords.deckPrivate?.showOnClassroom === false,
+            'Private deck reminder should persist without student visibility'
+        );
+        const plannerSnapshotPrivacy = await page.evaluate(async () => {
+            const reminderKey = 'teacherScreenClassReminders';
+            const originalReminderStore = localStorage.getItem(reminderKey);
+            const { captureLocalStorageState, restoreLocalStorageState } = await import('/js/services/state-manager.js');
+            const snapshot = captureLocalStorageState();
+            restoreLocalStorageState({
+                [reminderKey]: JSON.stringify({ version: 1, reminders: [] }),
+                reminderSmokeSafeKey: 'restored'
+            });
+            const result = {
+                snapshotExcludesReminders: !Object.prototype.hasOwnProperty.call(snapshot, reminderKey),
+                restorePreservesReminders: localStorage.getItem(reminderKey) === originalReminderStore,
+                restoreKeepsOrdinaryState: localStorage.getItem('reminderSmokeSafeKey') === 'restored'
+            };
+            localStorage.removeItem('reminderSmokeSafeKey');
+            return result;
+        });
+        assert(
+            plannerSnapshotPrivacy.snapshotExcludesReminders && plannerSnapshotPrivacy.restorePreservesReminders,
+            'Planner templates should not copy or roll back the canonical reminder store'
+        );
+        assert(plannerSnapshotPrivacy.restoreKeepsOrdinaryState, 'Planner template restore should continue to restore ordinary app settings');
+        const concurrentTabPersistence = await page.evaluate(async () => {
+            const { ClassReminderService } = await import('/js/services/class-reminder-service.js');
+            const values = new Map();
+            const storage = {
+                getItem(key) {
+                    return values.has(key) ? values.get(key) : null;
+                },
+                setItem(key, value) {
+                    values.set(key, value);
+                }
+            };
+            let firstId = 0;
+            let secondId = 0;
+            const firstTab = new ClassReminderService({ storage, eventTarget: null, idFactory: () => `first-${++firstId}` });
+            const secondTab = new ClassReminderService({ storage, eventTarget: null, idFactory: () => `second-${++secondId}` });
+            firstTab.add({ scope: 'deck', deckId: 'deck-a', text: 'First tab reminder' });
+            secondTab.add({ scope: 'deck', deckId: 'deck-b', text: 'Second tab reminder' });
+            const reloaded = new ClassReminderService({ storage, eventTarget: null });
+            const texts = reloaded.list().map((reminder) => reminder.text).sort();
+            firstTab.dispose();
+            secondTab.dispose();
+            reloaded.dispose();
+            return texts;
+        });
+        assert(
+            concurrentTabPersistence.join('|') === 'First tab reminder|Second tab reminder',
+            'A stale teacher tab should preserve reminders saved by another tab'
+        );
+
+        const importStateBeforeInvalidReminderData = await page.evaluate(() => ({
+            presets: localStorage.getItem('classroomLayoutPresets'),
+            reminders: localStorage.getItem('teacherScreenClassReminders'),
+            payload: JSON.stringify({
+                schemaVersion: 1,
+                state: JSON.parse(localStorage.getItem('classroomScreenState') || '{}'),
+                presets: [],
+                folders: [],
+                reminders: { version: 999, reminders: [] }
+            })
+        }));
+        await page.evaluate(() => {
+            const dialog = document.querySelector('#import-dialog');
+            if (!dialog.open) dialog.showModal();
+            window.__reminderSmokeConsoleError = console.error;
+            console.error = (...args) => {
+                if (String(args[0] || '').startsWith('Import failed:')) return;
+                window.__reminderSmokeConsoleError(...args);
+            };
+        });
+        await page.locator('#import-json-input').fill(importStateBeforeInvalidReminderData.payload);
+        await page.locator('#confirm-import').click();
+        await page.waitForFunction(() => document.querySelector('#import-summary')?.textContent?.startsWith('Error:'), undefined, { timeout: 10000 });
+        const importStateAfterInvalidReminderData = await page.evaluate(() => {
+            const result = {
+                presets: localStorage.getItem('classroomLayoutPresets'),
+                reminders: localStorage.getItem('teacherScreenClassReminders')
+            };
+            document.querySelector('#import-dialog')?.close();
+            if (window.__reminderSmokeConsoleError) {
+                console.error = window.__reminderSmokeConsoleError;
+                delete window.__reminderSmokeConsoleError;
+            }
+            return result;
+        });
+        assert(
+            importStateAfterInvalidReminderData.presets === importStateBeforeInvalidReminderData.presets
+                && importStateAfterInvalidReminderData.reminders === importStateBeforeInvalidReminderData.reminders,
+            'Invalid reminder imports should not partially replace saved decks or reminders'
+        );
+
+        await deckBCard.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckBId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        const deckBPanel = deckBCard.locator('.dashboard-reminder-panel');
+        assert(await deckBPanel.locator('[data-reminder-id]').count() === 1, 'Another deck in the class should receive only the shared class reminder');
+        assert((await deckBPanel.textContent()).includes(classPublicText), 'Shared class reminder should appear in every deck for that class');
+        assert(!(await deckBPanel.textContent()).includes(deckPublicText) && !(await deckBPanel.textContent()).includes(deckPrivateText), 'Deck reminders should not leak into another deck in the same class');
+
+        await deckACard.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckAId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        assert(await deckACard.locator('[data-reminder-id]').count() === 3, 'The source deck should combine its class reminder with both deck reminders');
+        await deckACard
+            .locator(`[data-reminder-id="${reminderRecords.deckPrivate.id}"] [data-reminder-action="toggle"]`)
+            .click();
+        await page.waitForFunction((reminderId) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            return store.reminders?.find((reminder) => reminder?.id === reminderId)?.completed === true;
+        }, reminderRecords.deckPrivate.id, { timeout: 10000 });
+        assert(true, 'Completing a reminder should persist through the shared reminder store');
+
+        if (await deckACard.locator('[data-deck-action="toggle"]').getAttribute('aria-expanded') !== 'true') {
+            await deckACard.locator('[data-deck-action="toggle"]').click();
+        }
+        await deckACard.locator('.dashboard-deck-more > summary').click();
+        page.once('dialog', (dialog) => dialog.accept(renamedDeckAName));
+        await deckACard.locator('[data-deck-action="rename"]').click();
+        await page.waitForFunction(({ deckId, expectedName }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.some((preset) => preset?.id === deckId && preset?.name === expectedName);
+        }, { deckId: deckAId, expectedName: renamedDeckAName }, { timeout: 10000 });
+        const renamedDeckACard = page.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
+        assert(await renamedDeckACard.locator('.dashboard-deck-title').textContent().then((text) => text.trim() === renamedDeckAName), 'Renaming a deck should preserve its stable ID and update its dashboard title');
+        assert(await renamedDeckACard.locator('[data-reminder-id]').count() === 3, 'Renaming a deck should keep its class and deck reminders attached');
+
+        await renamedDeckACard.locator('.dashboard-deck-more > summary').click();
+        page.once('dialog', (dialog) => dialog.accept(duplicateDeckName));
+        await renamedDeckACard.locator('[data-deck-action="duplicate"]').click();
+        await page.waitForFunction((expectedName) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.some((preset) => preset?.name === expectedName);
+        }, duplicateDeckName, { timeout: 10000 });
+        const duplicatedDeck = await page.evaluate((expectedName) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.name === expectedName);
+            return preset ? { id: preset.id, classId: preset.classId } : null;
+        }, duplicateDeckName);
+        assert(!!duplicatedDeck?.id && duplicatedDeck.id !== deckAId, 'Duplicating a deck should create a new stable deck ID');
+        assert(duplicatedDeck.classId === classId, 'Duplicating a deck should retain its shared class identity');
+        const duplicateCard = page.locator(`.dashboard-screen-card[data-deck-id="${duplicatedDeck.id}"]`);
+        await duplicateCard.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${duplicatedDeck.id}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        assert(await duplicateCard.locator('[data-reminder-id]').count() === 1, 'A duplicated deck should start without copied deck-only reminders');
+        assert((await duplicateCard.textContent()).includes(classPublicText), 'A duplicated deck should still show its class reminder');
+        assert(!(await duplicateCard.textContent()).includes(deckPublicText) && !(await duplicateCard.textContent()).includes(deckPrivateText), 'A duplicated deck should not inherit stale deck-only reminders');
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const persistedReminderState = await page.evaluate(({ deckAId, deckBId, duplicateDeckId, texts }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            return {
+                deckIdsPersisted: [deckAId, deckBId, duplicateDeckId].every((id) => presets.some((preset) => preset?.id === id)),
+                classIds: presets
+                    .filter((preset) => [deckAId, deckBId, duplicateDeckId].includes(preset?.id))
+                    .map((preset) => preset.classId),
+                reminders: texts.map((text) => store.reminders?.find((reminder) => reminder?.text === text) || null)
+            };
+        }, {
+            deckAId,
+            deckBId,
+            duplicateDeckId: duplicatedDeck.id,
+            texts: [classPublicText, deckPublicText, deckPrivateText]
+        });
+        assert(persistedReminderState.deckIdsPersisted, 'Deck reminder identities should survive a full app reload');
+        assert(persistedReminderState.classIds.every((candidate) => candidate === classId), 'Shared class identity should survive a full app reload');
+        assert(persistedReminderState.reminders.every(Boolean), 'Class and deck reminders should survive a full app reload');
+        assert(persistedReminderState.reminders[2]?.completed === true, 'Reminder completion should survive a full app reload');
+
+        const reloadedDeckACard = page.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
+        await reloadedDeckACard.locator('.control-button--primary').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
+        assert(await page.locator('#classroom-reminder-launcher').getAttribute('aria-expanded') === 'false', 'Classroom reminders should start as a compact lesson-bar button');
+        await page.locator('#classroom-reminder-launcher').click();
+        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        const classroomReminderList = page.locator('#classroom-reminder-list');
+        assert(await classroomReminderList.locator('[data-reminder-id]').count() === 3, 'Classroom dock should combine the loaded deck and class reminders');
+        const classroomReminderText = await classroomReminderList.textContent();
+        assert(
+            classroomReminderText.includes(classPublicText)
+                && classroomReminderText.includes(deckPublicText)
+                && classroomReminderText.includes(deckPrivateText),
+            'Teacher classroom dock should retain public and private reminders for the loaded deck'
+        );
+
+        await page.evaluate(() => {
+            window.__reminderBroadcasts = [];
+            window.__reminderTestChannel = new BroadcastChannel('teacher-screen-sync');
+            window.__reminderTestChannel.onmessage = (event) => window.__reminderBroadcasts.push(event.data);
+        });
+        const projectorPairing = await page.evaluate(() => {
+            const href = window.__TeacherScreenApp?.getPairedProjectorUrl?.() || '';
+            const token = window.__TeacherProjectorSyncToken || '';
+            return {
+                token,
+                linkToken: href ? new URL(href).searchParams.get('syncToken') : ''
+            };
+        });
+        assert(
+            Boolean(projectorPairing.token) && projectorPairing.linkToken === projectorPairing.token,
+            'Dashboard Projector link should be paired to its teacher tab'
+        );
+
+        const unpairedProjectorPage = await context.newPage();
+        await unpairedProjectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await unpairedProjectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), undefined, { timeout: 15000 });
+        await unpairedProjectorPage.waitForTimeout(500);
+        assert(await unpairedProjectorPage.locator('#classroom-reminder-dock').isHidden(), 'An unpaired projector should reject another teacher tab\'s reminders');
+        await unpairedProjectorPage.close();
+
+        const projectorPage = await context.newPage();
+        await projectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
+        await projectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), undefined, { timeout: 15000 });
+        await projectorPage.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 15000 });
+        await projectorPage.waitForFunction(({ classPublicText, deckPublicText }) => {
+            const text = document.querySelector('#classroom-reminder-list')?.textContent || '';
+            return text.includes(classPublicText) && text.includes(deckPublicText);
+        }, { classPublicText, deckPublicText }, { timeout: 10000 });
+        const projectorReminderText = await projectorPage.locator('#classroom-reminder-list').textContent();
+        assert(projectorReminderText.includes(classPublicText) && projectorReminderText.includes(deckPublicText), 'Projector should receive class-visible class and deck reminders');
+        assert(!projectorReminderText.includes(deckPrivateText), 'Projector should never render a teacher-private reminder');
+        assert(await projectorPage.locator('#classroom-reminder-list input, #classroom-reminder-list button, #classroom-reminder-form').count() === 0, 'Projector reminder dock should be read-only');
+
+        await page.waitForFunction(({ classPublicText, deckPublicText }) => {
+            return window.__reminderBroadcasts.some((message) => {
+                const serialized = JSON.stringify(message || {});
+                return serialized.includes(classPublicText) && serialized.includes(deckPublicText);
+            });
+        }, { classPublicText, deckPublicText }, { timeout: 10000 });
+        const initialProjectorPayloadPrivacy = await page.evaluate(({ classPublicText, deckPublicText, deckPrivateText }) => {
+            const serialized = JSON.stringify(window.__reminderBroadcasts || []);
+            return {
+                includesPublic: serialized.includes(classPublicText) && serialized.includes(deckPublicText),
+                includesPrivate: serialized.includes(deckPrivateText)
+            };
+        }, { classPublicText, deckPublicText, deckPrivateText });
+        assert(initialProjectorPayloadPrivacy.includesPublic, 'Projector sync payload should include student-visible reminders');
+        assert(!initialProjectorPayloadPrivacy.includesPrivate, 'Projector sync payload should omit teacher-private reminder text entirely');
+
+        const classroomForm = page.locator('#classroom-reminder-form');
+        await classroomForm.locator('input[name="text"]').fill(classroomPublicText);
+        await classroomForm.locator('input[name="scope"][value="deck"]').check();
+        await classroomForm.locator('input[name="showOnClassroom"]').check();
+        await classroomForm.locator('button[type="submit"]').click();
+        await page.waitForFunction((expectedText) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            return store.reminders?.some((reminder) => reminder?.text === expectedText);
+        }, classroomPublicText, { timeout: 10000 });
+        await projectorPage.waitForFunction((expectedText) => {
+            return (document.querySelector('#classroom-reminder-list')?.textContent || '').includes(expectedText);
+        }, classroomPublicText, { timeout: 10000 });
+        assert(true, 'A classroom-added public reminder should sync live to the projector');
+
+        await page.locator('#dashboard-tab').dispatchEvent('click');
+        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+        const dashboardDeckAfterClassroomAdd = page.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
+        await dashboardDeckAfterClassroomAdd.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckAId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        assert((await dashboardDeckAfterClassroomAdd.textContent()).includes(classroomPublicText), 'Dashboard deck panel should immediately reflect reminders added in Classroom');
+        const allProjectorPayloadsStayPrivate = await page.evaluate((privateText) => {
+            return !JSON.stringify(window.__reminderBroadcasts || []).includes(privateText);
+        }, deckPrivateText);
+        assert(allProjectorPayloadsStayPrivate, 'Live reminder syncing should continue to exclude teacher-private text');
+
+        const emptyContextSnapshot = await page.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            const previousContext = app.activeReminderContext;
+            app.activeReminderContext = { deckId: '', classId: '', className: '', deckName: 'Unsaved deck' };
+            const snapshot = app.getPublicReminderSnapshot();
+            app.syncClassroomRemindersToProjector();
+            app.activeReminderContext = previousContext;
+            return snapshot;
+        });
+        assert(Array.isArray(emptyContextSnapshot.reminders) && emptyContextSnapshot.reminders.length === 0, 'A deck without a reminder identity should create an empty public reminder snapshot');
+        await projectorPage.waitForFunction(() => document.querySelector('#classroom-reminder-dock')?.hidden === true, undefined, { timeout: 10000 });
+        assert(true, 'A deck without a reminder identity should send an empty projector reminder list');
+
+        const mobilePage = await context.newPage();
+        await mobilePage.setViewportSize({ width: 390, height: 844 });
+        await mobilePage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const mobileDeckCard = mobilePage.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
+        await mobileDeckCard.locator('[data-reminder-action="expand"]').click();
+        await mobilePage.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckAId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        const mobileDashboardReminderLayout = await mobileDeckCard.locator('.dashboard-reminder-panel').evaluate((panel) => {
+            const card = panel.closest('.dashboard-screen-card');
+            const main = panel.closest('.dashboard-main');
+            const panelRect = panel.getBoundingClientRect();
+            const cardRect = card?.getBoundingClientRect();
+            const visibleControls = Array.from(panel.querySelectorAll('button, input')).filter((control) => {
+                const style = getComputedStyle(control);
+                return style.display !== 'none' && style.visibility !== 'hidden';
+            });
+            return {
+                viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+                mainFits: !main || main.scrollWidth <= main.clientWidth + 1,
+                panelFits: panel.scrollWidth <= panel.clientWidth + 1
+                    && panelRect.left >= -1
+                    && panelRect.right <= window.innerWidth + 1,
+                controlsFit: !!cardRect && visibleControls.every((control) => {
+                    const rect = control.getBoundingClientRect();
+                    return rect.left >= cardRect.left - 1 && rect.right <= cardRect.right + 1;
+                })
+            };
+        });
+        assert(
+            mobileDashboardReminderLayout.viewportFits
+                && mobileDashboardReminderLayout.mainFits
+                && mobileDashboardReminderLayout.panelFits,
+            '390px expanded reminder panel should not create horizontal overflow'
+        );
+        assert(mobileDashboardReminderLayout.controlsFit, '390px reminder forms and actions should remain inside their deck card');
+
+        await mobileDeckCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
+        await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await mobilePage.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
+        await mobilePage.locator('#classroom-reminder-launcher').click();
+        await mobilePage.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        const mobileClassroomReminderLayout = await mobilePage.locator('#classroom-reminder-dock').evaluate((dock) => {
+            const dockRect = dock.getBoundingClientRect();
+            const panel = dock.querySelector('#classroom-reminder-panel');
+            const toolbar = document.querySelector('#lesson-quick-actions');
+            const toolbarRect = toolbar?.getBoundingClientRect();
+            return {
+                viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+                dockFits: dock.scrollWidth <= dock.clientWidth + 1
+                    && dockRect.left >= -1
+                    && dockRect.right <= window.innerWidth + 1,
+                panelFits: !panel || panel.scrollWidth <= panel.clientWidth + 1,
+                clearsToolbar: !toolbarRect || dockRect.bottom <= toolbarRect.top - 4
+            };
+        });
+        assert(
+            mobileClassroomReminderLayout.viewportFits
+                && mobileClassroomReminderLayout.dockFits
+                && mobileClassroomReminderLayout.panelFits,
+            '390px Classroom reminder dock should remain fully usable without horizontal overflow'
+        );
+        assert(mobileClassroomReminderLayout.clearsToolbar, '390px Classroom reminder dock should stay above lesson quick actions');
+
+        assert(pageErrors.length === 0, `Reminder checks should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Reminder checks should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -2040,14 +2546,22 @@ async function runSmoke() {
             console.log('Document Viewer browser checks passed.');
             return;
         }
-        await runDeckLibraryRedesignChecks(browser, baseUrl);
-        await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
-        await runDeckOrganisationChecks(browser, baseUrl);
-        await runNewDeckNavigationChecks(browser, baseUrl);
-        await runWidgetSaveNotificationChecks(browser, baseUrl);
-        await runBottomWidgetContainmentChecks(browser, baseUrl);
-        await runTallWidgetVerticalMovementChecks(browser, baseUrl);
-        await runDocumentViewerPdfChecks(browser, baseUrl);
+        if (process.argv.includes('--reminders-only')) {
+            await runReminderSystemChecks(browser, baseUrl);
+            console.log('Class and deck reminder browser checks passed.');
+            return;
+        }
+        if (!process.argv.includes('--main-ui-only')) {
+            await runDeckLibraryRedesignChecks(browser, baseUrl);
+            await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
+            await runDeckOrganisationChecks(browser, baseUrl);
+            await runReminderSystemChecks(browser, baseUrl);
+            await runNewDeckNavigationChecks(browser, baseUrl);
+            await runWidgetSaveNotificationChecks(browser, baseUrl);
+            await runBottomWidgetContainmentChecks(browser, baseUrl);
+            await runTallWidgetVerticalMovementChecks(browser, baseUrl);
+            await runDocumentViewerPdfChecks(browser, baseUrl);
+        }
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
         await installPdfStub(context);
@@ -2189,6 +2703,12 @@ async function runSmoke() {
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('#student-view').isVisible(), 'Classroom view should open');
+        assert(await page.locator('#classroom-reminder-dock').evaluate((dock) => (
+            dock.classList.contains('is-collapsed')
+                && getComputedStyle(dock).display === 'none'
+                && document.querySelector('#classroom-reminder-panel')?.hidden === true
+                && document.querySelector('#classroom-reminder-launcher')?.hidden === false
+        )), 'Classroom reminders should start in the lesson bar and leave the widget canvas clear');
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'Empty classroom should not show instructional placeholder text');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Classroom should open in lesson mode with Teacher Controls closed');
         assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Classroom widgets should always be ready to move and resize');
@@ -2354,6 +2874,7 @@ async function runSmoke() {
         await presentTextBoard.click();
         assert(await richTextWidget.locator('.rich-text-widget-inner.display-mode[data-presentation-mode="fullscreen"]').count() === 1, 'Present should open the Text Board in full-screen display mode');
         assert(await page.locator('.project-switcher--corner').evaluate((element) => getComputedStyle(element).visibility === 'hidden'), 'Text Board presentation should prevent the page switcher from blocking the exit control');
+        assert(await page.locator('#classroom-reminder-dock').evaluate((element) => getComputedStyle(element).visibility === 'hidden'), 'Text Board presentation should keep the reminder dock away from presentation controls');
         const exitPresentButton = richTextWidget.getByRole('button', { name: 'Exit presentation mode' });
         assert(await exitPresentButton.isVisible(), 'Present mode should expose a clear Exit Present button');
         assert((await exitPresentButton.textContent()).trim() === 'Exit Present', 'The presentation exit control should use an unambiguous label');
@@ -2439,7 +2960,7 @@ async function runSmoke() {
 
         const minimizedProjectorPage = await context.newPage();
         try {
-            await minimizedProjectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+            await minimizedProjectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
             await minimizedProjectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), { timeout: 15000 });
             await minimizedProjectorPage.waitForTimeout(500);
             assert(await minimizedProjectorPage.locator('.widget.rich-text-widget').count() === 0, 'A minimised widget should be hidden from the student projector');
@@ -3321,7 +3842,7 @@ async function runSmoke() {
         projectorPage.on('console', (message) => {
             if (message.type() === 'warning') projectorWarnings.push(message.text());
         });
-        await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
+        await projectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
         await projectorPage.waitForSelector('.widget.rich-text-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.pomodoro-widget', { timeout: 15000 });
         await projectorPage.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 15000 });

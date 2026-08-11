@@ -503,6 +503,9 @@ class ProjectorApp {
         this.appContainer = document.getElementById('app-container');
         this.studentView = document.getElementById('student-view');
         this.widgetsContainer = document.getElementById('widgets-container');
+        this.classroomReminderDock = document.getElementById('classroom-reminder-dock');
+        this.classroomReminderList = document.getElementById('classroom-reminder-list');
+        this.classroomReminderTitle = document.getElementById('classroom-reminder-title');
         this.widgets = [];
         this.isEditMode = false;
         this.lastTeacherLayoutSnapshot = null;
@@ -536,7 +539,7 @@ class ProjectorApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
-            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken) {
+            if (!this.projectorSyncToken || message.syncToken !== this.projectorSyncToken) {
                 return;
             }
 
@@ -545,9 +548,15 @@ class ProjectorApp {
                     return;
                 }
 
+                this.renderClassroomReminders(message.state.classReminders);
                 if (this.shouldApplyTeacherLayoutUpdate(message.state.layout)) {
                     this.rebuildLayout(message.state);
                 }
+                return;
+            }
+
+            if (message.type === 'class-reminders-sync' && message.source !== 'projector') {
+                this.renderClassroomReminders(message.reminders);
                 return;
             }
 
@@ -591,6 +600,73 @@ class ProjectorApp {
             }
             this.rebuildLayout(state);
         }
+    }
+
+    formatReminderDueDate(value) {
+        if (!value) return '';
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+            ? new Date(`${value}T12:00:00`)
+            : new Date(value);
+        if (!Number.isFinite(date.getTime())) return '';
+        return `Due ${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}`;
+    }
+
+    renderClassroomReminders(snapshot) {
+        if (!this.classroomReminderDock || !this.classroomReminderList) return;
+        const reminders = Array.isArray(snapshot?.reminders)
+            ? snapshot.reminders
+                .filter((reminder) => reminder && typeof reminder.text === 'string' && reminder.text.trim())
+                .slice(0, 100)
+                .sort((left, right) => {
+                    if (left.completed !== right.completed) return left.completed ? 1 : -1;
+                    const leftOrder = Number.isFinite(left.orderIndex) ? left.orderIndex : 0;
+                    const rightOrder = Number.isFinite(right.orderIndex) ? right.orderIndex : 0;
+                    return leftOrder - rightOrder;
+                })
+            : [];
+
+        this.classroomReminderList.replaceChildren();
+        if (reminders.length === 0) {
+            this.classroomReminderDock.hidden = true;
+            return;
+        }
+
+        const className = typeof snapshot?.context?.className === 'string'
+            ? snapshot.context.className.trim().slice(0, 240)
+            : '';
+        if (this.classroomReminderTitle) {
+            this.classroomReminderTitle.textContent = className ? `${className} reminders` : 'Class reminders';
+        }
+
+        reminders.forEach((reminder) => {
+            const row = document.createElement('div');
+            row.className = `class-reminder-row class-reminder-row--projector${reminder.completed ? ' is-complete' : ''}`;
+            row.dataset.reminderId = String(reminder.id || '');
+
+            const status = document.createElement('span');
+            status.className = 'class-reminder-row__projector-status';
+            status.setAttribute('aria-hidden', 'true');
+            status.innerHTML = reminder.completed
+                ? '<i class="fa-solid fa-circle-check"></i>'
+                : '<i class="fa-regular fa-circle"></i>';
+
+            const content = document.createElement('div');
+            content.className = 'class-reminder-row__content';
+            const text = document.createElement('span');
+            text.className = 'class-reminder-row__text';
+            text.textContent = reminder.text.trim().slice(0, 2000);
+            content.appendChild(text);
+            const due = this.formatReminderDueDate(reminder.dueDate);
+            if (due) {
+                const meta = document.createElement('span');
+                meta.className = 'class-reminder-row__meta';
+                meta.textContent = due;
+                content.appendChild(meta);
+            }
+            row.append(status, content);
+            this.classroomReminderList.appendChild(row);
+        });
+        this.classroomReminderDock.hidden = false;
     }
 
     shouldApplyTeacherLayoutUpdate(nextLayout) {
@@ -695,6 +771,7 @@ class ProjectorApp {
 
     rebuildLayout(state) {
         try {
+            this.renderClassroomReminders(state.classReminders);
             // Restore theme (if stored in state, though main.js seems to store it in body class and state)
             if (state.theme) {
                 applyTheme(state.theme);

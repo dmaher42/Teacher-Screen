@@ -93,11 +93,15 @@ export function isValidLayout(layout) {
     return true;
 }
 
+const LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS = new Set([
+    'teacherScreenClassReminders'
+]);
+
 export function captureLocalStorageState() {
     const snapshot = {};
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('layouts_')) continue;
+        if (key && (key.startsWith('layouts_') || LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS.has(key))) continue;
         snapshot[key] = localStorage.getItem(key);
     }
     return snapshot;
@@ -105,6 +109,7 @@ export function captureLocalStorageState() {
 
 export function restoreLocalStorageState(snapshot = {}) {
     Object.entries(snapshot).forEach(([key, value]) => {
+        if (LOCAL_STORAGE_SNAPSHOT_EXCLUDED_KEYS.has(key)) return;
         if (typeof value === 'string') {
             localStorage.setItem(key, value);
         }

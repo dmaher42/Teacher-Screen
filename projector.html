@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
     <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/main.css?v=28">
     <link rel="stylesheet" href="css/behaviour-tracker.css?v=4">
     <link rel="stylesheet" href="css/quiz-master.css?v=1">
     <link rel="stylesheet" href="css/themes.css">
@@ -31,13 +31,24 @@
             <div id="widgets-container" class="widgets-grid">
                 <!-- Widgets are dynamically added here by JavaScript -->
             </div>
+            <aside id="classroom-reminder-dock" class="classroom-reminder-dock classroom-reminder-dock--projector" aria-labelledby="classroom-reminder-title" hidden>
+                <header class="classroom-reminder-dock__header">
+                    <div>
+                        <p class="classroom-reminder-dock__eyebrow">Remember</p>
+                        <h2 id="classroom-reminder-title">Class reminders</h2>
+                    </div>
+                </header>
+                <div id="classroom-reminder-panel" class="classroom-reminder-dock__panel">
+                    <div id="classroom-reminder-list" class="classroom-reminder-list" aria-live="polite"></div>
+                </div>
+            </aside>
         </section>
     </div>
 
     <!-- Scripts -->
     <!-- Reveal slide sync listener is initialized in js/projector.js -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
-    <script type="module" src="js/projector.js?v=3"></script>
+    <script type="module" src="js/projector.js?v=4"></script>
 
     <style>
         /* Projector View Overrides */

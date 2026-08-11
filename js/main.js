@@ -19,6 +19,12 @@ import {
 } from './services/resource-library-service.js';
 import { GoogleDriveResourceProvider } from './services/google-drive-provider.js';
 import {
+    CLASS_REMINDER_STORE_VERSION,
+    ClassReminderService,
+    classReminderService,
+    REMINDER_SCOPES
+} from './services/class-reminder-service.js';
+import {
     THEME_OPTIONS,
     applyTheme,
     renderThemeSelector as renderThemeSelectorControl,
@@ -66,6 +72,7 @@ function resetAppState() {
 }
 
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
+const CLASS_REMINDER_DOCK_COLLAPSED_KEY = 'teacherScreenClassReminderDockCollapsed';
 const MEMORY_CUE_IMPORT_QUEUE_KEY = 'memoryCuePendingNoteImports';
 const DEFAULT_PROJECT_NAME = 'Weekly Project';
 const DEFAULT_PAGE_ID = 'page-1';
@@ -169,6 +176,30 @@ function escapeHtml(value = '') {
         .replace(/'/g, '&#39;');
 }
 
+function createStableRecordId(prefix, seed = '') {
+    const normalizedPrefix = String(prefix || 'item').replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'item';
+    const normalizedSeed = String(seed || '').trim().toLowerCase();
+    if (normalizedSeed) {
+        let hash = 2166136261;
+        for (let index = 0; index < normalizedSeed.length; index += 1) {
+            hash ^= normalizedSeed.charCodeAt(index);
+            hash = Math.imul(hash, 16777619);
+        }
+        return `${normalizedPrefix}-${(hash >>> 0).toString(36)}`;
+    }
+
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return `${normalizedPrefix}-${window.crypto.randomUUID()}`;
+    }
+
+    return `${normalizedPrefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getStableClassId(className = '') {
+    const normalizedName = String(className || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    return normalizedName ? createStableRecordId('class', normalizedName) : '';
+}
+
 class ClassroomScreenApp {
     constructor() {
         // Windows / Documents
@@ -190,6 +221,14 @@ class ClassroomScreenApp {
         this.currentProjectPageSummary = document.getElementById('current-project-page-summary');
         this.dashboardView = document.getElementById('dashboard-view');
         this.dashboardRoot = document.getElementById('dashboard-root');
+        this.classroomReminderDock = document.getElementById('classroom-reminder-dock');
+        this.classroomReminderLauncher = document.getElementById('classroom-reminder-launcher');
+        this.classroomReminderToggle = document.getElementById('classroom-reminder-toggle');
+        this.classroomReminderPanel = document.getElementById('classroom-reminder-panel');
+        this.classroomReminderSummary = document.getElementById('classroom-reminder-summary');
+        this.classroomReminderList = document.getElementById('classroom-reminder-list');
+        this.classroomReminderForm = document.getElementById('classroom-reminder-form');
+        this.classroomReminderClassScope = document.getElementById('classroom-reminder-class-scope');
         this.mainPagePrev = document.getElementById('main-page-prev');
         this.mainPageCurrent = document.getElementById('main-page-current');
         this.mainPageNext = document.getElementById('main-page-next');
@@ -263,6 +302,9 @@ class ClassroomScreenApp {
         this.dashboardSelectedFolderId = '';
         this.dashboardSearchQuery = '';
         this.dashboardExpandedDeckId = null;
+        this.dashboardExpandedReminderDeckId = '';
+        this.activeReminderContext = { deckId: '', classId: '', className: '', deckName: '' };
+        this.unsubscribeClassReminders = null;
         this.resourceLibraryState = new ResourceLibraryState();
         this.localResourceProvider = new LocalFolderResourceProvider();
         this.googleDriveResourceProvider = new GoogleDriveResourceProvider();
@@ -397,6 +439,9 @@ class ClassroomScreenApp {
         this.layoutManager.init();
         this.updateProjectorVisibility();
         this.setupPresetControls();
+        this.setupClassroomReminderDock();
+        this.unsubscribeClassReminders = classReminderService.subscribe(() => this.handleClassReminderChange());
+        this.renderClassroomReminderDock();
         this.renderBackgroundSelector();
 
         this.renderThemeSelector();
@@ -475,8 +520,7 @@ class ClassroomScreenApp {
 
         this.projectorChannel.onmessage = (event) => {
             const message = event.data || {};
-            const isUntokenedSyncRequest = message.type === 'request-sync' && !message.syncToken;
-            if (this.projectorSyncToken && message.syncToken !== this.projectorSyncToken && !isUntokenedSyncRequest) {
+            if (!message.syncToken || message.syncToken !== this.projectorSyncToken) {
                 return;
             }
 
@@ -888,6 +932,11 @@ class ClassroomScreenApp {
 
         if (tab === 'dashboard') {
             this.renderDashboard();
+        }
+
+        if (tab === 'classroom') {
+            this.renderClassroomReminderDock();
+            this.syncClassroomRemindersToProjector();
         }
 
         if (tab !== 'planner' && this.plannerModal?.classList.contains('visible')) {
@@ -2189,11 +2238,21 @@ class ClassroomScreenApp {
         const projectName = typeof normalizedProjectState.projectName === 'string' && normalizedProjectState.projectName.trim()
             ? normalizedProjectState.projectName.trim()
             : DEFAULT_PROJECT_NAME;
+        const activeReminderContext = {
+            deckId: this.activeReminderContext.deckId || normalizedProjectState.activeDeckId || '',
+            classId: this.activeReminderContext.classId || normalizedProjectState.activeClassId || '',
+            className: this.activeReminderContext.className || normalizedProjectState.activeClassName || '',
+            deckName: this.activeReminderContext.deckName || projectName
+        };
+        this.activeReminderContext = activeReminderContext;
         const snapshot = {
             version: this.appVersion,
             schemaVersion: this.schemaVersion,
             currentDeckId: normalizedProjectState.currentDeckId || '',
             projectName,
+            activeDeckId: activeReminderContext.deckId,
+            activeClassId: activeReminderContext.classId,
+            activeClassName: activeReminderContext.className,
             activePageId: nextActivePageId,
             pages: nextPages,
             theme: this.getCurrentThemeName(),
@@ -2210,6 +2269,9 @@ class ClassroomScreenApp {
         this.projectState = {
             currentDeckId: normalizedProjectState.currentDeckId || '',
             projectName,
+            activeDeckId: activeReminderContext.deckId,
+            activeClassId: activeReminderContext.classId,
+            activeClassName: activeReminderContext.className,
             activePageId: nextActivePageId,
             pages: cloneSerializableData(nextPages)
         };
@@ -2219,7 +2281,11 @@ class ClassroomScreenApp {
     buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
         const projectorState = removePrivateBehaviourData(state);
         projectorState.layout = this.layoutManager.serialize({ forProjector: true });
+        projectorState.classReminders = this.getPublicReminderSnapshot();
         delete projectorState.pages;
+        delete projectorState.activeDeckId;
+        delete projectorState.activeClassId;
+        delete projectorState.activeClassName;
         return projectorState;
     }
 
@@ -2227,6 +2293,9 @@ class ClassroomScreenApp {
         return {
             currentDeckId: '',
             projectName: DEFAULT_PROJECT_NAME,
+            activeDeckId: '',
+            activeClassId: '',
+            activeClassName: '',
             activePageId: DEFAULT_PAGE_ID,
             pages: []
         };
@@ -2404,6 +2473,7 @@ class ClassroomScreenApp {
         }
 
         const currentDeckId = this.createDeckId();
+        this.activeReminderContext = { deckId: currentDeckId, classId: '', className: '', deckName: resolvedProjectName };
         const blankPage = this.createPageRecord({
             id: this.makeUniquePageId(),
             name: DEFAULT_PAGE_NAME,
@@ -2419,6 +2489,7 @@ class ClassroomScreenApp {
 
         this.applyPageSnapshot(blankPage.snapshot);
         this.renderProjectControls();
+        this.renderClassroomReminderDock();
         this.saveStateImmediately();
         const now = Date.now();
         const projectState = this.buildStateSnapshot();
@@ -2531,6 +2602,10 @@ class ClassroomScreenApp {
         this.projectState = {
             ...normalizedState,
             projectName: trimmedName
+        };
+        this.activeReminderContext = {
+            ...this.activeReminderContext,
+            deckName: trimmedName
         };
 
         this.saveState();
@@ -3392,21 +3467,22 @@ class ClassroomScreenApp {
         if (existingIndex !== -1) {
             const existingPreset = this.presets[existingIndex];
             if (existingPreset?.seededLessonId === lessonPreset.seededLessonId) {
-                this.presets[existingIndex] = {
+                this.presets[existingIndex] = this.normalizePresetRecord({
                     ...lessonPreset,
                     id: existingPreset.id || lessonPreset.id,
+                    classId: existingPreset.classId,
                     createdAt: Number.isFinite(existingPreset.createdAt) ? existingPreset.createdAt : lessonPreset.createdAt,
                     lastUsedAt: Number.isFinite(existingPreset.lastUsedAt) ? existingPreset.lastUsedAt : lessonPreset.lastUsedAt,
                     usageCount: Number.isFinite(existingPreset.usageCount) ? existingPreset.usageCount : lessonPreset.usageCount,
                     isFavorite: existingPreset.isFavorite === true
-                };
+                });
                 this.savePresets();
                 return true;
             }
             return false;
         }
 
-        this.presets.push(lessonPreset);
+        this.presets.push(this.normalizePresetRecord(lessonPreset));
         this.savePresets();
         return true;
     }
@@ -3504,7 +3580,13 @@ class ClassroomScreenApp {
         });
 
         const hasLegacyFields = Array.isArray(storedPresets)
-            && storedPresets.some((preset) => preset && typeof preset === 'object' && (!Number.isFinite(preset.createdAt) || !Number.isFinite(preset.updatedAt) || !Number.isFinite(preset.lastUsedAt)));
+            && storedPresets.some((preset) => preset && typeof preset === 'object' && (
+                !Number.isFinite(preset.createdAt)
+                || !Number.isFinite(preset.updatedAt)
+                || !Number.isFinite(preset.lastUsedAt)
+                || !preset.id
+                || (String(preset.className || '').trim() && !preset.classId)
+            ));
         const storedIds = Array.isArray(storedPresets)
             ? storedPresets.map((preset) => (typeof preset?.id === 'string' ? preset.id.trim() : '')).filter(Boolean)
             : [];
@@ -3521,9 +3603,43 @@ class ClassroomScreenApp {
             allowLegacyNameMatch: this.hasRestoredSavedState,
             preferExistingDeck: !this.hasRestoredSavedState && hadStoredPresets
         });
+        this.reconcileActiveReminderContextWithPresets();
         this.renderPresetList();
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
+    }
+
+    reconcileActiveReminderContextWithPresets() {
+        const currentContext = this.activeReminderContext || {};
+        const normalizedPresets = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean);
+        const currentDeckId = currentContext.deckId || this.getCurrentDeckId();
+        let matchingPreset = currentDeckId
+            ? normalizedPresets.find((preset) => preset.id === currentDeckId)
+            : null;
+
+        if (!matchingPreset) {
+            const activeProjectName = String(this.projectState?.projectName || '').trim().toLowerCase();
+            if (activeProjectName) {
+                const nameMatches = normalizedPresets.filter((preset) => preset.name.toLowerCase() === activeProjectName);
+                if (nameMatches.length === 1) {
+                    [matchingPreset] = nameMatches;
+                }
+            }
+        }
+
+        if (!matchingPreset) return false;
+
+        const contextChanged = currentContext.deckId !== matchingPreset.id
+            || currentContext.classId !== matchingPreset.classId
+            || currentContext.className !== matchingPreset.className
+            || currentContext.deckName !== matchingPreset.name;
+        this.setActiveReminderContext(matchingPreset);
+        if (contextChanged) {
+            this.saveState();
+        }
+        return contextChanged;
     }
 
     savePresets() {
@@ -4135,6 +4251,12 @@ class ClassroomScreenApp {
         const id = typeof preset.id === 'string' && preset.id.trim()
             ? preset.id.trim()
             : seededDeckId || this.createDeckId();
+        const className = typeof preset.className === 'string' ? preset.className.trim() : '';
+        const classId = className
+            ? (typeof preset.classId === 'string' && preset.classId.trim()
+                ? preset.classId.trim()
+                : getStableClassId(className))
+            : '';
         const projectState = {
             ...this.buildPresetProjectState({ ...preset, id }),
             currentDeckId: id,
@@ -4145,7 +4267,8 @@ class ClassroomScreenApp {
             ...preset,
             id,
             name,
-            className: typeof preset.className === 'string' ? preset.className.trim() : '',
+            classId,
+            className,
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
             folderId: typeof preset.folderId === 'string' ? preset.folderId.trim() : '',
             isFavorite: preset.isFavorite === true,
@@ -4360,6 +4483,12 @@ class ClassroomScreenApp {
         if (this.presetNameInput && this.presetNameInput.value === currentPreset.name) {
             this.presetNameInput.value = trimmedName;
         }
+        if (this.activeReminderContext.deckId === currentPreset.id) {
+            this.activeReminderContext = {
+                ...this.activeReminderContext,
+                deckName: trimmedName
+            };
+        }
 
         this.savePresets();
         this.renderPresetList();
@@ -4431,17 +4560,23 @@ class ClassroomScreenApp {
         const now = Date.now();
         const id = this.createDeckId();
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : '';
+        const classId = getStableClassId(className);
         const currentState = this.normalizeProjectState(this.projectState);
         this.projectState = {
             currentDeckId: id,
             projectName: name,
+            activeDeckId: id,
+            activeClassId: classId,
+            activeClassName: className,
             activePageId: currentState.activePageId,
             pages: cloneSerializableData(currentState.pages)
         };
+        this.setActiveReminderContext({ id, classId, className, name });
         const projectState = this.buildStateSnapshot();
         const preset = {
             id,
             name,
+            classId,
             className,
             period: this.presetPeriodInput ? this.presetPeriodInput.value.trim() : '',
             folderId,
@@ -4462,6 +4597,7 @@ class ClassroomScreenApp {
         this.saveStateImmediately();
         this.renderPresetList();
         this.renderDashboard();
+        this.renderClassroomReminderDock();
         if (this.presetNameInput) {
             this.presetNameInput.value = name;
         }
@@ -4493,7 +4629,13 @@ class ClassroomScreenApp {
             lessonPlan: cloneSerializableData(projectState.lessonPlan)
         };
         this.savePresets();
-        this.applyState(cloneSerializableData(projectState));
+        this.setActiveReminderContext(preset);
+        this.applyState(cloneSerializableData({
+            ...projectState,
+            activeDeckId: preset.id,
+            activeClassId: preset.classId,
+            activeClassName: preset.className
+        }));
         if (this.presetNameInput) this.presetNameInput.value = preset.name || '';
         if (this.presetClassInput) this.presetClassInput.value = preset.className || '';
         if (this.presetPeriodInput) this.presetPeriodInput.value = preset.period || '';
@@ -4502,6 +4644,7 @@ class ClassroomScreenApp {
         if (this.presetClassFilterInput) this.presetClassFilterInput.value = preset.className || '';
 
         this.updateProjectorVisibility();
+        this.renderClassroomReminderDock();
         this.saveState();
         this.dashboardExpandedDeckId = preset.id;
         this.touchPresetUsage(preset.id);
@@ -4536,7 +4679,7 @@ class ClassroomScreenApp {
         }
 
         this.saveStateImmediately();
-        const projectorUrl = new URL('projector.html', window.location.href).toString();
+        const projectorUrl = this.getPairedProjectorUrl();
         const projectorWindow = window.open(projectorUrl, '_blank');
         if (projectorWindow) {
             projectorWindow.opener = null;
@@ -4588,13 +4731,26 @@ class ClassroomScreenApp {
         }
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : (existingPreset?.folderId || '');
         const now = Date.now();
+        const classNameUnchanged = String(existingPreset?.className || '').trim().toLowerCase() === className.toLowerCase();
+        const classId = className
+            ? (classNameUnchanged ? existingPreset?.classId : getStableClassId(className))
+            : '';
         const currentState = this.normalizeProjectState(this.projectState);
         this.projectState = {
             currentDeckId: existingPreset.id,
             projectName: name,
+            activeDeckId: existingPreset.id,
+            activeClassId: classId,
+            activeClassName: className,
             activePageId: currentState.activePageId,
             pages: cloneSerializableData(currentState.pages)
         };
+        this.setActiveReminderContext({
+            id: existingPreset?.id,
+            classId,
+            className,
+            name
+        });
         const projectState = this.buildStateSnapshot();
         if (existingPreset.seededLessonId) {
             this.dismissSeededLesson(existingPreset.seededLessonId);
@@ -4603,6 +4759,7 @@ class ClassroomScreenApp {
             ...existingPreset,
             id: existingPreset.id,
             name,
+            classId,
             className,
             period,
             folderId: folderId || existingPreset?.folderId || '',
@@ -4623,6 +4780,7 @@ class ClassroomScreenApp {
         this.renderPresetList();
         this.dashboardExpandedDeckId = existingPreset.id;
         this.renderDashboard();
+        this.renderClassroomReminderDock();
         this.focusDashboardDeckControl(existingPreset.id, '.dashboard-deck-toggle');
         this.showNotification(`Deck "${name}" overwritten.`);
     }
@@ -4639,13 +4797,35 @@ class ClassroomScreenApp {
             this.showNotification('Create another deck before deleting your current deck.', 'warning');
             return false;
         }
-        if (!confirm(`Delete deck "${preset.name}"?`)) {
+        const deckReminderCount = preset?.id
+            ? classReminderService.count({ deckId: preset.id, scope: REMINDER_SCOPES.DECK })
+            : 0;
+        const reminderNotice = deckReminderCount > 0
+            ? ` This also removes ${deckReminderCount} reminder${deckReminderCount === 1 ? '' : 's'} saved only for this deck. Class reminders will stay.`
+            : '';
+        if (!confirm(`Delete deck "${preset.name}"?${reminderNotice}`)) {
             return false;
         }
         if (preset.seededLessonId) {
             this.dismissSeededLesson(preset.seededLessonId);
         }
         this.presets.splice(presetIndex, 1);
+        if (preset?.id) {
+            classReminderService.removeDeckItems(preset.id);
+        }
+        if (preset?.id && this.activeReminderContext.deckId === preset.id) {
+            this.activeReminderContext = {
+                ...this.activeReminderContext,
+                deckId: '',
+                deckName: this.projectState.projectName || DEFAULT_PROJECT_NAME
+            };
+            this.projectState = {
+                ...this.projectState,
+                activeDeckId: '',
+                activeClassId: this.activeReminderContext.classId || '',
+                activeClassName: this.activeReminderContext.className || ''
+            };
+        }
         this.savePresets();
         this.renderPresetList();
         if (isCurrent) {
@@ -4661,6 +4841,8 @@ class ClassroomScreenApp {
             this.dashboardExpandedDeckId = null;
         }
         this.renderDashboard();
+        this.renderClassroomReminderDock();
+        this.saveState();
         const nextFocusId = this.dashboardExpandedDeckId || this.getCurrentDeckId();
         if (nextFocusId) {
             this.focusDashboardDeckControl(nextFocusId, '.dashboard-deck-toggle');
@@ -4727,7 +4909,8 @@ class ClassroomScreenApp {
             appVersion: this.appVersion,
             state: removePrivateBehaviourData(this.getSerializableState()),
             presets: removePrivateBehaviourData(this.presets || []),
-            folders: this.folders || []
+            folders: this.folders || [],
+            reminders: classReminderService.exportData()
         };
 
         const jsonString = JSON.stringify(exportPayload, null, 2);
@@ -4742,7 +4925,7 @@ class ClassroomScreenApp {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        this.showNotification('Screen decks exported. Private student names and behaviour notes were not included.');
+        this.showNotification('Screen decks and reminders exported. Private student names and behaviour notes were not included.');
     }
 
     handleConfirmImport() {
@@ -4753,6 +4936,7 @@ class ClassroomScreenApp {
             return;
         }
 
+        let importRollback = null;
         try {
             const parsed = JSON.parse(jsonString);
 
@@ -4761,29 +4945,67 @@ class ClassroomScreenApp {
             }
 
             const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion));
+            if (!isValidLayout(state.layout)) {
+                throw new Error('Imported classroom layout is invalid.');
+            }
+
+            const importedPresets = parsed.presets.map((preset) => this.normalizePresetRecord(preset));
+            if (importedPresets.some((preset) => !preset)) {
+                throw new Error('One or more imported decks are invalid.');
+            }
+
+            let importedFolders = null;
+            if (parsed.folders !== undefined) {
+                if (!Array.isArray(parsed.folders)) {
+                    throw new Error('Imported folders must be a list.');
+                }
+                importedFolders = parsed.folders.map((folder) => this.normalizeFolderRecord(folder));
+                if (importedFolders.some((folder) => !folder)) {
+                    throw new Error('One or more imported folders are invalid.');
+                }
+            }
+
+            let importedReminders = null;
+            if (parsed.reminders !== undefined) {
+                const reminderValidator = new ClassReminderService({ storage: null, eventTarget: null });
+                try {
+                    reminderValidator.importData(parsed.reminders, { mode: 'replace' });
+                    importedReminders = reminderValidator.exportData();
+                } finally {
+                    reminderValidator.dispose();
+                }
+            }
 
             const summary = `
                 Ready to import:
                 - ${parsed.presets.length} decks
+                - ${importedReminders?.reminders.length || 0} reminders
                 - ${state.layout?.widgets?.length || 0} widgets
                 - Theme: ${state.theme || 'default'}
             `;
             this.importSummary.textContent = summary;
             this.importSummary.style.color = 'green';
 
-            // Normalize imported presets
-            this.presets = this.normalizePresetCollection(parsed.presets, {
+            importRollback = {
+                presets: cloneSerializableData(this.presets),
+                folders: cloneSerializableData(this.folders),
+                reminders: classReminderService.exportData(),
+                state: this.buildStateSnapshot()
+            };
+
+            this.presets = this.normalizePresetCollection(importedPresets, {
                 preferredDeckId: state.currentDeckId,
                 preferredName: state.projectName
             });
-            if (Array.isArray(parsed.folders)) {
-                this.folders = parsed.folders
-                    .map((folder) => this.normalizeFolderRecord(folder))
-                    .filter(Boolean);
+            if (importedFolders) {
+                this.folders = importedFolders;
                 this.saveFolders();
             }
             this.savePresets();
             this.renderPresetList();
+            if (importedReminders) {
+                classReminderService.importData(importedReminders, { mode: 'replace' });
+            }
 
             if (state.theme) this.switchTheme(state.theme);
             if (state.background) this.backgroundManager.deserialize(state.background);
@@ -4792,8 +5014,17 @@ class ClassroomScreenApp {
             this.projectState = {
                 currentDeckId: state.currentDeckId || '',
                 projectName: state.projectName,
+                activeDeckId: state.activeDeckId || '',
+                activeClassId: state.activeClassId || '',
+                activeClassName: state.activeClassName || '',
                 activePageId: state.activePageId,
                 pages: cloneSerializableData(state.pages)
+            };
+            this.activeReminderContext = {
+                deckId: state.activeDeckId || '',
+                classId: state.activeClassId || '',
+                className: state.activeClassName || '',
+                deckName: state.projectName || DEFAULT_PROJECT_NAME
             };
 
             this.widgets = [];
@@ -4809,10 +5040,26 @@ class ClassroomScreenApp {
             this.updateProjectorVisibility();
             this.saveState();
             this.renderProjectControls();
+            this.renderClassroomReminderDock();
             this.closeDialog(this.importDialog);
             this.showNotification('Screen decks imported successfully.');
+            importRollback = null;
 
         } catch (error) {
+            if (importRollback) {
+                try {
+                    this.presets = importRollback.presets;
+                    this.folders = importRollback.folders;
+                    classReminderService.importData(importRollback.reminders, { mode: 'replace' });
+                    this.saveFolders();
+                    this.savePresets();
+                    this.renderPresetList();
+                    this.applyState(importRollback.state);
+                    this.saveState();
+                } catch (rollbackError) {
+                    console.error('Import rollback failed:', rollbackError);
+                }
+            }
             this.importSummary.textContent = `Error: ${error.message}`;
             this.importSummary.style.color = 'red';
             console.error('Import failed:', error);
@@ -4977,8 +5224,17 @@ class ClassroomScreenApp {
             this.projectState = {
                 currentDeckId: state.currentDeckId || '',
                 projectName: state.projectName,
+                activeDeckId: state.activeDeckId || '',
+                activeClassId: state.activeClassId || '',
+                activeClassName: state.activeClassName || '',
                 activePageId: state.activePageId,
                 pages: cloneSerializableData(state.pages)
+            };
+            this.activeReminderContext = {
+                deckId: state.activeDeckId || '',
+                classId: state.activeClassId || '',
+                className: state.activeClassName || '',
+                deckName: state.projectName || DEFAULT_PROJECT_NAME
             };
 
             if (!isValidLayout(state.layout)) {
@@ -4992,6 +5248,7 @@ class ClassroomScreenApp {
                 this.applyPageSnapshot(activePage.snapshot);
             }
             this.renderProjectControls();
+            this.renderClassroomReminderDock();
             return true;
         } catch (err) {
             console.error('State load failed; resetting.', err);
@@ -7017,6 +7274,428 @@ class ClassroomScreenApp {
         });
     }
 
+    setActiveReminderContext(source = {}) {
+        const className = String(source.className || '').trim();
+        const nextContext = {
+            deckId: String(source.id || source.deckId || '').trim(),
+            classId: className
+                ? String(source.classId || getStableClassId(className)).trim()
+                : '',
+            className,
+            deckName: String(source.name || source.deckName || this.projectState?.projectName || DEFAULT_PROJECT_NAME).trim()
+        };
+        this.activeReminderContext = nextContext;
+        this.projectState = {
+            ...this.projectState,
+            activeDeckId: nextContext.deckId,
+            activeClassId: nextContext.classId,
+            activeClassName: nextContext.className
+        };
+        return nextContext;
+    }
+
+    getReminderContextForPreset(preset) {
+        const normalizedPreset = this.normalizePresetRecord(preset);
+        if (!normalizedPreset) {
+            return { deckId: '', classId: '', className: '', deckName: '' };
+        }
+        return {
+            deckId: normalizedPreset.id,
+            classId: normalizedPreset.classId,
+            className: normalizedPreset.className,
+            deckName: normalizedPreset.name
+        };
+    }
+
+    getPairedProjectorUrl() {
+        const projectorUrl = new URL('projector.html', window.location.href);
+        projectorUrl.searchParams.set('syncToken', this.projectorSyncToken);
+        return projectorUrl.toString();
+    }
+
+    getPublicReminderSnapshot() {
+        const context = this.activeReminderContext || {};
+        const hasActiveOwner = Boolean(context.deckId || context.classId);
+        const snapshot = hasActiveOwner
+            ? classReminderService.getPublicSnapshot({
+                deckId: context.deckId || '',
+                classId: context.classId || ''
+            })
+            : {
+                version: CLASS_REMINDER_STORE_VERSION,
+                reminders: []
+            };
+        return {
+            ...snapshot,
+            context: {
+                className: String(context.className || '').slice(0, 240),
+                deckName: String(context.deckName || '').slice(0, 240)
+            }
+        };
+    }
+
+    syncClassroomRemindersToProjector() {
+        if (!this.projectorChannel) return;
+        this.projectorChannel.postMessage({
+            type: 'class-reminders-sync',
+            source: 'teacher',
+            reminders: this.getPublicReminderSnapshot(),
+            syncToken: this.projectorSyncToken
+        });
+    }
+
+    handleClassReminderChange() {
+        this.renderClassroomReminderDock();
+        if (document.body.classList.contains('is-dashboard-active')) {
+            this.renderDashboard();
+        }
+        this.syncClassroomRemindersToProjector();
+    }
+
+    setClassroomReminderDockCollapsed(collapsed, { persist = true } = {}) {
+        if (!this.classroomReminderPanel || !this.classroomReminderToggle) return;
+        const isCollapsed = collapsed === true;
+        this.classroomReminderPanel.hidden = isCollapsed;
+        this.classroomReminderDock?.classList.toggle('is-collapsed', isCollapsed);
+        this.classroomReminderToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        this.classroomReminderToggle.setAttribute('aria-label', isCollapsed
+            ? 'Expand classroom reminders'
+            : 'Collapse classroom reminders');
+        if (this.classroomReminderLauncher) {
+            this.classroomReminderLauncher.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+            this.classroomReminderLauncher.setAttribute('aria-label', isCollapsed
+                ? 'Open classroom reminders'
+                : 'Close classroom reminders');
+        }
+        const icon = this.classroomReminderToggle.querySelector('i');
+        if (icon) {
+            icon.className = isCollapsed ? 'fa-regular fa-bell' : 'fa-solid fa-chevron-up';
+        }
+        if (persist) {
+            localStorage.setItem(CLASS_REMINDER_DOCK_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+        }
+    }
+
+    setupClassroomReminderDock() {
+        if (!this.classroomReminderDock) return;
+        this.setClassroomReminderDockCollapsed(true, { persist: false });
+
+        if (this.classroomReminderLauncher && this.classroomReminderLauncher.dataset.bound !== 'true') {
+            this.classroomReminderLauncher.dataset.bound = 'true';
+            this.classroomReminderLauncher.addEventListener('click', () => {
+                this.setClassroomReminderDockCollapsed(this.classroomReminderLauncher.getAttribute('aria-expanded') === 'true');
+            });
+        }
+
+        if (this.classroomReminderToggle && this.classroomReminderToggle.dataset.bound !== 'true') {
+            this.classroomReminderToggle.dataset.bound = 'true';
+            this.classroomReminderToggle.addEventListener('click', () => {
+                this.setClassroomReminderDockCollapsed(this.classroomReminderToggle.getAttribute('aria-expanded') === 'true');
+            });
+        }
+
+        if (this.classroomReminderForm && this.classroomReminderForm.dataset.bound !== 'true') {
+            this.classroomReminderForm.dataset.bound = 'true';
+            this.classroomReminderForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const formData = new FormData(this.classroomReminderForm);
+                const context = this.activeReminderContext || {};
+                const requestedScope = formData.get('scope') === REMINDER_SCOPES.CLASS
+                    ? REMINDER_SCOPES.CLASS
+                    : REMINDER_SCOPES.DECK;
+                const scope = requestedScope === REMINDER_SCOPES.CLASS && context.classId
+                    ? REMINDER_SCOPES.CLASS
+                    : REMINDER_SCOPES.DECK;
+                const ownerId = scope === REMINDER_SCOPES.CLASS ? context.classId : context.deckId;
+                if (!ownerId) {
+                    this.showNotification('Save or load a deck before adding reminders.', 'warning');
+                    return;
+                }
+
+                try {
+                    classReminderService.add({
+                        scope,
+                        deckId: scope === REMINDER_SCOPES.DECK ? context.deckId : '',
+                        classId: scope === REMINDER_SCOPES.CLASS ? context.classId : '',
+                        text: String(formData.get('text') || ''),
+                        showOnClassroom: formData.get('showOnClassroom') === 'on'
+                    });
+                    this.classroomReminderForm.reset();
+                    const defaultScope = this.classroomReminderForm.querySelector(`input[name="scope"][value="${context.deckId ? REMINDER_SCOPES.DECK : REMINDER_SCOPES.CLASS}"]`);
+                    if (defaultScope) defaultScope.checked = true;
+                    this.classroomReminderForm.querySelector('input[name="text"]')?.focus({ preventScroll: true });
+                } catch (error) {
+                    this.showNotification(error?.message || 'That reminder could not be added.', 'warning');
+                }
+            });
+        }
+    }
+
+    formatReminderDueDate(value) {
+        if (!value) return '';
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+            ? new Date(`${value}T12:00:00`)
+            : new Date(value);
+        if (!Number.isFinite(date.getTime())) return '';
+        return `Due ${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}`;
+    }
+
+    createReminderRow(reminder, { compact = false } = {}) {
+        const row = document.createElement('div');
+        row.className = `class-reminder-row${reminder.completed ? ' is-complete' : ''}${compact ? ' is-compact' : ''}`;
+        row.dataset.reminderId = reminder.id;
+        row.dataset.reminderScope = reminder.scope;
+
+        const completionLabel = document.createElement('label');
+        completionLabel.className = 'class-reminder-row__check';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = reminder.completed === true;
+        checkbox.dataset.reminderAction = 'toggle';
+        checkbox.setAttribute('aria-label', `${reminder.completed ? 'Mark incomplete' : 'Mark complete'}: ${reminder.text}`);
+        completionLabel.appendChild(checkbox);
+
+        const content = document.createElement('div');
+        content.className = 'class-reminder-row__content';
+        const text = document.createElement('span');
+        text.className = 'class-reminder-row__text';
+        text.textContent = reminder.text;
+        content.appendChild(text);
+
+        const metaParts = [
+            reminder.scope === REMINDER_SCOPES.CLASS ? 'Whole class' : 'This deck',
+            this.formatReminderDueDate(reminder.dueDate),
+            reminder.showOnClassroom ? 'Students can see' : 'Teacher only'
+        ].filter(Boolean);
+        const meta = document.createElement('span');
+        meta.className = 'class-reminder-row__meta';
+        meta.textContent = metaParts.join(' · ');
+        content.appendChild(meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'class-reminder-row__actions';
+        const visibilityButton = document.createElement('button');
+        visibilityButton.type = 'button';
+        visibilityButton.className = `class-reminder-icon-btn${reminder.showOnClassroom ? ' is-public' : ''}`;
+        visibilityButton.dataset.reminderAction = 'visibility';
+        visibilityButton.setAttribute('aria-pressed', reminder.showOnClassroom ? 'true' : 'false');
+        visibilityButton.setAttribute('aria-label', reminder.showOnClassroom ? 'Hide from students' : 'Show to students');
+        visibilityButton.title = reminder.showOnClassroom ? 'Visible to students' : 'Teacher only';
+        visibilityButton.innerHTML = `<i class="fa-solid ${reminder.showOnClassroom ? 'fa-users' : 'fa-user-lock'}" aria-hidden="true"></i>`;
+
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.className = 'class-reminder-icon-btn';
+        editButton.dataset.reminderAction = 'edit';
+        editButton.setAttribute('aria-label', `Edit reminder: ${reminder.text}`);
+        editButton.title = 'Edit reminder';
+        editButton.innerHTML = '<i class="fa-solid fa-pen" aria-hidden="true"></i>';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'class-reminder-icon-btn class-reminder-icon-btn--danger';
+        deleteButton.dataset.reminderAction = 'delete';
+        deleteButton.setAttribute('aria-label', `Delete reminder: ${reminder.text}`);
+        deleteButton.title = 'Delete reminder';
+        deleteButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+
+        checkbox.addEventListener('change', () => classReminderService.toggle(reminder.id, checkbox.checked));
+        visibilityButton.addEventListener('click', () => classReminderService.update(reminder.id, {
+            showOnClassroom: !reminder.showOnClassroom
+        }));
+        editButton.addEventListener('click', () => {
+            const nextText = window.prompt('Edit reminder', reminder.text);
+            if (typeof nextText !== 'string') return;
+            try {
+                classReminderService.update(reminder.id, { text: nextText });
+            } catch (error) {
+                this.showNotification(error?.message || 'That reminder could not be updated.', 'warning');
+            }
+        });
+        deleteButton.addEventListener('click', () => {
+            if (window.confirm(`Delete reminder "${reminder.text}"?`)) {
+                classReminderService.remove(reminder.id);
+            }
+        });
+
+        actions.append(visibilityButton, editButton, deleteButton);
+        row.append(completionLabel, content, actions);
+        return row;
+    }
+
+    createDashboardReminderScope({ scope, context, title, description }) {
+        const ownerId = scope === REMINDER_SCOPES.CLASS ? context.classId : context.deckId;
+        if (!ownerId) return null;
+
+        const group = document.createElement('section');
+        group.className = 'dashboard-reminder-scope';
+        group.dataset.reminderScope = scope;
+        const heading = document.createElement('div');
+        heading.className = 'dashboard-reminder-scope__header';
+        const headingText = document.createElement('div');
+        const titleNode = document.createElement('h5');
+        titleNode.textContent = title;
+        const descriptionNode = document.createElement('p');
+        descriptionNode.textContent = description;
+        headingText.append(titleNode, descriptionNode);
+        const scopeBadge = document.createElement('span');
+        scopeBadge.className = 'dashboard-reminder-scope__badge';
+        scopeBadge.textContent = scope === REMINDER_SCOPES.CLASS ? 'Shared' : 'Deck';
+        heading.append(headingText, scopeBadge);
+        group.appendChild(heading);
+
+        const list = document.createElement('div');
+        list.className = 'dashboard-reminder-list';
+        const reminders = classReminderService.list({
+            scope,
+            deckId: scope === REMINDER_SCOPES.DECK ? context.deckId : '',
+            classId: scope === REMINDER_SCOPES.CLASS ? context.classId : ''
+        });
+        if (reminders.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'dashboard-reminder-empty';
+            empty.textContent = 'No reminders here yet.';
+            list.appendChild(empty);
+        } else {
+            reminders.forEach((reminder) => list.appendChild(this.createReminderRow(reminder)));
+        }
+        group.appendChild(list);
+
+        const form = document.createElement('form');
+        form.className = 'dashboard-reminder-form';
+        form.dataset.reminderScope = scope;
+        const textLabel = document.createElement('label');
+        const inputId = `dashboard-reminder-${scope}-${context.deckId}`;
+        textLabel.htmlFor = inputId;
+        textLabel.className = 'visually-hidden';
+        textLabel.textContent = `Add ${scope} reminder`;
+        const textInput = document.createElement('input');
+        textInput.id = inputId;
+        textInput.name = 'text';
+        textInput.type = 'text';
+        textInput.maxLength = 2000;
+        textInput.required = true;
+        textInput.autocomplete = 'off';
+        textInput.placeholder = scope === REMINDER_SCOPES.CLASS ? 'Add for every deck in this class' : 'Add for this deck';
+        const dateLabel = document.createElement('label');
+        dateLabel.className = 'dashboard-reminder-form__date';
+        dateLabel.textContent = 'Due';
+        const dateInput = document.createElement('input');
+        dateInput.name = 'dueDate';
+        dateInput.type = 'date';
+        dateLabel.appendChild(dateInput);
+        const visibilityLabel = document.createElement('label');
+        visibilityLabel.className = 'dashboard-reminder-form__visibility';
+        const visibilityInput = document.createElement('input');
+        visibilityInput.name = 'showOnClassroom';
+        visibilityInput.type = 'checkbox';
+        visibilityLabel.append(visibilityInput, document.createTextNode(' Show to students'));
+        const addButton = document.createElement('button');
+        addButton.type = 'submit';
+        addButton.className = 'control-button control-button--primary';
+        addButton.textContent = 'Add';
+        form.append(textLabel, textInput, dateLabel, visibilityLabel, addButton);
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const formData = new FormData(form);
+            try {
+                classReminderService.add({
+                    scope,
+                    deckId: scope === REMINDER_SCOPES.DECK ? context.deckId : '',
+                    classId: scope === REMINDER_SCOPES.CLASS ? context.classId : '',
+                    text: String(formData.get('text') || ''),
+                    dueDate: String(formData.get('dueDate') || ''),
+                    showOnClassroom: formData.get('showOnClassroom') === 'on'
+                });
+                window.requestAnimationFrame(() => {
+                    this.dashboardRoot?.querySelector(`#${CSS.escape(inputId)}`)?.focus({ preventScroll: true });
+                });
+            } catch (error) {
+                this.showNotification(error?.message || 'That reminder could not be added.', 'warning');
+            }
+        });
+        group.appendChild(form);
+        return group;
+    }
+
+    createDashboardReminderPanel(preset) {
+        const context = this.getReminderContextForPreset(preset);
+        const panel = document.createElement('section');
+        panel.id = `dashboard-reminders-${context.deckId}`;
+        panel.className = 'dashboard-reminder-panel';
+        panel.dataset.deckId = context.deckId;
+        const header = document.createElement('header');
+        header.className = 'dashboard-reminder-panel__header';
+        const title = document.createElement('h4');
+        title.textContent = `Reminders · ${context.deckName}`;
+        const help = document.createElement('p');
+        help.textContent = 'Class reminders appear in every deck for this class. Deck reminders stay with this lesson.';
+        header.append(title, help);
+        panel.appendChild(header);
+
+        const scopes = document.createElement('div');
+        scopes.className = 'dashboard-reminder-panel__scopes';
+        if (context.classId) {
+            scopes.appendChild(this.createDashboardReminderScope({
+                scope: REMINDER_SCOPES.CLASS,
+                context,
+                title: context.className,
+                description: 'Use this for homework, materials, or notices that follow the class.'
+            }));
+        } else {
+            const noClass = document.createElement('p');
+            noClass.className = 'dashboard-reminder-panel__notice';
+            noClass.textContent = 'Add a class name to this deck to share reminders across a class.';
+            scopes.appendChild(noClass);
+        }
+        scopes.appendChild(this.createDashboardReminderScope({
+            scope: REMINDER_SCOPES.DECK,
+            context,
+            title: 'This deck only',
+            description: 'Use this for tasks or notes specific to this lesson deck.'
+        }));
+        panel.appendChild(scopes);
+        return panel;
+    }
+
+    renderClassroomReminderDock() {
+        if (!this.classroomReminderDock || !this.classroomReminderList) return;
+        const context = this.activeReminderContext || {};
+        const hasContext = Boolean(context.deckId || context.classId);
+        this.classroomReminderDock.hidden = !hasContext;
+        if (this.classroomReminderLauncher) {
+            this.classroomReminderLauncher.hidden = !hasContext;
+        }
+        if (!hasContext) return;
+
+        const reminders = classReminderService.list({
+            deckId: context.deckId || '',
+            classId: context.classId || ''
+        });
+        const incompleteCount = reminders.filter((reminder) => !reminder.completed).length;
+        if (this.classroomReminderSummary) {
+            const contextLabel = context.className || context.deckName || 'Current deck';
+            this.classroomReminderSummary.textContent = `${contextLabel} · ${incompleteCount} to do`;
+        }
+
+        const deckScope = this.classroomReminderForm?.querySelector('input[name="scope"][value="deck"]');
+        const classScope = this.classroomReminderClassScope;
+        if (deckScope) deckScope.disabled = !context.deckId;
+        if (classScope) classScope.disabled = !context.classId;
+        if (deckScope?.checked && deckScope.disabled && classScope) classScope.checked = true;
+        if (classScope?.checked && classScope.disabled && deckScope) deckScope.checked = true;
+
+        this.classroomReminderList.replaceChildren();
+        if (reminders.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'classroom-reminder-list__empty';
+            empty.textContent = 'Nothing to remember yet.';
+            this.classroomReminderList.appendChild(empty);
+        } else {
+            reminders.forEach((reminder) => this.classroomReminderList.appendChild(this.createReminderRow(reminder, { compact: true })));
+        }
+    }
+
     renderDashboard() {
         if (!this.dashboardRoot) {
             return;
@@ -7241,6 +7920,13 @@ class ClassroomScreenApp {
                 shownPresets.forEach((preset, index) => {
                     const isCurrentPreset = preset.id === currentDeckId;
                     const isExpanded = preset.id === expandedDeckId;
+                    const reminderContext = this.getReminderContextForPreset(preset);
+                    const isReminderPanelOpen = this.dashboardExpandedReminderDeckId === reminderContext.deckId;
+                    const openReminderCount = classReminderService.count({
+                        deckId: reminderContext.deckId,
+                        classId: reminderContext.classId,
+                        completed: false
+                    });
                     const card = document.createElement('article');
                     const panelId = `dashboard-deck-details-${index}`;
                     const toggleId = `dashboard-deck-toggle-${index}`;
@@ -7249,7 +7935,7 @@ class ClassroomScreenApp {
                         : 1;
                     const savedLabel = this.formatDashboardDate(preset.updatedAt || preset.createdAt);
                     const classLabel = preset.className || 'No class';
-                    card.className = `dashboard-screen-card${isCurrentPreset ? ' is-current' : ''}${isExpanded ? ' is-expanded' : ''}`;
+                    card.className = `dashboard-screen-card${isCurrentPreset ? ' is-current' : ''}${isExpanded ? ' is-expanded' : ''}${isReminderPanelOpen ? ' has-reminders-open' : ''}`;
                     card.dataset.deckId = preset.id;
                     card.setAttribute('aria-label', `${preset.name || 'Untitled Deck'}${isCurrentPreset ? ', current deck' : ''}`);
                     card.innerHTML = `
@@ -7268,6 +7954,11 @@ class ClassroomScreenApp {
                                 <span class="dashboard-deck-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                                 </button>
                             </h2>
+                            <button class="control-button dashboard-reminders-btn${isReminderPanelOpen ? ' is-active' : ''}" type="button" data-reminder-action="expand" data-deck-id="${escapeHtml(preset.id)}" aria-expanded="${isReminderPanelOpen ? 'true' : 'false'}" aria-controls="dashboard-reminders-${escapeHtml(reminderContext.deckId)}" aria-label="${openReminderCount ? `${openReminderCount} open reminders` : 'Reminders'} for ${escapeHtml(preset.name || 'Untitled Deck')}" title="Reminders for ${escapeHtml(preset.name || 'Untitled Deck')}">
+                                <i class="fa-regular fa-bell" aria-hidden="true"></i>
+                                <span class="dashboard-reminders-btn__label">Reminders</span>
+                                ${openReminderCount ? `<span class="dashboard-reminders-btn__count" aria-hidden="true">${openReminderCount}</span>` : ''}
+                            </button>
                             <button class="dashboard-favorite-btn${preset.isFavorite ? ' is-active' : ''}" type="button" data-deck-action="favorite" data-deck-id="${escapeHtml(preset.id)}" aria-label="${preset.isFavorite ? 'Remove' : 'Add'} ${escapeHtml(preset.name || 'Untitled Deck')} ${preset.isFavorite ? 'from' : 'to'} Favourites" aria-pressed="${preset.isFavorite ? 'true' : 'false'}" title="${preset.isFavorite ? 'Remove from Favourites' : 'Add to Favourites'}">
                                 <i class="${preset.isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
                             </button>
@@ -7301,6 +7992,10 @@ class ClassroomScreenApp {
                             </div>
                         </div>
                     `;
+                    if (isReminderPanelOpen) {
+                        card.querySelector('.dashboard-screen-card__details')
+                            ?.appendChild(this.createDashboardReminderPanel(preset));
+                    }
                     screenGrid.appendChild(card);
                 });
             }
@@ -7350,6 +8045,23 @@ class ClassroomScreenApp {
                 event.stopPropagation();
                 details.open = false;
                 details.querySelector('summary')?.focus();
+            });
+        });
+
+        this.dashboardRoot.querySelectorAll('[data-reminder-action="expand"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const deckId = button.dataset.deckId || '';
+                const shouldExpand = button.getAttribute('aria-expanded') !== 'true';
+                this.dashboardExpandedReminderDeckId = shouldExpand ? deckId : '';
+                if (shouldExpand) {
+                    this.dashboardExpandedDeckId = deckId;
+                }
+                this.renderDashboard();
+                window.requestAnimationFrame(() => {
+                    this.dashboardRoot
+                        ?.querySelector(`[data-deck-id="${CSS.escape(deckId)}"] [data-reminder-action="expand"]`)
+                        ?.focus({ preventScroll: true });
+                });
             });
         });
 
@@ -7802,6 +8514,7 @@ function startApp() {
     }
 
     const app = new ClassroomScreenApp();
+    window.__TeacherScreenApp = app;
     app.init();
 }
 
