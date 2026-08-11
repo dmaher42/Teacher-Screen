@@ -10169,7 +10169,16 @@ body.is-dashboard-active .dashboard-screen-card__heading h3 {
             "brand"
             "navigation"
             "filters";
-        gap: 8px;
+        gap: 6px;
+        padding: 10px;
+    }
+
+    body.is-dashboard-active .dashboard-brand {
+        padding: 0;
+    }
+
+    body.is-dashboard-active .dashboard-sidebar__section {
+        padding-top: 6px;
     }
 
     body.is-dashboard-active .dashboard-primary-nav__list {
