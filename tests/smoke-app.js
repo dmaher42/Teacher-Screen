@@ -893,6 +893,75 @@ async function runFocusedResourceLibraryChecks(browser, baseUrl) {
 async function runPowerPointProjectorRestoreChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
+    await context.addInitScript(() => {
+        if (!window.location.pathname.toLowerCase().endsWith('/projector.html')) {
+            return;
+        }
+
+        const diagnostics = {
+            readsStarted: 0,
+            readsCompleted: 0,
+            activeReads: 0,
+            maxActiveReads: 0,
+            resizeCallbacks: 0,
+            readsReleased: false
+        };
+        let releaseReads;
+        const readGate = new Promise((resolve) => {
+            releaseReads = resolve;
+        });
+        diagnostics.releaseReads = () => {
+            if (diagnostics.readsReleased) return;
+            diagnostics.readsReleased = true;
+            releaseReads();
+        };
+        window.__ProjectorDocumentStoreDelay = diagnostics;
+
+        const NativeResizeObserver = window.ResizeObserver;
+        if (typeof NativeResizeObserver === 'function') {
+            window.ResizeObserver = class ProjectorSmokeResizeObserver extends NativeResizeObserver {
+                constructor(callback) {
+                    super((entries, observer) => {
+                        diagnostics.resizeCallbacks += 1;
+                        callback(entries, observer);
+                    });
+                }
+            };
+        }
+
+        let wrappedStore;
+        Object.defineProperty(window, 'TeacherScreenDocumentStore', {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return wrappedStore;
+            },
+            set(store) {
+                if (!store || wrappedStore) {
+                    return;
+                }
+
+                const delayRead = (methodName) => async (...args) => {
+                    diagnostics.readsStarted += 1;
+                    diagnostics.activeReads += 1;
+                    diagnostics.maxActiveReads = Math.max(diagnostics.maxActiveReads, diagnostics.activeReads);
+                    await readGate;
+                    try {
+                        return await store[methodName](...args);
+                    } finally {
+                        diagnostics.activeReads -= 1;
+                        diagnostics.readsCompleted += 1;
+                    }
+                };
+
+                wrappedStore = Object.freeze({
+                    ...store,
+                    loadSlideDeck: delayRead('loadSlideDeck'),
+                    loadSlideAssets: delayRead('loadSlideAssets')
+                });
+            }
+        });
+    });
     const pageErrors = [];
     const consoleErrors = [];
     const consoleWarnings = [];
@@ -1015,6 +1084,42 @@ async function runPowerPointProjectorRestoreChecks(browser, baseUrl) {
             try {
                 await projectorPage.goto(`${baseUrl}/projector.html`, { waitUntil: 'domcontentloaded' });
                 await projectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), null, { timeout: 15000 });
+                if (iteration === 1) {
+                    await projectorPage.waitForFunction(() => {
+                        const diagnostics = window.__ProjectorDocumentStoreDelay;
+                        const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
+                        return diagnostics?.activeReads >= 2 && Boolean(widget);
+                    }, null, { timeout: 10000 });
+                    const hydrationProbe = await projectorPage.evaluate(async () => {
+                        const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
+                        const diagnostics = window.__ProjectorDocumentStoreDelay;
+                        if (!widget || !diagnostics) {
+                            throw new Error('Projector hydration diagnostics were unavailable');
+                        }
+
+                        widget.ensureDeckVisible();
+                        await new Promise((resolve) => window.setTimeout(resolve, 150));
+                        return {
+                            activeReads: diagnostics.activeReads,
+                            resizeCallbacks: diagnostics.resizeCallbacks,
+                            activeContentLength: String(widget.activeDeck?.content || '').length,
+                            hasRenderPromise: Boolean(widget.renderPromise),
+                            inlinePresentationRootCount: widget.inlineDeckContainer
+                                ?.querySelectorAll('[data-reveal-presentation-root]').length || 0
+                        };
+                    });
+                    assert(
+                        hydrationProbe.activeReads >= 2
+                            && hydrationProbe.resizeCallbacks > 0
+                            && hydrationProbe.activeContentLength === 0
+                            && !hydrationProbe.hasRenderPromise
+                            && hydrationProbe.inlinePresentationRootCount === 0,
+                        'Projector should finish stored PowerPoint hydration before ResizeObserver starts presentation rendering'
+                    );
+                    await projectorPage.evaluate(() => window.__ProjectorDocumentStoreDelay?.releaseReads?.());
+                } else {
+                    await projectorPage.evaluate(() => window.__ProjectorDocumentStoreDelay?.releaseReads?.());
+                }
                 try {
                     await projectorPage.waitForSelector('.widget.reveal-manager-widget [data-reveal-presentation-root]:has(img[src^="blob:"])', { timeout: 10000 });
                 } catch (error) {
@@ -1030,6 +1135,16 @@ async function runPowerPointProjectorRestoreChecks(browser, baseUrl) {
                             storedDeckReady: storedDeck?.content?.includes('Stored PowerPoint') === true,
                             storedAssetCount: Array.isArray(assets) ? assets.length : -1,
                             storedAssetIsBlob: assets?.[0]?.blob instanceof Blob,
+                            documentStoreDelay: window.__ProjectorDocumentStoreDelay
+                                ? {
+                                    readsStarted: window.__ProjectorDocumentStoreDelay.readsStarted,
+                                    readsCompleted: window.__ProjectorDocumentStoreDelay.readsCompleted,
+                                    activeReads: window.__ProjectorDocumentStoreDelay.activeReads,
+                                    maxActiveReads: window.__ProjectorDocumentStoreDelay.maxActiveReads,
+                                    resizeCallbacks: window.__ProjectorDocumentStoreDelay.resizeCallbacks,
+                                    readsReleased: window.__ProjectorDocumentStoreDelay.readsReleased
+                                }
+                                : null,
                             dependencyFailures: window.__ProjectorDependencyFailures || []
                         };
                     }, seededDeck.storageId);
@@ -1073,6 +1188,28 @@ async function runPowerPointProjectorRestoreChecks(browser, baseUrl) {
                     await inlinePresentation.locator('img[src^="blob:"]').count() === 1,
                     `Projector should restore the stored PowerPoint image on startup (${iteration}/${iterations})`
                 );
+                if (iteration === 1) {
+                    const delayedHydration = await projectorPage.evaluate(() => {
+                        const diagnostics = window.__ProjectorDocumentStoreDelay;
+                        return diagnostics
+                            ? {
+                                readsStarted: diagnostics.readsStarted,
+                                readsCompleted: diagnostics.readsCompleted,
+                                maxActiveReads: diagnostics.maxActiveReads,
+                                resizeCallbacks: diagnostics.resizeCallbacks,
+                                readsReleased: diagnostics.readsReleased
+                            }
+                            : null;
+                    });
+                    assert(
+                        delayedHydration?.readsStarted >= 2
+                            && delayedHydration.readsCompleted === delayedHydration.readsStarted
+                            && delayedHydration.maxActiveReads >= 2
+                            && delayedHydration.resizeCallbacks > 0
+                            && delayedHydration.readsReleased,
+                        'Projector regression should exercise delayed parallel document reads with ResizeObserver active'
+                    );
+                }
 
             } finally {
                 await projectorPage.close();

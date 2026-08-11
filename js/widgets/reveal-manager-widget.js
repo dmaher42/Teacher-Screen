@@ -31,6 +31,9 @@ class RevealManagerWidget {
         this.deckSlideChangedHandler = null;
         this.renderVersion = 0;
         this.renderPromise = null;
+        this.restorePromise = null;
+        this.restoreGeneration = 0;
+        this.isDiscarded = false;
         this.runtimeObjectUrls = new Set();
 
         const appModeUtils = window.TeacherScreenAppMode || {};
@@ -1114,18 +1117,26 @@ class RevealManagerWidget {
         return `slides-${deckId}-${randomPart}`;
     }
 
-    clearRuntimeObjectUrls() {
-        this.runtimeObjectUrls.forEach((url) => {
+    revokeObjectUrls(objectUrls = []) {
+        objectUrls.forEach((url) => {
             try {
                 URL.revokeObjectURL(url);
             } catch (error) {
                 // The browser may already have released the object URL.
             }
         });
+    }
+
+    clearRuntimeObjectUrls() {
+        this.revokeObjectUrls(this.runtimeObjectUrls);
         this.runtimeObjectUrls.clear();
     }
 
-    async hydrateStoredDeck(deck) {
+    isRestoreCurrent(generation) {
+        return !this.isDiscarded && generation === this.restoreGeneration;
+    }
+
+    async hydrateStoredDeck(deck, generation = this.restoreGeneration) {
         if (!this.isStoredImportDeck(deck)) {
             return deck;
         }
@@ -1135,6 +1146,9 @@ class RevealManagerWidget {
             store.loadSlideDeck(deck.storageId),
             store.loadSlideAssets(deck.storageId)
         ]);
+        if (!this.isRestoreCurrent(generation)) {
+            return null;
+        }
         if (!storedDeck || typeof storedDeck.content !== 'string' || !storedDeck.content.trim()) {
             const error = new Error('The imported slide deck is no longer stored on this device.');
             error.code = 'SLIDE_DECK_MISSING';
@@ -1162,8 +1176,13 @@ class RevealManagerWidget {
                 element.removeAttribute(SLIDE_ASSET_ID_ATTRIBUTE);
             });
         } catch (error) {
-            nextObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+            this.revokeObjectUrls(nextObjectUrls);
             throw error;
+        }
+
+        if (!this.isRestoreCurrent(generation)) {
+            this.revokeObjectUrls(nextObjectUrls);
+            return null;
         }
 
         this.clearRuntimeObjectUrls();
@@ -2309,7 +2328,7 @@ class RevealManagerWidget {
     }
 
     ensureDeckVisible({ layoutExisting = true } = {}) {
-        if (!this.activeDeck || document.visibilityState !== 'visible') return;
+        if (!this.activeDeck || this.isDiscarded || this.restorePromise || document.visibilityState !== 'visible') return;
 
         if (this.renderPromise) {
             return;
@@ -2322,7 +2341,7 @@ class RevealManagerWidget {
 
         this.reactivateTimeout = window.setTimeout(async () => {
             try {
-                if (document.visibilityState !== 'visible') return;
+                if (!this.activeDeck || this.isDiscarded || this.restorePromise || document.visibilityState !== 'visible') return;
 
                 const { activateReveal, getRevealDeck, hasMountedReveal, layoutReveal } = await import('../utils/reveal-manager.js');
 
@@ -2374,9 +2393,11 @@ class RevealManagerWidget {
             return null;
         }
 
-        this.renderPromise = (async () => {
+        const renderVersion = ++this.renderVersion;
+        const activeDeck = this.activeDeck;
+        let renderTask = null;
+        renderTask = (async () => {
             try {
-                const renderVersion = ++this.renderVersion;
                 const {
                     activateReveal,
                     destroyReveal,
@@ -2385,6 +2406,10 @@ class RevealManagerWidget {
                     mountPresentationMarkup
                 } = await import('../utils/reveal-manager.js');
 
+                if (this.isDiscarded || renderVersion !== this.renderVersion || this.activeDeck !== activeDeck) {
+                    return null;
+                }
+
                 const targetIndices = preserveIndices
                     ? { ...this.currentIndices }
                     : { h: 0, v: 0 };
@@ -2392,10 +2417,10 @@ class RevealManagerWidget {
                 destroyReveal(this.inlineDeckContainer);
                 this.inlineDeckContainer.innerHTML = '';
 
-                mountPresentationMarkup(this.inlineDeckContainer, this.wrapDeckMarkup(this.activeDeck.content));
+                mountPresentationMarkup(this.inlineDeckContainer, this.wrapDeckMarkup(activeDeck.content));
 
                 const deck = await initializeReveal(this.inlineDeckContainer);
-                if (renderVersion !== this.renderVersion || !this.activeDeck) {
+                if (this.isDiscarded || renderVersion !== this.renderVersion || this.activeDeck !== activeDeck) {
                     if (deck && typeof deck.destroy === 'function') {
                         deck.destroy();
                     }
@@ -2413,20 +2438,28 @@ class RevealManagerWidget {
                 activateReveal(this.inlineDeckContainer);
                 this.currentIndices = targetIndices;
                 await this.moveDeckToStoredSlide(deck);
+                if (this.isDiscarded || renderVersion !== this.renderVersion || this.activeDeck !== activeDeck) {
+                    return null;
+                }
                 layoutReveal(this.inlineDeckContainer);
                 window.requestAnimationFrame(() => layoutReveal(this.inlineDeckContainer));
                 this.setStatus('');
                 return deck;
             } catch (error) {
-                console.warn('[Reveal] unable to initialize presentation', error);
-                this.setStatus('Unable to load Reveal deck.');
+                if (!this.isDiscarded && renderVersion === this.renderVersion && this.activeDeck === activeDeck) {
+                    console.warn('[Reveal] unable to initialize presentation', error);
+                    this.setStatus('Unable to load Reveal deck.');
+                }
                 return null;
             } finally {
-                this.renderPromise = null;
+                if (this.renderPromise === renderTask) {
+                    this.renderPromise = null;
+                }
             }
         })();
 
-        return this.renderPromise;
+        this.renderPromise = renderTask;
+        return renderTask;
     }
 
     renderExternalDeckScaffold(deck) {
@@ -2484,13 +2517,28 @@ class RevealManagerWidget {
         return runtime;
     }
 
-    async launchDeck(deck, { preserveIndices = false } = {}) {
+    launchDeck(deck, options = {}) {
         const normalizedDeck = this.normalizeStoredDeck(deck);
         if (!normalizedDeck) {
             this.setStatus('That presentation could not be opened.');
-            return false;
+            return Promise.resolve(false);
+        }
+        if (this.isDiscarded) {
+            return Promise.resolve(false);
         }
 
+        const generation = ++this.restoreGeneration;
+        const launchPromise = this.launchDeckForGeneration(normalizedDeck, options, generation);
+        const trackedPromise = launchPromise.finally(() => {
+            if (this.restorePromise === trackedPromise) {
+                this.restorePromise = null;
+            }
+        });
+        this.restorePromise = trackedPromise;
+        return trackedPromise;
+    }
+
+    async launchDeckForGeneration(normalizedDeck, { preserveIndices = false } = {}, generation) {
         if (this.reactivateTimeout) {
             clearTimeout(this.reactivateTimeout);
             this.reactivateTimeout = null;
@@ -2503,7 +2551,15 @@ class RevealManagerWidget {
             } catch (error) {
                 console.warn('[Reveal] previous deck render did not finish cleanly', error);
             }
-            this.renderPromise = null;
+            if (!this.isRestoreCurrent(generation)) {
+                return false;
+            }
+            if (this.renderPromise === pendingRender) {
+                this.renderPromise = null;
+            }
+        }
+        if (!this.isRestoreCurrent(generation)) {
+            return false;
         }
         this.detachDeckListeners();
 
@@ -2513,11 +2569,14 @@ class RevealManagerWidget {
         let runtimeDeck = normalizedDeck;
         try {
             if (this.isStoredImportDeck(normalizedDeck)) {
-                runtimeDeck = await this.hydrateStoredDeck(normalizedDeck);
+                runtimeDeck = await this.hydrateStoredDeck(normalizedDeck, generation);
             } else {
                 this.clearRuntimeObjectUrls();
             }
         } catch (error) {
+            if (!this.isRestoreCurrent(generation)) {
+                return false;
+            }
             this.activeDeck = previousDeck;
             console.warn('Unable to restore imported slide deck:', error);
             this.setStatus(error?.code === 'SLIDE_DECK_MISSING' || error?.code === 'SLIDE_ASSET_MISSING'
@@ -2526,6 +2585,9 @@ class RevealManagerWidget {
             return false;
         }
 
+        if (!runtimeDeck || !this.isRestoreCurrent(generation)) {
+            return false;
+        }
         this.activeDeck = runtimeDeck;
 
         if (!preserveIndices) {
@@ -2539,7 +2601,10 @@ class RevealManagerWidget {
         this.updateSourceFields();
 
         const loadedDeck = await this.renderActiveDeck({ preserveIndices });
-        if (this.activeDeck.type === 'html' && !loadedDeck) {
+        if (!this.isRestoreCurrent(generation)) {
+            return false;
+        }
+        if (this.activeDeck?.type === 'html' && !loadedDeck) {
             this.saveLastDeck(this.activeDeck);
             this.persistActiveDeckState();
             return false;
@@ -2551,15 +2616,23 @@ class RevealManagerWidget {
     }
 
     async stopDeck() {
+        const generation = ++this.restoreGeneration;
         this.renderVersion += 1;
         this.renderPromise = null;
         this.detachDeckListeners();
 
         try {
             const { destroyReveal } = await import('../utils/reveal-manager.js');
+            if (!this.isRestoreCurrent(generation)) {
+                return;
+            }
             destroyReveal(this.inlineDeckContainer);
         } catch (error) {
             console.warn('[Reveal] unable to stop deck', error);
+        }
+
+        if (!this.isRestoreCurrent(generation)) {
+            return;
         }
 
         this.inlineDeckContainer.innerHTML = '';
@@ -2985,12 +3058,70 @@ class RevealManagerWidget {
         this.externalUrlInput.value = deck.sourceUrl || '';
         this.htmlInput.value = this.isStoredImportDeck(deck) ? '' : (deck.content || '');
         this.updateSourceFields();
-        void this.launchDeck(deck, { preserveIndices: true });
+        return this.launchDeck(deck, { preserveIndices: true });
     }
 
     setEditable() {}
 
+    onLayoutDiscard() {
+        if (this.isDiscarded) {
+            return;
+        }
+
+        this.isDiscarded = true;
+        this.restoreGeneration += 1;
+        this.renderVersion += 1;
+        this.restorePromise = null;
+        this.renderPromise = null;
+
+        if (this.reactivateTimeout) {
+            clearTimeout(this.reactivateTimeout);
+            this.reactivateTimeout = null;
+        }
+
+        document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true);
+        document.removeEventListener('visibilitychange', this.handleDocumentVisibilityChange);
+
+        if (this.sceneChangeUnsubscribe) {
+            this.sceneChangeUnsubscribe();
+            this.sceneChangeUnsubscribe = null;
+        }
+
+        if (this.projectorChannel) {
+            this.projectorChannel.close();
+            this.projectorChannel = null;
+        }
+
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+
+        this.detachDeckListeners();
+        if (this.revealDeck && typeof this.revealDeck.destroy === 'function') {
+            try {
+                this.revealDeck.destroy();
+            } catch (error) {
+                console.warn('[Reveal] unable to discard deck', error);
+            }
+        }
+
+        if (this.inlineDeckContainer) {
+            this.inlineDeckContainer.innerHTML = '';
+            this.inlineDeckContainer.__teacherScreenRevealDeck = null;
+        }
+        this.clearRuntimeObjectUrls();
+        this.revealDeck = null;
+        this.activeDeck = null;
+        this.projectorWindow = null;
+
+        if (RevealManagerWidget.activeInstance === this) {
+            RevealManagerWidget.activeInstance = null;
+        }
+    }
+
     remove() {
+        this.onLayoutDiscard();
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
         this.openFromSetupButton.removeEventListener('click', this.handleOpenFromSetup);
         this.prevButton.removeEventListener('click', this.handlePrevClick);

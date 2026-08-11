@@ -322,6 +322,10 @@ async function syncRevealWidgetsOnProjector(data = {}) {
             }
         }
 
+        if (widget.restorePromise && typeof widget.restorePromise.then === 'function') {
+            await widget.restorePromise;
+        }
+
         if (typeof widget.moveDeckToStoredSlide === 'function') {
             await widget.moveDeckToStoredSlide(widget.revealDeck);
         }
