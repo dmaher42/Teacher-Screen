@@ -3,7 +3,7 @@ import './utils/app-bus.js';
 import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
-const LOCAL_ASSET_VERSION = '24';
+const LOCAL_ASSET_VERSION = '25';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
@@ -82,6 +82,7 @@ const loadDependency = async (dependency) => {
 };
 
 const TEACHER_DEPENDENCIES = [
+    { src: './js/config/google-drive-config.js', required: false, timeoutMs: 1500 },
     { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js', required: false },

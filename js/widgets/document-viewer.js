@@ -472,6 +472,25 @@ class DocumentViewerWidget {
     }
 
     async renderPdf(file) {
+        const isPdf = file
+            && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''));
+        if (!isPdf || typeof file.arrayBuffer !== 'function') {
+            this.loadGeneration += 1;
+            this.exitPresentationMode();
+            this.resetPdfState();
+            this.showContentMessage('File type not supported. Please upload a PDF file.');
+            this.notifyChanged('document-cleared');
+            return false;
+        }
+        if (Number(file.size) > DOCUMENT_VIEWER_MAX_PDF_BYTES) {
+            this.loadGeneration += 1;
+            this.exitPresentationMode();
+            this.resetPdfState();
+            this.showContentMessage('This PDF is larger than 50 MB. Choose a smaller file.');
+            this.notifyChanged('document-cleared');
+            return false;
+        }
+
         const generation = ++this.loadGeneration;
         this.exitPresentationMode();
         this.resetPdfState();
@@ -491,9 +510,9 @@ class DocumentViewerWidget {
             }
 
             const arrayBuffer = await file.arrayBuffer();
-            if (generation !== this.loadGeneration) return;
+            if (generation !== this.loadGeneration) return false;
             const loaded = await this.loadPdfBytes(arrayBuffer, generation);
-            if (!loaded || generation !== this.loadGeneration) return;
+            if (!loaded || generation !== this.loadGeneration) return false;
 
             try {
                 const storedPdfId = this.createStoredPdfId();
@@ -505,7 +524,7 @@ class DocumentViewerWidget {
                     blob: file.slice(0, file.size, 'application/pdf'),
                     updatedAt: Date.now()
                 });
-                if (generation !== this.loadGeneration) return;
+                if (generation !== this.loadGeneration) return false;
                 this.storedPdfId = storedPdfId;
                 this.pdfRequiresReupload = false;
                 this.sourceMode = 'pdf-storage';
@@ -517,8 +536,9 @@ class DocumentViewerWidget {
 
             this.updateNavControls();
             this.notifyChanged('pdf-loaded');
+            return true;
         } catch (error) {
-            if (generation !== this.loadGeneration) return;
+            if (generation !== this.loadGeneration) return false;
             const isMissingEngine = error?.code === 'PDF_ENGINE_UNAVAILABLE';
             if (!isMissingEngine) {
                 console.error('PDF load error:', error);
@@ -528,6 +548,7 @@ class DocumentViewerWidget {
                 ? 'PDF support could not load. Check your connection and try again.'
                 : 'Unable to load this PDF. Try a different file.');
             this.notifyChanged('document-cleared');
+            return false;
         }
     }
 

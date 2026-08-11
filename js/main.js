@@ -13,6 +13,12 @@ import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { renderWidgetPicker } from './utils/widget-picker-renderer.js';
 import { TeachingAssistantController } from './utils/teaching-assistant-controller.js';
 import {
+    LocalFolderResourceProvider,
+    ResourceLibraryState,
+    createResourceKey
+} from './services/resource-library-service.js';
+import { GoogleDriveResourceProvider } from './services/google-drive-provider.js';
+import {
     THEME_OPTIONS,
     applyTheme,
     renderThemeSelector as renderThemeSelectorControl,
@@ -255,6 +261,18 @@ class ClassroomScreenApp {
         this.dashboardSelectedClassName = '';
         this.dashboardSelectedFolderId = '';
         this.dashboardSearchQuery = '';
+        this.resourceLibraryState = new ResourceLibraryState();
+        this.localResourceProvider = new LocalFolderResourceProvider();
+        this.googleDriveResourceProvider = new GoogleDriveResourceProvider();
+        this.resourceLibrarySource = 'local';
+        this.resourceLibraryView = 'all';
+        this.resourceLibraryEntries = [];
+        this.resourceLibraryPath = [];
+        this.resourceLibrarySearchQuery = '';
+        this.resourceLibraryLoading = false;
+        this.resourceLibraryMessage = '';
+        this.resourceLibraryRefreshId = 0;
+        this.resourceFallbackRootIds = new Map();
         this.hasSavedState = !!localStorage.getItem('classroomScreenState');
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
@@ -5757,10 +5775,813 @@ class ClassroomScreenApp {
         return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     }
 
+    getResourceProvider(source = this.resourceLibrarySource) {
+        return source === 'google-drive'
+            ? this.googleDriveResourceProvider
+            : this.localResourceProvider;
+    }
+
+    getResourceProviderStatus(source = this.resourceLibrarySource) {
+        const provider = this.getResourceProvider(source);
+        if (!provider || typeof provider.getStatus !== 'function') {
+            return {
+                state: 'unavailable',
+                label: 'Unavailable',
+                detail: 'This resource location is unavailable.',
+                connected: false,
+                configured: false
+            };
+        }
+
+        try {
+            return provider.getStatus() || {};
+        } catch (error) {
+            return {
+                state: 'error',
+                label: 'Needs attention',
+                detail: error?.message || 'This resource location could not be checked.',
+                connected: false,
+                configured: source !== 'google-drive'
+            };
+        }
+    }
+
+    getResourceKey(resource = {}) {
+        if (resource?.key) {
+            return String(resource.key);
+        }
+
+        try {
+            return createResourceKey(resource);
+        } catch (error) {
+            const provider = resource?.provider || this.resourceLibrarySource;
+            const path = Array.isArray(resource?.pathSegments) ? resource.pathSegments.join('/') : '';
+            return `${provider}:${resource?.id || path || resource?.name || 'resource'}`;
+        }
+    }
+
+    getResourceTypeMeta(resource = {}) {
+        const type = resource.type || (resource.kind === 'folder' ? 'folder' : 'other');
+        const isLegacyPowerPoint = type === 'presentation'
+            && /\.ppt$/i.test(resource.name || '')
+            && !/\.pptx$/i.test(resource.name || '');
+        const options = {
+            folder: { label: 'Folder', icon: 'fa-folder', supported: true },
+            pdf: { label: 'PDF', icon: 'fa-file-pdf', supported: true },
+            presentation: { label: 'PowerPoint', icon: 'fa-file-powerpoint', supported: true },
+            'google-slides': { label: 'Google Slides', icon: 'fa-file-powerpoint', supported: true },
+            image: { label: 'Image', icon: 'fa-file-image', supported: true },
+            other: { label: 'File', icon: 'fa-file', supported: false }
+        };
+        if (isLegacyPowerPoint) {
+            return { label: 'Legacy PowerPoint', icon: 'fa-file-powerpoint', supported: false };
+        }
+        return options[type] || options.other;
+    }
+
+    formatResourceSize(value) {
+        const bytes = Number(value) || 0;
+        if (bytes <= 0) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+    }
+
+    isResourceFavorite(resource = {}) {
+        if (!this.resourceLibraryState || typeof this.resourceLibraryState.isFavorite !== 'function') {
+            return false;
+        }
+        return this.resourceLibraryState.isFavorite(resource);
+    }
+
+    getStoredResourceCollection(methodName) {
+        const method = this.resourceLibraryState?.[methodName];
+        if (typeof method !== 'function') return [];
+        const result = method.call(this.resourceLibraryState);
+        return Array.isArray(result) ? result : [];
+    }
+
+    getVisibleResourceEntries() {
+        const currentSource = this.resourceLibrarySource;
+        let entries = Array.isArray(this.resourceLibraryEntries) ? this.resourceLibraryEntries : [];
+
+        if (this.resourceLibraryView === 'favorites') {
+            const storedFavorites = this.getStoredResourceCollection('getFavorites')
+                .filter((resource) => resource && resource.provider === currentSource);
+            entries = storedFavorites.length > 0
+                ? storedFavorites
+                : entries.filter((resource) => this.isResourceFavorite(resource));
+        } else if (this.resourceLibraryView === 'recent') {
+            entries = this.getStoredResourceCollection('getRecents')
+                .filter((resource) => resource && resource.provider === currentSource);
+        }
+
+        const query = String(this.resourceLibrarySearchQuery || '').trim().toLowerCase();
+        if (query) {
+            entries = entries.filter((resource) => {
+                const meta = this.getResourceTypeMeta(resource);
+                return `${resource?.name || ''} ${meta.label}`.toLowerCase().includes(query);
+            });
+        }
+
+        const seen = new Set();
+        return entries.filter((resource) => {
+            if (!resource) return false;
+            const key = this.getResourceKey(resource);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    renderResourceLibraryMarkup() {
+        const status = this.getResourceProviderStatus();
+        const entries = this.getVisibleResourceEntries();
+        const isLocal = this.resourceLibrarySource === 'local';
+        const isConfigured = status.configured !== false;
+        const isConnected = status.connected === true;
+        const statusLabel = this.resourceLibraryLoading
+            ? 'Loading'
+            : (status.label || (isConnected ? 'Connected' : 'Not connected'));
+        const statusDetail = this.resourceLibraryMessage
+            || status.detail
+            || (isLocal
+                ? 'Choose the teaching-resources folder you want Teacher Screen to use.'
+                : 'Connect Google Drive to open teaching resources without downloading them first.');
+        const connectionActionLabel = isConnected
+            ? (isLocal ? 'Change folder' : 'Reconnect')
+            : (isLocal ? 'Choose folder' : (isConfigured ? 'Connect Google Drive' : 'Google setup required'));
+        const statusClass = isConnected ? 'is-connected' : (status.state === 'error' ? 'is-error' : '');
+        const statusState = this.resourceLibraryLoading ? 'loading' : (status.state || (isConnected ? 'connected' : 'disconnected'));
+        const sourceRootLabel = isLocal
+            ? (status.folderName || 'Computer folder')
+            : (status.folderName || 'Google Drive');
+
+        const breadcrumbMarkup = [
+            `<button class="resource-breadcrumb" type="button" data-resource-breadcrumb="-1">${escapeHtml(sourceRootLabel)}</button>`,
+            ...this.resourceLibraryPath.map((resource, index) => (
+                `<button class="resource-breadcrumb" type="button" data-resource-breadcrumb="${index}">${escapeHtml(resource.name || 'Folder')}</button>`
+            ))
+        ].join('<span aria-hidden="true">/</span>');
+
+        const cardsMarkup = entries.length > 0
+            ? entries.map((resource) => {
+                const key = this.getResourceKey(resource);
+                const meta = this.getResourceTypeMeta(resource);
+                const isFolder = resource.kind === 'folder' || resource.type === 'folder';
+                const isFavorite = this.isResourceFavorite(resource);
+                const sizeLabel = this.formatResourceSize(resource.size);
+                const dateValue = resource.lastModified || resource.modifiedTime;
+                const dateLabel = dateValue ? this.formatDashboardDate(dateValue) : '';
+                const detailParts = [meta.label, sizeLabel, dateLabel].filter(Boolean);
+                const canAdd = !isFolder && meta.supported;
+                const canPresentPdf = resource.type === 'pdf';
+
+                return `
+                    <article class="resource-card${isFolder ? ' is-folder' : ''}" data-resource-key="${escapeHtml(key)}">
+                        <div class="resource-card__icon" aria-hidden="true"><i class="fa-solid ${meta.icon}"></i></div>
+                        <div class="resource-card__body">
+                            <div class="resource-card__heading">
+                                <h3>${escapeHtml(resource.name || 'Untitled resource')}</h3>
+                                <button class="resource-favorite-btn${isFavorite ? ' is-active' : ''}" type="button" data-resource-action="favorite" aria-label="${isFavorite ? 'Remove from resource favourites' : 'Add to resource favourites'}" aria-pressed="${isFavorite ? 'true' : 'false'}" title="${isFavorite ? 'Remove from favourites' : 'Add to favourites'}">
+                                    <i class="${isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <p class="resource-card__meta">${escapeHtml(detailParts.join(' · ') || meta.label)}</p>
+                        </div>
+                        <div class="resource-card__actions">
+                            ${isFolder
+                                ? '<button class="control-button control-button--primary" type="button" data-resource-action="folder">Open folder</button>'
+                                : '<button class="control-button" type="button" data-resource-action="open">Open</button>'}
+                            ${canAdd
+                                ? '<button class="control-button control-button--primary" type="button" data-resource-action="add">Add to current deck</button>'
+                                : ''}
+                            ${canPresentPdf
+                                ? '<button class="control-button" type="button" data-resource-action="present">Present as slides</button>'
+                                : ''}
+                        </div>
+                    </article>
+                `;
+            }).join('')
+            : `<div class="resource-empty">
+                <i class="fa-solid ${this.resourceLibraryLoading ? 'fa-spinner fa-spin' : 'fa-folder-open'}" aria-hidden="true"></i>
+                <strong>${this.resourceLibraryLoading ? 'Loading resources…' : (isConnected ? 'No resources found' : 'Connect a resource folder')}</strong>
+                <p>${escapeHtml(isConnected
+                    ? (this.resourceLibraryView === 'all'
+                        ? 'This folder has no teaching files matching the current search.'
+                        : `No ${this.resourceLibraryView} resources are available in this location yet.`)
+                    : statusDetail)}</p>
+            </div>`;
+
+        return `
+            <section class="dashboard-resources-panel" aria-label="Teaching resources">
+                <div class="resource-library__header">
+                    <div>
+                        <p class="dashboard-toolbar__label">Resource Library</p>
+                        <h2>Teaching resources</h2>
+                        <p>Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.</p>
+                    </div>
+                    <div class="resource-source-tabs" role="group" aria-label="Resource locations">
+                        <button class="resource-source-tab${isLocal ? ' is-active' : ''}" type="button" data-resource-source="local" aria-pressed="${isLocal ? 'true' : 'false'}">
+                            <i class="fa-solid fa-folder" aria-hidden="true"></i> Computer Folder
+                        </button>
+                        <button class="resource-source-tab${!isLocal ? ' is-active' : ''}" type="button" data-resource-source="google-drive" aria-pressed="${!isLocal ? 'true' : 'false'}">
+                            <i class="fa-brands fa-google-drive" aria-hidden="true"></i> Google Drive
+                        </button>
+                    </div>
+                </div>
+
+                <div class="resource-connection-card">
+                    <div class="resource-connection-card__copy">
+                        <span class="resource-status-badge ${statusClass}" data-state="${escapeHtml(statusState)}">${escapeHtml(statusLabel)}</span>
+                        <strong>${escapeHtml(sourceRootLabel)}</strong>
+                        <p>${escapeHtml(statusDetail)}</p>
+                    </div>
+                    <div class="resource-card__actions">
+                        <button id="resource-connect-btn" class="control-button control-button--primary" type="button"${!isConfigured && !isLocal ? ' disabled' : ''}>${escapeHtml(connectionActionLabel)}</button>
+                        ${!isLocal && status.pickerConfigured
+                            ? '<button id="resource-drive-picker-btn" class="control-button" type="button">Choose from Drive</button>'
+                            : ''}
+                        ${isConnected ? '<button id="resource-refresh-btn" class="control-button" type="button">Refresh</button>' : ''}
+                    </div>
+                </div>
+
+                <div class="resource-toolbar">
+                    <div class="resource-breadcrumbs" aria-label="Current resource folder">${breadcrumbMarkup}</div>
+                    <input id="resource-search-input" class="resource-search" type="search" aria-label="Search teaching resources" placeholder="Search this resource view" value="${escapeHtml(this.resourceLibrarySearchQuery)}">
+                </div>
+                <p class="resource-supported-note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> PDFs open in Document Viewer, PowerPoints and Google Slides open in Presentation, and images can become the current deck background.</p>
+                <input id="resource-folder-fallback-input" type="file" multiple webkitdirectory directory hidden aria-label="Choose a teaching resources folder">
+                <div class="resource-grid" aria-live="polite">${cardsMarkup}</div>
+            </section>
+        `;
+    }
+
+    openResourceLibrary(source = this.resourceLibrarySource) {
+        this.resourceLibrarySource = source === 'google-drive' ? 'google-drive' : 'local';
+        this.dashboardNavigationMode = 'resources';
+        this.dashboardSelectedClassName = '';
+        this.dashboardSearchQuery = '';
+        this.renderDashboard();
+        void this.refreshResourceLibrary({ restore: true });
+    }
+
+    async refreshResourceLibrary({ restore = false } = {}) {
+        const provider = this.getResourceProvider();
+        const refreshId = ++this.resourceLibraryRefreshId;
+        this.resourceLibraryLoading = true;
+        this.resourceLibraryMessage = '';
+        if (this.dashboardNavigationMode === 'resources') {
+            this.renderDashboard();
+        }
+
+        try {
+            if (restore && this.resourceLibrarySource === 'local' && typeof provider?.restore === 'function') {
+                await provider.restore();
+            }
+
+            const status = this.getResourceProviderStatus();
+            if (!status.connected) {
+                if (refreshId !== this.resourceLibraryRefreshId) return;
+                this.resourceLibraryEntries = [];
+                this.resourceLibraryMessage = status.detail || '';
+                return;
+            }
+
+            const locator = this.resourceLibrarySource === 'local'
+                ? this.resourceLibraryPath.map((resource) => resource.name)
+                : (this.resourceLibraryPath[this.resourceLibraryPath.length - 1] || null);
+            const entries = await provider.list(locator);
+            if (refreshId !== this.resourceLibraryRefreshId) return;
+            const listedEntries = Array.isArray(entries) ? entries : [];
+            if (this.resourceLibrarySource === 'google-drive' && this.resourceLibraryPath.length === 0) {
+                const storedDriveResources = [
+                    ...this.getStoredResourceCollection('getFavorites'),
+                    ...this.getStoredResourceCollection('getRecents')
+                ].filter((resource) => resource?.provider === 'google-drive');
+                const seen = new Set();
+                this.resourceLibraryEntries = [...listedEntries, ...storedDriveResources]
+                    .filter((resource) => {
+                        const key = this.getResourceKey(resource);
+                        if (!key || seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+            } else {
+                this.resourceLibraryEntries = listedEntries;
+            }
+        } catch (error) {
+            if (refreshId !== this.resourceLibraryRefreshId) return;
+            console.warn('Unable to refresh teaching resources:', error);
+            this.resourceLibraryEntries = [];
+            this.resourceLibraryMessage = error?.message || 'Teaching resources could not be loaded.';
+        } finally {
+            if (refreshId === this.resourceLibraryRefreshId) {
+                this.resourceLibraryLoading = false;
+                if (this.dashboardNavigationMode === 'resources') {
+                    this.renderDashboard();
+                }
+            }
+        }
+    }
+
+    async connectResourceProvider() {
+        const provider = this.getResourceProvider();
+        try {
+            const status = this.getResourceProviderStatus();
+            if (this.resourceLibrarySource === 'local' && !provider?.isSupported?.()) {
+                this.dashboardRoot?.querySelector('#resource-folder-fallback-input')?.click();
+                return;
+            }
+
+            if (status.connected && this.resourceLibrarySource === 'local') {
+                await provider.connect();
+            } else if (status.connected && typeof provider?.reconnect === 'function') {
+                await provider.reconnect();
+            } else {
+                await provider.connect();
+            }
+            this.resourceLibraryPath = [];
+            await this.refreshResourceLibrary();
+            window.requestAnimationFrame(() => {
+                (this.dashboardRoot?.querySelector('#resource-refresh-btn')
+                    || this.dashboardRoot?.querySelector('#resource-connect-btn'))
+                    ?.focus({ preventScroll: true });
+            });
+        } catch (error) {
+            console.warn('Unable to connect resource provider:', error);
+            this.resourceLibraryMessage = error?.message || 'This resource location could not be connected.';
+            this.resourceLibraryLoading = false;
+            this.renderDashboard();
+            window.requestAnimationFrame(() => {
+                this.dashboardRoot?.querySelector('#resource-connect-btn')?.focus({ preventScroll: true });
+            });
+        }
+    }
+
+    async chooseGoogleDriveResource() {
+        const provider = this.googleDriveResourceProvider;
+        if (!provider || typeof provider.chooseResource !== 'function') {
+            this.showNotification('Google Drive Picker is unavailable.', 'error');
+            return;
+        }
+
+        try {
+            this.resourceLibraryLoading = true;
+            this.resourceLibraryMessage = 'Choose a teaching file from Google Drive.';
+            this.renderDashboard();
+            const resource = await provider.chooseResource();
+            if (!resource) {
+                this.resourceLibraryLoading = false;
+                this.resourceLibraryMessage = 'No Google Drive file was selected.';
+                this.renderDashboard();
+                return;
+            }
+
+            const key = this.getResourceKey(resource);
+            this.recordResourceRecent(resource);
+            this.resourceLibraryEntries = [
+                resource,
+                ...this.resourceLibraryEntries.filter((entry) => this.getResourceKey(entry) !== key)
+            ];
+            this.resourceLibraryView = 'all';
+            this.resourceLibraryLoading = false;
+            this.resourceLibraryMessage = `Selected "${resource.name}" from Google Drive.`;
+            this.renderDashboard();
+        } catch (error) {
+            console.warn('Unable to choose a Google Drive resource:', error);
+            this.resourceLibraryLoading = false;
+            this.resourceLibraryMessage = error?.message || 'Google Drive Picker could not open.';
+            this.renderDashboard();
+        }
+    }
+
+    setResourceSource(source) {
+        const nextSource = source === 'google-drive' ? 'google-drive' : 'local';
+        if (this.resourceLibrarySource === nextSource) return;
+        this.resourceLibrarySource = nextSource;
+        this.resourceLibraryPath = [];
+        this.resourceLibraryEntries = [];
+        this.resourceLibraryMessage = '';
+        this.resourceLibrarySearchQuery = '';
+        this.renderDashboard();
+        void this.refreshResourceLibrary({ restore: nextSource === 'local' }).finally(() => {
+            window.requestAnimationFrame(() => {
+                this.dashboardRoot
+                    ?.querySelector(`[data-resource-source="${nextSource}"]`)
+                    ?.focus({ preventScroll: true });
+            });
+        });
+    }
+
+    findResourceByKey(key = '') {
+        const candidates = [
+            ...(Array.isArray(this.resourceLibraryEntries) ? this.resourceLibraryEntries : []),
+            ...this.getStoredResourceCollection('getFavorites'),
+            ...this.getStoredResourceCollection('getRecents')
+        ];
+        return candidates.find((resource) => this.getResourceKey(resource) === key) || null;
+    }
+
+    recordResourceRecent(resource) {
+        if (resource && typeof this.resourceLibraryState?.recordRecent === 'function') {
+            this.resourceLibraryState.recordRecent(resource);
+        }
+    }
+
+    toggleResourceFavorite(resource) {
+        if (!resource || typeof this.resourceLibraryState?.toggleFavorite !== 'function') return;
+        const key = this.getResourceKey(resource);
+        const isFavorite = this.resourceLibraryState.toggleFavorite(resource);
+        this.showNotification(isFavorite
+            ? `Added "${resource.name}" to resource favourites.`
+            : `Removed "${resource.name}" from resource favourites.`);
+        this.renderDashboard();
+        window.requestAnimationFrame(() => {
+            const cards = Array.from(this.dashboardRoot?.querySelectorAll('[data-resource-key]') || []);
+            const matchingCard = cards.find((card) => card.dataset.resourceKey === key);
+            const fallbackView = this.dashboardRoot?.querySelector(`[data-resource-view="${this.resourceLibraryView}"]`);
+            (matchingCard?.querySelector('[data-resource-action="favorite"]') || fallbackView)
+                ?.focus({ preventScroll: true });
+        });
+    }
+
+    async getResourceFile(resource) {
+        const fallbackFile = this.resourceFallbackFiles?.get(this.getResourceKey(resource));
+        if (fallbackFile) return fallbackFile;
+        const provider = this.getResourceProvider(resource?.provider || this.resourceLibrarySource);
+        if (!provider || typeof provider.getFile !== 'function') {
+            throw new Error('This resource cannot be opened from its current location.');
+        }
+        return provider.getFile(resource);
+    }
+
+    getSafeGoogleSlidesUrl(value = '') {
+        try {
+            const parsed = new URL(String(value || '').trim());
+            const hostname = parsed.hostname.toLowerCase();
+            const isGoogleSlidesHost = hostname === 'docs.google.com' || hostname === 'slides.google.com';
+            const isPresentationPath = parsed.pathname.toLowerCase().includes('/presentation/');
+            return parsed.protocol === 'https:' && isGoogleSlidesHost && isPresentationPath
+                ? parsed.href
+                : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    async resolveGoogleSlidesResourceUrl(resource) {
+        const existingUrl = resource?.sourceUrl || resource?.webUrl || resource?.webViewLink || resource?.url || '';
+        const safeExistingUrl = this.getSafeGoogleSlidesUrl(existingUrl);
+        if (safeExistingUrl) return safeExistingUrl;
+
+        const file = await this.getResourceFile(resource);
+        if (!file || typeof file.text !== 'function') return '';
+        try {
+            const shortcut = JSON.parse(await file.text());
+            if (typeof shortcut?.url === 'string' && shortcut.url.trim()) {
+                return this.getSafeGoogleSlidesUrl(shortcut.url);
+            }
+            const documentId = typeof shortcut?.doc_id === 'string' ? shortcut.doc_id.trim() : '';
+            return documentId
+                ? this.getSafeGoogleSlidesUrl(`https://docs.google.com/presentation/d/${encodeURIComponent(documentId)}/edit`)
+                : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    async openResourceFile(resource) {
+        if (resource?.type === 'google-slides') {
+            const sourceUrl = await this.resolveGoogleSlidesResourceUrl(resource);
+            if (!sourceUrl) {
+                throw new Error('That Google Slides shortcut does not contain a usable presentation link.');
+            }
+            window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+            this.recordResourceRecent(resource);
+            this.renderDashboard();
+            return;
+        }
+
+        const isNativeGoogleFile = resource?.provider === 'google-drive'
+            && /^application\/vnd\.google-apps\./i.test(resource?.mimeType || '');
+        const nativeGoogleUrl = resource?.sourceUrl || resource?.webUrl || resource?.webViewLink || '';
+        if (isNativeGoogleFile && nativeGoogleUrl) {
+            window.open(nativeGoogleUrl, '_blank', 'noopener,noreferrer');
+            this.recordResourceRecent(resource);
+            this.renderDashboard();
+            return;
+        }
+
+        const file = await this.getResourceFile(resource);
+        if (!file) throw new Error('That resource file could not be read.');
+        const url = URL.createObjectURL(file);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.download = resource.type === 'presentation' || resource.type === 'other' ? (file.name || resource.name || '') : '';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+        this.recordResourceRecent(resource);
+        this.renderDashboard();
+    }
+
+    async addResourceToCurrentDeck(resource, { presentPdf = false } = {}) {
+        if (!resource || resource.kind === 'folder') return;
+        const type = resource.type || 'other';
+        const declaredSize = Number(resource.size) || 0;
+        if ((type === 'pdf' || type === 'presentation') && declaredSize > 50 * 1024 * 1024) {
+            throw new Error('Choose a PDF or PowerPoint file under 50 MB.');
+        }
+        if (type === 'image' && declaredSize > 2 * 1024 * 1024) {
+            throw new Error('Choose an image under 2 MB for the current deck background.');
+        }
+        let file = null;
+        if (type !== 'google-slides') {
+            file = await this.getResourceFile(resource);
+            if (!file) throw new Error('That resource file could not be read.');
+        }
+        const googleSlidesUrl = type === 'google-slides'
+            ? await this.resolveGoogleSlidesResourceUrl(resource)
+            : '';
+        if (type === 'google-slides' && !googleSlidesUrl) {
+            throw new Error('That Google Slides shortcut does not contain a usable presentation link.');
+        }
+
+        const fileSize = Number(file?.size) || 0;
+        if ((type === 'pdf' || type === 'presentation') && fileSize > 50 * 1024 * 1024) {
+            throw new Error('Choose a PDF or PowerPoint file under 50 MB.');
+        }
+        if (type === 'image' && fileSize > 2 * 1024 * 1024) {
+            throw new Error('Choose an image under 2 MB for the current deck background.');
+        }
+
+        this.handleNavClick('classroom');
+        let added = false;
+        let createdWidget = null;
+        try {
+            if (type === 'pdf' && !presentPdf) {
+                const widget = this.addWidget('document-viewer', {
+                    notification: `Adding ${resource.name} to Document Viewer…`
+                });
+                createdWidget = widget;
+                if (!widget || typeof widget.renderPdf !== 'function') {
+                    throw new Error('Document Viewer is unavailable.');
+                }
+                added = (await widget.renderPdf(file)) === true;
+            } else if (type === 'presentation' || (type === 'pdf' && presentPdf)) {
+                const widget = this.addWidget('reveal-manager', {
+                    notification: `Adding ${resource.name} to Presentation…`
+                });
+                createdWidget = widget;
+                if (!widget || typeof widget.importDeckFile !== 'function') {
+                    throw new Error('Presentation is unavailable.');
+                }
+                added = !!(await widget.importDeckFile(file));
+            } else if (type === 'google-slides') {
+                const widget = this.addWidget('reveal-manager', {
+                    notification: `Adding ${resource.name} to Presentation…`
+                });
+                createdWidget = widget;
+                if (!widget || typeof widget.loadExternalSource !== 'function') {
+                    throw new Error('Presentation is unavailable.');
+                }
+                added = await widget.loadExternalSource({
+                    type: 'google-slides',
+                    sourceUrl: googleSlidesUrl,
+                    name: resource.name || 'Google Slides'
+                });
+            } else if (type === 'image') {
+                added = await this.handleCustomBackgroundUpload(file);
+            }
+
+            if (!added) {
+                throw new Error('That resource could not be added to the current deck.');
+            }
+        } catch (error) {
+            if (createdWidget && this.layoutManager?.removeWidget) {
+                this.layoutManager.removeWidget(createdWidget);
+            }
+            this.openResourceLibrary(resource.provider === 'google-drive' ? 'google-drive' : 'local');
+            throw error;
+        }
+
+        this.recordResourceRecent(resource);
+        if (this.saveState?.flush) {
+            this.saveState.flush();
+        } else {
+            this.saveState();
+        }
+        this.showNotification(`Added "${resource.name}" to the current deck.`, 'success');
+    }
+
+    async handleResourceAction(action, resource) {
+        if (!resource) return;
+        try {
+            if (action === 'favorite') {
+                this.toggleResourceFavorite(resource);
+                return;
+            }
+            if (action === 'folder') {
+                const providerStatus = this.getResourceProviderStatus(resource.provider);
+                const connectedRootName = providerStatus.folderName || '';
+                const connectedRootId = providerStatus.rootId || '';
+                if (resource.provider === 'local'
+                    && ((resource.rootId && connectedRootId && resource.rootId !== connectedRootId)
+                        || (!resource.rootId
+                            && resource.rootName
+                            && connectedRootName
+                            && resource.rootName !== connectedRootName))) {
+                    throw new Error(`Reconnect the "${resource.rootName}" folder to open this saved resource.`);
+                }
+                if (resource.provider === 'local' && Array.isArray(resource.pathSegments)) {
+                    this.resourceLibraryPath = resource.pathSegments.map((name, index) => ({
+                        provider: 'local',
+                        kind: 'directory',
+                        type: 'folder',
+                        name,
+                        rootName: resource.rootName || connectedRootName,
+                        rootId: resource.rootId || connectedRootId,
+                        pathSegments: resource.pathSegments.slice(0, index + 1),
+                        key: createResourceKey('local', [
+                            resource.rootId || connectedRootId || resource.rootName || connectedRootName,
+                            ...resource.pathSegments.slice(0, index + 1)
+                        ])
+                    }));
+                } else {
+                    const expectedParentPath = (resource.pathSegments || []).slice(0, -1).join('/');
+                    const currentPath = this.resourceLibraryPath.map((item) => item.name).join('/');
+                    this.resourceLibraryPath = expectedParentPath === currentPath
+                        ? [...this.resourceLibraryPath, resource]
+                        : [resource];
+                }
+                this.resourceLibraryView = 'all';
+                this.resourceLibrarySearchQuery = '';
+                await this.refreshResourceLibrary();
+                window.requestAnimationFrame(() => {
+                    const breadcrumbs = this.dashboardRoot?.querySelectorAll('.resource-breadcrumb') || [];
+                    breadcrumbs[breadcrumbs.length - 1]?.focus({ preventScroll: true });
+                });
+                return;
+            }
+            if (action === 'open') {
+                await this.openResourceFile(resource);
+                return;
+            }
+            if (action === 'add') {
+                await this.addResourceToCurrentDeck(resource);
+                return;
+            }
+            if (action === 'present') {
+                await this.addResourceToCurrentDeck(resource, { presentPdf: true });
+            }
+        } catch (error) {
+            console.warn('Teaching resource action failed:', error);
+            this.showNotification(error?.message || 'That teaching resource could not be opened.', 'error');
+        }
+    }
+
+    handleFallbackResourceFiles(fileList) {
+        const files = Array.from(fileList || []);
+        const firstRelativePath = files[0]?.webkitRelativePath || '';
+        const selectedRootName = firstRelativePath.split('/').filter(Boolean)[0] || 'Selected folder';
+        const fallbackStorageKey = `teacherScreenFallbackResourceRoot:${selectedRootName}`;
+        let fallbackRootId = this.resourceFallbackRootIds.get(selectedRootName) || '';
+        try {
+            fallbackRootId = fallbackRootId || sessionStorage.getItem(fallbackStorageKey) || '';
+        } catch (error) {
+            // Session storage is optional; the in-memory mapping still works.
+        }
+        if (!fallbackRootId) {
+            fallbackRootId = `local-session:${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        }
+        this.resourceFallbackRootIds.set(selectedRootName, fallbackRootId);
+        try {
+            sessionStorage.setItem(fallbackStorageKey, fallbackRootId);
+        } catch (error) {
+            // Keep the fallback connection usable even when storage is blocked.
+        }
+        this.resourceFallbackFiles = new Map();
+        this.resourceLibraryEntries = files.map((file) => {
+            const relativePath = file.webkitRelativePath || file.name;
+            const parts = relativePath.split('/').filter(Boolean);
+            const resource = {
+                provider: 'local',
+                kind: 'file',
+                name: file.name,
+                rootName: parts.length > 1 ? parts[0] : selectedRootName,
+                rootId: fallbackRootId,
+                pathSegments: parts,
+                mimeType: file.type || '',
+                size: file.size,
+                lastModified: file.lastModified,
+                type: /\.pdf$/i.test(file.name)
+                    ? 'pdf'
+                    : /\.(ppt|pptx)$/i.test(file.name)
+                        ? 'presentation'
+                        : (/^image\//i.test(file.type) || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name))
+                            ? 'image'
+                            : 'other'
+            };
+            resource.key = createResourceKey('local', [
+                fallbackRootId,
+                ...(parts.length > 0 ? parts : [file.name])
+            ]);
+            this.resourceFallbackFiles.set(resource.key, file);
+            return resource;
+        });
+        this.resourceLibraryMessage = files.length > 0
+            ? `${files.length} resource ${files.length === 1 ? 'file is' : 'files are'} available for this session.`
+            : 'No resource files were selected.';
+        this.resourceLibraryLoading = false;
+        this.renderDashboard();
+    }
+
+    bindResourceLibraryEvents() {
+        this.dashboardRoot.querySelectorAll('[data-resource-source]').forEach((button) => {
+            button.addEventListener('click', () => this.setResourceSource(button.dataset.resourceSource));
+        });
+
+        this.dashboardRoot.querySelectorAll('[data-resource-view]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const nextView = button.dataset.resourceView || 'all';
+                this.resourceLibraryView = nextView;
+                this.resourceLibrarySearchQuery = '';
+                this.renderDashboard();
+                window.requestAnimationFrame(() => {
+                    this.dashboardRoot
+                        ?.querySelector(`[data-resource-view="${nextView}"]`)
+                        ?.focus({ preventScroll: true });
+                });
+            });
+        });
+
+        const connectButton = this.dashboardRoot.querySelector('#resource-connect-btn');
+        connectButton?.addEventListener('click', () => void this.connectResourceProvider());
+        this.dashboardRoot.querySelector('#resource-drive-picker-btn')?.addEventListener('click', () => void this.chooseGoogleDriveResource());
+        this.dashboardRoot.querySelector('#resource-refresh-btn')?.addEventListener('click', () => {
+            void this.refreshResourceLibrary().finally(() => {
+                window.requestAnimationFrame(() => {
+                    this.dashboardRoot?.querySelector('#resource-refresh-btn')?.focus({ preventScroll: true });
+                });
+            });
+        });
+
+        this.dashboardRoot.querySelectorAll('[data-resource-breadcrumb]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const index = Number(button.dataset.resourceBreadcrumb);
+                this.resourceLibraryPath = Number.isInteger(index) && index >= 0
+                    ? this.resourceLibraryPath.slice(0, index + 1)
+                    : [];
+                this.resourceLibrarySearchQuery = '';
+                await this.refreshResourceLibrary();
+                window.requestAnimationFrame(() => {
+                    const breadcrumbs = this.dashboardRoot?.querySelectorAll('.resource-breadcrumb') || [];
+                    const focusIndex = Number.isInteger(index) && index >= 0 ? index + 1 : 0;
+                    breadcrumbs[focusIndex]?.focus({ preventScroll: true });
+                });
+            });
+        });
+
+        const searchInput = this.dashboardRoot.querySelector('#resource-search-input');
+        searchInput?.addEventListener('input', (event) => {
+            const input = event.currentTarget;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            this.resourceLibrarySearchQuery = input.value || '';
+            this.renderDashboard();
+            const replacement = this.dashboardRoot.querySelector('#resource-search-input');
+            replacement?.focus({ preventScroll: true });
+            if (replacement && Number.isInteger(start) && Number.isInteger(end)) {
+                replacement.setSelectionRange(start, end);
+            }
+        });
+
+        this.dashboardRoot.querySelector('#resource-folder-fallback-input')?.addEventListener('change', (event) => {
+            this.handleFallbackResourceFiles(event.currentTarget.files);
+        });
+
+        this.dashboardRoot.querySelectorAll('[data-resource-action]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const card = button.closest('[data-resource-key]');
+                const resource = this.findResourceByKey(card?.dataset.resourceKey || '');
+                void this.handleResourceAction(button.dataset.resourceAction, resource);
+            });
+        });
+    }
+
     renderDashboard() {
         if (!this.dashboardRoot) {
             return;
         }
+
+        const activeElement = document.activeElement;
+        const shouldRestoreResourceSearch = activeElement?.id === 'resource-search-input';
+        const resourceSearchSelectionStart = shouldRestoreResourceSearch ? activeElement.selectionStart : null;
+        const resourceSearchSelectionEnd = shouldRestoreResourceSearch ? activeElement.selectionEnd : null;
 
         const projectState = this.normalizeProjectState(this.projectState);
         const pages = Array.isArray(projectState.pages) ? projectState.pages : [];
@@ -5775,11 +6596,12 @@ class ClassroomScreenApp {
         const dashboardSubtitle = activePageName && activePageName.toLowerCase() !== defaultPageName.toLowerCase()
             ? `${activePageName} • ${pageSummary}`
             : pageSummary;
-        const navigationModes = new Set(['dashboard', 'library', 'favorites', 'recent']);
+        const navigationModes = new Set(['dashboard', 'library', 'resources', 'favorites', 'recent']);
         const navigationMode = navigationModes.has(this.dashboardNavigationMode)
             ? this.dashboardNavigationMode
             : 'dashboard';
         this.dashboardNavigationMode = navigationMode;
+        const isResourceLibrary = navigationMode === 'resources';
 
         const selectedClassName = String(this.dashboardSelectedClassName || '').trim();
         const searchQuery = String(this.dashboardSearchQuery || '').trim().toLowerCase();
@@ -5824,6 +6646,7 @@ class ClassroomScreenApp {
         const navigationItems = [
             { mode: 'dashboard', label: 'Dashboard', icon: 'fa-house' },
             { mode: 'library', label: 'Library', icon: 'fa-book-open' },
+            { mode: 'resources', label: 'Resources', icon: 'fa-folder-open' },
             { mode: 'favorites', label: 'Favourites', icon: 'fa-star' },
             { mode: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
         ];
@@ -5871,9 +6694,21 @@ class ClassroomScreenApp {
                     </nav>
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">
-                            <h3>Your Classes</h3>
+                            <h3>${isResourceLibrary ? 'Resource Views' : 'Your Classes'}</h3>
                         </div>
-                        <div class="dashboard-class-list" id="dashboard-class-list" aria-label="Filter decks by class"></div>
+                        ${isResourceLibrary
+                            ? `<div class="dashboard-class-list" id="dashboard-resource-view-list" aria-label="Filter teaching resources">
+                                ${[
+                                    { view: 'all', label: 'All Resources', icon: 'fa-folder-open' },
+                                    { view: 'favorites', label: 'Favourites', icon: 'fa-star' },
+                                    { view: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
+                                ].map((item) => `
+                                    <button class="dashboard-filter${this.resourceLibraryView === item.view ? ' is-active' : ''}" type="button" data-resource-view="${item.view}" aria-pressed="${this.resourceLibraryView === item.view ? 'true' : 'false'}">
+                                        <span class="dashboard-filter__label"><i class="fa-solid ${item.icon}" aria-hidden="true"></i> ${item.label}</span>
+                                    </button>
+                                `).join('')}
+                            </div>`
+                            : '<div class="dashboard-class-list" id="dashboard-class-list" aria-label="Filter decks by class"></div>'}
                     </div>
                 </aside>
                 <main class="dashboard-main">
@@ -5904,6 +6739,13 @@ class ClassroomScreenApp {
                                     <small>Edit pages, theme, and widgets</small>
                                 </span>
                             </button>
+                            <button id="dashboard-resources-btn" class="dashboard-launch-card" type="button" aria-label="Open Resources">
+                                <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span>
+                                <span class="dashboard-launch-card__text">
+                                    <strong>Resources</strong>
+                                    <small>Open teaching files and folders</small>
+                                </span>
+                            </button>
                             <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector.html', window.location.href).toString())}" target="_blank" rel="noopener noreferrer" aria-label="Open Projector">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
                                 <span class="dashboard-launch-card__text">
@@ -5914,7 +6756,7 @@ class ClassroomScreenApp {
                         </div>
                     </section>
 
-                    <section class="dashboard-library-panel" aria-label="Deck library">
+                    ${isResourceLibrary ? this.renderResourceLibraryMarkup() : `<section class="dashboard-library-panel" aria-label="Deck library">
                         <div class="dashboard-toolbar">
                             <div>
                                 <p class="dashboard-toolbar__label">Deck Library</p>
@@ -5930,7 +6772,7 @@ class ClassroomScreenApp {
                             <button id="dashboard-load-latest-btn" class="dashboard-link-btn" type="button">Load Latest</button>
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
-                    </section>
+                    </section>`}
                 </main>
             </div>
         `;
@@ -6039,6 +6881,9 @@ class ClassroomScreenApp {
                 this.dashboardSelectedFolderId = '';
                 this.dashboardSearchQuery = '';
                 this.renderDashboard();
+                if (this.dashboardNavigationMode === 'resources') {
+                    void this.refreshResourceLibrary({ restore: true });
+                }
             });
         });
 
@@ -6110,6 +6955,11 @@ class ClassroomScreenApp {
             teacherControlsButton.addEventListener('click', () => this.openTeacherControls());
         }
 
+        const resourcesButton = this.dashboardRoot.querySelector('#dashboard-resources-btn');
+        if (resourcesButton) {
+            resourcesButton.addEventListener('click', () => this.openResourceLibrary());
+        }
+
         const openClassroomButton = this.dashboardRoot.querySelector('#dashboard-open-classroom-btn');
         if (openClassroomButton) {
             openClassroomButton.addEventListener('click', () => this.handleNavClick('classroom'));
@@ -6145,37 +6995,56 @@ class ClassroomScreenApp {
                 }
             });
         }
+
+        if (isResourceLibrary) {
+            this.bindResourceLibraryEvents();
+        }
+
+        if (shouldRestoreResourceSearch) {
+            const replacementSearchInput = this.dashboardRoot.querySelector('#resource-search-input');
+            replacementSearchInput?.focus({ preventScroll: true });
+            if (replacementSearchInput
+                && Number.isInteger(resourceSearchSelectionStart)
+                && Number.isInteger(resourceSearchSelectionEnd)) {
+                replacementSearchInput.setSelectionRange(resourceSearchSelectionStart, resourceSearchSelectionEnd);
+            }
+        }
     }
 
-    handleCustomBackgroundUpload(file) {
+    async handleCustomBackgroundUpload(file) {
         if (!file || !file.type.startsWith('image/')) {
             this.showNotification('Choose an image file for the classroom background.', 'warning');
-            return;
+            return false;
         }
 
         const maxBytes = 2 * 1024 * 1024;
         if (file.size > maxBytes) {
             this.showNotification('Please choose an image under 2 MB.', 'warning');
-            return;
+            return false;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = typeof reader.result === 'string' ? reader.result : '';
-            if (!result) {
-                this.showNotification('That image could not be loaded.', 'error');
-                return;
-            }
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = typeof reader.result === 'string' ? reader.result : '';
+                if (!result) {
+                    this.showNotification('That image could not be loaded.', 'error');
+                    resolve(false);
+                    return;
+                }
 
-            this.backgroundManager.setCustomImage(result);
-            this.renderBackgroundSelector();
-            this.saveState();
-            this.showNotification('Custom background added.', 'success');
-        };
-        reader.onerror = () => {
-            this.showNotification('That image could not be loaded.', 'error');
-        };
-        reader.readAsDataURL(file);
+                this.backgroundManager.setCustomImage(result);
+                this.renderBackgroundSelector();
+                this.saveState();
+                this.showNotification('Custom background added.', 'success');
+                resolve(true);
+            };
+            reader.onerror = () => {
+                this.showNotification('That image could not be loaded.', 'error');
+                resolve(false);
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
     showNotification(message, type = 'success') {

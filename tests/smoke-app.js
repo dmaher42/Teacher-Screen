@@ -607,6 +607,289 @@ async function installPdfStub(context) {
     });
 }
 
+async function installResourceFolderMock(context) {
+    await context.addInitScript(() => {
+        const fixedLastModified = Date.UTC(2026, 7, 11, 9, 30, 0);
+
+        const createFileHandle = (name, type, contents) => ({
+            kind: 'file',
+            name,
+            async getFile() {
+                return new File([contents], name, { type, lastModified: fixedLastModified });
+            }
+        });
+
+        const createNotFoundError = (entryName) => new DOMException(
+            `The mock resource "${entryName}" was not found.`,
+            'NotFoundError'
+        );
+
+        const createDirectoryHandle = (name, entries) => {
+            const children = new Map(entries);
+            return {
+                kind: 'directory',
+                name,
+                async queryPermission(options = {}) {
+                    window.__resourceDirectoryPermissionQuery = options;
+                    return 'granted';
+                },
+                async requestPermission(options = {}) {
+                    window.__resourceDirectoryPermissionRequest = options;
+                    return 'granted';
+                },
+                async *entries() {
+                    for (const entry of children.entries()) {
+                        yield entry;
+                    }
+                },
+                async getDirectoryHandle(entryName) {
+                    const entry = children.get(entryName);
+                    if (entry?.kind === 'directory') return entry;
+                    throw createNotFoundError(entryName);
+                },
+                async getFileHandle(entryName) {
+                    const entry = children.get(entryName);
+                    if (entry?.kind === 'file') return entry;
+                    throw createNotFoundError(entryName);
+                }
+            };
+        };
+
+        const nestedFolder = createDirectoryHandle('Unit Plans', [
+            ['Inside folder.pdf', createFileHandle(
+                'Inside folder.pdf',
+                'application/pdf',
+                '%PDF-1.4\nMock nested teaching resource\n%%EOF'
+            )]
+        ]);
+        const rootFolder = createDirectoryHandle('Teacher Resources', [
+            ['Unit Plans', nestedFolder],
+            ['Lesson handout.pdf', createFileHandle(
+                'Lesson handout.pdf',
+                'application/pdf',
+                '%PDF-1.4\nMock Teacher Screen handout\n%%EOF'
+            )],
+            ['Lesson slides.pptx', createFileHandle(
+                'Lesson slides.pptx',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'Mock PPTX-labelled teaching resource'
+            )],
+            ['Classroom diagram.png', createFileHandle(
+                'Classroom diagram.png',
+                'image/png',
+                new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+            )]
+        ]);
+
+        window.showDirectoryPicker = async (options = {}) => {
+            window.__resourceDirectoryPickerOptions = options;
+            return rootFolder;
+        };
+    });
+}
+
+async function waitForResourceNames(page, expectedNames) {
+    await page.waitForFunction((names) => {
+        const visibleNames = Array.from(document.querySelectorAll('.resource-card h3'))
+            .map((heading) => heading.textContent?.trim() || '');
+        return visibleNames.length === names.length
+            && names.every((name) => visibleNames.includes(name));
+    }, expectedNames, { timeout: 10000 });
+}
+
+async function runResourceLibraryFlowChecks(page) {
+    const rootResourceNames = [
+        'Unit Plans',
+        'Lesson handout.pdf',
+        'Lesson slides.pptx',
+        'Classroom diagram.png'
+    ];
+
+    await page.locator('#dashboard-tab').dispatchEvent('click');
+    await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+    await page.locator('#dashboard-resources-btn').click();
+    await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
+    assert(await page.locator('.dashboard-nav-item[data-dashboard-mode="resources"].is-active').count() === 1, 'Resources action should open the Resource Library and activate Resources navigation');
+    assert(await page.locator('.dashboard-resources-panel h2').textContent().then((text) => text.trim() === 'Teaching resources'), 'Resources should open as a teacher-focused dashboard panel');
+
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked', null, { timeout: 10000 });
+    assert(await page.locator('#resource-connect-btn').textContent().then((text) => text.trim() === 'Choose folder'), 'Local resources should begin with one clear Choose folder action');
+    await page.locator('#resource-connect-btn').click();
+    await waitForResourceNames(page, rootResourceNames);
+    const pickerAccess = await page.evaluate(() => ({
+        mode: window.__resourceDirectoryPickerOptions?.mode || '',
+        queriedMode: window.__resourceDirectoryPermissionQuery?.mode || ''
+    }));
+    assert(pickerAccess.mode === 'read' && pickerAccess.queriedMode === 'read', 'Resources should request read-only access to the chosen local folder');
+    assert(await page.locator('.resource-status-badge').textContent().then((text) => text.trim() === 'Local folder connected'), 'Chosen local resource folder should show a connected status');
+    assert(await page.locator('.resource-card', { hasText: 'Lesson slides.pptx' }).textContent().then((text) => text.includes('PowerPoint')), 'PowerPoint files should be recognised as supported Presentation resources');
+    assert(await page.locator('.resource-card', { hasText: 'Classroom diagram.png' }).textContent().then((text) => text.includes('Image')), 'Image files should be recognised as supported deck resources');
+
+    const unitPlansCard = page.locator('.resource-card', { hasText: 'Unit Plans' });
+    await unitPlansCard.locator('[data-resource-action="favorite"]').click();
+    await page.locator('[data-resource-view="favorites"]').click();
+    await waitForResourceNames(page, ['Unit Plans']);
+    await page.locator('.resource-card', { hasText: 'Unit Plans' }).locator('[data-resource-action="folder"]').click();
+    await waitForResourceNames(page, ['Inside folder.pdf']);
+    assert(await page.locator('[data-resource-view="all"]').getAttribute('aria-pressed') === 'true', 'Opening a favourite folder should switch to its live folder contents');
+    assert(await page.locator('.resource-breadcrumb').allTextContents().then((items) => items.map((item) => item.trim()).join('|') === 'Teacher Resources|Unit Plans'), 'Opening a resource folder should add it to the breadcrumb trail');
+    await page.locator('[data-resource-breadcrumb="-1"]').click();
+    await waitForResourceNames(page, rootResourceNames);
+    assert(await page.locator('.resource-breadcrumb').count() === 1, 'Root breadcrumb should return to the chosen resources folder');
+    await page.locator('.resource-card', { hasText: 'Unit Plans' }).locator('[data-resource-action="favorite"]').click();
+
+    await page.locator('#resource-search-input').fill('slides');
+    await waitForResourceNames(page, ['Lesson slides.pptx']);
+    assert(await page.locator('#resource-search-input').inputValue() === 'slides', 'Resource search should filter teaching files without losing its value');
+    assert(await page.locator('#resource-search-input').evaluate((input) => document.activeElement === input), 'Resource search should keep keyboard focus while filtering');
+    await page.locator('#resource-search-input').fill('');
+    await waitForResourceNames(page, rootResourceNames);
+
+    const imageCard = page.locator('.resource-card', { hasText: 'Classroom diagram.png' });
+    await imageCard.locator('[data-resource-action="favorite"]').click();
+    await page.waitForFunction(() => {
+        const card = Array.from(document.querySelectorAll('.resource-card'))
+            .find((candidate) => candidate.querySelector('h3')?.textContent?.trim() === 'Classroom diagram.png');
+        return card?.querySelector('.resource-favorite-btn')?.getAttribute('aria-pressed') === 'true';
+    }, null, { timeout: 10000 });
+    assert(await page.evaluate(() => {
+        const state = JSON.parse(localStorage.getItem('teacherScreenResourceLibraryState') || '{}');
+        return state.favorites?.some((resource) => resource?.name === 'Classroom diagram.png');
+    }), 'Resource favourites should persist locally');
+    await page.locator('[data-resource-view="favorites"]').click();
+    await waitForResourceNames(page, ['Classroom diagram.png']);
+    assert(await page.locator('[data-resource-view="favorites"]').getAttribute('aria-pressed') === 'true', 'Resource Favourites view should have a clear active state');
+    await page.waitForFunction(() => document.activeElement?.dataset?.resourceView === 'favorites', null, { timeout: 10000 });
+    assert(true, 'Resource view controls should retain keyboard focus after filtering');
+    await page.locator('[data-resource-view="all"]').click();
+    await waitForResourceNames(page, rootResourceNames);
+
+    await page.locator('.resource-card', { hasText: 'Lesson handout.pdf' }).locator('[data-resource-action="add"]').click();
+    await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+    await page.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
+    assert(await page.locator('.widget.document-viewer-widget .document-viewer-page-counter').textContent().then((text) => text.trim() === 'Page 1 of 2'), 'Adding a PDF resource should create a ready Document Viewer');
+    await page.waitForFunction(() => {
+        const state = JSON.parse(localStorage.getItem('teacherScreenResourceLibraryState') || '{}');
+        return state.recents?.some((resource) => resource?.name === 'Lesson handout.pdf');
+    }, null, { timeout: 10000 });
+    assert(true, 'Adding a PDF resource should persist it in recent resources');
+
+    await page.locator('#dashboard-tab').dispatchEvent('click');
+    await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+    await page.locator('[data-dashboard-mode="resources"]').click();
+    await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
+    await page.locator('[data-resource-view="recent"]').click();
+    await waitForResourceNames(page, ['Lesson handout.pdf']);
+    assert(await page.locator('[data-resource-view="recent"]').getAttribute('aria-pressed') === 'true', 'Recent resource view should restore the PDF added to the current deck');
+
+    await page.locator('[data-resource-source="google-drive"]').click();
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'Google Drive setup required', null, { timeout: 10000 });
+    await page.waitForFunction(() => document.activeElement?.dataset?.resourceSource === 'google-drive', null, { timeout: 10000 });
+    assert(true, 'Resource source controls should retain keyboard focus after switching locations');
+    assert(await page.locator('.resource-status-badge').getAttribute('data-state') === 'unconfigured', 'Google Drive setup state should be announced and styled as needing attention');
+    assert(await page.locator('#resource-connect-btn').isDisabled(), 'Unconfigured Google Drive should disable its setup action');
+    assert(await page.locator('#resource-connect-btn').textContent().then((text) => text.trim() === 'Google setup required'), 'Unconfigured Google Drive should explain that setup is required');
+    assert(await page.locator('.resource-connection-card__copy').textContent().then((text) => text.includes('has not been configured')), 'Google Drive tab should render a graceful unconfigured state');
+
+    // The preceding source change already exercises a real pointer click. Use
+    // DOM activation for the return trip so a rare long-run CDP pointer stall
+    // cannot hide whether the local provider and live folder were restored.
+    const localSourceButton = page.locator('[data-resource-source="local"]');
+    await localSourceButton.waitFor({ state: 'visible', timeout: 10000 });
+    await localSourceButton.dispatchEvent('click');
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'Local folder connected', null, { timeout: 10000 });
+    await page.locator('[data-resource-view="all"]').click();
+    await waitForResourceNames(page, rootResourceNames);
+    assert(true, 'Switching back from Google Drive should retain the live local-folder connection');
+}
+
+async function runMobileResourceLibraryChecks(page) {
+    const rootResourceNames = [
+        'Unit Plans',
+        'Lesson handout.pdf',
+        'Lesson slides.pptx',
+        'Classroom diagram.png'
+    ];
+
+    await page.locator('#dashboard-resources-btn').click();
+    await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked', null, { timeout: 10000 });
+    await page.locator('#resource-connect-btn').click();
+    await waitForResourceNames(page, rootResourceNames);
+
+    const resourceLayout = await page.locator('.dashboard-resources-panel').evaluate((panel) => {
+        const main = panel.closest('.dashboard-main');
+        const panelRect = panel.getBoundingClientRect();
+        const actions = Array.from(panel.querySelectorAll('.resource-card [data-resource-action]'))
+            .filter((button) => {
+                const style = getComputedStyle(button);
+                return style.display !== 'none' && style.visibility !== 'hidden';
+            });
+        const actionsFit = actions.length > 0 && actions.every((button) => {
+            const buttonRect = button.getBoundingClientRect();
+            const cardRect = button.closest('.resource-card')?.getBoundingClientRect();
+            return !!cardRect
+                && buttonRect.width >= 32
+                && buttonRect.height >= 32
+                && buttonRect.left >= cardRect.left - 1
+                && buttonRect.right <= cardRect.right + 1;
+        });
+        return {
+            viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+            mainFits: !main || main.scrollWidth <= main.clientWidth + 1,
+            panelFits: panel.scrollWidth <= panel.clientWidth + 1
+                && panelRect.left >= -1
+                && panelRect.right <= window.innerWidth + 1,
+            actionsFit
+        };
+    });
+    assert(resourceLayout.viewportFits && resourceLayout.mainFits && resourceLayout.panelFits, '390px Resources view should not create horizontal overflow');
+    assert(resourceLayout.actionsFit, '390px resource cards should keep every action usable inside its card');
+
+    await page.locator('#resource-search-input').fill('diagram');
+    await waitForResourceNames(page, ['Classroom diagram.png']);
+    assert(await page.locator('.resource-card [data-resource-action="add"]').isVisible(), '390px Resources view should keep Add to current deck visible after filtering');
+    await page.locator('#resource-search-input').fill('');
+    await waitForResourceNames(page, rootResourceNames);
+}
+
+async function runFocusedResourceLibraryChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    await installPdfStub(context);
+    await installResourceFolderMock(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
+        await runResourceLibraryFlowChecks(page);
+
+        const mobilePage = await context.newPage();
+        await mobilePage.setViewportSize({ width: 390, height: 844 });
+        await mobilePage.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await runMobileResourceLibraryChecks(mobilePage);
+
+        assert(pageErrors.length === 0, `Resource Library should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Resource Library should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runDocumentViewerPdfChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await makeExternalAssetsDeterministic(context);
@@ -690,6 +973,7 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
         await projectorPage.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
         assert(await projectorPage.locator('.widget.document-viewer-widget canvas').count() === 1, 'Projector should restore an uploaded PDF from local document storage');
         assert(!(await projectorPage.locator('.widget.document-viewer-widget').textContent()).includes('uploaded again'), 'Projector should not ask for a PDF that is already stored on this device');
+        await projectorPage.close();
 
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
@@ -867,6 +1151,16 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        if (process.argv.includes('--resources-only')) {
+            await runFocusedResourceLibraryChecks(browser, baseUrl);
+            console.log('Resource Library browser checks passed.');
+            return;
+        }
+        if (process.argv.includes('--document-only')) {
+            await runDocumentViewerPdfChecks(browser, baseUrl);
+            console.log('Document Viewer browser checks passed.');
+            return;
+        }
         await runDeckOrganisationChecks(browser, baseUrl);
         await runNewDeckNavigationChecks(browser, baseUrl);
         await runWidgetSaveNotificationChecks(browser, baseUrl);
@@ -876,6 +1170,7 @@ async function runSmoke() {
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
         await installPdfStub(context);
+        await installResourceFolderMock(context);
         const pageErrors = [];
         const consoleErrors = [];
 
@@ -952,11 +1247,11 @@ async function runSmoke() {
             };
         });
         assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
-        assert(desktopDashboardScale.launchCardWidth >= 130 && desktopDashboardScale.launchCardWidth <= 140, 'Desktop dashboard actions should use a consistent compact width');
+        assert(desktopDashboardScale.launchCardWidth >= 120 && desktopDashboardScale.launchCardWidth <= 128, 'Desktop dashboard actions should fit five consistent compact controls');
         assert(desktopDashboardScale.launchCardHeight >= 46 && desktopDashboardScale.launchCardHeight <= 50, 'Desktop dashboard actions should use a compact touch-friendly height');
         assert(desktopDashboardScale.loadLatestHeight >= 34 && desktopDashboardScale.loadLatestHeight <= 38, 'Load Latest should stay visually secondary to the deck search field');
         assert(desktopDashboardScale.launchCardsAligned, 'Desktop dashboard actions should align on one even row');
-        assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Projector', 'Dashboard actions should use concise single-line labels');
+        assert(desktopDashboardScale.launchCardLabels.join('|') === 'Classroom|New Deck|Arrange|Resources|Projector', 'Dashboard actions should include Resources among the concise single-line labels');
         assert(desktopDashboardScale.commandPanelHeight >= 80 && desktopDashboardScale.commandPanelHeight <= 88, 'Desktop dashboard command strip should use the tighter compact height');
         assert(desktopDashboardScale.longTitlePanelHeight <= 88, 'Desktop dashboard command strip should stay compact with a long lesson title');
         assert(desktopDashboardScale.lessonSubtitle === 'Page 1 of 1', 'Dashboard subtitle should sit beneath the deck title and describe the active page');
@@ -968,7 +1263,7 @@ async function runSmoke() {
         assert(desktopDashboardScale.brandTitle === 'Teacher Screen', 'Sidebar should show the app name once as its clear title');
         assert(desktopDashboardScale.brandTitleFits, 'Sidebar app name should fit without clipping or an ellipsis');
         assert(desktopDashboardScale.navigationCaptionCount === 0, 'Sidebar should not repeat an unnecessary Navigation caption');
-        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Favourites|Recent|More', 'Sidebar should expose four destinations and one labelled More menu');
+        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Library|Resources|Favourites|Recent|More', 'Sidebar should expose Resources with the other teacher destinations and one labelled More menu');
         assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Dashboard', 'Dashboard should be the only active navigation item on launch');
         assert(desktopDashboardScale.navigationItemHeight >= 40, 'Primary navigation items should have clear touch-friendly height');
         assert(desktopDashboardScale.classFilterLabels.join('|') === 'Year 7 English', 'Class filters should be generated from saved deck metadata without duplicating Library');
@@ -2247,6 +2542,8 @@ async function runSmoke() {
         await waitForWidgetCount(page, 0, 'Clear Current Page should remove the active widgets');
         assert(await page.locator('.widget.behaviour-tracker-widget').count() === 0, 'Clear Current Page should discard the active behaviour tracker');
 
+        await runResourceLibraryFlowChecks(page);
+
         const presentationPage = await context.newPage();
         await presentationPage.goto(`${baseUrl}/presentations/year7-rhetoric-marine-turtles/slides.html`, { waitUntil: 'domcontentloaded' });
         assert(await presentationPage.locator('body').textContent().then((text) => text.toLowerCase().includes('marine turtles')), 'Local presentation link should load its slide content');
@@ -2269,6 +2566,7 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the deck library into the first screenful');
         assert(await mobilePage.locator('#dashboard-search-input').evaluate((element) => element.getBoundingClientRect().height <= 46), 'Mobile deck search should not stretch into unused vertical space');
         assert(await mobilePage.locator('.dashboard-screen-card').first().evaluate((element) => element.getBoundingClientRect().top < window.innerHeight), 'Mobile dashboard should show the first saved deck without scrolling');
+        await runMobileResourceLibraryChecks(mobilePage);
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile classroom should show lesson quick actions');
