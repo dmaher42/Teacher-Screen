@@ -1,5 +1,5 @@
-const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.js';
-const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.2/dist/reveal.css';
+const REVEAL_SCRIPT_SRC = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js';
+const REVEAL_CSS_HREF = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css';
 const REVEAL_SCRIPT_TIMEOUT_MS = 2500;
 const revealStateStore = new WeakMap();
 

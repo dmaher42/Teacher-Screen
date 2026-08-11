@@ -85,13 +85,12 @@ const TEACHER_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js', required: false },
-    { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js', required: false },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', required: false },
     { src: './js/utils/local-document-store.js', required: true },
     { src: './js/utils/layout-manager.js', required: true },
     { src: './js/utils/background-manager.js', required: true },
-    { src: './assets/sounds/sound-data.js', required: false },
     { src: './js/widgets/noise-meter.js', required: false },
     { src: './js/widgets/noise-meter-widget.js', required: false },
     { src: './js/widgets/behaviour-tracker-widget.js', required: true },
@@ -109,40 +108,38 @@ const TEACHER_DEPENDENCIES = [
 ];
 
 const bootstrapTeacherDependencies = async () => {
-    const failures = [];
-
-    const requiredDependencies = TEACHER_DEPENDENCIES.filter((dependency) => dependency.required);
-    const optionalDependencies = TEACHER_DEPENDENCIES.filter((dependency) => !dependency.required);
-    const richTextDependency = optionalDependencies.find((dependency) => dependency.src === './js/widgets/rich-text-widget.js');
-    const parallelDependencies = optionalDependencies.filter((dependency) => dependency !== richTextDependency);
-
-    for (const dependency of requiredDependencies) {
-        await loadDependency(dependency);
-    }
-
-    const parallelFailures = await Promise.all(parallelDependencies.map((dependency) => loadDependency(dependency)));
-    failures.push(...parallelFailures.filter(Boolean));
-
-    if (richTextDependency) {
-        const failure = await loadDependency(richTextDependency);
-        if (failure) {
-            failures.push(failure);
-        }
-    }
+    const richTextDependency = TEACHER_DEPENDENCIES.find((dependency) => dependency.src === './js/widgets/rich-text-widget.js');
+    const quillDependency = TEACHER_DEPENDENCIES.find((dependency) => dependency.src.includes('/quill@'));
+    const parallelDependencies = TEACHER_DEPENDENCIES.filter((dependency) => dependency !== richTextDependency);
+    const dependencyPromises = new Map(
+        parallelDependencies.map((dependency) => [dependency, loadDependency(dependency)])
+    );
+    const richTextPromise = richTextDependency
+        ? Promise.resolve(quillDependency ? dependencyPromises.get(quillDependency) : null)
+            .then(() => loadDependency(richTextDependency))
+        : null;
+    const failures = (await Promise.all([
+        ...dependencyPromises.values(),
+        ...(richTextPromise ? [richTextPromise] : [])
+    ])).filter(Boolean);
 
     window.__TeacherDependencyFailures = failures;
     return failures;
 };
 
+const teacherDependencyResultPromise = bootstrapTeacherDependencies()
+    .then((failures) => ({ failures, error: null }))
+    .catch((error) => ({ failures: [], error }));
+
 const init = async () => {
-    try {
-        const failures = await bootstrapTeacherDependencies();
-        if (failures.length > 0) {
-            console.warn('[bootstrap] continuing with optional dependency failures', failures);
-        }
-    } catch (error) {
+    const { failures, error: dependencyError } = await teacherDependencyResultPromise;
+    if (dependencyError) {
+        const error = dependencyError;
         console.error(`[bootstrap] Required dependency failed: ${error?.message || 'Unknown error'}`);
         throw error;
+    }
+    if (failures.length > 0) {
+        console.warn('[bootstrap] continuing with optional dependency failures', failures);
     }
 
     try {

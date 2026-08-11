@@ -82,12 +82,11 @@ const loadClassicScript = (src, timeoutMs = LOCAL_DEPENDENCY_TIMEOUT_MS) => new 
 const PROJECTOR_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js', required: false },
-    { src: 'https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js', required: false },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
     { src: 'js/utils/local-document-store.js', required: true },
     { src: 'js/utils/layout-manager.js', required: true },
     { src: 'js/utils/background-manager.js', required: true },
-    { src: 'assets/sounds/sound-data.js', required: false },
     { src: 'js/widgets/noise-meter.js', required: false },
     { src: 'js/widgets/noise-meter-widget.js', required: false },
     { src: 'js/widgets/behaviour-tracker-widget.js', required: true },
@@ -104,34 +103,54 @@ const PROJECTOR_DEPENDENCIES = [
     { src: 'js/widgets/mask-widget.js', required: false }
 ];
 
-const bootstrapProjectorDependencies = async () => {
-    const failures = [];
+const loadProjectorDependency = async (dependency) => {
+    try {
+        await loadClassicScript(dependency.src, getDependencyTimeoutMs(dependency));
+        return null;
+    } catch (error) {
+        const failure = {
+            src: dependency.src,
+            required: dependency.required,
+            error: error.message
+        };
 
-    for (const dependency of PROJECTOR_DEPENDENCIES) {
-        try {
-            await loadClassicScript(dependency.src, getDependencyTimeoutMs(dependency));
-        } catch (error) {
-            failures.push({
-                src: dependency.src,
-                required: dependency.required,
-                error: error.message
+        const logMethod = dependency.required ? 'error' : 'warn';
+        console[logMethod](`[projector] dependency load failed: ${dependency.src}`, error);
+
+        if (dependency.required) {
+            throw Object.assign(new Error(`Critical projector dependency failed: ${dependency.src}`), {
+                cause: error,
+                failures: [failure]
             });
-
-            const logMethod = dependency.required ? 'error' : 'warn';
-            console[logMethod](`[projector] dependency load failed: ${dependency.src}`, error);
-
-            if (dependency.required) {
-                throw Object.assign(new Error(`Critical projector dependency failed: ${dependency.src}`), {
-                    cause: error,
-                    failures
-                });
-            }
         }
+
+        return failure;
     }
+};
+
+const bootstrapProjectorDependencies = async () => {
+    const richTextDependency = PROJECTOR_DEPENDENCIES.find((dependency) => dependency.src.endsWith('/rich-text-widget.js'));
+    const quillDependency = PROJECTOR_DEPENDENCIES.find((dependency) => dependency.src.includes('/quill@'));
+    const parallelDependencies = PROJECTOR_DEPENDENCIES.filter((dependency) => dependency !== richTextDependency);
+    const dependencyPromises = new Map(
+        parallelDependencies.map((dependency) => [dependency, loadProjectorDependency(dependency)])
+    );
+    const richTextPromise = richTextDependency
+        ? Promise.resolve(quillDependency ? dependencyPromises.get(quillDependency) : null)
+            .then(() => loadProjectorDependency(richTextDependency))
+        : null;
+    const failures = (await Promise.all([
+        ...dependencyPromises.values(),
+        ...(richTextPromise ? [richTextPromise] : [])
+    ])).filter(Boolean);
 
     window.__ProjectorDependencyFailures = failures;
     return failures;
 };
+
+const projectorDependencyResultPromise = bootstrapProjectorDependencies()
+    .then((failures) => ({ failures, error: null }))
+    .catch((error) => ({ failures: [], error }));
 
 function showProjectorStartupMessage(message) {
     const root = document.getElementById('presentation-root');
@@ -761,7 +780,10 @@ class ProjectorApp {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const failures = await bootstrapProjectorDependencies();
+        const { failures, error: dependencyError } = await projectorDependencyResultPromise;
+        if (dependencyError) {
+            throw dependencyError;
+        }
 
         if (failures.length > 0) {
             console.warn('[projector] continuing with optional dependency failures', failures);

@@ -5904,7 +5904,7 @@ class ClassroomScreenApp {
                                     <small>Edit pages, theme, and widgets</small>
                                 </span>
                             </button>
-                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector/', window.location.href).toString())}" target="_blank" rel="noopener noreferrer" aria-label="Open Projector">
+                            <a id="dashboard-open-projector-btn" class="dashboard-launch-card" href="${escapeHtml(new URL('projector.html', window.location.href).toString())}" target="_blank" rel="noopener noreferrer" aria-label="Open Projector">
                                 <span class="dashboard-launch-card__icon" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
                                 <span class="dashboard-launch-card__text">
                                     <strong>Projector</strong>
