@@ -2518,6 +2518,264 @@ async function runReminderSystemChecks(browser, baseUrl) {
     }
 }
 
+async function runMemoryCueSyncUiChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await makeExternalAssetsDeterministic(context);
+    await context.addInitScript(() => {
+        const USER = Object.freeze({
+            uid: 'memory-cue-smoke-teacher',
+            email: 'teacher.sync@example.test'
+        });
+        const OPERATIONS_KEY = '__memoryCueSmokeOperations';
+        const ATTEMPTS_KEY = '__memoryCueSmokeAttempts';
+        const OFFLINE_KEY = '__memoryCueSmokeOffline';
+        let authListener = null;
+
+        const clone = (value) => JSON.parse(JSON.stringify(value));
+        const readList = (key) => {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_error) {
+                return [];
+            }
+        };
+        const append = (key, entry) => {
+            const entries = readList(key);
+            entries.push(clone(entry));
+            localStorage.setItem(key, JSON.stringify(entries));
+        };
+        const failIfOffline = (operation) => {
+            const offline = localStorage.getItem(OFFLINE_KEY) === '1';
+            append(ATTEMPTS_KEY, { ...operation, succeeded: !offline });
+            if (!offline) return;
+            const error = new Error('Fake Memory Cue is offline');
+            error.code = 'unavailable';
+            throw error;
+        };
+
+        window.__memoryCueSmoke = {
+            user: USER,
+            getOperations: () => readList(OPERATIONS_KEY),
+            getAttempts: () => readList(ATTEMPTS_KEY),
+            setOffline: (offline) => localStorage.setItem(OFFLINE_KEY, offline ? '1' : '0')
+        };
+        window.__TeacherScreenMemoryCueSyncTestAdapters = {
+            authAdapter: {
+                async start(listener) {
+                    authListener = listener;
+                    listener(null);
+                    return () => {
+                        if (authListener === listener) authListener = null;
+                    };
+                },
+                async signIn() {
+                    authListener?.(clone(USER));
+                    return clone(USER);
+                },
+                async signOut() {
+                    authListener?.(null);
+                }
+            },
+            remoteAdapter: {
+                async upsert(uid, remoteId, payload, options = {}) {
+                    const operation = {
+                        type: 'upsert',
+                        uid,
+                        remoteId,
+                        payload: clone(payload),
+                        options: clone(options)
+                    };
+                    failIfOffline(operation);
+                    append(OPERATIONS_KEY, operation);
+                },
+                async remove(uid, remoteId) {
+                    const operation = { type: 'delete', uid, remoteId };
+                    failIfOffline(operation);
+                    append(OPERATIONS_KEY, operation);
+                }
+            }
+        };
+    });
+
+    const pageErrors = [];
+    const consoleErrors = [];
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    const reminderText = 'Memory Cue browser smoke reminder';
+    const offlineReminderText = 'Memory Cue offline reminder';
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+
+        const currentCard = page.locator('.dashboard-screen-card.is-current').first();
+        const deckId = await currentCard.getAttribute('data-deck-id');
+        assert(Boolean(deckId), 'Memory Cue sync smoke should start with a current saved deck');
+        await currentCard.locator('[data-reminder-action="expand"]').click();
+        await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        const dashboardSync = currentCard.locator('.dashboard-reminder-panel [data-memory-cue-sync]');
+        assert(await dashboardSync.locator('[data-memory-cue-sync-action]').textContent().then((text) => text.trim() === 'Connect Memory Cue'), 'Dashboard reminders should offer Connect Memory Cue without opening another screen');
+
+        await currentCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
+        await page.locator('#classroom-reminder-launcher').click();
+        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        const classroomSync = page.locator('#classroom-reminder-panel [data-memory-cue-sync]');
+        assert(await classroomSync.locator('[data-memory-cue-sync-action]').textContent().then((text) => text.trim() === 'Connect Memory Cue'), 'Classroom reminders should offer the same Connect Memory Cue action');
+
+        page.once('dialog', (dialog) => dialog.accept());
+        await classroomSync.locator('[data-memory-cue-sync-action]').click();
+        await page.waitForFunction(() => {
+            const control = document.querySelector('#classroom-reminder-panel [data-memory-cue-sync]');
+            return control?.dataset.syncState === 'connected'
+                && (control.querySelector('[data-memory-cue-sync-status]')?.textContent || '').includes('teacher.sync@example.test');
+        }, undefined, { timeout: 10000 });
+        assert(true, 'Accepting the explicit confirmation should connect the selected Memory Cue email');
+
+        await page.locator('#dashboard-tab').dispatchEvent('click');
+        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+        const connectedCard = page.locator(`.dashboard-screen-card[data-deck-id="${deckId}"]`);
+        if (await connectedCard.locator('.dashboard-reminder-panel').count() === 0) {
+            await connectedCard.locator('[data-reminder-action="expand"]').click();
+            await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${deckId}"] .dashboard-reminder-panel`, { timeout: 10000 });
+        }
+        assert(
+            await connectedCard.locator('[data-memory-cue-sync-status]').textContent().then((text) => text.includes('teacher.sync@example.test')),
+            'Dashboard and Classroom should mirror the connected Memory Cue email'
+        );
+
+        await connectedCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        if (await page.locator('#classroom-reminder-dock').isHidden()) {
+            await page.locator('#classroom-reminder-launcher').click();
+        }
+        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        const classroomForm = page.locator('#classroom-reminder-form');
+        await classroomForm.locator('input[name="text"]').fill(reminderText);
+        await classroomForm.locator('input[name="scope"][value="deck"]').check();
+        await classroomForm.locator('input[name="showOnClassroom"]').check();
+        await classroomForm.locator('button[type="submit"]').click();
+        await page.waitForFunction((expectedText) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            return store.reminders?.some((reminder) => reminder?.text === expectedText);
+        }, reminderText, { timeout: 10000 });
+        await page.waitForFunction((expectedText) => {
+            return window.__memoryCueSmoke.getOperations()
+                .some((operation) => operation.type === 'upsert' && operation.payload?.text === expectedText);
+        }, reminderText, { timeout: 10000 });
+
+        const firstSync = await page.evaluate((expectedText) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            const reminder = store.reminders.find((item) => item?.text === expectedText);
+            const operation = window.__memoryCueSmoke.getOperations()
+                .find((item) => item.type === 'upsert' && item.payload?.text === expectedText);
+            return { reminder, operation };
+        }, reminderText);
+        assert(Boolean(firstSync.reminder?.id && firstSync.operation?.remoteId), 'Adding a local reminder should create one fake Memory Cue upsert');
+        assert(firstSync.operation.remoteId.startsWith('teacher-screen--'), 'Memory Cue upserts should use a deterministic integration-owned document ID');
+        assert(firstSync.operation.payload.metadata?.teacherScreen?.reminderId === firstSync.reminder.id, 'Memory Cue metadata should retain the local reminder ID for traceability');
+        const serializedPatch = JSON.stringify(firstSync.operation.payload);
+        assert(!serializedPatch.includes('showOnClassroom'), 'Memory Cue payloads should never include the student visibility setting');
+        assert(
+            ['createdAt', 'category', 'priority', 'source', 'pendingSync', 'orderIndex', 'keywords', 'semanticEmbedding', 'plannerLessonId']
+                .every((field) => !Object.prototype.hasOwnProperty.call(firstSync.operation.payload, field)),
+            'Memory Cue update payloads should leave Memory-owned reminder fields untouched'
+        );
+        assert(
+            firstSync.operation.options?.createDefaults?.category === 'School'
+                && firstSync.operation.options?.createDefaults?.metadata?.suppressNotification === true,
+            'The first fake upsert should supply safe School defaults only for a new Memory Cue document'
+        );
+
+        const reminderRow = page.locator(`#classroom-reminder-list [data-reminder-id="${firstSync.reminder.id}"]`);
+        await reminderRow.locator('[data-reminder-action="toggle"]').click();
+        await page.waitForFunction(({ reminderId, remoteId }) => {
+            const matching = window.__memoryCueSmoke.getOperations()
+                .filter((operation) => operation.type === 'upsert' && operation.remoteId === remoteId);
+            return matching.length >= 2
+                && matching.at(-1)?.payload?.completed === true
+                && matching.at(-1)?.payload?.metadata?.teacherScreen?.reminderId === reminderId;
+        }, { reminderId: firstSync.reminder.id, remoteId: firstSync.operation.remoteId }, { timeout: 10000 });
+        const updateSync = await page.evaluate((remoteId) => window.__memoryCueSmoke.getOperations()
+            .filter((operation) => operation.type === 'upsert' && operation.remoteId === remoteId), firstSync.operation.remoteId);
+        assert(updateSync.every((operation) => operation.remoteId === firstSync.operation.remoteId), 'Adding and completing a reminder should reuse the same Memory Cue document ID');
+        assert(
+            updateSync.at(-1).options?.createDefaults?.category === 'School'
+                && !Object.prototype.hasOwnProperty.call(updateSync.at(-1).payload, 'category'),
+            'Later updates should keep create-only defaults separate from Memory-owned fields'
+        );
+
+        page.once('dialog', (dialog) => dialog.accept());
+        await reminderRow.locator('[data-reminder-action="delete"]').click();
+        await page.waitForFunction((remoteId) => window.__memoryCueSmoke.getOperations()
+            .some((operation) => operation.type === 'delete' && operation.remoteId === remoteId), firstSync.operation.remoteId, { timeout: 10000 });
+        const deleteCall = await page.evaluate((remoteId) => window.__memoryCueSmoke.getOperations()
+            .find((operation) => operation.type === 'delete' && operation.remoteId === remoteId), firstSync.operation.remoteId);
+        assert(deleteCall.remoteId === firstSync.operation.remoteId, 'Deleting the Teacher Screen reminder should issue an explicit delete for the same Memory Cue document');
+
+        await page.evaluate(() => window.__memoryCueSmoke.setOffline(true));
+        await classroomForm.locator('input[name="text"]').fill(offlineReminderText);
+        await classroomForm.locator('input[name="scope"][value="deck"]').check();
+        await classroomForm.locator('button[type="submit"]').click();
+        await page.waitForFunction((expectedText) => {
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            return store.reminders?.some((reminder) => reminder?.text === expectedText);
+        }, offlineReminderText, { timeout: 10000 });
+        await page.waitForFunction(() => {
+            const control = document.querySelector('#classroom-reminder-panel [data-memory-cue-sync]');
+            return control?.dataset.syncState === 'offline'
+                && control.querySelector('[data-memory-cue-sync-action]')?.textContent?.trim() === 'Retry';
+        }, undefined, { timeout: 10000 });
+        assert((await page.locator('#classroom-reminder-list').textContent()).includes(offlineReminderText), 'An offline Memory Cue failure should not block the local reminder from appearing instantly');
+        assert(
+            await page.evaluate((expectedText) => window.__memoryCueSmoke.getAttempts()
+                .some((attempt) => attempt.succeeded === false && attempt.payload?.text === expectedText), offlineReminderText),
+            'The fake remote should report the offline upsert failure before retry'
+        );
+
+        await page.evaluate(() => window.__memoryCueSmoke.setOffline(false));
+        await page.locator('#classroom-reminder-panel [data-memory-cue-sync-action]').click();
+        await page.waitForFunction((expectedText) => {
+            const control = document.querySelector('#classroom-reminder-panel [data-memory-cue-sync]');
+            const synced = window.__memoryCueSmoke.getOperations()
+                .some((operation) => operation.type === 'upsert' && operation.payload?.text === expectedText);
+            return synced && control?.dataset.syncState === 'connected';
+        }, offlineReminderText, { timeout: 10000 });
+        assert(true, 'Retry should flush the queued local reminder and return the UI to connected');
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        const mobileClassroomSync = await page.locator('#classroom-reminder-dock').evaluate((dock) => {
+            const action = dock.querySelector('.memory-cue-sync__action');
+            const dockRect = dock.getBoundingClientRect();
+            const actionRect = action?.getBoundingClientRect();
+            return {
+                viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+                dockFits: dock.scrollWidth <= dock.clientWidth + 1
+                    && dockRect.left >= -1
+                    && dockRect.right <= window.innerWidth + 1,
+                actionHeight: actionRect?.height || 0
+            };
+        });
+        assert(mobileClassroomSync.viewportFits && mobileClassroomSync.dockFits, '390px Memory Cue controls should not create horizontal overflow');
+        assert(mobileClassroomSync.actionHeight >= 44, '390px Memory Cue action should retain at least a 44px touch target');
+
+        assert(pageErrors.length === 0, `Memory Cue sync UI should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Memory Cue sync UI should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runWholeClassAssignmentChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
@@ -2699,9 +2957,15 @@ async function runSmoke() {
             console.log('Document Viewer browser checks passed.');
             return;
         }
+        if (process.argv.includes('--memory-cue-sync-only')) {
+            await runMemoryCueSyncUiChecks(browser, baseUrl);
+            console.log('Memory Cue reminder sync browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--reminders-only')) {
             await runReminderSystemChecks(browser, baseUrl);
             await runWholeClassAssignmentChecks(browser, baseUrl);
+            await runMemoryCueSyncUiChecks(browser, baseUrl);
             console.log('Class and deck reminder browser checks passed.');
             return;
         }
@@ -2711,6 +2975,7 @@ async function runSmoke() {
             await runDeckOrganisationChecks(browser, baseUrl);
             await runReminderSystemChecks(browser, baseUrl);
             await runWholeClassAssignmentChecks(browser, baseUrl);
+            await runMemoryCueSyncUiChecks(browser, baseUrl);
             await runNewDeckNavigationChecks(browser, baseUrl);
             await runWidgetSaveNotificationChecks(browser, baseUrl);
             await runBottomWidgetContainmentChecks(browser, baseUrl);

@@ -350,6 +350,107 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
     font-size: 0.72rem;
 }
 
+.memory-cue-sync {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    min-width: 0;
+    margin-bottom: 0.7rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(71, 112, 139, 0.18);
+    border-radius: 11px;
+    background: rgba(241, 247, 251, 0.88);
+}
+
+.memory-cue-sync__identity {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.memory-cue-sync__indicator {
+    flex: 0 0 auto;
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 50%;
+    background: #8295a3;
+    box-shadow: 0 0 0 3px rgba(130, 149, 163, 0.13);
+}
+
+.memory-cue-sync__text {
+    display: grid;
+    gap: 0.08rem;
+    min-width: 0;
+    color: #5a7284;
+    font-size: 0.66rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.memory-cue-sync__text strong {
+    color: #173b54;
+    font-size: 0.72rem;
+}
+
+.memory-cue-sync__action {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid rgba(33, 137, 229, 0.32);
+    border-radius: 9px;
+    color: #155f93;
+    background: #ffffff;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.memory-cue-sync__action:hover,
+.memory-cue-sync__action:focus-visible {
+    color: #ffffff;
+    border-color: #2189e5;
+    outline: none;
+    background: #2189e5;
+}
+
+.memory-cue-sync__action:focus-visible {
+    box-shadow: 0 0 0 3px rgba(33, 137, 229, 0.24);
+}
+
+.memory-cue-sync__action:disabled {
+    color: #758997;
+    border-color: rgba(117, 137, 151, 0.2);
+    background: #edf2f5;
+    cursor: wait;
+}
+
+.memory-cue-sync[data-sync-state="connected"] .memory-cue-sync__indicator {
+    background: #198754;
+    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.13);
+}
+
+.memory-cue-sync[data-sync-state="connecting"] .memory-cue-sync__indicator,
+.memory-cue-sync[data-sync-state="syncing"] .memory-cue-sync__indicator {
+    background: #2189e5;
+    box-shadow: 0 0 0 3px rgba(33, 137, 229, 0.14);
+}
+
+.memory-cue-sync[data-sync-state="offline"] .memory-cue-sync__indicator,
+.memory-cue-sync[data-sync-state="reconnect"] .memory-cue-sync__indicator {
+    background: #d98413;
+    box-shadow: 0 0 0 3px rgba(217, 132, 19, 0.14);
+}
+
+.memory-cue-sync[data-sync-state="error"] .memory-cue-sync__indicator,
+.memory-cue-sync[data-sync-state="account-mismatch"] .memory-cue-sync__indicator {
+    background: #b42318;
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.13);
+}
+
 .class-reminder-row.is-compact {
     padding: 0.5rem;
 }
@@ -494,6 +595,15 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
 }
 
 @media (max-width: 390px) {
+    .memory-cue-sync {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .memory-cue-sync__action {
+        width: 100%;
+    }
+
     .dashboard-reminder-form {
         grid-template-columns: 1fr;
     }

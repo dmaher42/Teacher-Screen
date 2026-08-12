@@ -23,7 +23,11 @@ import {
     ClassReminderService,
     classReminderService,
     REMINDER_SCOPES
-} from './services/class-reminder-service.js';
+} from './services/class-reminder-service.js?v=2';
+import {
+    createMemoryCueReminderSync,
+    MEMORY_CUE_SYNC_STATES
+} from './services/memory-cue-reminder-sync.js?v=1';
 import {
     THEME_OPTIONS,
     applyTheme,
@@ -306,6 +310,7 @@ class ClassroomScreenApp {
         this.dashboardExpandedReminderDeckId = '';
         this.activeReminderContext = { deckId: '', classId: '', className: '', deckName: '' };
         this.unsubscribeClassReminders = null;
+        this.unsubscribeMemoryCueReminderSync = null;
         this.resourceLibraryState = new ResourceLibraryState();
         this.localResourceProvider = new LocalFolderResourceProvider();
         this.googleDriveResourceProvider = new GoogleDriveResourceProvider();
@@ -389,6 +394,11 @@ class ClassroomScreenApp {
             addToScreen: (proposal) => this.addTeachingAssistantProposal(proposal),
             notify: (message, type) => this.showNotification(message, type)
         });
+        this.memoryCueReminderSync = createMemoryCueReminderSync({
+            getLocalReminders: () => classReminderService.list(),
+            resolveContext: (reminder) => this.getMemoryCueReminderContext(reminder),
+            confirmConnection: (details) => this.confirmMemoryCueConnection(details)
+        });
     }
 
     ensureWidgetSettingsModal(hostDocument) {
@@ -441,7 +451,12 @@ class ClassroomScreenApp {
         this.updateProjectorVisibility();
         this.setupPresetControls();
         this.setupClassroomReminderDock();
-        this.unsubscribeClassReminders = classReminderService.subscribe(() => this.handleClassReminderChange());
+        this.unsubscribeMemoryCueReminderSync = this.memoryCueReminderSync.subscribe(
+            (state) => this.renderMemoryCueSyncControls(state),
+            { emitCurrent: true }
+        );
+        this.unsubscribeClassReminders = classReminderService.subscribe((change) => this.handleClassReminderChange(change));
+        void this.memoryCueReminderSync.init();
         this.renderClassroomReminderDock();
         this.renderBackgroundSelector();
 
@@ -3649,6 +3664,10 @@ class ClassroomScreenApp {
         this.renderLayoutPresetOptions();
         this.renderClassProfileOptions();
         this.renderFolderOptions();
+        void this.memoryCueReminderSync?.reconcile({
+            flush: true,
+            change: { reason: 'reminder-context' }
+        });
     }
 
     ensureCurrentProjectDeck(options = {}) {
@@ -7383,6 +7402,197 @@ class ClassroomScreenApp {
         };
     }
 
+    getMemoryCueReminderContext(reminder = {}) {
+        const deckId = String(reminder.deckId || '').trim();
+        const classId = String(reminder.classId || '').trim();
+        const matchingPreset = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .find((preset) => preset && (
+                (deckId && preset.id === deckId)
+                || (!deckId && classId && preset.classId === classId)
+            ));
+        const activeContext = this.activeReminderContext || {};
+
+        return {
+            deckName: matchingPreset?.name
+                || (deckId && activeContext.deckId === deckId ? activeContext.deckName : ''),
+            className: matchingPreset?.className
+                || (classId && activeContext.classId === classId ? activeContext.className : '')
+        };
+    }
+
+    confirmMemoryCueConnection({ user = {}, previousBinding = {}, reminderCount = 0 } = {}) {
+        const accountLabel = String(user.email || '').trim() || 'the Google account you selected';
+        const count = Number.isFinite(reminderCount) ? Math.max(0, reminderCount) : 0;
+        const existingReminderMessage = count === 0
+            ? 'There are no existing reminders to copy. New reminders will sync after you connect.'
+            : `This will copy ${count} existing Teacher Screen reminder${count === 1 ? '' : 's'} to Memory Cue.`;
+        const isReplacingAccount = Boolean(
+            previousBinding?.uid
+            && previousBinding.uid !== user.uid
+            && previousBinding.email
+        );
+        const accountChangeMessage = isReplacingAccount
+            ? `\n\nThis switches future syncing from ${previousBinding.email}. `
+                + 'Copies already sent to that previous Memory Cue account will remain there until you delete them in Memory Cue.'
+            : '';
+
+        return window.confirm(
+            `Connect ${accountLabel} to Memory Cue?\n\n`
+            + existingReminderMessage
+            + accountChangeMessage
+            + '\n\nTeacher Screen will send reminder text, dates, completion, and class/deck labels to Memory Cue. '
+            + 'The "Show to students" setting stays only in Teacher Screen and is never sent. '
+            + 'For this first release, changes made inside Memory Cue do not come back to Teacher Screen.'
+        );
+    }
+
+    getMemoryCueSyncPresentation(state = {}) {
+        const queuedCount = Number.isFinite(state.queuedCount) ? Math.max(0, state.queuedCount) : 0;
+        const queuedLabel = `${queuedCount} change${queuedCount === 1 ? '' : 's'} waiting`;
+        const email = String(state.email || '').trim();
+
+        switch (state.status) {
+            case MEMORY_CUE_SYNC_STATES.CONNECTING:
+                return {
+                    status: 'Opening secure sign-in...',
+                    action: 'connect',
+                    actionLabel: 'Connecting...',
+                    disabled: true
+                };
+            case MEMORY_CUE_SYNC_STATES.CONNECTED:
+                return {
+                    status: email ? `Sent to Memory Cue as ${email}` : 'Sent to Memory Cue',
+                    action: 'disconnect',
+                    actionLabel: 'Disconnect'
+                };
+            case MEMORY_CUE_SYNC_STATES.SYNCING:
+                return {
+                    status: `${email ? `${email} - ` : ''}Sending ${queuedLabel} to Memory Cue`,
+                    action: 'disconnect',
+                    actionLabel: 'Disconnect'
+                };
+            case MEMORY_CUE_SYNC_STATES.OFFLINE:
+                return {
+                    status: `${email ? `${email} - ` : ''}Offline${queuedCount ? ` - ${queuedLabel}` : ''}`,
+                    action: 'retry',
+                    actionLabel: 'Retry'
+                };
+            case MEMORY_CUE_SYNC_STATES.ERROR:
+                return {
+                    status: `${email ? `${email} - ` : ''}Sync paused${queuedCount ? ` - ${queuedLabel}` : ''}`,
+                    action: 'retry',
+                    actionLabel: 'Retry'
+                };
+            case MEMORY_CUE_SYNC_STATES.RECONNECT:
+                return {
+                    status: `${email ? `${email} - ` : ''}Sign in again to resume sync`,
+                    action: 'connect',
+                    actionLabel: 'Reconnect'
+                };
+            case MEMORY_CUE_SYNC_STATES.ACCOUNT_MISMATCH:
+                return {
+                    status: `${email ? `${email} is open - ` : ''}Reconnect to choose the linked account`,
+                    action: 'connect',
+                    actionLabel: 'Reconnect'
+                };
+            case MEMORY_CUE_SYNC_STATES.LOCAL_ONLY:
+            default:
+                return {
+                    status: queuedCount
+                        ? `Not connected - ${queuedLabel}`
+                        : 'Not connected - reminders stay on this device',
+                    action: 'connect',
+                    actionLabel: 'Connect Memory Cue'
+                };
+        }
+    }
+
+    bindMemoryCueSyncControl(control) {
+        if (!control || control.dataset.memoryCueSyncBound === 'true') return;
+        const actionButton = control.querySelector('[data-memory-cue-sync-action]');
+        if (!actionButton) return;
+        control.dataset.memoryCueSyncBound = 'true';
+        actionButton.addEventListener('click', () => {
+            void this.handleMemoryCueSyncAction(actionButton.dataset.memoryCueSyncAction || 'connect');
+        });
+    }
+
+    createMemoryCueSyncControl() {
+        const control = document.createElement('div');
+        control.className = 'memory-cue-sync';
+        control.dataset.memoryCueSync = '';
+
+        const identity = document.createElement('div');
+        identity.className = 'memory-cue-sync__identity';
+        const indicator = document.createElement('span');
+        indicator.className = 'memory-cue-sync__indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('span');
+        text.className = 'memory-cue-sync__text';
+        const label = document.createElement('strong');
+        label.textContent = 'Memory Cue';
+        const status = document.createElement('span');
+        status.dataset.memoryCueSyncStatus = '';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        text.append(label, status);
+        identity.append(indicator, text);
+
+        const actionButton = document.createElement('button');
+        actionButton.type = 'button';
+        actionButton.className = 'memory-cue-sync__action';
+        actionButton.dataset.memoryCueSyncAction = 'connect';
+        control.append(identity, actionButton);
+        this.bindMemoryCueSyncControl(control);
+        this.renderMemoryCueSyncControl(control, this.memoryCueReminderSync.getState());
+        return control;
+    }
+
+    renderMemoryCueSyncControl(control, state = {}) {
+        if (!control) return;
+        const presentation = this.getMemoryCueSyncPresentation(state);
+        const status = control.querySelector('[data-memory-cue-sync-status]');
+        const actionButton = control.querySelector('[data-memory-cue-sync-action]');
+        control.dataset.syncState = state.status || MEMORY_CUE_SYNC_STATES.LOCAL_ONLY;
+        if (status) status.textContent = presentation.status;
+        if (actionButton) {
+            actionButton.dataset.memoryCueSyncAction = presentation.action;
+            actionButton.textContent = presentation.actionLabel;
+            actionButton.disabled = presentation.disabled === true;
+        }
+    }
+
+    renderMemoryCueSyncControls(state = this.memoryCueReminderSync.getState()) {
+        document.querySelectorAll('[data-memory-cue-sync]').forEach((control) => {
+            this.bindMemoryCueSyncControl(control);
+            this.renderMemoryCueSyncControl(control, state);
+        });
+    }
+
+    async handleMemoryCueSyncAction(action) {
+        if (action === 'disconnect') {
+            await this.memoryCueReminderSync.disconnect();
+            this.showNotification('Memory Cue disconnected. Existing copies remain in Memory Cue.', 'info');
+            return;
+        }
+
+        if (action === 'retry') {
+            const synced = await this.memoryCueReminderSync.retry();
+            if (synced) {
+                this.showNotification('Waiting reminder changes were sent to Memory Cue.', 'success');
+            }
+            return;
+        }
+
+        const connected = await this.memoryCueReminderSync.connect();
+        if (connected) {
+            this.showNotification('Memory Cue connected. Teacher reminders are being sent.', 'success');
+        } else if (this.memoryCueReminderSync.getState().status === MEMORY_CUE_SYNC_STATES.ERROR) {
+            this.showNotification('Memory Cue could not be connected. Try again.', 'error');
+        }
+    }
+
     getPairedProjectorUrl() {
         const projectorUrl = new URL('projector.html', window.location.href);
         projectorUrl.searchParams.set('syncToken', this.projectorSyncToken);
@@ -7420,12 +7630,13 @@ class ClassroomScreenApp {
         });
     }
 
-    handleClassReminderChange() {
+    handleClassReminderChange(change) {
         this.renderClassroomReminderDock();
         if (document.body.classList.contains('is-dashboard-active')) {
             this.renderDashboard();
         }
         this.syncClassroomRemindersToProjector();
+        void this.memoryCueReminderSync.reconcile({ flush: true, change });
     }
 
     setClassroomReminderDockCollapsed(collapsed, { persist = true } = {}) {
@@ -7455,6 +7666,9 @@ class ClassroomScreenApp {
     setupClassroomReminderDock() {
         if (!this.classroomReminderDock) return;
         this.setClassroomReminderDockCollapsed(true, { persist: false });
+        this.classroomReminderPanel
+            ?.querySelectorAll('[data-memory-cue-sync]')
+            .forEach((control) => this.bindMemoryCueSyncControl(control));
 
         if (this.classroomReminderLauncher && this.classroomReminderLauncher.dataset.bound !== 'true') {
             this.classroomReminderLauncher.dataset.bound = 'true';
@@ -7730,6 +7944,7 @@ class ClassroomScreenApp {
         help.textContent = 'Class reminders appear in every deck for this class. Deck reminders stay with this lesson.';
         header.append(title, help);
         panel.appendChild(header);
+        panel.appendChild(this.createMemoryCueSyncControl());
 
         const scopes = document.createElement('div');
         scopes.className = 'dashboard-reminder-panel__scopes';

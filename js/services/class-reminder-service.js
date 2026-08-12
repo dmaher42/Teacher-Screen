@@ -222,11 +222,19 @@ export class ClassReminderService {
             if (!event || event.key !== this.storageKey || event.storageArea !== this.storage) return;
 
             try {
-                this.state = parseStorePayload(event.newValue || JSON.stringify(createEmptyState()), {
+                const previousIds = new Set(this.state.reminders.map((reminder) => reminder.id));
+                const nextState = parseStorePayload(event.newValue || JSON.stringify(createEmptyState()), {
                     now: this.now(),
                     idFactory: this.idFactory
                 });
-                this.emitChange('storage');
+                const nextIds = new Set(nextState.reminders.map((reminder) => reminder.id));
+                // A missing key can mean the browser cleared site storage. Do not
+                // turn that ambiguous event into destructive cloud delete intent.
+                const removedItemIds = event.newValue === null
+                    ? []
+                    : Array.from(previousIds).filter((id) => !nextIds.has(id));
+                this.state = nextState;
+                this.emitChange('storage', { removedItemIds });
             } catch (error) {
                 console.warn('Unable to load reminder changes from another tab.', error);
             }
@@ -429,12 +437,19 @@ export class ClassReminderService {
         if (!normalizedDeckId) return 0;
 
         this.reconcileStoredState();
+        const removedItemIds = this.state.reminders
+            .filter((reminder) => reminder.scope === REMINDER_SCOPES.DECK && reminder.deckId === normalizedDeckId)
+            .map((reminder) => reminder.id);
         const nextReminders = this.state.reminders.filter((reminder) => (
             reminder.scope !== REMINDER_SCOPES.DECK || reminder.deckId !== normalizedDeckId
         ));
         const removedCount = this.state.reminders.length - nextReminders.length;
         if (removedCount > 0) {
-            this.commit(nextReminders, 'remove-deck-items', { deckId: normalizedDeckId, removedCount });
+            this.commit(nextReminders, 'remove-deck-items', {
+                deckId: normalizedDeckId,
+                removedCount,
+                removedItemIds
+            });
         }
         return removedCount;
     }
@@ -481,6 +496,7 @@ export class ClassReminderService {
         });
 
         this.reconcileStoredState();
+        const previousIds = new Set(this.state.reminders.map((reminder) => reminder.id));
         let reminders = importedState.reminders;
         if (mode === 'merge') {
             const remindersById = new Map(this.state.reminders.map((reminder) => [reminder.id, reminder]));
@@ -488,7 +504,15 @@ export class ClassReminderService {
             reminders = Array.from(remindersById.values());
         }
 
-        this.commit(reminders, 'import', { importedCount: importedState.reminders.length, mode });
+        const nextIds = new Set(reminders.map((reminder) => reminder.id));
+        const removedItemIds = mode === 'replace'
+            ? Array.from(previousIds).filter((id) => !nextIds.has(id))
+            : [];
+        this.commit(reminders, 'import', {
+            importedCount: importedState.reminders.length,
+            mode,
+            removedItemIds
+        });
         return {
             importedCount: importedState.reminders.length,
             totalCount: this.state.reminders.length,
