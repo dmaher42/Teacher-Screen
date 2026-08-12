@@ -1733,19 +1733,64 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
 
         await page.locator('[data-dashboard-mode="library"]').click();
         assert(await page.locator('.dashboard-filter.is-active').count() === 0, 'Opening Deck Library should clear the class filter');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Deck Library should not expand a deck without a deck click');
         await page.locator('[data-dashboard-mode="favorites"]').click();
         assert(await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"]`).count() === 1 && await page.locator('.dashboard-screen-card').count() === 1, 'Favourites should show only pinned decks');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Favourites should not expand its first deck');
         await page.locator('[data-dashboard-mode="recent"]').click();
         assert(await page.locator(`.dashboard-screen-card[data-deck-id="${alphaDeckId}"]`).count() === 1, 'Recent should preserve migrated deck usage history');
         assert(await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"]`).count() === 0, 'Recent should exclude decks that have not been opened');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Recent should not expand a deck');
         await page.locator('[data-dashboard-mode="resources"]').click();
         await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
         assert(await page.locator('.dashboard-screen-card').count() === 0, 'Resources should remain separate from deck accordion rows');
         await page.locator('[data-dashboard-mode="library"]').click();
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Returning from Resources should keep lesson decks collapsed');
+        const menuDeckStateBefore = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                usage: presets
+                    .map((preset) => [preset?.id || '', Number(preset?.usageCount || 0), Number(preset?.lastUsedAt || 0)])
+                    .sort(([a], [b]) => a.localeCompare(b))
+            };
+        });
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-settings-btn').click();
+        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard Teacher Controls should open without leaving the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Dashboard Teacher Controls should not enter a classroom deck');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Dashboard Teacher Controls should keep lesson decks collapsed');
+        const menuDeckStateAfter = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                usage: presets
+                    .map((preset) => [preset?.id || '', Number(preset?.usageCount || 0), Number(preset?.lastUsedAt || 0)])
+                    .sort(([a], [b]) => a.localeCompare(b))
+            };
+        });
+        assert(JSON.stringify(menuDeckStateAfter) === JSON.stringify(menuDeckStateBefore), 'Opening Teacher Controls should not load or touch a saved deck');
+        await closeTeacherPanel(page);
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-sections-btn').click();
+        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await page.locator('#manage-screens-btn').click();
+        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage Screen Decks should open over the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage Screen Decks should not enter a classroom deck');
+        assert(await page.locator('#sections-menu:not([hidden])').count() === 1, 'Manage Screen Decks should keep its section menu visible');
+        await page.keyboard.press('Escape');
+        await page.waitForSelector('#sections-menu:not([hidden])', { state: 'detached', timeout: 10000 });
+        await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="toggle"]`).click();
         await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] .dashboard-screen-card__details:not([hidden])`, { timeout: 10000 });
 
         await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="arrange"]`).click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        assert(await page.locator('#teacher-panel.open').count() === 1, 'Arrange should enter the selected classroom deck with Teacher Controls open');
         await page.locator('#project-screen-name-input').fill('Duplicate ID Alpha');
         await page.locator('#save-project-screen-btn').click();
         const rejectedRenameState = await page.evaluate(() => {
@@ -3064,6 +3109,24 @@ async function runSmoke() {
         assert(desktopDashboardScale.libraryFits, 'Desktop Deck Library should fit without horizontal overflow');
         assert(await page.locator('#tour-dialog').count() === 0, 'The removed welcome tour should not be part of the app');
 
+        await page.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]').click();
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Collapsing the current deck should leave the dashboard menus independent of deck actions');
+        const dashboardMenuStateBefore = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                projectName: state.projectName || '',
+                usage: presets
+                    .map((preset) => ({
+                        id: preset?.id || '',
+                        lastUsedAt: Number(preset?.lastUsedAt || 0),
+                        usageCount: Number(preset?.usageCount || 0)
+                    }))
+                    .sort((a, b) => a.id.localeCompare(b.id))
+            };
+        });
+
         await page.locator('#dashboard-utility-menu > summary').click();
         assert(await page.locator('#dashboard-settings-btn').isVisible(), 'Menu Desk options should reveal Settings');
         assert(await page.locator('#dashboard-updates-btn').isVisible(), 'Menu Desk options should reveal Updates');
@@ -3071,22 +3134,50 @@ async function runSmoke() {
         await page.locator('#dashboard-sections-btn').click();
         await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Opening Sections should keep the dashboard in place behind the section picker');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Opening Sections should not enter a classroom deck');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Sections should not expand a lesson deck');
         assert(await page.locator('#dashboard-utility-menu[open]').count() === 0, 'Opening Sections should close the compact menu');
+        await page.locator('#manage-screens-btn').click();
+        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+        assert(await page.locator('#sections-menu:not([hidden])').count() === 1, 'Manage Screen Decks should keep the section menu visible');
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage Screen Decks should display its menu over the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage Screen Decks should not enter Classroom');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Manage Screen Decks should not open a lesson deck behind its menu');
         await page.keyboard.press('Escape');
         await page.waitForSelector('#sections-menu:not([hidden])', { state: 'detached', timeout: 10000 });
         await page.locator('#dashboard-utility-menu > summary').click();
         await page.locator('#dashboard-settings-btn').click();
-        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
-        await page.locator('#dashboard-tab').dispatchEvent('click');
-        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Teacher Controls should open over the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Teacher Controls should not enter or reveal a classroom deck');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Teacher Controls should not expand a dashboard deck');
+        const dashboardMenuStateAfter = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                projectName: state.projectName || '',
+                usage: presets
+                    .map((preset) => ({
+                        id: preset?.id || '',
+                        lastUsedAt: Number(preset?.lastUsedAt || 0),
+                        usageCount: Number(preset?.usageCount || 0)
+                    }))
+                    .sort((a, b) => a.id.localeCompare(b.id))
+            };
+        });
+        assert(JSON.stringify(dashboardMenuStateAfter) === JSON.stringify(dashboardMenuStateBefore), 'Opening dashboard menus should not load a deck or change its usage history');
+        await closeTeacherPanel(page);
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Closing Teacher Controls should keep the same dashboard view visible');
         await page.locator('#dashboard-utility-menu > summary').click();
         await page.locator('#dashboard-updates-btn').click();
         assert(await page.locator('.notification-toast').textContent().then((text) => text.includes('applied automatically')), 'Updates should explain how the web app receives updates');
         assert(await page.locator('#dashboard-utility-menu[open]').count() === 0, 'Choosing a utility option should close the compact menu');
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1 && await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Updates should leave the Dashboard and its decks unchanged');
         await page.locator('#dashboard-utility-menu > summary').click();
         await page.locator('#dashboard-help-btn').click();
         await page.waitForSelector('#help-dialog[open]', { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1 && await page.locator('#classroom-view:not([hidden])').count() === 0, 'Help should open over the Dashboard without entering Classroom');
         await page.locator('#help-dialog .modal-close').click();
         await page.waitForSelector('#help-dialog[open]', { state: 'detached', timeout: 10000 });
 
@@ -3120,6 +3211,7 @@ async function runSmoke() {
         assert(await page.locator('.dashboard-empty').textContent().then((text) => text.includes('No recently opened decks')), 'Recent should explain when no lesson deck has been opened yet');
         await page.locator('[data-dashboard-mode="library"]').click();
 
+        await page.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]').click();
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('#student-view').isVisible(), 'Classroom view should open');
@@ -4254,6 +4346,7 @@ async function runSmoke() {
         await page.locator('[data-dashboard-mode="recent"]').click();
         assert(await page.locator(`.dashboard-screen-card.is-current[data-deck-id="${smokeDeckId}"]`).count() === 1, 'Recent should show a lesson deck after it has been opened');
         await page.locator('[data-dashboard-mode="library"]').click();
+        await page.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]').click();
         await page.locator('#dashboard-open-classroom-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
 
@@ -4421,6 +4514,7 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-deck-toggle').first().evaluate((element) => element.getBoundingClientRect().top < window.innerHeight), 'Mobile dashboard should show the first saved deck without scrolling');
         await runMobileResourceLibraryChecks(mobilePage);
         await mobilePage.locator('[data-dashboard-mode="library"]').click();
+        await mobilePage.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]').click();
         await mobilePage.waitForSelector('#dashboard-open-classroom-btn', { timeout: 10000 });
         await mobilePage.locator('#dashboard-open-classroom-btn').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });

@@ -8233,7 +8233,8 @@ class ClassroomScreenApp {
                     this.dashboardSelectedClassName = item.className;
                     this.dashboardSelectedFolderId = '';
                     this.dashboardSearchQuery = '';
-                    this.dashboardExpandedDeckId = null;
+                    this.dashboardExpandedDeckId = '';
+                    this.dashboardExpandedReminderDeckId = '';
                     this.renderDashboard();
                     window.requestAnimationFrame(() => {
                         Array.from(this.dashboardRoot?.querySelectorAll('.dashboard-filter[data-class-name]') || [])
@@ -8412,7 +8413,8 @@ class ClassroomScreenApp {
                 this.dashboardSelectedClassName = '';
                 this.dashboardSelectedFolderId = '';
                 this.dashboardSearchQuery = '';
-                this.dashboardExpandedDeckId = null;
+                this.dashboardExpandedDeckId = '';
+                this.dashboardExpandedReminderDeckId = '';
                 this.renderDashboard();
                 const focusNavigationButton = () => {
                     this.dashboardRoot?.querySelector(`[data-dashboard-mode="${mode}"]`)?.focus({ preventScroll: true });
@@ -8649,7 +8651,7 @@ class ClassroomScreenApp {
     openTeacherControls() {
         this.closeDialog(this.widgetModal);
         this.closeSectionsMenu();
-        this.handleNavClick('classroom', { openTeacherPanel: true });
+        this.toggleTeacherPanel(true);
     }
 
     openCurrentPageActions() {
@@ -8677,8 +8679,6 @@ class ClassroomScreenApp {
     }
 
     openManageScreensMenu() {
-        this.closeSectionsMenu();
-        this.handleNavClick('classroom');
         this.toggleTeacherPanel(false);
         this.toggleSectionsMenu(true);
 
