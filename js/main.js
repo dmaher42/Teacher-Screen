@@ -229,6 +229,7 @@ class ClassroomScreenApp {
         this.classroomReminderList = document.getElementById('classroom-reminder-list');
         this.classroomReminderForm = document.getElementById('classroom-reminder-form');
         this.classroomReminderClassScope = document.getElementById('classroom-reminder-class-scope');
+        this.classroomReminderClassHelp = document.getElementById('classroom-reminder-class-help');
         this.mainPagePrev = document.getElementById('main-page-prev');
         this.mainPageCurrent = document.getElementById('main-page-current');
         this.mainPageNext = document.getElementById('main-page-next');
@@ -7294,6 +7295,81 @@ class ClassroomScreenApp {
         return nextContext;
     }
 
+    assignClassToDeck(identifier = '') {
+        const deckId = String(identifier || this.activeReminderContext?.deckId || this.getCurrentDeckId()).trim();
+        const presetIndex = this.getPresetIndex(deckId);
+        const currentPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!currentPreset) {
+            this.showNotification('Save or load a deck before assigning a class.', 'warning');
+            return null;
+        }
+
+        const response = window.prompt(`Name the class for "${currentPreset.name}"`, currentPreset.className || '');
+        if (typeof response !== 'string') {
+            return null;
+        }
+
+        const requestedClassName = response.trim().replace(/\s+/g, ' ');
+        if (!requestedClassName) {
+            this.showNotification('Enter a class name to use Whole class reminders.', 'warning');
+            return null;
+        }
+
+        const matchingClassPreset = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .find((preset) => preset
+                && preset.id !== currentPreset.id
+                && preset.className.toLowerCase() === requestedClassName.toLowerCase());
+        const className = matchingClassPreset?.className || requestedClassName;
+        const classId = matchingClassPreset?.classId || getStableClassId(className);
+        const now = Date.now();
+
+        if (currentPreset.seededLessonId) {
+            this.dismissSeededLesson(currentPreset.seededLessonId);
+        }
+
+        const updatedPreset = {
+            ...currentPreset,
+            classId,
+            className,
+            projectState: cloneSerializableData({
+                ...currentPreset.projectState,
+                currentDeckId: currentPreset.id,
+                projectName: currentPreset.name
+            }),
+            updatedAt: now
+        };
+        delete updatedPreset.seededLessonId;
+        this.presets[presetIndex] = updatedPreset;
+
+        const isActiveDeck = this.getCurrentDeckId() === currentPreset.id
+            || this.activeReminderContext?.deckId === currentPreset.id;
+        if (isActiveDeck) {
+            this.setActiveReminderContext(updatedPreset);
+            this.projectState = {
+                ...this.projectState,
+                currentDeckId: currentPreset.id,
+                projectName: currentPreset.name,
+                activeDeckId: currentPreset.id,
+                activeClassId: classId,
+                activeClassName: className
+            };
+        }
+
+        this.savePresets();
+        this.renderPresetList();
+        if (isActiveDeck) {
+            if (this.presetClassInput) this.presetClassInput.value = className;
+            if (this.classProfileSelect) this.classProfileSelect.value = className;
+            this.saveStateImmediately();
+            this.renderClassroomReminderDock();
+            this.syncClassroomRemindersToProjector();
+        }
+        this.renderDashboard();
+        this.showNotification(`Assigned "${currentPreset.name}" to ${className}.`);
+        return this.getPresetRecord(currentPreset.id);
+    }
+
     getReminderContextForPreset(preset) {
         const normalizedPreset = this.normalizePresetRecord(preset);
         if (!normalizedPreset) {
@@ -7394,6 +7470,26 @@ class ClassroomScreenApp {
             });
         }
 
+        if (this.classroomReminderClassScope && this.classroomReminderClassScope.dataset.assignmentBound !== 'true') {
+            this.classroomReminderClassScope.dataset.assignmentBound = 'true';
+            this.classroomReminderClassScope.addEventListener('change', () => {
+                if (!this.classroomReminderClassScope.checked || this.activeReminderContext?.classId) {
+                    return;
+                }
+
+                const assignedPreset = this.assignClassToDeck(this.activeReminderContext?.deckId || '');
+                const deckScope = this.classroomReminderForm?.querySelector('input[name="scope"][value="deck"]');
+                if (!assignedPreset) {
+                    this.classroomReminderClassScope.checked = false;
+                    if (deckScope) deckScope.checked = true;
+                    return;
+                }
+
+                this.classroomReminderClassScope.checked = true;
+                this.classroomReminderForm?.querySelector('input[name="text"]')?.focus({ preventScroll: true });
+            });
+        }
+
         if (this.classroomReminderForm && this.classroomReminderForm.dataset.bound !== 'true') {
             this.classroomReminderForm.dataset.bound = 'true';
             this.classroomReminderForm.addEventListener('submit', (event) => {
@@ -7403,9 +7499,11 @@ class ClassroomScreenApp {
                 const requestedScope = formData.get('scope') === REMINDER_SCOPES.CLASS
                     ? REMINDER_SCOPES.CLASS
                     : REMINDER_SCOPES.DECK;
-                const scope = requestedScope === REMINDER_SCOPES.CLASS && context.classId
-                    ? REMINDER_SCOPES.CLASS
-                    : REMINDER_SCOPES.DECK;
+                if (requestedScope === REMINDER_SCOPES.CLASS && !context.classId) {
+                    this.showNotification('Assign this deck to a class before adding a Whole class reminder.', 'warning');
+                    return;
+                }
+                const scope = requestedScope;
                 const ownerId = scope === REMINDER_SCOPES.CLASS ? context.classId : context.deckId;
                 if (!ownerId) {
                     this.showNotification('Save or load a deck before adding reminders.', 'warning');
@@ -7643,9 +7741,25 @@ class ClassroomScreenApp {
                 description: 'Use this for homework, materials, or notices that follow the class.'
             }));
         } else {
-            const noClass = document.createElement('p');
+            const noClass = document.createElement('div');
             noClass.className = 'dashboard-reminder-panel__notice';
-            noClass.textContent = 'Add a class name to this deck to share reminders across a class.';
+            const noClassText = document.createElement('p');
+            noClassText.textContent = 'Assign this deck to a class to share reminders across the whole class.';
+            const assignClassButton = document.createElement('button');
+            assignClassButton.type = 'button';
+            assignClassButton.className = 'control-button';
+            assignClassButton.textContent = 'Assign class';
+            assignClassButton.addEventListener('click', () => {
+                const assignedPreset = this.assignClassToDeck(context.deckId);
+                if (assignedPreset) {
+                    this.dashboardExpandedReminderDeckId = assignedPreset.id;
+                    this.focusDashboardDeckControl(
+                        assignedPreset.id,
+                        '.dashboard-reminder-form[data-reminder-scope="class"] input[name="text"]'
+                    );
+                }
+            });
+            noClass.append(noClassText, assignClassButton);
             scopes.appendChild(noClass);
         }
         scopes.appendChild(this.createDashboardReminderScope({
@@ -7681,9 +7795,20 @@ class ClassroomScreenApp {
         const deckScope = this.classroomReminderForm?.querySelector('input[name="scope"][value="deck"]');
         const classScope = this.classroomReminderClassScope;
         if (deckScope) deckScope.disabled = !context.deckId;
-        if (classScope) classScope.disabled = !context.classId;
+        if (classScope) {
+            classScope.disabled = !context.deckId;
+            classScope.setAttribute('aria-label', context.classId
+                ? `Whole class: ${context.className}`
+                : 'Whole class; assign this deck to a class');
+        }
+        if (this.classroomReminderClassHelp) {
+            this.classroomReminderClassHelp.hidden = !context.deckId;
+            this.classroomReminderClassHelp.textContent = context.classId
+                ? `Shared with ${context.className}.`
+                : 'Choose Whole class and you will be asked to name the class.';
+        }
         if (deckScope?.checked && deckScope.disabled && classScope) classScope.checked = true;
-        if (classScope?.checked && classScope.disabled && deckScope) deckScope.checked = true;
+        if (classScope?.checked && !context.classId && deckScope) deckScope.checked = true;
 
         this.classroomReminderList.replaceChildren();
         if (reminders.length === 0) {

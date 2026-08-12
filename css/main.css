@@ -78,12 +78,21 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
 }
 
 .dashboard-reminder-panel__notice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
     margin: 0;
     padding: 1rem;
     border: 1px dashed rgba(68, 113, 145, 0.35);
     border-radius: 14px;
     color: #587287;
     background: rgba(240, 248, 252, 0.75);
+}
+
+.dashboard-reminder-panel__notice p {
+    margin: 0;
+    line-height: 1.45;
 }
 
 .dashboard-reminder-scope {
@@ -388,6 +397,17 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
     gap: 0.25rem;
     color: #4c687c;
     font-size: 0.7rem;
+}
+
+.classroom-reminder-form__scope-help {
+    margin: -0.1rem 0 0;
+    color: #587286;
+    font-size: 0.66rem;
+    line-height: 1.4;
+}
+
+.classroom-reminder-form__scope-help[hidden] {
+    display: none;
 }
 
 .classroom-reminder-form input[type="radio"],

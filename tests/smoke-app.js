@@ -2518,6 +2518,159 @@ async function runReminderSystemChecks(browser, baseUrl) {
     }
 }
 
+async function runWholeClassAssignmentChecks(browser, baseUrl) {
+    const context = await browser.newContext();
+    await makeExternalAssetsDeterministic(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+    const deckName = 'Whole Class Assignment Deck';
+    const className = 'Year 7 HASS';
+    const guardText = 'Must not silently become a deck reminder';
+    const classReminderText = 'Bring HASS workbook tomorrow';
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-create-btn', { timeout: 15000 });
+
+        page.once('dialog', (dialog) => dialog.accept(deckName));
+        await page.locator('#dashboard-create-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
+
+        const noClassDeck = await page.evaluate((expectedName) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.name === expectedName);
+            return {
+                id: preset?.id || '',
+                classId: preset?.classId || '',
+                className: preset?.className || '',
+                currentDeckId: state.currentDeckId || ''
+            };
+        }, deckName);
+        assert(
+            !!noClassDeck.id
+                && noClassDeck.id === noClassDeck.currentDeckId
+                && !noClassDeck.classId
+                && !noClassDeck.className,
+            'A newly created deck should begin without an assigned class'
+        );
+
+        await page.locator('#classroom-reminder-launcher').click();
+        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        const classroomForm = page.locator('#classroom-reminder-form');
+        const deckScope = classroomForm.locator('input[name="scope"][value="deck"]');
+        const classScope = page.locator('#classroom-reminder-class-scope');
+        assert(!(await classScope.isDisabled()), 'Whole class should be actionable even before the deck has a class name');
+        assert(
+            (await page.locator('#classroom-reminder-class-help').textContent()).includes('asked to name the class'),
+            'A no-class deck should explain what happens when Whole class is selected'
+        );
+
+        await page.evaluate(() => {
+            const classRadio = document.querySelector('#classroom-reminder-class-scope');
+            const deckRadio = document.querySelector('#classroom-reminder-form input[name="scope"][value="deck"]');
+            classRadio.checked = true;
+            deckRadio.checked = false;
+        });
+        await classroomForm.locator('input[name="text"]').fill(guardText);
+        await classroomForm.locator('button[type="submit"]').click();
+        assert(
+            await page.locator('.notification-toast').textContent().then((text) => text.includes('Assign this deck to a class')),
+            'Missing class context should show a clear warning'
+        );
+        assert(
+            await page.evaluate((expectedText) => {
+                const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+                return !store.reminders?.some((reminder) => reminder?.text === expectedText);
+            }, guardText),
+            'A requested Whole class reminder must never silently fall back to This deck'
+        );
+        await classroomForm.locator('input[name="text"]').fill('');
+        await deckScope.click();
+
+        page.once('dialog', (dialog) => dialog.dismiss());
+        await classScope.click();
+        assert(await deckScope.isChecked() && !(await classScope.isChecked()), 'Cancelling class assignment should return the composer to This deck');
+        assert(
+            await page.evaluate((expectedId) => {
+                const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+                const preset = presets.find((candidate) => candidate?.id === expectedId);
+                return !preset?.classId && !preset?.className;
+            }, noClassDeck.id),
+            'Cancelling class assignment should not change the saved deck'
+        );
+
+        page.once('dialog', (dialog) => dialog.accept(className));
+        await classScope.click();
+        await page.waitForFunction(({ expectedId, expectedClassName }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const preset = presets.find((candidate) => candidate?.id === expectedId);
+            return preset?.className === expectedClassName
+                && Boolean(preset.classId)
+                && state.activeClassId === preset.classId
+                && state.activeClassName === expectedClassName;
+        }, { expectedId: noClassDeck.id, expectedClassName: className }, { timeout: 10000 });
+        assert(await classScope.isChecked(), 'Assigning a class from the reminder composer should keep Whole class selected');
+        assert(
+            (await page.locator('#classroom-reminder-class-help').textContent()).includes(className),
+            'The reminder composer should confirm the assigned class name'
+        );
+
+        await classroomForm.locator('input[name="text"]').fill(classReminderText);
+        await classroomForm.locator('button[type="submit"]').click();
+        const savedWholeClassReminder = await page.evaluate(({ expectedDeckId, expectedText }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.id === expectedDeckId);
+            const store = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}');
+            const reminder = store.reminders?.find((candidate) => candidate?.text === expectedText);
+            return {
+                presetClassId: preset?.classId || '',
+                reminder: reminder || null
+            };
+        }, { expectedDeckId: noClassDeck.id, expectedText: classReminderText });
+        assert(
+            savedWholeClassReminder.reminder?.scope === 'class'
+                && savedWholeClassReminder.reminder?.classId === savedWholeClassReminder.presetClassId
+                && savedWholeClassReminder.reminder?.deckId === '',
+            'Whole class should save a true class reminder after inline assignment'
+        );
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.waitForFunction(({ expectedDeckId, expectedClassName }) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.id === expectedDeckId);
+            return preset?.className === expectedClassName && Boolean(preset.classId);
+        }, { expectedDeckId: noClassDeck.id, expectedClassName: className }, { timeout: 10000 });
+        await page.locator(`.dashboard-screen-card[data-deck-id="${noClassDeck.id}"] [data-deck-action="open"]`).click();
+        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
+        await page.locator('#classroom-reminder-launcher').click();
+        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        assert(
+            (await page.locator('#classroom-reminder-list').textContent()).includes(classReminderText),
+            'Inline class assignment and its Whole class reminder should survive reload'
+        );
+        assert(!(await page.locator('#classroom-reminder-class-scope').isDisabled()), 'Whole class should remain enabled after reload');
+
+        assert(pageErrors.length === 0, `Whole class assignment checks should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Whole class assignment checks should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -2548,6 +2701,7 @@ async function runSmoke() {
         }
         if (process.argv.includes('--reminders-only')) {
             await runReminderSystemChecks(browser, baseUrl);
+            await runWholeClassAssignmentChecks(browser, baseUrl);
             console.log('Class and deck reminder browser checks passed.');
             return;
         }
@@ -2556,6 +2710,7 @@ async function runSmoke() {
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
             await runDeckOrganisationChecks(browser, baseUrl);
             await runReminderSystemChecks(browser, baseUrl);
+            await runWholeClassAssignmentChecks(browser, baseUrl);
             await runNewDeckNavigationChecks(browser, baseUrl);
             await runWidgetSaveNotificationChecks(browser, baseUrl);
             await runBottomWidgetContainmentChecks(browser, baseUrl);
