@@ -216,6 +216,7 @@ class ClassroomScreenApp {
         this.teacherPanel = document.getElementById('teacher-panel');
         this.widgetsContainer = document.getElementById('widgets-container');
         this.closeTeacherPanelBtn = document.getElementById('close-teacher-panel');
+        this.teacherControlsQuickButton = document.getElementById('teacher-controls-quick-btn');
         this.lessonQuickActions = document.getElementById('lesson-quick-actions');
         this.themeSelector = document.getElementById('theme-selector');
         this.backgroundSelector = document.getElementById('background-selector');
@@ -263,6 +264,7 @@ class ClassroomScreenApp {
         this.screenManagerLibraryButton = document.getElementById('screen-manager-library-btn');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
+        this.importFileInput = document.getElementById('import-file-input');
         this.importJsonInput = document.getElementById('import-json-input');
         this.importSummary = document.getElementById('import-summary');
         this.confirmImportButton = document.getElementById('confirm-import');
@@ -300,6 +302,8 @@ class ClassroomScreenApp {
         // App State
         this.widgets = [];
         this.isTeacherPanelOpen = false;
+        this.teacherPanelReturnFocus = null;
+        this.widgetSettingsReturnFocus = null;
         this.sectionsMenuReturnFocus = null;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
@@ -327,6 +331,7 @@ class ClassroomScreenApp {
         this.resourceLibraryMessage = '';
         this.resourceLibraryRefreshId = 0;
         this.resourceFallbackRootIds = new Map();
+        this.pendingImport = null;
         this.hasRestoredSavedState = false;
         this.lessonPlanEditor = null;
         this.appVersion = '2.3.0'; // Version for state management
@@ -675,7 +680,27 @@ class ClassroomScreenApp {
         document.addEventListener('keydown', (event) => {
             const key = (event.key || '').toLowerCase();
 
+            if (event.key === 'Tab') {
+                const activeModal = this.widgetSettingsModal?.classList.contains('visible')
+                    ? this.widgetSettingsModal
+                    : (this.isTeacherPanelOpen ? this.teacherPanel : null);
+                if (activeModal) {
+                    this.trapFocusWithin(activeModal, event);
+                    return;
+                }
+            }
+
             if (event.key === 'Escape') {
+                if (this.widgetSettingsModal?.classList.contains('visible')) {
+                    event.preventDefault();
+                    this.closeWidgetSettings({ restoreFocus: true });
+                    return;
+                }
+                if (this.isTeacherPanelOpen) {
+                    event.preventDefault();
+                    this.toggleTeacherPanel(false, { restoreFocus: true });
+                    return;
+                }
                 if (this.sectionsMenu && !this.sectionsMenu.hidden) {
                     event.preventDefault();
                     this.closeSectionsMenu({ restoreFocus: true });
@@ -739,6 +764,7 @@ class ClassroomScreenApp {
         if (addBtn) {
             addBtn.addEventListener('click', () => this.openWidgetPicker());
         }
+        this.teacherControlsQuickButton?.addEventListener('click', () => this.openTeacherControls());
         this.lessonQuickActions?.querySelectorAll('[data-quick-widget]').forEach((button) => {
             button.addEventListener('click', () => {
                 this.closeSectionsMenu();
@@ -832,8 +858,13 @@ class ClassroomScreenApp {
 
         // Export/Import
         document.getElementById('export-layout').addEventListener('click', () => this.handleExportLayout());
-        document.getElementById('import-layout').addEventListener('click', () => this.openDialog(this.importDialog));
+        document.getElementById('import-layout').addEventListener('click', () => this.openImportDialog());
         this.confirmImportButton.addEventListener('click', () => this.handleConfirmImport());
+        this.importJsonInput?.addEventListener('input', () => this.resetImportPreview());
+        this.importFileInput?.addEventListener('change', (event) => this.handleImportFileSelected(event));
+        this.importDialog?.querySelectorAll('input[name="import-mode"]').forEach((input) => {
+            input.addEventListener('change', () => this.resetImportPreview());
+        });
 
         // Screen decks
         if (this.classProfileSelect) {
@@ -845,7 +876,7 @@ class ClassroomScreenApp {
         if (this.saveSnapshotButton) {
             this.saveSnapshotButton.addEventListener('click', () => {
                 this.syncPresetFilterFromClassProfile();
-                this.savePreset({ autoName: true });
+                this.saveDatedBackup();
             });
         }
 
@@ -958,6 +989,7 @@ class ClassroomScreenApp {
         this.navTabs.forEach(t => {
             const isSelected = t.dataset.tab === tab;
             t.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            t.tabIndex = isSelected ? 0 : -1;
             if (isSelected) t.classList.add('active');
             else t.classList.remove('active');
         });
@@ -1024,8 +1056,11 @@ class ClassroomScreenApp {
         }
 
         if (this.sectionsToggleButton) {
-            this.sectionsToggleButton.setAttribute('aria-label', 'Home');
-            this.sectionsToggleButton.title = 'Home';
+            this.sectionsToggleButton.setAttribute('aria-label', 'Classroom Home');
+            this.sectionsToggleButton.title = 'Classroom Home';
+            this.sectionsToggleButton.removeAttribute('aria-haspopup');
+            this.sectionsToggleButton.removeAttribute('aria-expanded');
+            this.sectionsToggleButton.removeAttribute('aria-controls');
         }
     }
 
@@ -1036,7 +1071,6 @@ class ClassroomScreenApp {
 
         const shouldOpen = forceOpen === null ? this.sectionsMenu.hidden : forceOpen;
         this.sectionsMenu.hidden = !shouldOpen;
-        this.sectionsToggleButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
         document.body.classList.toggle('is-sections-menu-open', shouldOpen);
     }
 
@@ -1099,12 +1133,25 @@ class ClassroomScreenApp {
         this.renderSavedNotesList();
     }
 
-    toggleTeacherPanel(forceState = null) {
-        this.isTeacherPanelOpen = forceState !== null ? forceState : !this.isTeacherPanelOpen;
+    toggleTeacherPanel(forceState = null, options = {}) {
+        const nextOpen = forceState !== null ? forceState : !this.isTeacherPanelOpen;
+        if (nextOpen === this.isTeacherPanelOpen) {
+            return;
+        }
+        if (nextOpen) {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement && !this.teacherPanel.contains(activeElement)) {
+                this.teacherPanelReturnFocus = activeElement;
+            }
+        }
+        this.isTeacherPanelOpen = nextOpen;
         this.teacherPanel.classList.toggle('open', this.isTeacherPanelOpen);
+        this.teacherPanel.inert = !this.isTeacherPanelOpen;
+        this.teacherPanel.setAttribute('aria-hidden', this.isTeacherPanelOpen ? 'false' : 'true');
         this.panelBackdrop.classList.toggle('visible', this.isTeacherPanelOpen);
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
         document.body.classList.toggle('is-arrange-mode', this.isTeacherPanelOpen);
+        this.teacherControlsQuickButton?.setAttribute('aria-expanded', this.isTeacherPanelOpen ? 'true' : 'false');
 
         if (this.isTeacherPanelOpen) {
             const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;
@@ -1112,7 +1159,88 @@ class ClassroomScreenApp {
                 panelContent.scrollTop = 0;
             }
             this.syncTimerControlsFromWidget();
+            window.requestAnimationFrame(() => this.closeTeacherPanelBtn?.focus({ preventScroll: true }));
+            return;
         }
+
+        const returnFocus = this.teacherPanelReturnFocus;
+        this.teacherPanelReturnFocus = null;
+        if (options.restoreFocus !== false) {
+            this.restoreModalFocus(returnFocus, [
+                this.teacherControlsQuickButton,
+                this.dashboardRoot?.querySelector('#dashboard-utility-menu > summary'),
+                this.sectionsToggleButton,
+                document.getElementById('add-widget-btn')
+            ]);
+        }
+    }
+
+    getModalFocusableElements(container) {
+        if (!(container instanceof HTMLElement)) return [];
+        const selector = [
+            'a[href]',
+            'button:not([disabled])',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            'summary',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(',');
+        return Array.from(container.querySelectorAll(selector)).filter((element) => (
+            element instanceof HTMLElement
+            && element.isConnected
+            && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+            && element.getClientRects().length > 0
+            && window.getComputedStyle(element).visibility !== 'hidden'
+        ));
+    }
+
+    trapFocusWithin(container, event) {
+        const focusable = this.getModalFocusableElements(container);
+        if (!focusable.length) {
+            event.preventDefault();
+            container.setAttribute('tabindex', '-1');
+            container.focus({ preventScroll: true });
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement = document.activeElement;
+        if (!container.contains(activeElement)) {
+            event.preventDefault();
+            (event.shiftKey ? last : first).focus({ preventScroll: true });
+            return;
+        }
+        if (event.shiftKey && activeElement === first) {
+            event.preventDefault();
+            last.focus({ preventScroll: true });
+        } else if (!event.shiftKey && activeElement === last) {
+            event.preventDefault();
+            first.focus({ preventScroll: true });
+        }
+    }
+
+    isUsableFocusTarget(element) {
+        const closedDetails = element instanceof HTMLElement
+            ? element.closest('details:not([open])')
+            : null;
+        return element instanceof HTMLElement
+            && element !== document.body
+            && element !== document.documentElement
+            && element.isConnected
+            && (!closedDetails || closedDetails.querySelector(':scope > summary') === element)
+            && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+            && element.getClientRects().length > 0
+            && window.getComputedStyle(element).visibility !== 'hidden';
+    }
+
+    restoreModalFocus(preferredTarget, fallbackTargets = []) {
+        window.requestAnimationFrame(() => {
+            const target = [preferredTarget, ...fallbackTargets]
+                .find((candidate) => this.isUsableFocusTarget(candidate));
+            target?.focus({ preventScroll: true });
+        });
     }
 
     renderSavedNotesList() {
@@ -3098,7 +3226,7 @@ class ClassroomScreenApp {
         });
 
         if (this.mainPageCurrent) {
-            this.mainPageCurrent.textContent = currentPageLabel;
+            this.mainPageCurrent.textContent = `Page ${currentPageLabel}`;
             this.mainPageCurrent.title = `Manage or delete this page (${pageSummary})`;
             this.mainPageCurrent.setAttribute('aria-label', `${pageSummary}. Manage or delete this page.`);
         }
@@ -3158,6 +3286,7 @@ class ClassroomScreenApp {
         if (this.mainPageNext) {
             const nextActionLabel = canMoveRight ? 'Next page' : 'Add page';
             this.mainPageNext.disabled = false;
+            this.mainPageNext.textContent = canMoveRight ? '>' : '+';
             this.mainPageNext.title = nextActionLabel;
             this.mainPageNext.setAttribute('aria-label', nextActionLabel);
         }
@@ -3244,6 +3373,70 @@ class ClassroomScreenApp {
             syncToken: this.projectorSyncToken,
             projectorState
         });
+        this.persistActivePresetSnapshot(state);
+    }
+
+    persistActivePresetSnapshot(state = {}) {
+        const deckId = typeof state.currentDeckId === 'string' ? state.currentDeckId.trim() : '';
+        if (!deckId || !Array.isArray(this.presets)) {
+            return false;
+        }
+
+        const presetIndex = this.presets.findIndex((preset) => preset?.id === deckId);
+        if (presetIndex === -1) {
+            return false;
+        }
+
+        const existing = this.normalizePresetRecord(this.presets[presetIndex]);
+        const projectName = typeof existing?.name === 'string' ? existing.name.trim() : '';
+        if (!existing || !projectName || String(state.projectName || '').trim() !== projectName || !Array.isArray(state.pages)) {
+            return false;
+        }
+
+        const projectState = {
+            currentDeckId: existing.id,
+            projectName,
+            activePageId: state.activePageId || DEFAULT_PAGE_ID,
+            pages: cloneSerializableData(state.pages)
+        };
+        const nextContent = {
+            projectState,
+            theme: state.theme,
+            background: cloneSerializableData(state.background),
+            layout: cloneSerializableData(state.layout),
+            lessonPlan: cloneSerializableData(state.lessonPlan)
+        };
+        const currentContent = {
+            projectState: existing.projectState,
+            theme: existing.theme,
+            background: existing.background,
+            layout: existing.layout,
+            lessonPlan: existing.lessonPlan
+        };
+
+        if (JSON.stringify(currentContent) === JSON.stringify(nextContent)) {
+            return false;
+        }
+
+        const replacement = {
+            ...existing,
+            ...nextContent,
+            updatedAt: Date.now()
+        };
+        if (replacement.seededLessonId) {
+            this.dismissSeededLesson(replacement.seededLessonId);
+        }
+
+        const nextPresets = [...this.presets];
+        nextPresets[presetIndex] = replacement;
+        try {
+            localStorage.setItem(this.presetsKey, JSON.stringify(nextPresets));
+            this.presets = nextPresets;
+            return true;
+        } catch (error) {
+            console.warn('Unable to autosave the current deck:', error);
+            return false;
+        }
     }
 
     saveStateImmediately(source = 'teacher') {
@@ -4186,6 +4379,67 @@ class ClassroomScreenApp {
         return `${label} - ${datePart} ${timePart}`;
     }
 
+    saveDatedBackup() {
+        const sourceState = this.buildStateSnapshot();
+        this.persistActivePresetSnapshot(sourceState);
+
+        const sourceDeckId = typeof sourceState.currentDeckId === 'string'
+            ? sourceState.currentDeckId.trim()
+            : '';
+        const sourcePreset = sourceDeckId
+            ? this.presets.find((preset) => preset?.id === sourceDeckId)
+            : null;
+        const normalizedSource = this.normalizePresetRecord(sourcePreset);
+        if (!normalizedSource) {
+            this.showNotification('Save the current deck before creating a dated backup.', 'error');
+            return false;
+        }
+
+        const selectedClassName = this.classProfileSelect
+            ? this.classProfileSelect.value.trim()
+            : '';
+        const className = selectedClassName || normalizedSource.className || '';
+        const classId = getStableClassId(className);
+        const name = this.getUniquePresetName(`${this.generateSnapshotName(className || normalizedSource.name)} Backup`);
+        const id = this.createDeckId();
+        const now = Date.now();
+        const projectState = {
+            currentDeckId: id,
+            projectName: name,
+            activePageId: sourceState.activePageId || DEFAULT_PAGE_ID,
+            pages: cloneSerializableData(sourceState.pages)
+        };
+        const backup = this.normalizePresetRecord({
+            ...normalizedSource,
+            id,
+            name,
+            classId,
+            className,
+            projectState,
+            theme: sourceState.theme,
+            background: cloneSerializableData(sourceState.background),
+            layout: cloneSerializableData(sourceState.layout),
+            lessonPlan: cloneSerializableData(sourceState.lessonPlan),
+            isFavorite: false,
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: 0,
+            usageCount: 0
+        });
+        if (!backup) {
+            this.showNotification('The dated backup could not be created.', 'error');
+            return false;
+        }
+        delete backup.seededLessonId;
+
+        this.presets.push(backup);
+        this.savePresets();
+        this.renderPresetList();
+        this.renderDashboard();
+        this.showNotification(`Dated backup "${name}" saved without changing the current deck.`);
+        return true;
+    }
+
     getUniquePresetName(baseName) {
         const root = String(baseName || '').trim() || 'Deck';
         if (!this.presets.some((preset) => preset.name === root)) {
@@ -4984,33 +5238,328 @@ class ClassroomScreenApp {
         return this.buildStateSnapshot();
     }
 
-    handleExportLayout() {
-        const exportPayload = {
+    buildExportPayload() {
+        const state = this.getSerializableState();
+        this.persistActivePresetSnapshot(state);
+        return {
             schemaVersion: this.schemaVersion,
             appVersion: this.appVersion,
-            state: removePrivateBehaviourData(this.getSerializableState()),
+            state: removePrivateBehaviourData(state),
             presets: removePrivateBehaviourData(this.presets || []),
             folders: this.folders || [],
             reminders: classReminderService.exportData()
         };
+    }
 
-        const jsonString = JSON.stringify(exportPayload, null, 2);
+    downloadJsonPayload(payload, filename) {
+        const jsonString = JSON.stringify(payload, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'classroom-screen-decks.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        a.download = filename;
+        try {
+            document.body.appendChild(a);
+            a.click();
+        } finally {
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+        return true;
+    }
+
+    handleExportLayout() {
+        this.downloadJsonPayload(this.buildExportPayload(), 'classroom-screen-decks.json');
 
         this.showNotification('Screen decks and reminders exported. Private student names and behaviour notes were not included.');
     }
 
+    openImportDialog() {
+        this.pendingImport = null;
+        if (this.importJsonInput) this.importJsonInput.value = '';
+        if (this.importFileInput) this.importFileInput.value = '';
+        const mergeMode = this.importDialog?.querySelector('input[name="import-mode"][value="merge"]');
+        if (mergeMode) mergeMode.checked = true;
+        this.resetImportPreview();
+        this.openDialog(this.importDialog);
+    }
+
+    resetImportPreview(options = {}) {
+        this.pendingImport = null;
+        if (this.confirmImportButton) {
+            this.confirmImportButton.textContent = 'Preview import';
+        }
+        if (options.clearSummary !== false && this.importSummary) {
+            this.importSummary.textContent = '';
+            this.importSummary.style.color = '';
+        }
+    }
+
+    async handleImportFileSelected(event) {
+        const file = event?.target?.files?.[0] || null;
+        this.resetImportPreview();
+        if (!file) return;
+
+        try {
+            const contents = await file.text();
+            if (this.importJsonInput) this.importJsonInput.value = contents;
+            if (this.importSummary) {
+                this.importSummary.textContent = `Loaded ${file.name}. Choose Merge or Replace, then preview the import.`;
+                this.importSummary.style.color = '';
+            }
+        } catch (error) {
+            if (this.importSummary) {
+                this.importSummary.textContent = `Error: Unable to read ${file.name}.`;
+                this.importSummary.style.color = 'red';
+            }
+            console.error('Import file read failed:', error);
+        }
+    }
+
+    getSelectedImportMode() {
+        const selected = this.importDialog?.querySelector('input[name="import-mode"]:checked');
+        return selected?.value === 'merge' || selected?.value === 'replace'
+            ? selected.value
+            : '';
+    }
+
+    prepareImport(jsonString, mode) {
+        const parsed = JSON.parse(jsonString);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('Invalid JSON structure.');
+        }
+        if (typeof parsed.schemaVersion !== 'number' || !parsed.state || !Array.isArray(parsed.presets)) {
+            throw new Error('Invalid JSON structure.');
+        }
+        if (parsed.schemaVersion > this.schemaVersion) {
+            throw new Error(`This export uses data version ${parsed.schemaVersion}, which is newer than this app supports.`);
+        }
+        if (mode !== 'merge' && mode !== 'replace') {
+            throw new Error('Choose Merge or Replace before previewing the import.');
+        }
+
+        const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion));
+        if (!isValidLayout(state.layout)) {
+            throw new Error('Imported classroom layout is invalid.');
+        }
+
+        const importedPresets = parsed.presets.map((preset) => this.normalizePresetRecord(preset));
+        if (importedPresets.some((preset) => !preset)) {
+            throw new Error('One or more imported decks are invalid.');
+        }
+        if (importedPresets.length === 0) {
+            throw new Error('The import does not contain any saved decks.');
+        }
+        const importedDeckIds = new Set();
+        importedPresets.forEach((preset) => {
+            if (importedDeckIds.has(preset.id)) {
+                throw new Error(`The import contains the deck ID "${preset.id}" more than once.`);
+            }
+            importedDeckIds.add(preset.id);
+            const invalidPage = preset.projectState?.pages?.find((page) => !isValidLayout(page?.snapshot?.layout));
+            if (invalidPage) {
+                throw new Error(`Deck "${preset.name}" contains an invalid page layout.`);
+            }
+        });
+
+        let importedFolders = [];
+        if (parsed.folders !== undefined) {
+            if (!Array.isArray(parsed.folders)) {
+                throw new Error('Imported folders must be a list.');
+            }
+            importedFolders = parsed.folders.map((folder) => this.normalizeFolderRecord(folder));
+            if (importedFolders.some((folder) => !folder)) {
+                throw new Error('One or more imported folders are invalid.');
+            }
+        }
+        const folderIds = new Set();
+        const folderNames = new Set();
+        importedFolders.forEach((folder) => {
+            const normalizedName = folder.name.toLowerCase();
+            if (folderIds.has(folder.id) || folderNames.has(normalizedName)) {
+                throw new Error('Imported folders must have unique IDs and names.');
+            }
+            folderIds.add(folder.id);
+            folderNames.add(normalizedName);
+        });
+
+        const reminderValidator = new ClassReminderService({ storage: null, eventTarget: null });
+        let importedReminders;
+        try {
+            reminderValidator.importData(parsed.reminders ?? { version: 1, reminders: [] }, { mode: 'replace' });
+            importedReminders = reminderValidator.exportData();
+        } finally {
+            reminderValidator.dispose();
+        }
+        importedReminders.reminders.forEach((reminder) => {
+            if (reminder.scope === REMINDER_SCOPES.DECK && !importedDeckIds.has(reminder.deckId)) {
+                throw new Error('An imported deck reminder points to a deck that is not included in the import.');
+            }
+        });
+
+        return {
+            mode,
+            sourceText: jsonString,
+            state,
+            presets: importedPresets,
+            folders: importedFolders,
+            reminders: importedReminders
+        };
+    }
+
+    renderImportPreview(prepared) {
+        const modeLabel = prepared.mode === 'replace' ? 'Replace' : 'Merge';
+        const consequence = prepared.mode === 'replace'
+            ? 'Your current saved collection will be downloaded as a JSON backup first. Private student names and behaviour notes are excluded from that backup.'
+            : 'Your current classroom stays open. ID and name collisions will be safely remapped.';
+        const deckLabel = prepared.presets.length === 1 ? 'deck' : 'decks';
+        const reminderLabel = prepared.reminders.reminders.length === 1 ? 'reminder' : 'reminders';
+        this.importSummary.textContent = `${modeLabel} preview: ${prepared.presets.length} ${deckLabel}, ${prepared.folders.length} folders, and ${prepared.reminders.reminders.length} ${reminderLabel}. ${consequence} Click Confirm import to continue.`;
+        this.importSummary.style.color = 'green';
+        this.confirmImportButton.textContent = 'Confirm import';
+    }
+
+    createUniqueImportId(prefix, usedIds) {
+        let id = createStableRecordId(prefix);
+        while (usedIds.has(id)) {
+            id = createStableRecordId(prefix);
+        }
+        usedIds.add(id);
+        return id;
+    }
+
+    buildMergeImportPlan(prepared) {
+        const currentFolders = this.folders.map((folder) => this.normalizeFolderRecord(folder)).filter(Boolean);
+        const folderIdMap = new Map();
+        const usedFolderIds = new Set(currentFolders.map((folder) => folder.id));
+        const folderByName = new Map(currentFolders.map((folder) => [folder.name.toLowerCase(), folder]));
+        const folders = [...currentFolders];
+        prepared.folders.forEach((folder) => {
+            const existingByName = folderByName.get(folder.name.toLowerCase());
+            if (existingByName) {
+                folderIdMap.set(folder.id, existingByName.id);
+                return;
+            }
+            const id = usedFolderIds.has(folder.id)
+                ? this.createUniqueImportId('folder', usedFolderIds)
+                : folder.id;
+            usedFolderIds.add(id);
+            const mappedFolder = { ...folder, id };
+            folders.push(mappedFolder);
+            folderByName.set(folder.name.toLowerCase(), mappedFolder);
+            folderIdMap.set(folder.id, id);
+        });
+
+        const currentPresets = this.presets.map((preset) => this.normalizePresetRecord(preset)).filter(Boolean);
+        const usedDeckIds = new Set(currentPresets.map((preset) => preset.id));
+        const usedNames = new Set(currentPresets.map((preset) => preset.name.toLowerCase()));
+        const deckIdMap = new Map();
+        const allocated = prepared.presets.map((preset) => {
+            const id = usedDeckIds.has(preset.id)
+                ? this.createUniqueImportId('deck', usedDeckIds)
+                : preset.id;
+            usedDeckIds.add(id);
+            let name = preset.name;
+            if (usedNames.has(name.toLowerCase())) {
+                const root = `${preset.name} (Imported)`;
+                name = root;
+                let suffix = 2;
+                while (usedNames.has(name.toLowerCase())) {
+                    name = `${root} ${suffix}`;
+                    suffix += 1;
+                }
+            }
+            usedNames.add(name.toLowerCase());
+            deckIdMap.set(preset.id, id);
+            return { preset, id, name };
+        });
+        const importedPresets = allocated.map(({ preset, id, name }) => this.normalizePresetRecord({
+            ...preset,
+            id,
+            name,
+            folderId: folderIdMap.get(preset.folderId) || '',
+            projectState: {
+                ...preset.projectState,
+                currentDeckId: id,
+                projectName: name
+            }
+        }));
+
+        const usedReminderIds = new Set(classReminderService.exportData().reminders.map((reminder) => reminder.id));
+        const reminders = prepared.reminders.reminders.map((reminder) => {
+            const id = usedReminderIds.has(reminder.id)
+                ? this.createUniqueImportId('reminder', usedReminderIds)
+                : reminder.id;
+            usedReminderIds.add(id);
+            return {
+                ...reminder,
+                id,
+                deckId: reminder.scope === REMINDER_SCOPES.DECK
+                    ? deckIdMap.get(reminder.deckId)
+                    : ''
+            };
+        });
+
+        return {
+            presets: [...currentPresets, ...importedPresets],
+            folders,
+            reminders: { ...prepared.reminders, reminders }
+        };
+    }
+
+    buildReplaceImportPlan(prepared) {
+        const folders = prepared.folders.map((folder) => ({ ...folder }));
+        const folderIds = new Set(folders.map((folder) => folder.id));
+        const presets = prepared.presets.map((preset) => this.normalizePresetRecord({
+            ...preset,
+            folderId: folderIds.has(preset.folderId) ? preset.folderId : ''
+        }));
+        let activePreset = presets.find((preset) => preset.id === prepared.state.currentDeckId) || null;
+        if (!activePreset) {
+            const nameMatches = presets.filter((preset) => preset.name === prepared.state.projectName);
+            activePreset = nameMatches.length === 1 ? nameMatches[0] : null;
+        }
+        if (!activePreset && presets.length === 1) {
+            [activePreset] = presets;
+        }
+        if (!activePreset) {
+            throw new Error('The imported active deck could not be identified safely.');
+        }
+
+        const state = this.normalizeProjectState({
+            ...prepared.state,
+            currentDeckId: activePreset.id,
+            projectName: activePreset.name,
+            activeDeckId: activePreset.id,
+            activeClassId: activePreset.classId,
+            activeClassName: activePreset.className
+        });
+        const activeIndex = presets.findIndex((preset) => preset.id === activePreset.id);
+        presets[activeIndex] = {
+            ...activePreset,
+            projectState: {
+                currentDeckId: activePreset.id,
+                projectName: activePreset.name,
+                activePageId: state.activePageId,
+                pages: cloneSerializableData(state.pages)
+            },
+            theme: state.theme,
+            background: cloneSerializableData(state.background),
+            layout: cloneSerializableData(state.layout),
+            lessonPlan: cloneSerializableData(state.lessonPlan)
+        };
+        return {
+            presets,
+            folders,
+            reminders: prepared.reminders,
+            state,
+            activePreset: presets[activeIndex]
+        };
+    }
+
     handleConfirmImport() {
-        const jsonString = this.importJsonInput.value;
+        const jsonString = this.importJsonInput?.value?.trim() || '';
+        const mode = this.getSelectedImportMode();
         if (!jsonString) {
             this.importSummary.textContent = 'Error: Input is empty.';
             this.importSummary.style.color = 'red';
@@ -5019,53 +5568,20 @@ class ClassroomScreenApp {
 
         let importRollback = null;
         try {
-            const parsed = JSON.parse(jsonString);
-
-            if (typeof parsed.schemaVersion !== 'number' || !parsed.state || !Array.isArray(parsed.presets)) {
-                throw new Error('Invalid JSON structure.');
+            const previewMatches = this.pendingImport
+                && this.pendingImport.sourceText === jsonString
+                && this.pendingImport.mode === mode;
+            if (!previewMatches) {
+                this.pendingImport = this.prepareImport(jsonString, mode);
+                this.renderImportPreview(this.pendingImport);
+                return;
             }
 
-            const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion));
-            if (!isValidLayout(state.layout)) {
-                throw new Error('Imported classroom layout is invalid.');
-            }
-
-            const importedPresets = parsed.presets.map((preset) => this.normalizePresetRecord(preset));
-            if (importedPresets.some((preset) => !preset)) {
-                throw new Error('One or more imported decks are invalid.');
-            }
-
-            let importedFolders = null;
-            if (parsed.folders !== undefined) {
-                if (!Array.isArray(parsed.folders)) {
-                    throw new Error('Imported folders must be a list.');
-                }
-                importedFolders = parsed.folders.map((folder) => this.normalizeFolderRecord(folder));
-                if (importedFolders.some((folder) => !folder)) {
-                    throw new Error('One or more imported folders are invalid.');
-                }
-            }
-
-            let importedReminders = null;
-            if (parsed.reminders !== undefined) {
-                const reminderValidator = new ClassReminderService({ storage: null, eventTarget: null });
-                try {
-                    reminderValidator.importData(parsed.reminders, { mode: 'replace' });
-                    importedReminders = reminderValidator.exportData();
-                } finally {
-                    reminderValidator.dispose();
-                }
-            }
-
-            const summary = `
-                Ready to import:
-                - ${parsed.presets.length} decks
-                - ${importedReminders?.reminders.length || 0} reminders
-                - ${state.layout?.widgets?.length || 0} widgets
-                - Theme: ${state.theme || 'default'}
-            `;
-            this.importSummary.textContent = summary;
-            this.importSummary.style.color = 'green';
+            const prepared = this.pendingImport;
+            this.saveStateImmediately();
+            const plan = prepared.mode === 'replace'
+                ? this.buildReplaceImportPlan(prepared)
+                : this.buildMergeImportPlan(prepared);
 
             importRollback = {
                 presets: cloneSerializableData(this.presets),
@@ -5074,56 +5590,33 @@ class ClassroomScreenApp {
                 state: this.buildStateSnapshot()
             };
 
-            this.presets = this.normalizePresetCollection(importedPresets, {
-                preferredDeckId: state.currentDeckId,
-                preferredName: state.projectName
-            });
-            if (importedFolders) {
-                this.folders = importedFolders;
-                this.saveFolders();
+            if (prepared.mode === 'replace') {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                this.downloadJsonPayload(
+                    this.buildExportPayload(),
+                    `classroom-screen-backup-before-replace-${timestamp}.json`
+                );
             }
+
+            this.presets = plan.presets;
+            this.folders = plan.folders;
+            this.saveFolders();
             this.savePresets();
             this.renderPresetList();
-            if (importedReminders) {
-                classReminderService.importData(importedReminders, { mode: 'replace' });
+            classReminderService.importData(plan.reminders, { mode: prepared.mode });
+            if (prepared.mode === 'replace' && this.applyState(plan.state) !== true) {
+                throw new Error('The imported active deck could not be opened.');
             }
-
-            if (state.theme) this.switchTheme(state.theme);
-            if (state.background) this.backgroundManager.deserialize(state.background);
-            if (state.lessonPlan && this.lessonPlanEditor) this.lessonPlanEditor.setContents(state.lessonPlan);
-
-            this.projectState = {
-                currentDeckId: state.currentDeckId || '',
-                projectName: state.projectName,
-                activeDeckId: state.activeDeckId || '',
-                activeClassId: state.activeClassId || '',
-                activeClassName: state.activeClassName || '',
-                activePageId: state.activePageId,
-                pages: cloneSerializableData(state.pages)
-            };
-            this.activeReminderContext = {
-                deckId: state.activeDeckId || '',
-                classId: state.activeClassId || '',
-                className: state.activeClassName || '',
-                deckName: state.projectName || DEFAULT_PROJECT_NAME
-            };
-
-            this.widgets = [];
-            this.layoutManager.deserialize(state.layout, (widgetData) => {
-                    const widget = createWidgetByType(widgetData.type);
-                    if (widget) {
-                        this.widgets.push(widget);
-                    }
-                    return widget;
-            });
-
-            this.ensureCurrentProjectDeck({ allowLegacyNameMatch: true });
             this.updateProjectorVisibility();
-            this.saveState();
+            this.saveStateImmediately();
             this.renderProjectControls();
             this.renderClassroomReminderDock();
+            this.renderDashboard();
             this.closeDialog(this.importDialog);
-            this.showNotification('Screen decks imported successfully.');
+            this.resetImportPreview();
+            this.showNotification(prepared.mode === 'replace'
+                ? 'Screen decks replaced successfully. A JSON backup was downloaded first.'
+                : 'Screen decks merged successfully.');
             importRollback = null;
 
         } catch (error) {
@@ -5136,11 +5629,14 @@ class ClassroomScreenApp {
                     this.savePresets();
                     this.renderPresetList();
                     this.applyState(importRollback.state);
-                    this.saveState();
+                    this.saveStateImmediately();
+                    this.renderDashboard();
                 } catch (rollbackError) {
                     console.error('Import rollback failed:', rollbackError);
                 }
             }
+            this.pendingImport = null;
+            this.confirmImportButton.textContent = 'Preview import';
             this.importSummary.textContent = `Error: ${error.message}`;
             this.importSummary.style.color = 'red';
             console.error('Import failed:', error);
@@ -5346,10 +5842,6 @@ class ClassroomScreenApp {
                 this.layoutManager.discardAllWidgets();
             }
             this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
-            this.backgroundManager.reset();
-            if (this.lessonPlanEditor) {
-                this.lessonPlanEditor.setContents([]);
-            }
             this.saveState();
             this.showNotification('Current page cleared.');
         }
@@ -6500,10 +6992,9 @@ class ClassroomScreenApp {
 
         for (const type in backgrounds) {
             backgrounds[type].forEach((value, index) => {
-                const swatch = document.createElement('div');
+                const swatch = document.createElement('button');
+                swatch.type = 'button';
                 swatch.className = 'background-swatch';
-                swatch.tabIndex = 0;
-                swatch.setAttribute('role', 'button');
                 swatch.setAttribute(
                     'aria-label',
                     type === 'solid'
@@ -6529,17 +7020,19 @@ class ClassroomScreenApp {
 
                 const applyBackground = () => {
                     this.backgroundManager.setBackground(type, value);
+                    this.backgroundSelector
+                        .querySelectorAll('.background-swatch')
+                        .forEach((item) => {
+                            const selected = item === swatch;
+                            item.classList.toggle('is-selected', selected);
+                            item.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                        });
                     this.saveState();
                 };
 
-                swatch.addEventListener('click', applyBackground);
-                swatch.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        applyBackground();
-                    }
-                });
+                swatch.setAttribute('aria-pressed', swatch.classList.contains('is-selected') ? 'true' : 'false');
 
+                swatch.addEventListener('click', applyBackground);
                 this.backgroundSelector.appendChild(swatch);
             });
         }
@@ -6699,6 +7192,7 @@ class ClassroomScreenApp {
         const sourceRootLabel = isLocal
             ? (status.folderName || 'Computer folder')
             : (status.folderName || 'Google Drive');
+        const currentDeckName = this.normalizeProjectState(this.projectState).projectName || DEFAULT_PROJECT_NAME;
 
         const breadcrumbMarkup = [
             `<button class="resource-breadcrumb" type="button" data-resource-breadcrumb="-1">${escapeHtml(sourceRootLabel)}</button>`,
@@ -6726,7 +7220,7 @@ class ClassroomScreenApp {
                         <div class="resource-card__body">
                             <div class="resource-card__heading">
                                 <h3>${escapeHtml(resource.name || 'Untitled resource')}</h3>
-                                <button class="resource-favorite-btn${isFavorite ? ' is-active' : ''}" type="button" data-resource-action="favorite" aria-label="${isFavorite ? 'Remove from resource favourites' : 'Add to resource favourites'}" aria-pressed="${isFavorite ? 'true' : 'false'}" title="${isFavorite ? 'Remove from favourites' : 'Add to favourites'}">
+                                <button class="resource-favorite-btn${isFavorite ? ' is-active' : ''}" type="button" data-resource-action="favorite" aria-label="${isFavorite ? 'Remove' : 'Add'} ${escapeHtml(resource.name || 'Untitled resource')} ${isFavorite ? 'from' : 'to'} resource favourites" aria-pressed="${isFavorite ? 'true' : 'false'}" title="${isFavorite ? 'Remove from favourites' : 'Add to favourites'}">
                                     <i class="${isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
                                 </button>
                             </div>
@@ -6735,12 +7229,12 @@ class ClassroomScreenApp {
                         <div class="resource-card__actions">
                             ${isFolder
                                 ? '<button class="control-button control-button--primary" type="button" data-resource-action="folder">Open folder</button>'
-                                : '<button class="control-button" type="button" data-resource-action="open">Open</button>'}
+                                : `<button class="control-button" type="button" data-resource-action="open" aria-label="Open ${escapeHtml(resource.name || 'resource')}">Open</button>`}
                             ${canAdd
-                                ? '<button class="control-button control-button--primary" type="button" data-resource-action="add">Add to current deck</button>'
+                                ? `<button class="control-button control-button--primary" type="button" data-resource-action="add" aria-label="Add ${escapeHtml(resource.name || 'resource')} to ${escapeHtml(currentDeckName)}">Add to ${escapeHtml(currentDeckName)}</button>`
                                 : ''}
                             ${canPresentPdf
-                                ? '<button class="control-button" type="button" data-resource-action="present">Present as slides</button>'
+                                ? `<button class="control-button" type="button" data-resource-action="present" aria-label="Present ${escapeHtml(resource.name || 'PDF')} as slides">Present as slides</button>`
                                 : ''}
                         </div>
                     </article>
@@ -6763,6 +7257,7 @@ class ClassroomScreenApp {
                         <p class="dashboard-toolbar__label">Resource Library</p>
                         <h2>Teaching resources</h2>
                         <p>Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.</p>
+                        <p class="resource-current-deck"><strong>Adding to:</strong> ${escapeHtml(currentDeckName)}</p>
                     </div>
                     <div class="resource-source-tabs" role="group" aria-label="Resource locations">
                         <button class="resource-source-tab${isLocal ? ' is-active' : ''}" type="button" data-resource-source="local" aria-pressed="${isLocal ? 'true' : 'false'}">
@@ -8180,8 +8675,8 @@ class ClassroomScreenApp {
         const navigationItems = [
             { mode: 'library', label: 'Deck Library', icon: 'fa-book-open' },
             { mode: 'resources', label: 'Resources', icon: 'fa-folder-open' },
-            { mode: 'favorites', label: 'Favourites', icon: 'fa-star' },
-            { mode: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
+            { mode: 'favorites', label: 'Favourite decks', icon: 'fa-star' },
+            { mode: 'recent', label: 'Recent decks', icon: 'fa-clock-rotate-left' }
         ];
         const classItems = classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }));
         this.dashboardRoot.innerHTML = `
@@ -8205,20 +8700,20 @@ class ClassroomScreenApp {
                                 <span class="dashboard-nav-item__icon" aria-hidden="true"><i class="fa-solid fa-ellipsis"></i></span>
                                 <span>More</span>
                             </summary>
-                            <div class="dashboard-utility-menu__popover" role="menu" aria-label="Teacher options">
-                                <button id="dashboard-sections-btn" type="button" role="menuitem">
+                            <div class="dashboard-utility-menu__popover" aria-label="Teacher options">
+                                <button id="dashboard-sections-btn" type="button">
                                     <i class="fa-solid fa-compass" aria-hidden="true"></i>
                                     <span>Sections</span>
                                 </button>
-                                <button id="dashboard-settings-btn" type="button" role="menuitem">
+                                <button id="dashboard-settings-btn" type="button">
                                     <i class="fa-solid fa-sliders" aria-hidden="true"></i>
-                                    <span>Settings</span>
+                                    <span>Teacher Controls</span>
                                 </button>
-                                <button id="dashboard-updates-btn" type="button" role="menuitem">
+                                <button id="dashboard-updates-btn" type="button">
                                     <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-                                    <span>Updates</span>
+                                    <span>About updates</span>
                                 </button>
-                                <button id="dashboard-help-btn" type="button" role="menuitem">
+                                <button id="dashboard-help-btn" type="button">
                                     <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                                     <span>Help</span>
                                 </button>
@@ -8232,9 +8727,9 @@ class ClassroomScreenApp {
                         ${isResourceLibrary
                             ? `<div class="dashboard-class-list" id="dashboard-resource-view-list" aria-label="Filter teaching resources">
                                 ${[
-                                    { view: 'all', label: 'All Resources', icon: 'fa-folder-open' },
-                                    { view: 'favorites', label: 'Favourites', icon: 'fa-star' },
-                                    { view: 'recent', label: 'Recent', icon: 'fa-clock-rotate-left' }
+                                    { view: 'all', label: 'All resources', icon: 'fa-folder-open' },
+                                    { view: 'favorites', label: 'Favourite resources', icon: 'fa-star' },
+                                    { view: 'recent', label: 'Recent resources', icon: 'fa-clock-rotate-left' }
                                 ].map((item) => `
                                     <button class="dashboard-filter${this.resourceLibraryView === item.view ? ' is-active' : ''}" type="button" data-resource-view="${item.view}" aria-pressed="${this.resourceLibraryView === item.view ? 'true' : 'false'}">
                                         <span class="dashboard-filter__label"><i class="fa-solid ${item.icon}" aria-hidden="true"></i> ${item.label}</span>
@@ -8492,6 +8987,7 @@ class ClassroomScreenApp {
         if (sectionsButton) {
             sectionsButton.addEventListener('click', (event) => {
                 event.stopPropagation();
+                this.closeDashboardTransientMenus();
                 const teacherOptions = this.dashboardRoot.querySelector('#dashboard-utility-menu');
                 const returnFocus = teacherOptions?.querySelector('summary') || null;
                 if (teacherOptions) {
@@ -8502,6 +8998,11 @@ class ClassroomScreenApp {
         }
 
         const utilityMenu = this.dashboardRoot.querySelector('#dashboard-utility-menu');
+        utilityMenu?.addEventListener('toggle', () => {
+            if (utilityMenu.open) {
+                this.closeDashboardTransientMenus();
+            }
+        });
         const closeUtilityMenu = () => {
             if (utilityMenu) {
                 utilityMenu.open = false;
@@ -8744,6 +9245,14 @@ class ClassroomScreenApp {
         });
     }
 
+    closeDashboardTransientMenus() {
+        this.dashboardRoot
+            ?.querySelectorAll('.dashboard-deck-more[open]')
+            .forEach((details) => {
+                details.open = false;
+            });
+    }
+
     createFolderFromDashboard() {
         const nextName = window.prompt('Name the new folder', '');
         if (typeof nextName !== 'string') {
@@ -8856,8 +9365,19 @@ class ClassroomScreenApp {
 
         modalBody.appendChild(commonControls);
 
+        const activeElement = document.activeElement;
+        const hiddenMenu = activeElement instanceof HTMLElement
+            ? activeElement.closest('.widget-header-menu')
+            : null;
+        this.widgetSettingsReturnFocus = hiddenMenu?.querySelector('.widget-header-menu__toggle')
+            || (activeElement instanceof HTMLElement ? activeElement : null);
         this.activeSettingsWidget = widget;
+        this.widgetSettingsModal.inert = false;
+        this.widgetSettingsModal.setAttribute('aria-hidden', 'false');
         this.widgetSettingsModal.classList.add('visible');
+        window.requestAnimationFrame(() => {
+            this.widgetSettingsModal.querySelector('.modal-close-btn')?.focus({ preventScroll: true });
+        });
 
         // Delay widget-specific initialization until after the modal is visible.
         setTimeout(() => {
@@ -8867,9 +9387,11 @@ class ClassroomScreenApp {
         }, 150);
     }
 
-    closeWidgetSettings() {
+    closeWidgetSettings(options = {}) {
         if (!this.widgetSettingsModal) return;
         this.widgetSettingsModal.classList.remove('visible');
+        this.widgetSettingsModal.inert = true;
+        this.widgetSettingsModal.setAttribute('aria-hidden', 'true');
 
         // Optional: Move controls back to the widget?
         // Or just leave them detached until next open?
@@ -8883,6 +9405,16 @@ class ClassroomScreenApp {
 
         this.saveState();
         this.activeSettingsWidget = null;
+        const returnFocus = this.widgetSettingsReturnFocus;
+        this.widgetSettingsReturnFocus = null;
+        if (options.restoreFocus !== false) {
+            this.restoreModalFocus(returnFocus, [
+                document.getElementById('add-widget-btn'),
+                this.teacherControlsQuickButton,
+                this.sectionsToggleButton,
+                this.dashboardRoot?.querySelector('#dashboard-utility-menu > summary')
+            ]);
+        }
     }
 
     updateProjectorVisibility() {

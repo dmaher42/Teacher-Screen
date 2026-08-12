@@ -203,8 +203,8 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
 .classroom-reminder-dock__toggle {
     display: inline-grid;
     place-items: center;
-    width: 1.95rem;
-    height: 1.95rem;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 1px solid rgba(65, 103, 128, 0.18);
     border-radius: 8px;
@@ -248,7 +248,7 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    min-height: 2.4rem;
+    min-height: 44px;
     padding: 0.55rem 0.65rem;
     border: 1px solid rgba(58, 98, 125, 0.24);
     border-radius: 9px;
@@ -273,7 +273,7 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
 .dashboard-reminder-form__visibility {
     display: inline-flex;
     align-items: center;
-    min-height: 2.4rem;
+    min-height: 44px;
     color: #4f6b7f;
     font-size: 0.72rem;
     white-space: nowrap;
@@ -496,6 +496,7 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+    min-height: 44px;
     color: #4c687c;
     font-size: 0.7rem;
 }
@@ -514,6 +515,11 @@ body.is-dashboard-active .dashboard-reminders-btn.is-active {
 .classroom-reminder-form input[type="radio"],
 .classroom-reminder-form input[type="checkbox"] {
     accent-color: #2189e5;
+}
+
+.dashboard-reminder-form .control-button,
+.classroom-reminder-form .control-button {
+    min-height: 44px;
 }
 
 .classroom-reminder-dock--projector {
@@ -1978,6 +1984,12 @@ body.is-dashboard-active.is-sections-menu-open .sections-menu {
 
 .teacher-panel.open {
     transform: translateX(0);
+}
+
+.teacher-panel[inert],
+.teacher-panel[aria-hidden="true"] {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .panel-backdrop {
@@ -3549,34 +3561,44 @@ dialog::backdrop {
 }
 
 #widget-settings-modal .modal-content {
+    --accent: #2f8ff4;
+    --text-primary: #173f56;
+    --text-secondary: #526b7a;
+    --text-color: #173f56;
+    --card-background: #ffffff;
+    --bg-surface: #f3f8fb;
+    --border-soft-2: #c9d9e3;
     width: min(680px, 92vw);
+    border: 1px solid #c9d9e3;
     border-radius: 24px;
     overflow: hidden;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--card-background, #ffffff) 96%, #ffffff 4%), color-mix(in srgb, var(--bg-surface, #f8fafc) 84%, #ffffff 16%));
-    box-shadow: var(--shadow-strong, 0 6px 16px rgba(0,0,0,0.15));
+    background: #ffffff;
+    color: #173f56;
+    box-shadow: 0 24px 64px rgba(15, 49, 70, 0.24);
 }
 
 #widget-settings-modal .modal-header {
     padding: 1.35rem 1.5rem 1rem;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 82%, #ffffff 18%);
+    border-bottom-color: #d6e3eb;
+    background: #f3f8fb;
 }
 
 #widget-settings-modal .modal-title {
     font-size: clamp(1.2rem, 2vw, 1.55rem);
     letter-spacing: -0.02em;
-    color: var(--text-primary);
+    color: #102b3c;
 }
 
 #widget-settings-modal .modal-close-btn {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    border: 1px solid var(--border-soft-2);
-    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--accent) 12%);
-    color: var(--text-primary);
+    border: 1px solid #bfd3df;
+    background: #e8f4fb;
+    color: #173f56;
     font-size: 1.45rem;
     line-height: 1;
     box-shadow: none;
@@ -3587,6 +3609,7 @@ dialog::backdrop {
     padding: 1.25rem 1.5rem 1.5rem;
     max-height: min(72vh, 720px);
     overflow-y: auto;
+    background: #ffffff;
 }
 
 #widget-settings-modal .widget-content-controls {
@@ -3603,14 +3626,14 @@ dialog::backdrop {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: #526b7a;
 }
 
 #widget-settings-modal .widget-content-controls hr {
     width: 100%;
     margin: 0.2rem 0;
     border: 0;
-    border-top: 1px solid var(--border-soft-2);
+    border-top: 1px solid #d6e3eb;
 }
 
 #widget-settings-modal .widget-content-controls label {
@@ -3628,10 +3651,10 @@ dialog::backdrop {
     width: 100%;
     min-height: 44px;
     padding: 0.8rem 0.95rem;
-    border: 1px solid var(--border-soft-2);
+    border: 1px solid #c9d9e3;
     border-radius: 14px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 92%, var(--bg-surface, #f8fafc) 8%);
-    color: #1e293b;
+    background: #ffffff;
+    color: #173f56;
     font: inherit;
     box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -3648,9 +3671,23 @@ dialog::backdrop {
 
 #widget-settings-modal .widget-content-controls .control-button,
 #widget-settings-modal .widget-content-controls button {
-    min-height: 42px;
+    min-height: 44px;
     padding: 0.75rem 1rem;
     border-radius: 14px;
+}
+
+#widget-settings-modal .widget-content-controls .control-button:not(.modal-primary):not(.modal-danger-btn),
+#widget-settings-modal .widget-content-controls button:not(.modal-primary):not(.modal-danger-btn) {
+    border-color: #c4d6e1;
+    background: #f3f8fb;
+    color: #173f56;
+}
+
+#widget-settings-modal .widget-content-controls .modal-primary,
+#widget-settings-modal .widget-content-controls button[aria-pressed="true"] {
+    border-color: #2f8ff4;
+    background: #2f8ff4;
+    color: #ffffff;
 }
 
 #widget-settings-modal .widget-content-controls .button-group {
@@ -3667,26 +3704,26 @@ dialog::backdrop {
 #widget-settings-modal .widget-content-controls .widget-status {
     padding: 0.9rem 1rem;
     border-radius: 16px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%);
+    background: #f3f8fb;
 }
 
 #widget-settings-modal .widget-content-controls .widget-help-text {
-    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-soft-2) 82%);
-    color: var(--text-secondary);
+    border: 1px solid #c9d9e3;
+    color: #526b7a;
 }
 
 #widget-settings-modal .widget-content-controls .widget-status {
-    border: 1px solid var(--border-soft-2);
-    color: var(--text-primary);
+    border: 1px solid #c9d9e3;
+    color: #173f56;
 }
 
 #widget-settings-modal .widget-settings-section {
     display: grid;
     gap: 0.75rem;
     padding: 1rem;
-    border: 1px solid var(--border-soft-2);
+    border: 1px solid #c9d9e3;
     border-radius: 18px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+    background: #f8fbfd;
 }
 
 #widget-settings-modal .widget-settings-actions {
@@ -3704,27 +3741,27 @@ dialog::backdrop {
     gap: 0.45rem;
     padding: 0.9rem 1rem;
     border-radius: 16px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
-    border: 1px solid var(--border-soft-2);
-    color: rgba(241, 245, 249, 0.92);
+    background: #f3f8fb;
+    border: 1px solid #c9d9e3;
+    color: #294f66;
 }
 
 #widget-settings-modal .widget-settings-meta strong {
     font-size: 0.78rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(226, 232, 240, 0.78);
+    color: #526b7a;
 }
 
-.widget-settings-empty {
+#widget-settings-modal .widget-settings-empty {
     min-height: 160px;
     display: flex;
     align-items: center;
     padding: 1.5rem;
-    border: 1px dashed var(--border-soft-2);
+    border: 1px dashed #b8cedb;
     border-radius: 18px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 90%, #ffffff 10%);
-    color: var(--text-secondary);
+    background: #f3f8fb;
+    color: #526b7a;
     font-size: 1rem;
 }
 
@@ -3770,10 +3807,10 @@ dialog::backdrop {
     align-items: center;
     gap: 0.65rem;
     padding: 0.75rem 0.95rem;
-    border: 1px solid var(--border-soft-2);
+    border: 1px solid #c9d9e3;
     border-radius: 14px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%);
-    color: var(--text-primary);
+    background: #f3f8fb;
+    color: #173f56;
     font-weight: 500;
 }
 
@@ -3794,9 +3831,9 @@ dialog::backdrop {
     display: grid;
     gap: 0.75rem;
     padding: 1rem;
-    border: 1px solid var(--border-soft-2);
+    border: 1px solid #c9d9e3;
     border-radius: 18px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 88%, var(--bg-surface, #f8fafc) 12%);
+    background: #f8fbfd;
     color: #334155;
 }
 
@@ -3829,9 +3866,9 @@ dialog::backdrop {
     justify-content: space-between;
     gap: 0.75rem;
     padding: 0.7rem 0.8rem;
-    border: 1px solid var(--border-soft-2);
+    border: 1px solid #c9d9e3;
     border-radius: 14px;
-    background: color-mix(in srgb, var(--bg-surface, #f8fafc) 92%, #ffffff 8%);
+    background: #ffffff;
 }
 
 #widget-settings-modal .interval-options {
@@ -3857,11 +3894,11 @@ dialog::backdrop {
 #widget-settings-modal .timer-sound-settings,
 #widget-settings-modal .timer-sound-settings label,
 #widget-settings-modal .timer-sound-settings .sound-option {
-    color: rgba(248, 250, 252, 0.96);
+    color: #294f66;
 }
 
 #widget-settings-modal .timer-sound-settings__label {
-    color: rgba(226, 232, 240, 0.82);
+    color: #526b7a;
 }
 
 @media (max-width: 640px) {
@@ -3879,8 +3916,8 @@ dialog::backdrop {
     }
 
     #widget-settings-modal .modal-close-btn {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 44px;
+        height: 44px;
         font-size: 1.2rem;
     }
 
@@ -3907,14 +3944,14 @@ dialog::backdrop {
     #widget-settings-modal .widget-content-controls input[type="number"],
     #widget-settings-modal .widget-content-controls select,
     #widget-settings-modal .widget-content-controls textarea {
-        min-height: 40px;
+        min-height: 44px;
         padding: 0.72rem 0.82rem;
         border-radius: 12px;
     }
 
     #widget-settings-modal .widget-content-controls .control-button,
     #widget-settings-modal .widget-content-controls button {
-        min-height: 40px;
+        min-height: 44px;
         padding: 0.72rem 0.9rem;
         border-radius: 12px;
     }
@@ -4012,6 +4049,14 @@ dialog::backdrop {
 }
 
 .modal-close {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
     background: none;
     border: none;
     font-size: 1.5rem;
@@ -4032,6 +4077,155 @@ dialog::backdrop {
 .modal-body input[type="text"]:focus-visible {
     border-color: var(--primary-color, #8e82ff);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #8e82ff) 25%, transparent);
+}
+
+#import-dialog[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+#import-dialog .modal-body {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#import-dialog-description,
+.import-field-help {
+    margin: 0;
+    color: var(--text-secondary, #526b7a);
+    line-height: 1.45;
+}
+
+.import-source-field {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.import-source-field > label,
+.import-mode-group legend {
+    color: var(--text-color, #173f56);
+    font-size: 0.86rem;
+    font-weight: 750;
+}
+
+.import-source-field input[type="file"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.45rem;
+    border: 1px solid var(--border-color, #c9d9e3);
+    border-radius: 10px;
+    background: var(--card-background, #ffffff);
+    color: var(--text-color, #173f56);
+    font: inherit;
+}
+
+.import-source-field input[type="file"]::file-selector-button {
+    min-height: 34px;
+    margin-right: 0.65rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--border-color, #c9d9e3);
+    border-radius: 8px;
+    background: var(--bg-surface, #f3f8fb);
+    color: var(--text-color, #173f56);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.import-source-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 150px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color, #c9d9e3);
+    border-radius: 10px;
+    background: var(--card-background, #ffffff);
+    color: var(--text-color, #173f56);
+    font: 0.82rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+    resize: vertical;
+}
+
+.import-source-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--text-secondary, #6b7f8e);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.import-source-divider::before,
+.import-source-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-color, #d6e3eb);
+}
+
+.import-field-help {
+    font-size: 0.76rem;
+}
+
+.import-mode-group {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0.8rem;
+    border: 1px solid var(--border-color, #c9d9e3);
+    border-radius: 12px;
+}
+
+.import-mode-group legend {
+    padding: 0 0.25rem;
+}
+
+.import-mode-group label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.65rem;
+    min-height: 44px;
+    padding: 0.55rem;
+    border-radius: 9px;
+    cursor: pointer;
+}
+
+.import-mode-group label:hover {
+    background: var(--bg-surface, #f3f8fb);
+}
+
+.import-mode-group input {
+    width: 18px;
+    height: 18px;
+    margin-top: 0.15rem;
+    accent-color: var(--primary-color, #2f8ff4);
+}
+
+.import-mode-group label > span {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.import-mode-group strong {
+    color: var(--text-color, #173f56);
+    font-size: 0.84rem;
+}
+
+.import-mode-group small {
+    color: var(--text-secondary, #526b7a);
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+
+.import-summary:not(:empty) {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color, #c9d9e3);
+    border-radius: 10px;
+    background: var(--bg-surface, #f3f8fb);
 }
 
 /* Widget Modal */
@@ -4085,8 +4279,8 @@ dialog::backdrop {
     display: inline-grid;
     place-items: center;
     flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     font-size: 1.35rem;
     color: var(--text-secondary, #64748b);
@@ -4266,7 +4460,7 @@ dialog::backdrop {
     gap: 10px;
     width: 100%;
     min-height: 70px;
-    padding: 10px 38px 10px 10px;
+    padding: 10px 50px 10px 10px;
     border: 1px solid var(--border-soft-2, #e2e8f0);
     border-radius: 14px;
     background: var(--card-background, #ffffff);
@@ -4334,12 +4528,12 @@ dialog::backdrop {
 .widget-favorite-btn {
     position: absolute;
     top: 50%;
-    right: 7px;
+    right: 3px;
     z-index: 1;
     display: inline-grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -9842,17 +10036,23 @@ body.is-classroom-active:not(.projector-view) .reveal-external-embed-shell {
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-actions {
-    right: auto;
-    left: 50%;
+    right: 16px;
+    left: auto;
     bottom: 16px;
-    transform: translateX(-50%);
+    transform: none;
     gap: 3px;
     padding: 7px 8px;
-    border: 1px solid var(--classroom-polish-line);
+    border: 1px solid #c9dce8;
     border-radius: 20px;
-    background: color-mix(in srgb, var(--card-background, #ffffff) 94%, #f3f8ff 6%);
+    background: rgba(255, 255, 255, 0.97);
+    color: #173f56;
     box-shadow: 0 18px 42px rgba(31, 72, 110, 0.18), 0 4px 12px rgba(31, 72, 110, 0.08);
     backdrop-filter: blur(16px);
+    pointer-events: none;
+}
+
+body.is-classroom-active:not(.projector-view) .layout-stage-container {
+    height: calc(100% - 90px);
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action {
@@ -9865,31 +10065,34 @@ body.is-classroom-active:not(.projector-view) .lesson-quick-action {
     min-height: 50px;
     padding: 5px 9px;
     border-radius: 14px;
-    color: color-mix(in srgb, var(--text-primary, #0f172a) 82%, var(--text-secondary, #64748b) 18%);
+    color: #23485f;
     font-size: 0.68rem;
     font-weight: 700;
+    pointer-events: auto;
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action__icon {
-    color: color-mix(in srgb, var(--classroom-polish-blue) 78%, var(--text-secondary, #64748b) 22%);
+    color: #1878d1;
     font-size: 0.95rem;
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action:hover,
 body.is-classroom-active:not(.projector-view) .lesson-quick-action:focus-visible {
-    background: var(--classroom-polish-blue-soft);
-    border-color: color-mix(in srgb, var(--classroom-polish-blue) 20%, transparent);
+    background: #e8f4fd;
+    border-color: #a8d4f5;
+    color: #173f56;
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action--controls {
-    min-width: 72px;
-    background: color-mix(in srgb, var(--classroom-polish-blue) 10%, #ffffff 90%);
-    border-color: color-mix(in srgb, var(--classroom-polish-blue) 18%, transparent);
+    min-width: 112px;
+    background: #e8f4fd;
+    border-color: #b9dced;
+    color: #173f56;
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action--controls.is-active {
-    background: var(--classroom-polish-blue);
-    border-color: var(--classroom-polish-blue);
+    background: #2f8ff4;
+    border-color: #2f8ff4;
     color: #ffffff;
 }
 
@@ -9905,7 +10108,7 @@ body.is-classroom-active:not(.projector-view) .lesson-quick-action--more {
     margin-inline: 3px;
     padding: 0;
     border-radius: 50%;
-    background: var(--classroom-polish-blue);
+    background: #2f8ff4;
     color: #ffffff;
     font-size: 1rem;
 }
@@ -9945,6 +10148,12 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
         bottom: 8px;
         transform: none;
         justify-content: flex-start;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    body.is-classroom-active:not(.projector-view) .lesson-quick-actions::-webkit-scrollbar {
+        display: none;
     }
 
     body.is-classroom-active:not(.projector-view) .lesson-quick-action {
@@ -10001,8 +10210,8 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 }
 
 .teacher-panel .panel-close {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-color: rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.1);
     color: #ffffff;
@@ -10233,8 +10442,27 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 .teacher-panel .timer-inputs {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
+    align-items: end;
     gap: 6px;
+}
+
+.teacher-panel .timer-input-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    color: #526b7a;
+    font-size: 0.64rem;
+    font-weight: 750;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.teacher-panel .timer-input-separator {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    color: #617b8a;
+    font-weight: 800;
 }
 
 .teacher-panel .timer-inputs input {
@@ -10439,7 +10667,7 @@ body.is-dashboard-active .dashboard-filter {
 
 body.is-dashboard-active .dashboard-nav-item {
     gap: 9px;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0.48rem 0.58rem;
     border-radius: 12px;
     background: transparent;
@@ -10527,7 +10755,7 @@ body.is-dashboard-active .dashboard-class-list__empty {
 body.is-dashboard-active .dashboard-filter {
     justify-content: space-between;
     gap: 8px;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0.42rem 0.54rem;
     border-color: rgba(220, 244, 255, 0.08);
     border-radius: 10px;
@@ -10797,7 +11025,7 @@ body.is-dashboard-active .dashboard-screen-card__heading h3 {
     }
 
     body.is-dashboard-active .dashboard-nav-item {
-        min-height: 39px;
+        min-height: 44px;
         gap: 6px;
         font-size: 0.7rem;
     }
@@ -12502,6 +12730,11 @@ body.is-dashboard-active .dashboard-deck-row {
     padding: 5px 7px 5px 5px;
 }
 
+body.is-dashboard-active .dashboard-deck-heading {
+    min-width: 0;
+    margin: 0;
+}
+
 body.is-dashboard-active .dashboard-deck-toggle {
     appearance: none;
     display: grid;
@@ -12620,8 +12853,8 @@ body.is-dashboard-active .dashboard-deck-toggle[aria-expanded="true"] .dashboard
 }
 
 body.is-dashboard-active .dashboard-deck-row > .dashboard-favorite-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     margin: 0;
     border-radius: 11px;
 }
@@ -12629,7 +12862,7 @@ body.is-dashboard-active .dashboard-deck-row > .dashboard-favorite-btn {
 body.is-dashboard-active .dashboard-deck-row > .dashboard-reminders-btn {
     position: relative;
     min-width: 0;
-    min-height: 36px;
+    min-height: 44px;
     margin: 0;
     padding: 0.45rem 0.66rem;
     border-radius: 11px;
@@ -12702,7 +12935,7 @@ body.is-dashboard-active .dashboard-deck-more > summary {
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-height: 40px;
+    min-height: 44px;
     min-width: 112px;
     padding: 0.52rem 0.75rem;
     border: 1px solid rgba(47, 143, 244, 0.16);
@@ -12787,13 +13020,33 @@ body.is-dashboard-active .dashboard-deck-more__actions {
 }
 
 body.is-dashboard-active .dashboard-deck-more__actions .control-button {
-    min-height: 38px;
+    min-height: 44px;
     min-width: 104px;
     padding: 0.46rem 0.68rem;
     border-radius: 9px;
     background: #ffffff;
     color: #315466;
     font-size: 0.74rem;
+}
+
+.resource-current-deck {
+    width: max-content;
+    max-width: 100%;
+    margin: 0.65rem 0 0;
+    padding: 0.4rem 0.65rem;
+    border: 1px solid rgba(47, 143, 244, 0.22);
+    border-radius: 999px;
+    background: #edf7ff;
+    color: #244b62;
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+}
+
+.nav-tab__status {
+    margin-left: 0.25rem;
+    font-size: 0.65em;
+    font-weight: 700;
+    opacity: 0.72;
 }
 
 body.is-dashboard-active .dashboard-deck-more__actions .dashboard-deck-delete {
@@ -12929,9 +13182,14 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     }
 
     body.is-dashboard-active .dashboard-deck-row {
-        grid-template-columns: minmax(0, 1fr) 38px 38px;
-        gap: 3px;
-        padding: 4px;
+        grid-template-columns: minmax(0, 1fr) 44px 44px;
+        gap: 4px;
+        padding: 5px;
+    }
+
+    body.is-dashboard-active .dashboard-deck-heading {
+        grid-column: 1 / -1;
+        grid-row: 1;
     }
 
     body.is-dashboard-active .dashboard-deck-toggle {
@@ -12949,7 +13207,19 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     }
 
     body.is-dashboard-active .dashboard-deck-title {
+        display: -webkit-box;
         font-size: 0.9rem;
+        overflow: hidden;
+        text-overflow: clip;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    body.is-dashboard-active .dashboard-screen-card__heading {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 4px 8px;
     }
 
     body.is-dashboard-active .dashboard-deck-subtitle,
@@ -12958,17 +13228,21 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     }
 
     body.is-dashboard-active .dashboard-deck-summary small {
-        max-width: 150px;
+        max-width: none;
     }
 
     body.is-dashboard-active .dashboard-deck-row > .dashboard-favorite-btn {
-        width: 34px;
-        height: 34px;
+        grid-column: 3;
+        grid-row: 2;
+        width: 44px;
+        height: 44px;
     }
 
     body.is-dashboard-active .dashboard-deck-row > .dashboard-reminders-btn {
-        width: 34px;
-        min-height: 34px;
+        grid-column: 2;
+        grid-row: 2;
+        width: 44px;
+        min-height: 44px;
         padding: 0;
     }
 
@@ -13010,7 +13284,7 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     body.is-dashboard-active .dashboard-screen-card__actions > .control-button {
         flex: 1 1 calc(50% - 4px);
         min-width: 0;
-        min-height: 42px;
+        min-height: 44px;
     }
 
     body.is-dashboard-active .dashboard-screen-card__actions > .control-button--primary,
@@ -13019,13 +13293,13 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     }
 
     body.is-dashboard-active .dashboard-deck-more > summary {
-        min-height: 42px;
+        min-height: 44px;
     }
 
     body.is-dashboard-active .dashboard-deck-more__actions .control-button {
         flex: 1 1 calc(50% - 4px);
         min-width: 0;
-        min-height: 42px;
+        min-height: 44px;
     }
 
     body.is-dashboard-active .dashboard-deck-more__actions .dashboard-deck-delete {
@@ -13378,12 +13652,12 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 
 .sections-menu .screen-manager-clear-button {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 6px;
     width: max-content;
     max-width: 100%;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0.35rem 0.25rem;
     border: 0;
     background: transparent;
@@ -13393,6 +13667,27 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     font-weight: 700;
     line-height: 1.2;
     cursor: pointer;
+}
+
+.sections-menu .screen-manager-clear-button > i {
+    margin-top: 2px;
+}
+
+.sections-menu .screen-manager-clear-button__copy {
+    display: grid;
+    gap: 2px;
+    text-align: left;
+}
+
+.sections-menu .screen-manager-clear-button__copy strong {
+    font: inherit;
+}
+
+.sections-menu .screen-manager-clear-button__copy small {
+    color: #6f5b5b;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.3;
 }
 
 .sections-menu .screen-manager-clear-button:hover {

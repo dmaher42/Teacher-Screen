@@ -973,8 +973,6 @@ class LayoutManager {
 
     const menuItems = document.createElement('div');
     menuItems.className = 'widget-header-menu__popover';
-    menuItems.setAttribute('role', 'menu');
-    menuItems.setAttribute('aria-label', `${readableName} options`);
 
     const closeMenu = () => {
       menu.open = false;
@@ -1001,7 +999,6 @@ class LayoutManager {
       const minimizeButton = document.createElement('button');
       minimizeButton.className = 'widget-minimize-btn widget-header-menu__item';
       minimizeButton.type = 'button';
-      minimizeButton.setAttribute('role', 'menuitem');
       minimizeButton.innerHTML = '<i class="fas fa-window-minimize" aria-hidden="true"></i><span><strong>Minimise widget</strong><small>Hide from students</small></span>';
 
       minimizeButton.addEventListener('click', (e) => {
@@ -1028,7 +1025,6 @@ class LayoutManager {
         .filter(Boolean)
         .join(' ');
       actionButton.type = 'button';
-      actionButton.setAttribute('role', 'menuitem');
       actionButton.setAttribute('aria-label', action.ariaLabel || action.label);
       actionButton.title = action.title || action.label;
 
@@ -1057,7 +1053,6 @@ class LayoutManager {
       const settingsBtn = document.createElement('button');
       settingsBtn.className = 'widget-header-settings-btn widget-header-menu__item';
       settingsBtn.type = 'button';
-      settingsBtn.setAttribute('role', 'menuitem');
       settingsBtn.innerHTML = '<i class="fas fa-cog" aria-hidden="true"></i><span>Widget settings</span>';
       settingsBtn.setAttribute('aria-label', 'Open Settings');
       settingsBtn.title = 'Widget Settings';
@@ -1074,7 +1069,6 @@ class LayoutManager {
     const removeBtn = document.createElement('button');
     removeBtn.className = 'widget-remove-btn widget-header-menu__item widget-header-menu__item--danger';
     removeBtn.type = 'button';
-    removeBtn.setAttribute('role', 'menuitem');
     removeBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i><span>Remove widget</span>';
     removeBtn.setAttribute('aria-label', 'Remove Widget');
     removeBtn.title = 'Remove Widget';

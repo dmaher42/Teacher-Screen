@@ -12,6 +12,7 @@
     "check:pwa": "node tests/pwa-contract.js",
     "check:ai": "node tests/ai-api-contract.js",
     "check:memory-cue-sync": "node --test tests/memory-cue-sync-contract.mjs",
+    "check:menu-safety": "node tests/smoke-app.js --menu-safety-only",
     "check:deck-library": "node tests/smoke-app.js --deck-library-only",
     "check:resources": "node tests/smoke-app.js --resources-only",
     "check:projector-powerpoint": "node tests/smoke-app.js --projector-powerpoint-only",

@@ -79,8 +79,12 @@ assert(Boolean(reminderForm.querySelector('fieldset legend')), 'Classroom remind
 // Teacher controls and primary app controls
 const teacherPanel = assertElement('teacher-panel');
 assert(teacherPanel.tagName === 'ASIDE', 'Teacher panel should be an <aside> element');
-assert(teacherPanel.getAttribute('role') === 'complementary', 'Teacher panel should have role="complementary"');
-assert(teacherPanel.getAttribute('aria-label') === 'Teacher controls', 'Teacher panel should have aria-label="Teacher controls"');
+assert(teacherPanel.getAttribute('role') === 'dialog', 'Teacher panel should have role="dialog"');
+assert(teacherPanel.getAttribute('aria-modal') === 'true', 'Teacher panel should be modal while open');
+const teacherPanelTitleId = teacherPanel.getAttribute('aria-labelledby');
+assert(teacherPanelTitleId && document.getElementById(teacherPanelTitleId), 'Teacher panel should reference its visible title');
+assert(teacherPanel.getAttribute('aria-hidden') === 'true', 'Teacher panel should be hidden from assistive technology by default');
+assert(teacherPanel.hasAttribute('inert'), 'Teacher panel should be inert by default');
 
 const addWidgetButton = assertElement('add-widget-btn');
 assert(addWidgetButton.getAttribute('aria-label') === 'Add widget', 'Add widget button should have an accessible label');

@@ -24,7 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="css/tokens.css?v=2">
-    <link rel="stylesheet" href="css/main.css?v=30">
+    <link rel="stylesheet" href="css/main.css?v=31">
     <link rel="stylesheet" href="css/behaviour-tracker.css?v=4">
     <link rel="stylesheet" href="css/quiz-master.css?v=1">
     <link rel="stylesheet" href="css/teaching-assistant.css?v=1">
@@ -32,7 +32,7 @@
     <link rel="stylesheet" href="css/notes.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" media="print" onload="this.onload=null;this.media='all'">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" media="print" onload="this.onload=null;this.media='all'">
-    <link rel="modulepreload" href="js/index.js?v=24">
+    <link rel="modulepreload" href="js/index.js?v=25">
     <link rel="modulepreload" href="js/main.js?v=29">
     
     <!-- Installable app identity -->
@@ -59,11 +59,11 @@
         <nav id="top-nav" aria-label="Main sections">
             <div class="top-nav-shell">
                     <div class="sections-menu-wrap">
-                        <button id="sections-toggle" class="top-nav-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="sections-menu" aria-label="Open sections menu" title="Open sections menu">
+                        <button id="sections-toggle" class="top-nav-toggle" type="button" aria-label="Home" title="Home">
                         <svg class="top-nav-toggle__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                             <path d="M3 10.5L12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.4H9.5V21H4a1 1 0 0 1-1-1v-9.5Z" fill="currentColor"/>
                         </svg>
-                        <span class="visually-hidden">Sections</span>
+                        <span class="visually-hidden">Home</span>
                     </button>
                     <div id="sections-menu" class="sections-menu" aria-labelledby="sections-menu-title" hidden>
                         <header class="sections-menu__header">
@@ -80,10 +80,10 @@
                                 <p id="sections-menu-navigation-title" class="sections-menu__group-label">Go to</p>
                                 <div class="nav-tabs" role="tablist" aria-labelledby="sections-menu-navigation-title">
                                     <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
-                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
-                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
-                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
-                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom" tabindex="-1">Classroom</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner" tabindex="-1">Planner</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable" tabindex="-1">Timetable <span class="nav-tab__status">Coming soon</span></button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes" tabindex="-1">Notes</button>
                                 </div>
                             </section>
 
@@ -91,8 +91,8 @@
                                 <summary id="manage-screens-btn" class="screen-manager-summary">
                                     <span class="screen-manager-summary__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
                                     <span class="screen-manager-summary__copy">
-                                        <strong>Screen decks &amp; pages</strong>
-                                        <span>Current pages, dated copies and deck files</span>
+                                        <strong>Decks &amp; pages</strong>
+                                        <span>Manage current pages, backups and deck files</span>
                                     </span>
                                     <span class="screen-manager-summary__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                                 </summary>
@@ -116,9 +116,12 @@
                                                 <span>Open Deck Library</span>
                                             </button>
                                         </div>
-                                        <button id="reset-layout" class="screen-manager-clear-button" type="button">
+                                        <button id="reset-layout" class="screen-manager-clear-button" type="button" aria-describedby="reset-layout-scope">
                                             <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
-                                            <span>Clear current page</span>
+                                            <span class="screen-manager-clear-button__copy">
+                                                <strong>Reset current page</strong>
+                                                <small id="reset-layout-scope">Remove all widgets from this page</small>
+                                            </span>
                                         </button>
                                     </section>
 
@@ -126,12 +129,12 @@
                                         <div class="screen-manager-section-heading">
                                             <span class="screen-manager-section-heading__icon" aria-hidden="true"><i class="fa-regular fa-copy"></i></span>
                                             <div>
-                                                <h3 id="screen-manager-copies-title">Copies &amp; transfer</h3>
-                                                <p>Keep a dated restore point or move your deck collection between devices.</p>
+                                                <h3 id="screen-manager-copies-title">Backup &amp; transfer</h3>
+                                                <p>Save a dated backup as a restore point, or move your deck collection between devices.</p>
                                             </div>
                                         </div>
                                         <div class="screen-manager-field">
-                                            <label for="class-profile-select">Class for dated copy <span>(optional)</span></label>
+                                            <label for="class-profile-select">Class for dated backup <span>(optional)</span></label>
                                             <select id="class-profile-select">
                                                 <option value="">No class</option>
                                             </select>
@@ -139,7 +142,7 @@
                                         <div class="screen-manager-copy-actions">
                                             <button id="save-snapshot-btn" class="screen-manager-button screen-manager-button--primary" type="button">
                                                 <i class="fa-solid fa-camera" aria-hidden="true"></i>
-                                                <span>Save dated copy</span>
+                                                <span>Save dated backup</span>
                                             </button>
                                             <button id="export-layout" class="screen-manager-button" type="button">
                                                 <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>
@@ -311,11 +314,11 @@
         <!-- =====================================================
              TEACHER CONTROLS PANEL (REDESIGNED)
              ===================================================== -->
-        <aside class="teacher-panel" id="teacher-panel" role="complementary" aria-label="Teacher controls">
+        <aside class="teacher-panel" id="teacher-panel" role="dialog" aria-modal="true" aria-labelledby="teacher-controls-title" aria-hidden="true" inert>
             <header class="panel-header">
                 <div class="panel-header__copy">
-                    <p class="panel-eyebrow">Arrange classroom</p>
-                    <h3>Teacher Controls</h3>
+                    <p class="panel-eyebrow">Classroom setup</p>
+                    <h3 id="teacher-controls-title">Teacher Controls</h3>
                 </div>
                 <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>
             </header>
@@ -323,39 +326,39 @@
                 <p class="panel-section-label">Session</p>
                 <section class="control-card control-card--project-pages">
                     <details open>
-                        <summary role="button" tabindex="0">
+                        <summary>
                             <img src="assets/icons/lesson-plan.svg" alt="" class="card-icon">
-                            <h4>Deck &amp; Pages</h4>
+                            <h4>Current deck and pages</h4>
                         </summary>
                         <div class="card-body">
                             <div class="project-switcher project-switcher--compact">
                                 <div class="project-switcher__meta">
-                                    <p class="project-switcher__project-label">Current Deck</p>
+                                    <p class="project-switcher__project-label">Current deck</p>
                                     <p id="teacher-current-project-name" class="project-switcher__project-name">Weekly Project</p>
                                     <p id="teacher-current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
                                 </div>
                                 <div id="teacher-page-switcher" class="page-switcher page-switcher--compact" role="group" aria-label="Deck pages"></div>
                             </div>
                             <div class="project-page-name-panel">
-                                <label for="project-screen-name-input">Deck Name</label>
+                                <label for="project-screen-name-input">Deck name</label>
                                 <input id="project-screen-name-input" type="text" placeholder="e.g., Week 2">
                                 <div class="button-group button-group--stack-gap project-page-actions" aria-label="Deck name actions">
-                                    <button id="save-project-screen-btn" class="control-button modal-primary" type="button">Save Deck</button>
-                                    <button id="rename-project-screen-btn" class="control-button" type="button">Rename Deck</button>
+                                    <button id="save-project-screen-btn" class="control-button modal-primary" type="button">Save current deck</button>
+                                    <button id="rename-project-screen-btn" class="control-button" type="button">Rename deck</button>
+                                    <button id="new-project-btn" class="control-button" type="button">New deck</button>
                                 </div>
                             </div>
                             <div class="button-group button-group--stack-gap project-page-actions" aria-label="Deck page actions">
-                                <button id="new-page-btn" class="control-button" type="button">New Page</button>
+                                <button id="new-page-btn" class="control-button" type="button">New page</button>
                             </div>
                             <details class="project-page-advanced">
                                 <summary class="project-page-advanced__summary">More page actions</summary>
                                 <div class="button-group button-group--stack-gap project-page-actions project-page-actions--advanced" aria-label="Advanced deck page actions">
-                                    <button id="new-project-btn" class="control-button" type="button">New Deck</button>
-                                    <button id="move-page-left-btn" class="control-button" type="button">Move Left</button>
-                                    <button id="move-page-right-btn" class="control-button" type="button">Move Right</button>
-                                    <button id="duplicate-page-btn" class="control-button" type="button">Duplicate Page</button>
-                                    <button id="rename-page-btn" class="control-button" type="button">Rename Page</button>
-                                    <button id="delete-page-btn" class="control-button modal-danger-btn" type="button">Delete Page</button>
+                                    <button id="move-page-left-btn" class="control-button" type="button">Move left</button>
+                                    <button id="move-page-right-btn" class="control-button" type="button">Move right</button>
+                                    <button id="duplicate-page-btn" class="control-button" type="button">Duplicate page</button>
+                                    <button id="rename-page-btn" class="control-button" type="button">Rename page</button>
+                                    <button id="delete-page-btn" class="control-button modal-danger-btn" type="button">Delete page</button>
                                 </div>
                             </details>
                         </div>
@@ -363,17 +366,26 @@
                 </section>
                 <section class="control-card">
                     <details>
-                        <summary role="button" tabindex="0">
+                        <summary>
                             <img src="assets/icons/timer.svg" alt="" class="card-icon">
                             <h4>Timer Control</h4>
                         </summary>
                         <div class="card-body">
-                            <div class="control-group timer-inputs">
-                                <input type="number" id="timer-hours" min="0" placeholder="HH" value="0">
-                                <span>:</span>
-                                <input type="number" id="timer-minutes" min="0" max="59" placeholder="MM" value="5">
-                                <span>:</span>
-                                <input type="number" id="timer-seconds" min="0" max="59" placeholder="SS" value="0">
+                            <div class="control-group timer-inputs" role="group" aria-label="Timer duration">
+                                <label class="timer-input-field" for="timer-hours">
+                                    <span>Hours</span>
+                                    <input type="number" id="timer-hours" min="0" placeholder="HH" value="0">
+                                </label>
+                                <span class="timer-input-separator" aria-hidden="true">:</span>
+                                <label class="timer-input-field" for="timer-minutes">
+                                    <span>Minutes</span>
+                                    <input type="number" id="timer-minutes" min="0" max="59" placeholder="MM" value="5">
+                                </label>
+                                <span class="timer-input-separator" aria-hidden="true">:</span>
+                                <label class="timer-input-field" for="timer-seconds">
+                                    <span>Seconds</span>
+                                    <input type="number" id="timer-seconds" min="0" max="59" placeholder="SS" value="0">
+                                </label>
                             </div>
                             <div class="button-group">
                                 <button id="start-timer" class="control-button">Start Timer</button>
@@ -399,7 +411,7 @@
                 <p class="panel-section-label">Appearance</p>
                 <section class="control-card">
                     <details>
-                        <summary role="button" tabindex="0">
+                        <summary>
                             <img src="assets/icons/theme.svg" alt="" class="card-icon">
                             <h4>Theme &amp; Background</h4>
                         </summary>
@@ -454,6 +466,10 @@
         <button id="classroom-reminder-launcher" class="lesson-quick-action lesson-quick-action--reminders" type="button" aria-label="Open classroom reminders" aria-controls="classroom-reminder-dock" aria-expanded="false" hidden>
             <i class="fa-regular fa-bell lesson-quick-action__icon" aria-hidden="true"></i>
             <span class="lesson-quick-action__label">Reminders</span>
+        </button>
+        <button id="teacher-controls-quick-btn" class="lesson-quick-action lesson-quick-action--controls" type="button" aria-label="Open Teacher Controls" aria-controls="teacher-panel" aria-expanded="false">
+            <i class="fas fa-sliders lesson-quick-action__icon" aria-hidden="true"></i>
+            <span class="lesson-quick-action__label">Teacher Controls</span>
         </button>
         <button id="teaching-assistant-toggle" class="lesson-quick-action lesson-quick-action--ai" type="button" aria-label="Open Teaching Assistant" aria-controls="teaching-assistant-panel" aria-expanded="false">
             <i class="fas fa-wand-magic-sparkles lesson-quick-action__icon" aria-hidden="true"></i>
@@ -679,17 +695,17 @@
 
     <dialog id="help-dialog" aria-labelledby="help-dialog-title">
         <div class="modal-header">
-            <h3 id="help-dialog-title">How to Use Teacher Controls</h3>
+            <h3 id="help-dialog-title">Teacher Screen help</h3>
             <button class="modal-close" aria-label="Close Help">&times;</button>
         </div>
         <div class="modal-body">
             <ul>
-                <li>Use the navigation bar to switch between views.</li>
-                <li>Open Resources from the Dashboard to connect a teaching folder or Google Drive and add supported files to the current deck.</li>
-                <li>Use the lesson quick actions to add Text, Timer, Draw, or Pick.</li>
-                <li>Drag any widget by its grab bar; use its options menu for settings or removal.</li>
-                <li>Open Teacher Controls from Menu Desk when you need deck or classroom settings.</li>
-                <li>All changes save automatically to your browser.</li>
+                <li>On the Dashboard, open Deck Library and select a deck to reveal Continue Classroom, Arrange, Present and deck actions.</li>
+                <li>Open Resources from the Dashboard to connect a computer folder or Google Drive and add supported files to the current deck.</li>
+                <li>Open More &rarr; Sections to move between Dashboard, Classroom, Planner, Timetable and Notes.</li>
+                <li>Open More &rarr; Teacher Controls, or choose Arrange on a deck, to manage the current deck, pages, timer, theme and background.</li>
+                <li>In Classroom, use the bottom quick actions to add Text, Timer, Track, Draw, Pick and other widgets.</li>
+                <li>Decks, pages and classroom changes save automatically in this browser. Resource files stay in their original computer folder or Google Drive unless you add supported material to a deck.</li>
             </ul>
         </div>
         <div class="modal-actions">
@@ -697,18 +713,38 @@
         </div>
     </dialog>
 
-    <dialog id="import-dialog" aria-labelledby="import-dialog-title">
+    <dialog id="import-dialog" aria-labelledby="import-dialog-title" aria-describedby="import-dialog-description">
         <div class="modal-header">
             <h3 id="import-dialog-title">Import Screen Decks</h3>
             <button class="modal-close" aria-label="Close Import">&times;</button>
         </div>
         <div class="modal-body">
-            <p>Paste a screen deck export JSON below:</p>
-            <textarea id="import-json-input" rows="8"></textarea>
-            <div id="import-summary" class="import-summary"></div>
+            <p id="import-dialog-description">Choose an exported JSON file or paste its contents. Preview the import before anything changes.</p>
+            <div class="import-source-field">
+                <label for="import-file-input">Choose export file</label>
+                <input id="import-file-input" type="file" accept=".json,application/json">
+            </div>
+            <div class="import-source-divider" aria-hidden="true"><span>or paste JSON</span></div>
+            <div class="import-source-field">
+                <label for="import-json-input">Export JSON</label>
+                <textarea id="import-json-input" rows="8" aria-describedby="import-json-help"></textarea>
+                <p id="import-json-help" class="import-field-help">Paste the full contents of a Teacher Screen deck export.</p>
+            </div>
+            <fieldset class="import-mode-group">
+                <legend>How should imported decks be added?</legend>
+                <label>
+                    <input type="radio" name="import-mode" value="merge" checked>
+                    <span><strong>Merge with my decks</strong><small>Keep existing decks and add the imported decks.</small></span>
+                </label>
+                <label>
+                    <input type="radio" name="import-mode" value="replace">
+                    <span><strong>Replace my decks</strong><small>Remove existing decks before adding the imported decks.</small></span>
+                </label>
+            </fieldset>
+            <div id="import-summary" class="import-summary" aria-live="polite" aria-atomic="true"></div>
         </div>
         <div class="modal-actions">
-            <button class="control-button modal-primary" id="confirm-import">Import</button>
+            <button class="control-button modal-primary" id="confirm-import">Preview import</button>
             <button class="control-button" data-close>Cancel</button>
         </div>
     </dialog>
@@ -716,11 +752,11 @@
     <div id="live-region" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
 
     <!-- Widget Settings Modal Overlay -->
-    <div id="widget-settings-modal" class="modal-overlay">
+    <div id="widget-settings-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="widget-settings-title" aria-hidden="true" inert>
         <div class="modal-content">
             <button class="modal-close-btn" aria-label="Close Settings">&times;</button>
             <div class="modal-header">
-                <h3 class="modal-title">Settings</h3>
+                <h3 id="widget-settings-title" class="modal-title">Widget settings</h3>
             </div>
             <div class="modal-body">
                 <!-- Widget controls will be injected here -->
@@ -760,7 +796,7 @@
          ===================================================== -->
     <!-- Bootstrap loader must be the only app script entrypoint. -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
-    <script type="module" src="js/index.js?v=24"></script>
+    <script type="module" src="js/index.js?v=25"></script>
 
 </body>
 </html>
