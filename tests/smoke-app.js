@@ -1774,16 +1774,94 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         });
         assert(JSON.stringify(menuDeckStateAfter) === JSON.stringify(menuDeckStateBefore), 'Opening Teacher Controls should not load or touch a saved deck');
         await closeTeacherPanel(page);
-        await page.locator('#dashboard-utility-menu > summary').click();
+        const dashboardMoreSummary = page.locator('#dashboard-utility-menu > summary');
+        await dashboardMoreSummary.click();
         await page.locator('#dashboard-sections-btn').click();
         await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await page.waitForFunction(() => document.activeElement?.id === 'sections-menu-close', null, { timeout: 10000 });
+        assert(await page.locator('#sections-menu-close').evaluate((element) => document.activeElement === element), 'Opening Sections should place keyboard focus on its close button');
+        const tablistStructure = await page.locator('#sections-menu .nav-tabs').evaluate((tablist) => {
+            const directChildren = Array.from(tablist.children);
+            return {
+                childCount: directChildren.length,
+                tabCount: directChildren.filter((child) => child.matches('button[role="tab"]')).length
+            };
+        });
+        assert(tablistStructure.childCount > 0 && tablistStructure.tabCount === tablistStructure.childCount, 'The Sections tablist should contain only direct tab children');
         await page.locator('#manage-screens-btn').click();
         await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage Screen Decks should open over the Dashboard');
         assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage Screen Decks should not enter a classroom deck');
         assert(await page.locator('#sections-menu:not([hidden])').count() === 1, 'Manage Screen Decks should keep its section menu visible');
+        const manageMenuDeckStateAfter = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                usage: presets
+                    .map((preset) => [preset?.id || '', Number(preset?.usageCount || 0), Number(preset?.lastUsedAt || 0)])
+                    .sort(([a], [b]) => a.localeCompare(b))
+            };
+        });
+        assert(JSON.stringify(manageMenuDeckStateAfter) === JSON.stringify(menuDeckStateBefore), 'Opening Screen decks and pages should not load or touch a saved deck');
+        assert(await page.locator('#preset-list, #layout-preset').count() === 0, 'Screen decks and pages should not render the removed duplicate deck lists');
+        assert(await page.locator('#current-project-name').textContent().then((text) => text.trim() === 'Legacy Current Deck'), 'Screen decks and pages should identify the current deck');
+        assert(await page.locator('#current-project-page-summary').textContent().then((text) => /^Page 1 of \d+$/.test(text.trim())), 'Screen decks and pages should identify the current page position');
+        const visibleScreenManagerActions = await page.locator('#manage-screens-menu-details[open] .screen-manager-body button:visible').allTextContents();
+        const normalizedScreenManagerActions = visibleScreenManagerActions.map((label) => label.replace(/\s+/g, ' ').trim());
+        for (const label of ['Manage pages', 'Open Deck Library', 'Clear current page', 'Save dated copy', 'Export decks', 'Import decks']) {
+            assert(normalizedScreenManagerActions.includes(label), `Screen decks and pages should keep ${label} visible`);
+        }
+        const desktopScreenManagerLayout = await page.locator('#sections-menu').evaluate((menu) => {
+            const content = menu.querySelector('.sections-menu__content');
+            const managerBody = menu.querySelector('.screen-manager-body');
+            const menuRect = menu.getBoundingClientRect();
+            const undersizedControls = Array.from(menu.querySelectorAll('button, summary, select, input'))
+                .filter((control) => control.getClientRects().length > 0 && getComputedStyle(control).visibility !== 'hidden')
+                .map((control) => ({
+                    label: control.getAttribute('aria-label') || control.textContent?.replace(/\s+/g, ' ').trim() || control.id || control.tagName,
+                    height: control.getBoundingClientRect().height
+                }))
+                .filter((control) => control.height < 39.5);
+            return {
+                viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+                menuFits: menuRect.left >= -1 && menuRect.right <= window.innerWidth + 1 && menu.scrollWidth <= menu.clientWidth + 1,
+                contentFits: !!content && content.scrollWidth <= content.clientWidth + 1,
+                managerFits: !!managerBody && managerBody.scrollWidth <= managerBody.clientWidth + 1,
+                undersizedControls
+            };
+        });
+        assert(desktopScreenManagerLayout.viewportFits && desktopScreenManagerLayout.menuFits && desktopScreenManagerLayout.contentFits && desktopScreenManagerLayout.managerFits, 'Desktop Screen decks and pages should not create horizontal overflow');
+        assert(desktopScreenManagerLayout.undersizedControls.length === 0, `Desktop Screen decks and pages controls should be at least 40px high (${desktopScreenManagerLayout.undersizedControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
         await page.keyboard.press('Escape');
         await page.waitForSelector('#sections-menu:not([hidden])', { state: 'detached', timeout: 10000 });
+        await page.waitForFunction(() => document.activeElement?.matches('#dashboard-utility-menu > summary'), null, { timeout: 10000 });
+        assert(await dashboardMoreSummary.evaluate((element) => document.activeElement === element), 'Escape should close Screen decks and pages and restore focus to Dashboard More');
+
+        await dashboardMoreSummary.click();
+        await page.locator('#dashboard-sections-btn').click();
+        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await page.locator('#manage-screens-btn').click();
+        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+        await page.locator('#screen-manager-page-actions-btn').click();
+        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        await page.waitForSelector('#teacher-panel .project-page-advanced[open]', { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage pages should open Teacher Controls over the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage pages should not enter Classroom');
+        assert(await page.locator('#delete-page-btn').isVisible(), 'Manage pages should reveal the advanced page actions');
+        await closeTeacherPanel(page);
+
+        await dashboardMoreSummary.click();
+        await page.locator('#dashboard-sections-btn').click();
+        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await page.locator('#manage-screens-btn').click();
+        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+        await page.locator('#screen-manager-library-btn').click();
+        await page.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
+        await page.waitForFunction(() => document.activeElement?.id === 'dashboard-search-input', null, { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1 && await page.locator('#classroom-view:not([hidden])').count() === 0, 'Open Deck Library should return to the Dashboard');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Open Deck Library should select the canonical library destination');
+        assert(await page.locator('#dashboard-search-input').evaluate((element) => document.activeElement === element), 'Open Deck Library should place focus in deck search');
         await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="toggle"]`).click();
         await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] .dashboard-screen-card__details:not([hidden])`, { timeout: 10000 });
 
@@ -1936,6 +2014,77 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
                 });
         });
         assert(advancedActionsFit, '390px More actions should remain usable without horizontal overflow');
+        await mobileCurrentCard.locator('.dashboard-deck-more > summary').click();
+
+        const mobileDashboardMoreSummary = mobilePage.locator('#dashboard-utility-menu > summary');
+        await mobileDashboardMoreSummary.click();
+        await mobilePage.locator('#dashboard-sections-btn').click();
+        await mobilePage.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await mobilePage.locator('#manage-screens-btn').click();
+        await mobilePage.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+        const mobileScreenManagerLayout = await mobilePage.locator('#sections-menu').evaluate((menu) => {
+            const content = menu.querySelector('.sections-menu__content');
+            const managerBody = menu.querySelector('.screen-manager-body');
+            const closeButton = menu.querySelector('#sections-menu-close');
+            const menuRect = menu.getBoundingClientRect();
+            const closeRect = closeButton?.getBoundingClientRect();
+            return {
+                viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+                menuFits: menuRect.left >= -1 && menuRect.right <= window.innerWidth + 1 && menuRect.top >= -1 && menuRect.bottom <= window.innerHeight + 1,
+                menuHasNoOverflow: menu.scrollWidth <= menu.clientWidth + 1,
+                contentFits: !!content && content.scrollWidth <= content.clientWidth + 1,
+                managerFits: !!managerBody && managerBody.scrollWidth <= managerBody.clientWidth + 1,
+                contentScrollable: !!content && content.scrollHeight > content.clientHeight + 4,
+                closeButtonInViewport: !!closeRect && closeRect.left >= -1 && closeRect.right <= window.innerWidth + 1 && closeRect.top >= -1 && closeRect.bottom <= window.innerHeight + 1
+            };
+        });
+        assert(mobileScreenManagerLayout.viewportFits && mobileScreenManagerLayout.menuFits && mobileScreenManagerLayout.menuHasNoOverflow && mobileScreenManagerLayout.contentFits && mobileScreenManagerLayout.managerFits, '390px Screen decks and pages should fit without horizontal overflow');
+        assert(mobileScreenManagerLayout.contentScrollable, '390px Screen decks and pages should scroll inside the menu');
+        assert(mobileScreenManagerLayout.closeButtonInViewport, '390px Screen decks and pages should keep Close inside the viewport');
+
+        const mobileMenuContent = mobilePage.locator('#sections-menu .sections-menu__content');
+        await mobileMenuContent.evaluate((content) => {
+            content.scrollTop = content.scrollHeight;
+        });
+        await mobilePage.waitForFunction(() => {
+            const content = document.querySelector('#sections-menu .sections-menu__content');
+            return !!content && content.scrollTop > 0;
+        }, null, { timeout: 10000 });
+        const closeAfterInternalScroll = await mobilePage.locator('#sections-menu-close').evaluate((closeButton) => {
+            const rect = closeButton.getBoundingClientRect();
+            return rect.left >= -1 && rect.right <= window.innerWidth + 1 && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
+        });
+        assert(closeAfterInternalScroll, 'Scrolling the mobile Screen decks and pages content should keep Close within reach');
+
+        const mobileAdvancedSummary = mobilePage.locator('#manage-screens-menu-details .screen-manager-advanced > summary');
+        await mobileAdvancedSummary.scrollIntoViewIfNeeded();
+        await mobileAdvancedSummary.click();
+        await mobilePage.waitForSelector('#manage-screens-menu-details .screen-manager-advanced[open] #preset-name', { timeout: 10000 });
+        const mobileTouchControls = await mobilePage.locator('#manage-screens-menu-details .screen-manager-body').evaluate((managerBody) => {
+            return Array.from(managerBody.querySelectorAll('button, select, input, .screen-manager-advanced > summary'))
+                .filter((control) => control.getClientRects().length > 0 && getComputedStyle(control).visibility !== 'hidden')
+                .map((control) => ({
+                    label: control.getAttribute('aria-label') || control.textContent?.replace(/\s+/g, ' ').trim() || control.id || control.tagName,
+                    height: control.getBoundingClientRect().height
+                }))
+                .filter((control) => control.height < 39.5);
+        });
+        assert(mobileTouchControls.length === 0, `390px Screen decks and pages actions and fields should be at least 40px high (${mobileTouchControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
+
+        const mobileLibraryNote = mobilePage.locator('#manage-screens-menu-details .screen-manager-library-note');
+        await mobileLibraryNote.scrollIntoViewIfNeeded();
+        const mobileLastNoteReachable = await mobileLibraryNote.evaluate((note) => {
+            const content = note.closest('.sections-menu__content');
+            const noteRect = note.getBoundingClientRect();
+            const contentRect = content?.getBoundingClientRect();
+            return !!contentRect
+                && noteRect.height > 0
+                && noteRect.top >= contentRect.top - 1
+                && noteRect.bottom <= contentRect.bottom + 1
+                && note.textContent.includes('Deck Library');
+        });
+        assert(await mobilePage.locator('#manage-screens-menu-details .screen-manager-advanced').getAttribute('open') !== null, '390px Screen decks and pages should make the advanced deck disclosure reachable');
+        assert(mobileLastNoteReachable, '390px Screen decks and pages should make its final Deck Library note reachable');
         await mobilePage.close();
 
         const remainingSeededCard = page.locator('.dashboard-screen-card[data-deck-id^="deck-year7-"]').first();

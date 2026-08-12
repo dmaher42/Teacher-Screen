@@ -65,87 +65,123 @@
                         </svg>
                         <span class="visually-hidden">Sections</span>
                     </button>
-                    <div id="sections-menu" class="sections-menu" hidden>
-                        <div class="nav-tabs" role="tablist" aria-orientation="vertical">
-                            <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
-                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
-                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
-                            <div class="sections-menu__actions" aria-label="Screen shortcuts">
-                                <button id="manage-screens-btn" class="nav-dropdown-button" type="button">Manage Screen Decks</button>
+                    <div id="sections-menu" class="sections-menu" aria-labelledby="sections-menu-title" hidden>
+                        <header class="sections-menu__header">
+                            <div>
+                                <p class="sections-menu__eyebrow">Teacher Screen</p>
+                                <h2 id="sections-menu-title">Sections &amp; tools</h2>
                             </div>
+                            <button id="sections-menu-close" class="sections-menu__close" type="button" aria-label="Close sections and tools">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </header>
+                        <div class="sections-menu__content">
+                            <section class="sections-menu__navigation" aria-labelledby="sections-menu-navigation-title">
+                                <p id="sections-menu-navigation-title" class="sections-menu__group-label">Go to</p>
+                                <div class="nav-tabs" role="tablist" aria-labelledby="sections-menu-navigation-title">
+                                    <button class="nav-tab active" role="tab" aria-selected="true" aria-controls="dashboard-view" id="dashboard-tab" data-tab="dashboard">Dashboard</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="classroom-view" id="classroom-tab" data-tab="classroom">Classroom</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="planner-view" id="planner-tab" data-tab="planner">Planner</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
+                                    <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
+                                </div>
+                            </section>
+
                             <details class="screen-manager-details sections-menu__screen-manager" id="manage-screens-menu-details">
-                                <summary class="screen-manager-summary">Screen Decks &amp; Pages</summary>
-                                <div class="screen-manager-body">
-                                    <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Planner Templates</p>
-                                        <div class="button-group">
-                                            <button id="save-layout-btn" class="control-button" type="button">Save Planner Template</button>
-                                        </div>
-                                    </div>
-                                    <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Decks by Class</p>
-                                        <div class="input-group">
-                                            <label for="class-profile-select">Current Class</label>
-                                            <select id="class-profile-select">
-                                                <option value="">Choose a class</option>
-                                            </select>
-                                        </div>
-                                        <div class="button-group">
-                                            <button id="save-snapshot-btn" class="control-button modal-primary" type="button">Save Dated Copy</button>
-                                            <button id="reset-layout" class="control-button" type="button">Clear Current Page</button>
-                                        </div>
-                                        <p class="screen-helper">Pick a class to reopen its latest deck. Save Dated Copy keeps a timestamped version you can return to later.</p>
-                                        <div class="input-group">
-                                            <label for="layout-preset">Saved Deck</label>
-                                            <select id="layout-preset">
-                                                <option value="">None</option>
-                                                <option value="2x2">2x2 Grid</option>
-                                                <option value="full-timer">Full-width Timer</option>
-                                            </select>
-                                            <button id="apply-layout-preset" class="control-button">Apply</button>
-                                        </div>
-                                        <div class="input-group">
-                                            <label for="preset-name">Deck Name</label>
-                                            <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
-                                        </div>
-                                        <div class="input-group">
-                                            <label for="preset-class-name">Class Name (optional)</label>
-                                            <input type="text" id="preset-class-name" placeholder="e.g., 8A Maths">
-                                        </div>
-                                        <div class="input-group">
-                                            <label for="preset-period">Period / Time Slot (optional)</label>
-                                            <input type="text" id="preset-period" placeholder="e.g., Morning, Afternoon">
-                                        </div>
-                                        <div class="button-group">
-                                            <button id="save-preset" class="control-button">Save Deck / Overwrite</button>
-                                            <button id="export-layout" class="control-button">Export</button>
-                                            <button id="import-layout" class="control-button">Import</button>
-                                        </div>
-                                        <div class="preset-filters">
-                                            <input type="text" id="preset-class-filter" placeholder="Filter by class name">
-                                            <select id="preset-period-filter">
-                                                <option value="">All periods</option>
-                                                <option value="Morning">Morning</option>
-                                                <option value="Afternoon">Afternoon</option>
-                                            </select>
-                                        </div>
-                                        <div id="preset-list" class="preset-list" aria-live="polite"></div>
-                                    </div>
-                                    <div class="sections-menu__screen-group">
-                                        <p class="sections-menu__screen-group-title">Pages in Current Deck</p>
-                                        <div class="project-switcher">
+                                <summary id="manage-screens-btn" class="screen-manager-summary">
+                                    <span class="screen-manager-summary__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
+                                    <span class="screen-manager-summary__copy">
+                                        <strong>Screen decks &amp; pages</strong>
+                                        <span>Current pages, dated copies and deck files</span>
+                                    </span>
+                                    <span class="screen-manager-summary__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                                </summary>
+                                <div class="screen-manager-body" aria-label="Screen deck and page tools">
+                                    <section class="screen-manager-card screen-manager-card--current" aria-labelledby="current-project-name">
+                                        <div class="screen-manager-current">
+                                            <span class="screen-manager-current__icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span>
                                             <div class="project-switcher__meta">
-                                                <p class="project-switcher__project-label">Current Deck</p>
-                                                <p id="current-project-name" class="project-switcher__project-name">Weekly Project</p>
+                                                <p class="project-switcher__project-label">Current deck</p>
+                                                <h3 id="current-project-name" class="project-switcher__project-name">Weekly Project</h3>
                                                 <p id="current-project-page-summary" class="project-switcher__summary">Page 1 of 1</p>
                                             </div>
                                         </div>
-                                        <p class="screen-helper">Deck pages are managed from Teacher Controls.</p>
-                                    </div>
+                                        <div class="screen-manager-primary-actions" aria-label="Current deck actions">
+                                            <button id="screen-manager-page-actions-btn" class="screen-manager-button screen-manager-button--primary" type="button">
+                                                <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
+                                                <span>Manage pages</span>
+                                            </button>
+                                            <button id="screen-manager-library-btn" class="screen-manager-button" type="button">
+                                                <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                                                <span>Open Deck Library</span>
+                                            </button>
+                                        </div>
+                                        <button id="reset-layout" class="screen-manager-clear-button" type="button">
+                                            <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
+                                            <span>Clear current page</span>
+                                        </button>
+                                    </section>
+
+                                    <section class="screen-manager-card" aria-labelledby="screen-manager-copies-title">
+                                        <div class="screen-manager-section-heading">
+                                            <span class="screen-manager-section-heading__icon" aria-hidden="true"><i class="fa-regular fa-copy"></i></span>
+                                            <div>
+                                                <h3 id="screen-manager-copies-title">Copies &amp; transfer</h3>
+                                                <p>Keep a dated restore point or move your deck collection between devices.</p>
+                                            </div>
+                                        </div>
+                                        <div class="screen-manager-field">
+                                            <label for="class-profile-select">Class for dated copy <span>(optional)</span></label>
+                                            <select id="class-profile-select">
+                                                <option value="">No class</option>
+                                            </select>
+                                        </div>
+                                        <div class="screen-manager-copy-actions">
+                                            <button id="save-snapshot-btn" class="screen-manager-button screen-manager-button--primary" type="button">
+                                                <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                                                <span>Save dated copy</span>
+                                            </button>
+                                            <button id="export-layout" class="screen-manager-button" type="button">
+                                                <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>
+                                                <span>Export decks</span>
+                                            </button>
+                                            <button id="import-layout" class="screen-manager-button" type="button">
+                                                <i class="fa-solid fa-arrow-down-to-bracket" aria-hidden="true"></i>
+                                                <span>Import decks</span>
+                                            </button>
+                                        </div>
+                                    </section>
+
+                                    <details class="screen-manager-advanced">
+                                        <summary>
+                                            <span>
+                                                <strong>Save current setup as a new deck</strong>
+                                                <small>Name and classify a separate copy</small>
+                                            </span>
+                                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                                        </summary>
+                                        <div class="screen-manager-advanced__body">
+                                            <div class="screen-manager-field">
+                                                <label for="preset-name">New deck name</label>
+                                                <input type="text" id="preset-name" placeholder="e.g., 8A Maths - Morning">
+                                            </div>
+                                            <div class="screen-manager-field">
+                                                <label for="preset-class-name">Class name <span>(optional)</span></label>
+                                                <input type="text" id="preset-class-name" placeholder="e.g., 8A Maths">
+                                            </div>
+                                            <div class="screen-manager-field">
+                                                <label for="preset-period">Period or time slot <span>(optional)</span></label>
+                                                <input type="text" id="preset-period" placeholder="e.g., Morning">
+                                            </div>
+                                            <button id="save-preset" class="screen-manager-button screen-manager-button--primary" type="button">Save as new deck</button>
+                                        </div>
+                                    </details>
+
+                                    <p class="screen-manager-library-note">
+                                        Opening, renaming, duplicating and deleting saved decks now happens in the Deck Library.
+                                    </p>
                                 </div>
                             </details>
-                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="timetable-view" id="timetable-tab" data-tab="timetable">Timetable</button>
-                            <button class="nav-tab" role="tab" aria-selected="false" aria-controls="notes-view" id="notes-tab" data-tab="notes">Notes</button>
                         </div>
                     </div>
                         </div>

@@ -257,7 +257,10 @@ class ClassroomScreenApp {
         this.currentSectionName = document.getElementById('current-section-name');
         this.sectionsToggleButton = document.getElementById('sections-toggle');
         this.sectionsMenu = document.getElementById('sections-menu');
-        this.manageScreensButton = document.getElementById('manage-screens-btn');
+        this.sectionsMenuCloseButton = document.getElementById('sections-menu-close');
+        this.manageScreensDetails = document.getElementById('manage-screens-menu-details');
+        this.screenManagerPageActionsButton = document.getElementById('screen-manager-page-actions-btn');
+        this.screenManagerLibraryButton = document.getElementById('screen-manager-library-btn');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importJsonInput = document.getElementById('import-json-input');
@@ -297,6 +300,7 @@ class ClassroomScreenApp {
         // App State
         this.widgets = [];
         this.isTeacherPanelOpen = false;
+        this.sectionsMenuReturnFocus = null;
         this.presetsKey = 'classroomLayoutPresets';
         this.presets = [];
         this.dismissedSeededLessonsKey = 'teacherScreenDismissedSeededLessons';
@@ -636,9 +640,28 @@ class ClassroomScreenApp {
         }
 
         // Navigation and Panel
-        this.navTabs.forEach(tab => tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab)));
+        this.navTabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => this.handleNavClick(tab.dataset.tab));
+            tab.addEventListener('keydown', (event) => {
+                if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                    return;
+                }
+
+                event.preventDefault();
+                const lastIndex = this.navTabs.length - 1;
+                let targetIndex = index;
+                if (event.key === 'Home') targetIndex = 0;
+                if (event.key === 'End') targetIndex = lastIndex;
+                if (event.key === 'ArrowDown' || event.key === 'ArrowRight') targetIndex = index === lastIndex ? 0 : index + 1;
+                if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') targetIndex = index === 0 ? lastIndex : index - 1;
+                this.navTabs[targetIndex]?.focus();
+            });
+        });
         if (this.sectionsToggleButton) {
             this.sectionsToggleButton.addEventListener('click', () => this.openDashboardHome());
+        }
+        if (this.sectionsMenuCloseButton) {
+            this.sectionsMenuCloseButton.addEventListener('click', () => this.closeSectionsMenu({ restoreFocus: true }));
         }
         document.addEventListener('click', (event) => {
             if (!this.sectionsMenu || this.sectionsMenu.hidden) return;
@@ -653,7 +676,10 @@ class ClassroomScreenApp {
             const key = (event.key || '').toLowerCase();
 
             if (event.key === 'Escape') {
-                this.closeSectionsMenu();
+                if (this.sectionsMenu && !this.sectionsMenu.hidden) {
+                    event.preventDefault();
+                    this.closeSectionsMenu({ restoreFocus: true });
+                }
                 return;
             }
 
@@ -681,8 +707,22 @@ class ClassroomScreenApp {
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
 
-        if (this.manageScreensButton) {
-            this.manageScreensButton.addEventListener('click', () => this.openManageScreensMenu());
+        if (this.manageScreensDetails) {
+            this.manageScreensDetails.addEventListener('toggle', () => {
+                if (!this.manageScreensDetails.open) {
+                    return;
+                }
+
+                this.toggleTeacherPanel(false);
+            });
+        }
+
+        if (this.screenManagerPageActionsButton) {
+            this.screenManagerPageActionsButton.addEventListener('click', () => this.openCurrentPageActions());
+        }
+
+        if (this.screenManagerLibraryButton) {
+            this.screenManagerLibraryButton.addEventListener('click', () => this.openDeckLibraryFromScreenManager());
         }
 
         if (this.openWeeklyPlannerButton) {
@@ -799,9 +839,6 @@ class ClassroomScreenApp {
         if (this.classProfileSelect) {
             this.classProfileSelect.addEventListener('change', () => {
                 this.syncPresetFilterFromClassProfile();
-                if (this.classProfileSelect.value) {
-                    this.loadLatestPresetForSelectedClass();
-                }
             });
         }
 
@@ -902,8 +939,8 @@ class ClassroomScreenApp {
             this.deletePageButton.addEventListener('click', () => this.deleteCurrentPage());
         }
 
-        this.presetClassFilterInput.addEventListener('input', () => this.renderPresetList());
-        this.presetPeriodFilterSelect.addEventListener('change', () => this.renderPresetList());
+        this.presetClassFilterInput?.addEventListener('input', () => this.renderPresetList());
+        this.presetPeriodFilterSelect?.addEventListener('change', () => this.renderPresetList());
 
         if (this.applyLayoutPresetButton) {
             this.applyLayoutPresetButton.addEventListener('click', () => this.applyLayoutPreset());
@@ -1003,8 +1040,31 @@ class ClassroomScreenApp {
         document.body.classList.toggle('is-sections-menu-open', shouldOpen);
     }
 
-    closeSectionsMenu() {
+    openSectionsMenu(options = {}) {
+        const { returnFocus = null, focusTarget = null } = options;
+        const activeElement = document.activeElement;
+        this.sectionsMenuReturnFocus = returnFocus
+            || (activeElement instanceof HTMLElement && !this.sectionsMenu?.contains(activeElement) ? activeElement : null);
+        this.toggleSectionsMenu(true);
+
+        window.requestAnimationFrame(() => {
+            const target = focusTarget || this.sectionsMenuCloseButton || this.navTabs[0];
+            target?.focus({ preventScroll: true });
+        });
+    }
+
+    closeSectionsMenu(options = {}) {
+        const { restoreFocus = false } = options;
+        const returnFocus = this.sectionsMenuReturnFocus;
+        if (this.manageScreensDetails) {
+            this.manageScreensDetails.open = false;
+        }
         this.toggleSectionsMenu(false);
+        this.sectionsMenuReturnFocus = null;
+
+        if (restoreFocus && returnFocus instanceof HTMLElement && returnFocus.isConnected) {
+            window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+        }
     }
 
     initializeSavedNotes() {
@@ -4103,7 +4163,7 @@ class ClassroomScreenApp {
         const currentValue = this.classProfileSelect.value || this.presetClassFilterInput?.value || '';
         const classProfiles = this.getPresetClassNames();
 
-        this.classProfileSelect.innerHTML = '<option value="">Choose a class</option>';
+        this.classProfileSelect.innerHTML = '<option value="">No class</option>';
 
         classProfiles.forEach(({ name, count }) => {
             const option = document.createElement('option');
@@ -4615,6 +4675,7 @@ class ClassroomScreenApp {
         this.dashboardExpandedDeckId = id;
         this.savePresets();
         this.saveStateImmediately();
+        this.renderProjectControls();
         this.renderPresetList();
         this.renderDashboard();
         this.renderClassroomReminderDock();
@@ -8432,10 +8493,11 @@ class ClassroomScreenApp {
             sectionsButton.addEventListener('click', (event) => {
                 event.stopPropagation();
                 const teacherOptions = this.dashboardRoot.querySelector('#dashboard-utility-menu');
+                const returnFocus = teacherOptions?.querySelector('summary') || null;
                 if (teacherOptions) {
                     teacherOptions.open = false;
                 }
-                this.toggleSectionsMenu(true);
+                this.openSectionsMenu({ returnFocus });
             });
         }
 
@@ -8661,11 +8723,24 @@ class ClassroomScreenApp {
             const pageActions = this.teacherPanel?.querySelector('.project-page-advanced');
             if (pageActions) {
                 pageActions.open = true;
+                pageActions.scrollIntoView({ block: 'nearest' });
+                pageActions.querySelector('summary')?.focus({ preventScroll: true });
             }
+        });
+    }
 
-            if (this.deletePageButton) {
-                this.deletePageButton.scrollIntoView({ block: 'nearest' });
-            }
+    openDeckLibraryFromScreenManager() {
+        this.dashboardNavigationMode = 'library';
+        this.dashboardSelectedClassName = '';
+        this.dashboardSelectedFolderId = '';
+        this.dashboardSearchQuery = '';
+        this.dashboardExpandedDeckId = '';
+        this.dashboardExpandedReminderDeckId = '';
+        this.closeSectionsMenu();
+        this.handleNavClick('dashboard');
+
+        window.requestAnimationFrame(() => {
+            this.dashboardRoot?.querySelector('#dashboard-search-input')?.focus({ preventScroll: true });
         });
     }
 
@@ -8676,23 +8751,6 @@ class ClassroomScreenApp {
         }
 
         this.createFolder(nextName);
-    }
-
-    openManageScreensMenu() {
-        this.toggleTeacherPanel(false);
-        this.toggleSectionsMenu(true);
-
-        window.requestAnimationFrame(() => {
-            const details = document.getElementById('manage-screens-menu-details');
-            if (details) {
-                details.open = true;
-                details.scrollIntoView({ block: 'start', behavior: 'smooth' });
-            }
-
-            if (this.classProfileSelect && typeof this.classProfileSelect.focus === 'function') {
-                this.classProfileSelect.focus({ preventScroll: true });
-            }
-        });
     }
 
     closeDialog(dialog) {
