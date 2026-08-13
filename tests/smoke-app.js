@@ -2231,6 +2231,51 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await page.locator('.dashboard-screen-card').count() === 0, 'Resources should remain separate from deck accordion rows');
         await page.locator('[data-dashboard-mode="library"]').click();
         assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Returning from Resources should keep lesson decks collapsed');
+
+        const addClassButton = page.locator('#dashboard-add-class-btn');
+        assert(await addClassButton.isVisible(), 'Your Classes should provide a clear Add class button');
+        assert(await addClassButton.getAttribute('aria-label') === 'Add class', 'Add class should have a concise accessible name');
+        assert(await addClassButton.evaluate((button) => button.getBoundingClientRect().height >= 44), 'Add class should have a touch-friendly target');
+        const activeDeckBeforeAddClass = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.currentDeckId || '';
+        });
+        page.once('dialog', (dialog) => dialog.accept('Year 8 Science'));
+        await addClassButton.click();
+        await page.waitForFunction(() => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.some((preset) => preset?.className === 'Year 8 Science');
+        }, null, { timeout: 10000 });
+        const addedClassState = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const starterDecks = presets.filter((preset) => preset?.className === 'Year 8 Science');
+            const starterDeck = starterDecks[0] || null;
+            return {
+                activeDeckId: state.currentDeckId || '',
+                starterDeckCount: starterDecks.length,
+                starterDeckName: starterDeck?.name || '',
+                usageCount: Number(starterDeck?.usageCount || 0),
+                widgetCount: starterDeck?.projectState?.pages?.[0]?.snapshot?.layout?.widgets?.length ?? -1
+            };
+        });
+        assert(addedClassState.activeDeckId === activeDeckBeforeAddClass, 'Adding a class should not load or replace the active classroom deck');
+        assert(addedClassState.starterDeckCount === 1 && addedClassState.starterDeckName === 'Year 8 Science - New deck', 'Adding a class should create one clearly named starter deck');
+        assert(addedClassState.usageCount === 0 && addedClassState.widgetCount === 0, 'A new class starter deck should be blank and should not enter Recent decks');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"].is-active').count() === 1, 'A newly added class should be selected in Your Classes');
+        assert(await page.locator('.dashboard-screen-card').count() === 1, 'The new class should show its starter deck without unrelated decks');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Adding a class should not automatically open its starter deck');
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1 && await page.locator('#classroom-view:not([hidden])').count() === 0, 'Adding a class should keep the teacher on the Dashboard');
+
+        page.once('dialog', (dialog) => dialog.accept('year 8 science'));
+        await page.locator('#dashboard-add-class-btn').click();
+        await page.waitForFunction(() => document.activeElement?.dataset?.className === 'Year 8 Science', null, { timeout: 10000 });
+        const matchingClassDeckCount = await page.evaluate(() => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.filter((preset) => preset?.className === 'Year 8 Science').length;
+        });
+        assert(matchingClassDeckCount === 1, 'Adding an existing class name should select it without creating a duplicate');
+
         const menuDeckStateBefore = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');

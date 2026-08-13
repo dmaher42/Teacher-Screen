@@ -7850,6 +7850,90 @@ class ClassroomScreenApp {
         });
     }
 
+    createClassFromDashboard() {
+        const response = window.prompt('Enter the class name', '');
+        if (typeof response !== 'string') {
+            return null;
+        }
+
+        const requestedClassName = response.trim().replace(/\s+/g, ' ');
+        if (!requestedClassName) {
+            this.showNotification('Enter a class name.', 'warning');
+            return null;
+        }
+
+        const existingClass = this.getPresetClassNames()
+            .find(({ name }) => name.toLowerCase() === requestedClassName.toLowerCase());
+        if (existingClass) {
+            this.dashboardNavigationMode = 'library';
+            this.dashboardSelectedClassName = existingClass.name;
+            this.dashboardSearchQuery = '';
+            this.dashboardExpandedDeckId = '';
+            this.renderDashboard();
+            window.requestAnimationFrame(() => {
+                Array.from(this.dashboardRoot?.querySelectorAll('.dashboard-filter[data-class-name]') || [])
+                    .find((filter) => filter.dataset.className === existingClass.name)
+                    ?.focus({ preventScroll: true });
+            });
+            this.showNotification(`${existingClass.name} already exists. Showing its decks.`);
+            return existingClass;
+        }
+
+        const className = requestedClassName;
+        const classId = getStableClassId(className);
+        const deckId = this.createDeckId();
+        const deckName = this.getUniquePresetName(`${className} - New deck`);
+        const now = Date.now();
+        const blankPage = this.createPageRecord({
+            id: DEFAULT_PAGE_ID,
+            name: DEFAULT_PAGE_NAME,
+            snapshot: this.createBlankPageSnapshot()
+        });
+        const projectState = {
+            currentDeckId: deckId,
+            projectName: deckName,
+            activeDeckId: deckId,
+            activeClassId: classId,
+            activeClassName: className,
+            activePageId: blankPage.id,
+            pages: [blankPage]
+        };
+        const starterDeck = this.normalizePresetRecord({
+            id: deckId,
+            name: deckName,
+            classId,
+            className,
+            period: '',
+            folderId: '',
+            isFavorite: false,
+            projectState,
+            theme: blankPage.snapshot.theme,
+            background: cloneSerializableData(blankPage.snapshot.background),
+            layout: cloneSerializableData(blankPage.snapshot.layout),
+            lessonPlan: cloneSerializableData(blankPage.snapshot.lessonPlan),
+            createdAt: now,
+            updatedAt: now,
+            lastUsedAt: 0,
+            usageCount: 0
+        });
+
+        this.presets.push(starterDeck);
+        this.savePresets();
+        this.renderPresetList();
+        this.dashboardNavigationMode = 'library';
+        this.dashboardSelectedClassName = className;
+        this.dashboardSearchQuery = '';
+        this.dashboardExpandedDeckId = '';
+        this.renderDashboard();
+        window.requestAnimationFrame(() => {
+            Array.from(this.dashboardRoot?.querySelectorAll('.dashboard-filter[data-class-name]') || [])
+                .find((filter) => filter.dataset.className === className)
+                ?.focus({ preventScroll: true });
+        });
+        this.showNotification(`Created ${className} with a blank starter deck.`);
+        return starterDeck;
+    }
+
     setActiveReminderContext(source = {}) {
         const className = String(source.className || '').trim();
         const nextContext = {
@@ -8723,6 +8807,12 @@ class ClassroomScreenApp {
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">
                             <h3>${isResourceLibrary ? 'Resource Views' : 'Your Classes'}</h3>
+                            ${isResourceLibrary ? '' : `
+                                <button id="dashboard-add-class-btn" class="dashboard-add-class" type="button" aria-label="Add class">
+                                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                    <span>Add class</span>
+                                </button>
+                            `}
                         </div>
                         ${isResourceLibrary
                             ? `<div class="dashboard-class-list" id="dashboard-resource-view-list" aria-label="Filter teaching resources">
@@ -8768,6 +8858,10 @@ class ClassroomScreenApp {
         `;
 
         const classList = this.dashboardRoot.querySelector('#dashboard-class-list');
+        const addClassButton = this.dashboardRoot.querySelector('#dashboard-add-class-btn');
+        if (addClassButton) {
+            addClassButton.addEventListener('click', () => this.createClassFromDashboard());
+        }
         if (classList) {
             if (classItems.length === 0) {
                 classList.innerHTML = '<p class="dashboard-class-list__empty">Classes appear when a saved deck has a class name.</p>';

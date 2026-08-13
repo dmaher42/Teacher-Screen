@@ -10734,6 +10734,35 @@ body.is-dashboard-active .dashboard-sidebar__section-header h3 {
     white-space: nowrap;
 }
 
+body.is-dashboard-active .dashboard-add-class {
+    min-width: max-content;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.45rem 0.62rem;
+    border: 1px solid rgba(84, 197, 245, 0.34);
+    border-radius: 10px;
+    background: rgba(47, 143, 244, 0.12);
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+body.is-dashboard-active .dashboard-add-class:hover {
+    border-color: rgba(84, 197, 245, 0.7);
+    background: rgba(47, 143, 244, 0.24);
+}
+
+body.is-dashboard-active .dashboard-add-class:focus-visible {
+    outline: 3px solid rgba(144, 224, 255, 0.92);
+    outline-offset: 2px;
+}
+
 body.is-dashboard-active .dashboard-class-list {
     min-height: 0;
     overflow-y: auto;
