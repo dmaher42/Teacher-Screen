@@ -12671,6 +12671,13 @@ body.is-dashboard-active .dashboard-toolbar__side {
     flex: 0 0 auto;
 }
 
+body.is-dashboard-active .dashboard-toolbar__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 body.is-dashboard-active .dashboard-new-deck-btn {
     appearance: none;
     display: inline-flex;
@@ -12694,6 +12701,32 @@ body.is-dashboard-active .dashboard-new-deck-btn {
 body.is-dashboard-active .dashboard-new-deck-btn:hover {
     background: linear-gradient(145deg, #2699e8 0%, #115faf 100%);
     box-shadow: 0 13px 26px rgba(27, 113, 203, 0.28);
+}
+
+body.is-dashboard-active .dashboard-deck-tools-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0.62rem 0.9rem;
+    border: 1px solid rgba(47, 143, 244, 0.2);
+    border-radius: 12px;
+    background: #eaf3f9;
+    color: #244b62;
+    box-shadow: none;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+body.is-dashboard-active .dashboard-deck-tools-btn:hover {
+    border-color: rgba(47, 143, 244, 0.38);
+    background: #dcecf5;
+    color: #173f56;
 }
 
 body.is-dashboard-active .dashboard-search-row {
@@ -13202,7 +13235,14 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
         margin-left: 0;
     }
 
-    body.is-dashboard-active .dashboard-new-deck-btn {
+    body.is-dashboard-active .dashboard-toolbar__actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    body.is-dashboard-active .dashboard-new-deck-btn,
+    body.is-dashboard-active .dashboard-deck-tools-btn {
         width: 100%;
     }
 
@@ -13348,14 +13388,14 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 }
 
 /* =====================================================
-   Screen Decks & Pages Menu Polish
+   Sections navigation and deck tools
    ===================================================== */
 .sections-menu {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    width: min(480px, calc(100vw - 24px));
-    max-height: calc(100dvh - 24px);
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(85dvh, 620px);
     padding: 0;
     overflow: hidden;
     border: 1px solid rgba(25, 67, 91, 0.16);
@@ -13367,10 +13407,6 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 
 .sections-menu[hidden] {
     display: none;
-}
-
-.sections-menu:has(#manage-screens-menu-details[open]) {
-    height: min(720px, calc(100dvh - 24px));
 }
 
 .sections-menu *,
@@ -13453,25 +13489,99 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 
 .sections-menu .nav-tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
     min-width: 0;
 }
 
 .sections-menu .nav-tab {
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 0;
-    min-height: 42px;
-    padding: 0.55rem 0.45rem;
+    min-height: 48px;
+    padding: 0.7rem 0.86rem;
     overflow: hidden;
     border: 1px solid rgba(25, 67, 91, 0.12);
     border-radius: 11px;
     background: #ffffff;
     color: #32546a;
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    text-align: center;
+    text-align: left;
     text-overflow: ellipsis;
+}
+
+.sections-menu__destination {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 58px;
+    padding: 8px 12px 8px 9px;
+    border: 1px solid rgba(25, 67, 91, 0.13);
+    border-radius: 13px;
+    background: #ffffff;
+    color: #244b62;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sections-menu__destination:hover {
+    border-color: rgba(47, 143, 244, 0.3);
+    background: #edf7fd;
+}
+
+.sections-menu__destination-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: #e3f2fd;
+    color: #1878d1;
+}
+
+.sections-menu__destination-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.sections-menu__destination-copy strong {
+    color: #102b3c;
+    font-size: 0.88rem;
+}
+
+.sections-menu__destination-copy small {
+    color: #526b7a;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.screen-deck-manager-dialog:not([open]) {
+    display: none;
+}
+
+.screen-deck-manager-dialog[open] {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    width: min(540px, calc(100vw - 24px));
+    height: min(720px, calc(100dvh - 24px));
+    max-height: calc(100dvh - 24px);
+    margin: auto;
+}
+
+.screen-deck-manager-dialog::backdrop {
+    background: rgba(3, 18, 29, 0.58);
+    backdrop-filter: blur(3px);
+}
+
+.screen-deck-manager-dialog .sections-menu__content {
+    padding: 0;
 }
 
 .sections-menu .nav-tab.active,
@@ -13550,15 +13660,6 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     color: #5c7485;
     font-size: 0.76rem;
     transition: transform 160ms ease;
-}
-
-.sections-menu #manage-screens-menu-details[open] > .screen-manager-summary {
-    border-bottom: 1px solid rgba(25, 67, 91, 0.11);
-    background: #f4f9fc;
-}
-
-.sections-menu #manage-screens-menu-details[open] > .screen-manager-summary .screen-manager-summary__chevron {
-    transform: rotate(180deg);
 }
 
 .sections-menu .screen-manager-body {
@@ -13744,6 +13845,33 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     min-width: 0;
 }
 
+.sections-menu .screen-manager-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    min-width: 0;
+}
+
+.sections-menu .screen-manager-field--wide {
+    grid-column: 1 / -1;
+}
+
+.sections-menu .screen-manager-open-deck {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sections-menu .screen-manager-open-deck label {
+    grid-column: 1 / -1;
+}
+
+.sections-menu .screen-manager-open-deck .screen-manager-button {
+    min-width: 104px;
+}
+
+.sections-menu .screen-manager-card .screen-manager-copy-actions .screen-manager-button--primary {
+    grid-column: auto;
+}
+
 .sections-menu .screen-manager-field label {
     color: #294f66;
     font-size: 0.76rem;
@@ -13845,6 +13973,7 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 
 .sections-menu .sections-menu__close:focus-visible,
 .sections-menu .nav-tab:focus-visible,
+.sections-menu .sections-menu__destination:focus-visible,
 .sections-menu .screen-manager-summary:focus-visible,
 .sections-menu .screen-manager-button:focus-visible,
 .sections-menu .screen-manager-clear-button:focus-visible,
@@ -13875,8 +14004,10 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
         border-radius: 19px;
     }
 
-    .sections-menu:has(#manage-screens-menu-details[open]) {
+    .screen-deck-manager-dialog[open] {
+        width: calc(100vw - 16px);
         height: calc(100dvh - 16px);
+        max-height: calc(100dvh - 16px);
     }
 
     .sections-menu__header {
@@ -13891,7 +14022,7 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     }
 
     .sections-menu .nav-tabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .sections-menu .nav-tab {
@@ -13919,6 +14050,20 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
     .sections-menu .screen-manager-primary-actions,
     .sections-menu .screen-manager-copy-actions {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sections-menu .screen-manager-form-grid,
+    .sections-menu .screen-manager-open-deck {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sections-menu .screen-manager-field--wide,
+    .sections-menu .screen-manager-open-deck label {
+        grid-column: auto;
+    }
+
+    .sections-menu .screen-manager-open-deck .screen-manager-button {
+        width: 100%;
     }
 
     .sections-menu .screen-manager-copy-actions .screen-manager-button--primary {

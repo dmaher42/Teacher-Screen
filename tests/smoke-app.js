@@ -330,11 +330,26 @@ function getMenuSafetyImportPayload() {
 }
 
 async function openScreenDeckTools(page) {
-    await page.locator('#dashboard-utility-menu > summary').click();
-    await page.locator('#dashboard-sections-btn').click();
-    await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
-    await page.locator('#manage-screens-btn').click();
-    await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
+    await page.locator('#dashboard-deck-tools-btn').click();
+    await page.waitForSelector('#screen-deck-manager-dialog[open]', { timeout: 10000 });
+}
+
+async function openClassroomRemindersFromWidgetMenu(page) {
+    const reminderDock = page.locator('#classroom-reminder-dock');
+    if (await reminderDock.isVisible()) {
+        return;
+    }
+
+    if (await page.locator('#widget-modal[open]').count() === 0) {
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+    }
+
+    const reminderAction = page.locator('#widget-modal .widget-picker-footer__actions #classroom-reminder-launcher');
+    await reminderAction.waitFor({ state: 'visible', timeout: 10000 });
+    await reminderAction.click();
+    await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
+    await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
 }
 
 async function dragElementBy(page, selector, deltaX, deltaY) {
@@ -491,9 +506,12 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         await page.keyboard.press('Tab');
         assert(await page.locator('#teacher-panel').evaluate((panel) => !panel.contains(document.activeElement)), 'Keyboard navigation should skip closed Teacher Controls');
 
-        const teacherControlsLauncher = page.locator('#lesson-quick-actions button', { hasText: 'Teacher Controls' });
-        assert(await teacherControlsLauncher.count() === 1 && await teacherControlsLauncher.isVisible(), 'Classroom quick actions should include a visible Teacher Controls button');
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        const teacherControlsLauncher = page.locator('#widget-modal .widget-picker-footer__actions #widget-picker-teacher-controls-btn');
+        assert(await teacherControlsLauncher.count() === 1 && await teacherControlsLauncher.isVisible(), 'Add Widget should include a visible Teacher Controls button');
         await teacherControlsLauncher.click();
+        await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
         await page.waitForFunction(() => document.querySelector('#teacher-panel')?.contains(document.activeElement), null, { timeout: 10000 });
         assert(await page.locator('#teacher-panel').getAttribute('aria-hidden') === 'false', 'Open Teacher Controls should be exposed to assistive technology');
@@ -507,8 +525,8 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         assert(await page.locator('#teacher-panel').evaluate((panel) => panel.contains(document.activeElement)), 'Tab should stay inside Teacher Controls');
         await page.keyboard.press('Escape');
         await page.waitForSelector('#teacher-panel.open', { state: 'hidden', timeout: 10000 });
-        await page.waitForFunction(() => document.activeElement?.closest('#lesson-quick-actions') !== null, null, { timeout: 10000 });
-        assert(await teacherControlsLauncher.evaluate((element) => document.activeElement === element), 'Escape should close Teacher Controls and restore focus to its launcher');
+        await page.waitForFunction(() => document.activeElement?.id === 'add-widget-btn', null, { timeout: 10000 });
+        assert(await page.locator('#add-widget-btn').evaluate((element) => document.activeElement === element), 'Escape should close Teacher Controls and restore focus to Add Widget');
 
         await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
@@ -595,8 +613,9 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         }));
         assert(dashboardReturnFocus.matchesMore, `Dashboard Teacher Controls should restore focus to the visible More launcher (${JSON.stringify({ dashboardReturnFocus, dashboardMoreState })})`);
         await openScreenDeckTools(page);
-        assert(await page.locator('#manage-screens-btn .screen-manager-summary__copy strong').textContent().then((text) => text.trim() === 'Decks & pages'), 'The menu should use the concise Decks & pages title');
-        assert(await page.locator('#save-snapshot-btn').textContent().then((text) => text.replace(/\s+/g, ' ').trim() === 'Save dated backup'), 'The passive copy action should be labelled Save dated backup');
+        assert(await page.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), 'The separate deck dialog should use the Deck details & backup title');
+        assert(await page.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, 'Deck details should not contain the destructive Clear current page action');
+        assert(await page.locator('#save-snapshot-btn').textContent().then((text) => text.replace(/\s+/g, ' ').trim() === 'Save dated copy'), 'The passive copy action should be labelled Save dated copy');
         const beforeDatedBackup = await page.evaluate(() => ({
             state: JSON.parse(localStorage.getItem('classroomScreenState') || '{}'),
             presets: JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]')
@@ -611,10 +630,13 @@ async function runMenuSafetyChecks(browser, baseUrl) {
             && afterDatedBackup.state.projectName === beforeDatedBackup.state.projectName
             && afterDatedBackup.state.activeDeckId === beforeDatedBackup.state.activeDeckId
             && afterDatedBackup.state.activeClassId === beforeDatedBackup.state.activeClassId,
-        'Save dated backup should preserve the original current deck identity and class context');
-        assert(afterDatedBackup.presets.some((preset) => !beforeDatedBackup.presets.some((before) => before.id === preset.id)), 'Save dated backup should create a separate restore-point preset');
+        'Save dated copy should preserve the original current deck identity and class context');
+        assert(afterDatedBackup.presets.some((preset) => !beforeDatedBackup.presets.some((before) => before.id === preset.id)), 'Save dated copy should create a separate restore-point preset');
 
-        await page.locator('#screen-manager-page-actions-btn').click();
+        await page.locator('#screen-deck-manager-dialog .modal-close').click();
+        await page.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
+        await dashboardMore.click();
+        await page.locator('#dashboard-settings-btn').click();
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
         await page.keyboard.press('Escape');
         await page.waitForSelector('#teacher-panel.open', { state: 'hidden', timeout: 10000 });
@@ -629,7 +651,14 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         page.once('dialog', (dialog) => dialog.accept());
         await page.locator('#sections-toggle').click();
         await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
-        await openScreenDeckTools(page);
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-settings-btn').click();
+        await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        const pageActions = page.locator('#teacher-panel .project-page-advanced');
+        if (await pageActions.getAttribute('open') === null) {
+            await pageActions.locator(':scope > summary').click();
+        }
+        await page.waitForSelector('#teacher-panel .project-page-advanced[open] #reset-layout', { timeout: 10000 });
         await page.locator('#reset-layout').click();
         await page.waitForFunction(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}').layout?.widgets?.length === 0, null, { timeout: 10000 });
         const afterReset = await page.evaluate(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}'));
@@ -638,6 +667,10 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         assert(JSON.stringify(afterReset.lessonPlan) === JSON.stringify(preservedPageContent.lessonPlan), 'Reset current page should preserve its lesson plan');
         await page.waitForTimeout(700);
 
+        await closeTeacherPanel(page);
+        await openScreenDeckTools(page);
+        await page.locator('#screen-deck-manager-dialog .screen-manager-advanced > summary').click();
+        await page.waitForSelector('#screen-deck-manager-dialog .screen-manager-advanced[open] #import-layout', { timeout: 10000 });
         await page.locator('#import-layout').click();
         await page.waitForSelector('#import-dialog[open]', { timeout: 10000 });
         assert(await page.locator('#import-file-input').count() === 1, 'Import should accept an exported JSON file');
@@ -847,19 +880,15 @@ async function runBottomWidgetContainmentChecks(browser, baseUrl) {
         await dragElementBy(page, '.widget.name-picker-widget .resize-handle.bottom', 0, 1000);
         const tallSideWidget = await getElementBox(page, '.widget.name-picker-widget');
         const toolbarBesideTallWidget = await getElementBox(page, '#lesson-quick-actions');
-        const toolbarWithoutTeacherControls = await page.evaluate(() => {
-            const control = document.querySelector('#teacher-controls-quick-btn');
+        const toolbarFootprint = await page.evaluate(() => {
             const toolbar = document.querySelector('#lesson-quick-actions');
-            const previousDisplay = control?.style.display || '';
-            if (control) control.style.display = 'none';
             const rect = toolbar?.getBoundingClientRect();
-            if (control) control.style.display = previousDisplay;
             return rect ? { x: rect.x, width: rect.width } : null;
         });
 
         assert(
             tallSideWidget.x + tallSideWidget.width <= toolbarBesideTallWidget.x - 8,
-            `A tall side widget should stay horizontally clear of the lesson toolbar (${JSON.stringify({ tallSideWidget, toolbarBesideTallWidget, toolbarWithoutTeacherControls })})`
+            `A tall side widget should stay horizontally clear of the lesson toolbar (${JSON.stringify({ tallSideWidget, toolbarBesideTallWidget, toolbarFootprint })})`
         );
         assert(
             tallSideWidget.y + tallSideWidget.height > toolbarBesideTallWidget.y + 20,
@@ -2310,19 +2339,28 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
         await page.waitForFunction(() => document.activeElement?.id === 'sections-menu-close', null, { timeout: 10000 });
         assert(await page.locator('#sections-menu-close').evaluate((element) => document.activeElement === element), 'Opening Sections should place keyboard focus on its close button');
-        const tablistStructure = await page.locator('#sections-menu .nav-tabs').evaluate((tablist) => {
+        const sectionsStructure = await page.locator('#sections-menu').evaluate((menu) => {
+            const tablist = menu.querySelector('.nav-tabs');
             const directChildren = Array.from(tablist.children);
             return {
-                childCount: directChildren.length,
-                tabCount: directChildren.filter((child) => child.matches('button[role="tab"]')).length
+                tabCount: directChildren.filter((child) => child.matches('button[role="tab"]')).length,
+                tabLabels: directChildren.map((child) => child.textContent?.replace(/Coming soon/g, '').trim()),
+                deckLibraryIsSeparate: menu.querySelector('#manage-screens-btn')?.parentElement !== tablist,
+                deckLibraryLabel: menu.querySelector('#manage-screens-btn strong')?.textContent?.trim() || '',
+                embeddedManagerCount: menu.querySelectorAll('.screen-manager-body').length
             };
         });
-        assert(tablistStructure.childCount > 0 && tablistStructure.tabCount === tablistStructure.childCount, 'The Sections tablist should contain only direct tab children');
+        assert(sectionsStructure.tabCount === 5, 'Sections should keep five direct section tabs');
+        assert(sectionsStructure.tabLabels.join('|') === 'Dashboard|Classroom|Planner|Timetable|Notes', 'Sections should present the five destinations in a concise order');
+        assert(sectionsStructure.deckLibraryIsSeparate && sectionsStructure.deckLibraryLabel === 'Deck Library', 'Deck Library should be a separate destination below the section tabs');
+        assert(sectionsStructure.embeddedManagerCount === 0, 'Sections should stay navigation-only without embedding deck controls');
         await page.locator('#manage-screens-btn').click();
-        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
-        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage Screen Decks should open over the Dashboard');
-        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage Screen Decks should not enter a classroom deck');
-        assert(await page.locator('#sections-menu:not([hidden])').count() === 1, 'Manage Screen Decks should keep its section menu visible');
+        await page.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
+        await page.waitForFunction(() => document.activeElement?.id === 'dashboard-search-input', null, { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Deck Library should keep the Dashboard visible');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Deck Library should not enter a classroom deck');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Deck Library should not open a lesson deck after leaving Sections');
+        assert(await page.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Choosing Deck Library should not also open Deck details');
         const manageMenuDeckStateAfter = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
@@ -2333,20 +2371,55 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
                     .sort(([a], [b]) => a.localeCompare(b))
             };
         });
-        assert(JSON.stringify(manageMenuDeckStateAfter) === JSON.stringify(menuDeckStateBefore), 'Opening Screen decks and pages should not load or touch a saved deck');
-        assert(await page.locator('#preset-list, #layout-preset').count() === 0, 'Screen decks and pages should not render the removed duplicate deck lists');
-        assert(await page.locator('#current-project-name').textContent().then((text) => text.trim() === 'Legacy Current Deck'), 'Screen decks and pages should identify the current deck');
-        assert(await page.locator('#current-project-page-summary').textContent().then((text) => /^Page 1 of \d+$/.test(text.trim())), 'Screen decks and pages should identify the current page position');
-        const visibleScreenManagerActions = await page.locator('#manage-screens-menu-details[open] .screen-manager-body button:visible').allTextContents();
+        assert(JSON.stringify(manageMenuDeckStateAfter) === JSON.stringify(menuDeckStateBefore), 'Opening Deck Library should not load or touch a saved deck');
+
+        await openScreenDeckTools(page);
+        assert(await page.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), 'Dashboard Deck details should open in its dedicated dialog');
+        assert(await page.locator('#screen-deck-manager-dialog #preset-list').count() === 0 && await page.locator('#screen-deck-manager-dialog #layout-preset').count() === 1, 'Deck details should use one saved-deck selector without a duplicate list');
+        assert(await page.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, 'Deck details should not expose Clear current page');
+        assert(await page.locator('#current-project-name').textContent().then((text) => text.trim() === 'Legacy Current Deck'), 'Deck details should identify the current deck');
+        assert(await page.locator('#current-project-page-summary').textContent().then((text) => /^Page 1 of \d+$/.test(text.trim())), 'Deck details should identify the current page position');
+        assert(await page.locator('#preset-name').inputValue() === 'Legacy Current Deck'
+            && await page.locator('#preset-class-name').inputValue() === 'Migration Class'
+            && await page.locator('#preset-period').inputValue() === 'Period 1', 'Deck details should populate editable metadata from the current deck');
+        const visibleScreenManagerActions = await page.locator('#screen-deck-manager-dialog[open] .screen-manager-body button:visible').allTextContents();
         const normalizedScreenManagerActions = visibleScreenManagerActions.map((label) => label.replace(/\s+/g, ' ').trim());
-        for (const label of ['Manage pages', 'Open Deck Library', 'Reset current page', 'Save dated backup', 'Export decks', 'Import decks']) {
-            assert(normalizedScreenManagerActions.some((action) => action === label || action.startsWith(`${label} `)), `Screen decks and pages should keep ${label} visible`);
+        for (const label of ['Open deck', 'Save changes', 'Save dated copy']) {
+            assert(normalizedScreenManagerActions.includes(label), `Deck details should keep ${label} visible`);
         }
-        const desktopScreenManagerLayout = await page.locator('#sections-menu').evaluate((menu) => {
-            const content = menu.querySelector('.sections-menu__content');
-            const managerBody = menu.querySelector('.screen-manager-body');
-            const menuRect = menu.getBoundingClientRect();
-            const undersizedControls = Array.from(menu.querySelectorAll('button, summary, select, input'))
+        assert(!normalizedScreenManagerActions.includes('Export decks') && !normalizedScreenManagerActions.includes('Import decks'), 'Export and import should stay inside the collapsed advanced disclosure');
+
+        const readDeckSelectionSnapshot = () => page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return {
+                currentDeckId: state.currentDeckId || '',
+                projectName: state.projectName || '',
+                activePageId: state.activePageId || '',
+                usage: presets
+                    .map((preset) => ({
+                        id: preset?.id || '',
+                        usageCount: Number(preset?.usageCount || 0),
+                        lastUsedAt: Number(preset?.lastUsedAt || 0)
+                    }))
+                    .sort((a, b) => a.id.localeCompare(b.id))
+            };
+        });
+        const beforePassiveDeckChoice = await readDeckSelectionSnapshot();
+        await page.locator('#class-profile-select').selectOption('Migration Class');
+        await page.locator('#layout-preset').selectOption(betaDeckId);
+        const afterPassiveDeckChoice = await readDeckSelectionSnapshot();
+        assert(JSON.stringify(afterPassiveDeckChoice) === JSON.stringify(beforePassiveDeckChoice), 'Changing the class filter and saved-deck choice should not change the current deck, page, or usage history');
+        assert(await page.locator('#screen-deck-manager-dialog[open]').count() === 1, 'Selecting a saved deck should keep Deck details open until Open deck is chosen');
+        assert(await page.locator('#preset-name').inputValue() === 'Legacy Current Deck'
+            && await page.locator('#preset-class-name').inputValue() === 'Migration Class'
+            && await page.locator('#preset-period').inputValue() === 'Period 1', 'Browsing another saved deck should not replace the current deck metadata fields');
+
+        const desktopScreenManagerLayout = await page.locator('#screen-deck-manager-dialog').evaluate((dialog) => {
+            const content = dialog.querySelector('.sections-menu__content');
+            const managerBody = dialog.querySelector('.screen-manager-body');
+            const dialogRect = dialog.getBoundingClientRect();
+            const undersizedControls = Array.from(dialog.querySelectorAll('button, summary, select, input'))
                 .filter((control) => control.getClientRects().length > 0 && getComputedStyle(control).visibility !== 'hidden')
                 .map((control) => ({
                     label: control.getAttribute('aria-label') || control.textContent?.replace(/\s+/g, ' ').trim() || control.id || control.tagName,
@@ -2355,44 +2428,106 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
                 .filter((control) => control.height < 39.5);
             return {
                 viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
-                menuFits: menuRect.left >= -1 && menuRect.right <= window.innerWidth + 1 && menu.scrollWidth <= menu.clientWidth + 1,
+                dialogFits: dialogRect.left >= -1 && dialogRect.right <= window.innerWidth + 1 && dialog.scrollWidth <= dialog.clientWidth + 1,
                 contentFits: !!content && content.scrollWidth <= content.clientWidth + 1,
                 managerFits: !!managerBody && managerBody.scrollWidth <= managerBody.clientWidth + 1,
                 undersizedControls
             };
         });
-        assert(desktopScreenManagerLayout.viewportFits && desktopScreenManagerLayout.menuFits && desktopScreenManagerLayout.contentFits && desktopScreenManagerLayout.managerFits, 'Desktop Screen decks and pages should not create horizontal overflow');
-        assert(desktopScreenManagerLayout.undersizedControls.length === 0, `Desktop Screen decks and pages controls should be at least 40px high (${desktopScreenManagerLayout.undersizedControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
-        await page.keyboard.press('Escape');
-        await page.waitForSelector('#sections-menu:not([hidden])', { state: 'detached', timeout: 10000 });
-        await page.waitForFunction(() => document.activeElement?.matches('#dashboard-utility-menu > summary'), null, { timeout: 10000 });
-        assert(await dashboardMoreSummary.evaluate((element) => document.activeElement === element), 'Escape should close Screen decks and pages and restore focus to Dashboard More');
+        assert(desktopScreenManagerLayout.viewportFits && desktopScreenManagerLayout.dialogFits && desktopScreenManagerLayout.contentFits && desktopScreenManagerLayout.managerFits, 'Desktop Deck details should not create horizontal overflow');
+        assert(desktopScreenManagerLayout.undersizedControls.length === 0, `Desktop Deck details controls should be at least 40px high (${desktopScreenManagerLayout.undersizedControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
 
-        await dashboardMoreSummary.click();
-        await page.locator('#dashboard-sections-btn').click();
-        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
-        await page.locator('#manage-screens-btn').click();
-        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
-        await page.locator('#screen-manager-page-actions-btn').click();
+        const betaUsageBeforeOpen = beforePassiveDeckChoice.usage.find((record) => record.id === betaDeckId);
+        assert(Boolean(betaUsageBeforeOpen), 'The explicit-open regression should find the selected saved deck usage record');
+        await page.locator('#apply-layout-preset').click();
+        await page.waitForFunction(({ deckId, expectedUsage }) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const selected = presets.find((preset) => preset?.id === deckId);
+            return state.currentDeckId === deckId
+                && Number(selected?.usageCount || 0) === expectedUsage
+                && !document.querySelector('#screen-deck-manager-dialog')?.open;
+        }, { deckId: betaDeckId, expectedUsage: betaUsageBeforeOpen.usageCount + 1 }, { timeout: 10000 });
+        const afterExplicitOpen = await readDeckSelectionSnapshot();
+        const betaUsageAfterOpen = afterExplicitOpen.usage.find((record) => record.id === betaDeckId);
+        assert(afterExplicitOpen.currentDeckId === betaDeckId
+            && afterExplicitOpen.projectName === 'Duplicate ID Beta'
+            && afterExplicitOpen.activePageId === 'duplicate-beta-page', 'Open deck should load the selected saved deck and its active page');
+        assert(betaUsageAfterOpen?.usageCount === betaUsageBeforeOpen.usageCount + 1
+            && betaUsageAfterOpen.lastUsedAt > betaUsageBeforeOpen.lastUsedAt, 'Open deck should record exactly one use of the selected deck');
+        assert(beforePassiveDeckChoice.usage
+            .filter((record) => record.id !== betaDeckId)
+            .every((record) => JSON.stringify(afterExplicitOpen.usage.find((candidate) => candidate.id === record.id)) === JSON.stringify(record)), 'Open deck should not alter usage history for unselected decks');
+        assert(await page.locator(`.dashboard-screen-card[data-deck-id="${betaDeckId}"].is-current`).count() === 1, 'The Dashboard should mark the explicitly opened deck as current');
+
+        await openScreenDeckTools(page);
+        await page.locator('#class-profile-select').selectOption('Migration Class');
+        await page.locator('#layout-preset').selectOption(currentDeckId);
+        await page.locator('#apply-layout-preset').click();
+        await page.waitForFunction((deckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.currentDeckId === deckId && !document.querySelector('#screen-deck-manager-dialog')?.open;
+        }, currentDeckId, { timeout: 10000 });
+
+        await openScreenDeckTools(page);
+        const beforeMetadataSave = await readDeckSelectionSnapshot();
+        const presetCountBeforeMetadataSave = await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').length);
+        await page.locator('#preset-name').fill('Legacy Current Deck Updated');
+        await page.locator('#preset-class-name').fill('Migration Class Updated');
+        await page.locator('#preset-period').fill('Period 4');
+        await page.locator('#save-preset').click();
+        await page.waitForFunction((deckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const current = presets.find((preset) => preset?.id === deckId);
+            return state.currentDeckId === deckId
+                && state.projectName === 'Legacy Current Deck Updated'
+                && current?.name === 'Legacy Current Deck Updated'
+                && current?.className === 'Migration Class Updated'
+                && current?.period === 'Period 4';
+        }, currentDeckId, { timeout: 10000 });
+        const afterMetadataSave = await readDeckSelectionSnapshot();
+        assert(afterMetadataSave.currentDeckId === beforeMetadataSave.currentDeckId
+            && afterMetadataSave.activePageId === beforeMetadataSave.activePageId
+            && afterMetadataSave.usage.every((record) => JSON.stringify(beforeMetadataSave.usage.find((candidate) => candidate.id === record.id)) === JSON.stringify(record)), 'Save changes should update current metadata without switching decks, pages, or usage history');
+        assert(await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').length) === presetCountBeforeMetadataSave, 'Save changes should update the current deck rather than create a new one');
+
+        await page.locator('#preset-name').fill('Legacy Current Deck');
+        await page.locator('#preset-class-name').fill('Migration Class');
+        await page.locator('#preset-period').fill('Period 1');
+        await page.locator('#save-preset').click();
+        await page.waitForFunction((deckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const current = presets.find((preset) => preset?.id === deckId);
+            return state.currentDeckId === deckId
+                && state.projectName === 'Legacy Current Deck'
+                && current?.name === 'Legacy Current Deck'
+                && current?.className === 'Migration Class'
+                && current?.period === 'Period 1';
+        }, currentDeckId, { timeout: 10000 });
+        await page.keyboard.press('Escape');
+        await page.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
+
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-settings-btn').click();
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
+        const advancedPageActions = page.locator('#teacher-panel .project-page-advanced');
+        if (await advancedPageActions.getAttribute('open') === null) {
+            await advancedPageActions.locator(':scope > summary').click();
+        }
         await page.waitForSelector('#teacher-panel .project-page-advanced[open]', { timeout: 10000 });
-        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage pages should open Teacher Controls over the Dashboard');
-        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage pages should not enter Classroom');
-        assert(await page.locator('#delete-page-btn').isVisible(), 'Manage pages should reveal the advanced page actions');
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Teacher Controls should open over the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Teacher Controls should not enter Classroom');
+        assert(await page.locator('#reset-layout').isVisible() && await page.locator('#delete-page-btn').isVisible(), 'More page actions should contain Clear current page and Delete page');
+        assert(await page.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, 'Clear current page should remain outside Deck details');
         await closeTeacherPanel(page);
 
-        await dashboardMoreSummary.click();
-        await page.locator('#dashboard-sections-btn').click();
-        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
-        await page.locator('#manage-screens-btn').click();
-        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
-        await page.locator('#screen-manager-library-btn').click();
-        await page.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
-        await page.waitForFunction(() => document.activeElement?.id === 'dashboard-search-input', null, { timeout: 10000 });
-        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1 && await page.locator('#classroom-view:not([hidden])').count() === 0, 'Open Deck Library should return to the Dashboard');
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Open Deck Library should select the canonical library destination');
-        assert(await page.locator('#dashboard-search-input').evaluate((element) => document.activeElement === element), 'Open Deck Library should place focus in deck search');
-        await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="toggle"]`).click();
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'The canonical Deck Library destination should remain selected');
+        const currentDeckDetails = page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] .dashboard-screen-card__details`);
+        if (!await currentDeckDetails.isVisible()) {
+            await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="toggle"]`).click();
+        }
         await page.waitForSelector(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] .dashboard-screen-card__details:not([hidden])`, { timeout: 10000 });
 
         await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="arrange"]`).click();
@@ -2550,47 +2685,70 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         await mobileDashboardMoreSummary.click();
         await mobilePage.locator('#dashboard-sections-btn').click();
         await mobilePage.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
-        await mobilePage.locator('#manage-screens-btn').click();
-        await mobilePage.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
-        const mobileScreenManagerLayout = await mobilePage.locator('#sections-menu').evaluate((menu) => {
-            const content = menu.querySelector('.sections-menu__content');
-            const managerBody = menu.querySelector('.screen-manager-body');
-            const closeButton = menu.querySelector('#sections-menu-close');
+        const mobileSectionsLayout = await mobilePage.locator('#sections-menu').evaluate((menu) => {
             const menuRect = menu.getBoundingClientRect();
+            const tablist = menu.querySelector('.nav-tabs');
+            const destination = menu.querySelector('#manage-screens-btn');
+            const rows = [...menu.querySelectorAll('.nav-tab'), destination].filter(Boolean);
+            return {
+                menuFits: menuRect.left >= -1 && menuRect.right <= window.innerWidth + 1 && menuRect.top >= -1 && menuRect.bottom <= window.innerHeight + 1,
+                hasNoOverflow: menu.scrollWidth <= menu.clientWidth + 1,
+                tabCount: tablist?.querySelectorAll(':scope > .nav-tab').length || 0,
+                deckLibraryIsSeparate: destination?.parentElement !== tablist,
+                embeddedManagerCount: menu.querySelectorAll('.screen-manager-body').length,
+                rowsAreTouchFriendly: rows.every((row) => row.getBoundingClientRect().height >= 40)
+            };
+        });
+        assert(mobileSectionsLayout.menuFits && mobileSectionsLayout.hasNoOverflow, '390px Sections should fit without horizontal overflow');
+        assert(mobileSectionsLayout.tabCount === 5 && mobileSectionsLayout.deckLibraryIsSeparate, '390px Sections should keep five tabs plus a separate Deck Library destination');
+        assert(mobileSectionsLayout.embeddedManagerCount === 0, '390px Sections should stay navigation-only');
+        assert(mobileSectionsLayout.rowsAreTouchFriendly, '390px Sections destinations should remain touch-friendly');
+        await mobilePage.locator('#manage-screens-btn').click();
+        await mobilePage.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
+        assert(await mobilePage.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Choosing Deck Library should not open Deck details on mobile');
+        await mobilePage.locator('#dashboard-deck-tools-btn').click();
+        await mobilePage.waitForSelector('#screen-deck-manager-dialog[open]', { timeout: 10000 });
+        assert(await mobilePage.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), '390px Dashboard Deck details should open in the dedicated dialog');
+        assert(await mobilePage.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, '390px Deck details should keep Clear current page out of the dialog');
+        const mobileScreenManagerLayout = await mobilePage.locator('#screen-deck-manager-dialog').evaluate((dialog) => {
+            const content = dialog.querySelector('.sections-menu__content');
+            const managerBody = dialog.querySelector('.screen-manager-body');
+            const closeButton = dialog.querySelector('.modal-close');
+            const dialogRect = dialog.getBoundingClientRect();
             const closeRect = closeButton?.getBoundingClientRect();
             return {
                 viewportFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
-                menuFits: menuRect.left >= -1 && menuRect.right <= window.innerWidth + 1 && menuRect.top >= -1 && menuRect.bottom <= window.innerHeight + 1,
-                menuHasNoOverflow: menu.scrollWidth <= menu.clientWidth + 1,
+                dialogFits: dialogRect.left >= -1 && dialogRect.right <= window.innerWidth + 1 && dialogRect.top >= -1 && dialogRect.bottom <= window.innerHeight + 1,
+                dialogHasNoOverflow: dialog.scrollWidth <= dialog.clientWidth + 1,
                 contentFits: !!content && content.scrollWidth <= content.clientWidth + 1,
                 managerFits: !!managerBody && managerBody.scrollWidth <= managerBody.clientWidth + 1,
                 contentScrollable: !!content && content.scrollHeight > content.clientHeight + 4,
                 closeButtonInViewport: !!closeRect && closeRect.left >= -1 && closeRect.right <= window.innerWidth + 1 && closeRect.top >= -1 && closeRect.bottom <= window.innerHeight + 1
             };
         });
-        assert(mobileScreenManagerLayout.viewportFits && mobileScreenManagerLayout.menuFits && mobileScreenManagerLayout.menuHasNoOverflow && mobileScreenManagerLayout.contentFits && mobileScreenManagerLayout.managerFits, '390px Screen decks and pages should fit without horizontal overflow');
-        assert(mobileScreenManagerLayout.contentScrollable, '390px Screen decks and pages should scroll inside the menu');
-        assert(mobileScreenManagerLayout.closeButtonInViewport, '390px Screen decks and pages should keep Close inside the viewport');
+        assert(mobileScreenManagerLayout.viewportFits && mobileScreenManagerLayout.dialogFits && mobileScreenManagerLayout.dialogHasNoOverflow && mobileScreenManagerLayout.contentFits && mobileScreenManagerLayout.managerFits, '390px Deck details should fit without horizontal overflow');
+        assert(mobileScreenManagerLayout.contentScrollable, '390px Deck details should scroll inside its dialog');
+        assert(mobileScreenManagerLayout.closeButtonInViewport, '390px Deck details should keep Close inside the viewport');
 
-        const mobileMenuContent = mobilePage.locator('#sections-menu .sections-menu__content');
+        const mobileMenuContent = mobilePage.locator('#screen-deck-manager-dialog .sections-menu__content');
         await mobileMenuContent.evaluate((content) => {
             content.scrollTop = content.scrollHeight;
         });
         await mobilePage.waitForFunction(() => {
-            const content = document.querySelector('#sections-menu .sections-menu__content');
+            const content = document.querySelector('#screen-deck-manager-dialog .sections-menu__content');
             return !!content && content.scrollTop > 0;
         }, null, { timeout: 10000 });
-        const closeAfterInternalScroll = await mobilePage.locator('#sections-menu-close').evaluate((closeButton) => {
+        const closeAfterInternalScroll = await mobilePage.locator('#screen-deck-manager-dialog .modal-close').evaluate((closeButton) => {
             const rect = closeButton.getBoundingClientRect();
             return rect.left >= -1 && rect.right <= window.innerWidth + 1 && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
         });
-        assert(closeAfterInternalScroll, 'Scrolling the mobile Screen decks and pages content should keep Close within reach');
+        assert(closeAfterInternalScroll, 'Scrolling mobile Deck details should keep Close within reach');
 
-        const mobileAdvancedSummary = mobilePage.locator('#manage-screens-menu-details .screen-manager-advanced > summary');
+        const mobileAdvancedSummary = mobilePage.locator('#screen-deck-manager-dialog .screen-manager-advanced > summary');
         await mobileAdvancedSummary.scrollIntoViewIfNeeded();
         await mobileAdvancedSummary.click();
-        await mobilePage.waitForSelector('#manage-screens-menu-details .screen-manager-advanced[open] #preset-name', { timeout: 10000 });
-        const mobileTouchControls = await mobilePage.locator('#manage-screens-menu-details .screen-manager-body').evaluate((managerBody) => {
+        await mobilePage.waitForSelector('#screen-deck-manager-dialog .screen-manager-advanced[open] #export-layout', { timeout: 10000 });
+        const mobileTouchControls = await mobilePage.locator('#screen-deck-manager-dialog .screen-manager-body').evaluate((managerBody) => {
             return Array.from(managerBody.querySelectorAll('button, select, input, .screen-manager-advanced > summary'))
                 .filter((control) => control.getClientRects().length > 0 && getComputedStyle(control).visibility !== 'hidden')
                 .map((control) => ({
@@ -2599,9 +2757,9 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
                 }))
                 .filter((control) => control.height < 39.5);
         });
-        assert(mobileTouchControls.length === 0, `390px Screen decks and pages actions and fields should be at least 40px high (${mobileTouchControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
+        assert(mobileTouchControls.length === 0, `390px Deck details actions and fields should be at least 40px high (${mobileTouchControls.map((control) => `${control.label}: ${control.height.toFixed(1)}px`).join(', ')})`);
 
-        const mobileLibraryNote = mobilePage.locator('#manage-screens-menu-details .screen-manager-library-note');
+        const mobileLibraryNote = mobilePage.locator('#screen-deck-manager-dialog .screen-manager-library-note');
         await mobileLibraryNote.scrollIntoViewIfNeeded();
         const mobileLastNoteReachable = await mobileLibraryNote.evaluate((note) => {
             const content = note.closest('.sections-menu__content');
@@ -2613,8 +2771,10 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
                 && noteRect.bottom <= contentRect.bottom + 1
                 && note.textContent.includes('Deck Library');
         });
-        assert(await mobilePage.locator('#manage-screens-menu-details .screen-manager-advanced').getAttribute('open') !== null, '390px Screen decks and pages should make the advanced deck disclosure reachable');
-        assert(mobileLastNoteReachable, '390px Screen decks and pages should make its final Deck Library note reachable');
+        assert(await mobilePage.locator('#screen-deck-manager-dialog .screen-manager-advanced').getAttribute('open') !== null, '390px Deck details should make the advanced deck disclosure reachable');
+        assert(mobileLastNoteReachable, '390px Deck details should make its final Deck Library note reachable');
+        await mobilePage.locator('#screen-deck-manager-dialog .modal-close').click();
+        await mobilePage.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
         await mobilePage.close();
 
         const remainingSeededCard = page.locator('.dashboard-screen-card[data-deck-id^="deck-year7-"]').first();
@@ -3066,10 +3226,12 @@ async function runReminderSystemChecks(browser, baseUrl) {
         const reloadedDeckACard = page.locator(`.dashboard-screen-card[data-deck-id="${deckAId}"]`);
         await reloadedDeckACard.locator('.control-button--primary').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
-        assert(await page.locator('#classroom-reminder-launcher').getAttribute('aria-expanded') === 'false', 'Classroom reminders should start as a compact lesson-bar button');
-        await page.locator('#classroom-reminder-launcher').click();
-        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        const reloadedReminderAction = page.locator('#widget-modal .widget-picker-footer__actions #classroom-reminder-launcher');
+        await reloadedReminderAction.waitFor({ state: 'visible', timeout: 10000 });
+        assert(await reloadedReminderAction.getAttribute('aria-expanded') === 'false', 'Classroom reminders should start as a compact Add Widget action');
+        await openClassroomRemindersFromWidgetMenu(page);
         const classroomReminderList = page.locator('#classroom-reminder-list');
         assert(await classroomReminderList.locator('[data-reminder-id]').count() === 3, 'Classroom dock should combine the loaded deck and class reminders');
         const classroomReminderText = await classroomReminderList.textContent();
@@ -3210,9 +3372,7 @@ async function runReminderSystemChecks(browser, baseUrl) {
 
         await mobileDeckCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
         await mobilePage.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await mobilePage.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
-        await mobilePage.locator('#classroom-reminder-launcher').click();
-        await mobilePage.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        await openClassroomRemindersFromWidgetMenu(mobilePage);
         const mobileClassroomReminderLayout = await mobilePage.locator('#classroom-reminder-dock').evaluate((dock) => {
             const dockRect = dock.getBoundingClientRect();
             const panel = dock.querySelector('#classroom-reminder-panel');
@@ -3351,9 +3511,7 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
 
         await currentCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
-        await page.locator('#classroom-reminder-launcher').click();
-        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        await openClassroomRemindersFromWidgetMenu(page);
         const classroomSync = page.locator('#classroom-reminder-panel [data-memory-cue-sync]');
         assert(await classroomSync.locator('[data-memory-cue-sync-action]').textContent().then((text) => text.trim() === 'Connect Memory Cue'), 'Classroom reminders should offer the same Connect Memory Cue action');
 
@@ -3381,7 +3539,7 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
         await connectedCard.locator('.dashboard-screen-card__actions .control-button--primary').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         if (await page.locator('#classroom-reminder-dock').isHidden()) {
-            await page.locator('#classroom-reminder-launcher').click();
+            await openClassroomRemindersFromWidgetMenu(page);
         }
         await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
         const classroomForm = page.locator('#classroom-reminder-form');
@@ -3527,7 +3685,6 @@ async function runWholeClassAssignmentChecks(browser, baseUrl) {
         page.once('dialog', (dialog) => dialog.accept(deckName));
         await page.locator('#dashboard-create-btn').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
-        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
 
         const noClassDeck = await page.evaluate((expectedName) => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
@@ -3548,8 +3705,7 @@ async function runWholeClassAssignmentChecks(browser, baseUrl) {
             'A newly created deck should begin without an assigned class'
         );
 
-        await page.locator('#classroom-reminder-launcher').click();
-        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        await openClassroomRemindersFromWidgetMenu(page);
         const classroomForm = page.locator('#classroom-reminder-form');
         const deckScope = classroomForm.locator('input[name="scope"][value="deck"]');
         const classScope = page.locator('#classroom-reminder-class-scope');
@@ -3637,9 +3793,7 @@ async function runWholeClassAssignmentChecks(browser, baseUrl) {
             return preset?.className === expectedClassName && Boolean(preset.classId);
         }, { expectedDeckId: noClassDeck.id, expectedClassName: className }, { timeout: 10000 });
         await page.locator(`.dashboard-screen-card[data-deck-id="${noClassDeck.id}"] [data-deck-action="open"]`).click();
-        await page.waitForSelector('#classroom-reminder-launcher:not([hidden])', { timeout: 10000 });
-        await page.locator('#classroom-reminder-launcher').click();
-        await page.waitForSelector('#classroom-reminder-dock:not([hidden])', { timeout: 10000 });
+        await openClassroomRemindersFromWidgetMenu(page);
         assert(
             (await page.locator('#classroom-reminder-list').textContent()).includes(classReminderText),
             'Inline class assignment and its Whole class reminder should survive reload'
@@ -3828,14 +3982,30 @@ async function runSmoke() {
         assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Opening Sections should not enter a classroom deck');
         assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Sections should not expand a lesson deck');
         assert(await page.locator('#dashboard-utility-menu[open]').count() === 0, 'Opening Sections should close the compact menu');
-        await page.locator('#manage-screens-btn').click();
-        await page.waitForSelector('#manage-screens-menu-details[open] .screen-manager-body', { timeout: 10000 });
-        assert(await page.locator('#sections-menu:not([hidden])').count() === 1, 'Manage Screen Decks should keep the section menu visible');
-        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Manage Screen Decks should display its menu over the Dashboard');
-        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Manage Screen Decks should not enter Classroom');
-        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Manage Screen Decks should not open a lesson deck behind its menu');
+        assert(await page.locator('#sections-menu .nav-tabs > .nav-tab').count() === 5, 'Sections should expose five direct section tabs');
+        assert(await page.locator('#sections-menu > .sections-menu__content > #manage-screens-btn').count() === 1, 'Sections should expose Deck Library as a separate destination');
+        assert(await page.locator('#sections-menu .screen-manager-body').count() === 0, 'Sections should not embed deck controls');
+        assert(await page.locator('#sections-menu-close').evaluate((element) => document.activeElement === element), 'Opening Sections should focus its close button');
         await page.keyboard.press('Escape');
         await page.waitForSelector('#sections-menu:not([hidden])', { state: 'detached', timeout: 10000 });
+        assert(await page.locator('#dashboard-utility-menu > summary').evaluate((element) => document.activeElement === element), 'Escape should return focus to Dashboard More');
+
+        await page.locator('#dashboard-utility-menu > summary').click();
+        await page.locator('#dashboard-sections-btn').click();
+        await page.waitForSelector('#sections-menu:not([hidden])', { timeout: 10000 });
+        await page.locator('#manage-screens-btn').click();
+        await page.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
+        await page.waitForFunction(() => document.activeElement?.id === 'dashboard-search-input', null, { timeout: 10000 });
+        assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Deck Library should remain on the Dashboard');
+        assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Deck Library should not enter Classroom');
+        assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Deck Library should not open a lesson deck');
+        assert(await page.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Deck Library should not open the separate Deck details dialog');
+        assert(await page.locator('#dashboard-deck-tools-btn').isVisible(), 'Deck details should remain discoverable from the Dashboard');
+        await openScreenDeckTools(page);
+        assert(await page.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), 'Dashboard Deck details should open the dedicated dialog');
+        assert(await page.locator('#screen-deck-manager-dialog .screen-manager-body').isVisible(), 'The dedicated Deck details dialog should contain the deck actions');
+        await page.locator('#screen-deck-manager-dialog .modal-close').click();
+        await page.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
         await page.locator('#dashboard-utility-menu > summary').click();
         await page.locator('#dashboard-settings-btn').click();
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
@@ -3911,17 +4081,20 @@ async function runSmoke() {
                 && getComputedStyle(dock).display === 'none'
                 && document.querySelector('#classroom-reminder-panel')?.hidden === true
                 && document.querySelector('#classroom-reminder-launcher')?.hidden === false
-        )), 'Classroom reminders should start in the lesson bar and leave the widget canvas clear');
+        )), 'Classroom reminders should start collapsed and leave the widget canvas clear');
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'Empty classroom should not show instructional placeholder text');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Classroom should open in lesson mode with Teacher Controls closed');
         assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Classroom widgets should always be ready to move and resize');
         assert(await page.locator('#lesson-quick-actions').isVisible(), 'Lesson quick actions should appear in classroom mode');
         assert(await page.locator('#layout-edit-quick-btn').count() === 0, 'The widget bar should not require an Edit or Done mode button');
-        assert(await page.locator('#teacher-controls-quick-btn').isVisible(), 'The widget bar should provide a visible Teacher Controls button');
-        assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 4, 'Lesson quick actions should expose common live widgets');
+        assert(await page.locator('#teacher-controls-quick-btn').count() === 0, 'Teacher Controls should no longer crowd the lesson bar');
+        assert(await page.locator('#lesson-quick-actions #classroom-reminder-launcher').count() === 0, 'Reminders should no longer crowd the lesson bar');
+        assert(await page.locator('#lesson-quick-actions [data-quick-widget]').count() >= 5, 'Lesson quick actions should expose common live widgets');
 
         await page.locator('#add-widget-btn').click();
         await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        assert(await page.locator('#widget-modal .widget-picker-footer__actions #classroom-reminder-launcher').isVisible(), 'Add Widget should provide the Reminders action');
+        assert(await page.locator('#widget-modal .widget-picker-footer__actions #widget-picker-teacher-controls-btn').isVisible(), 'Add Widget should provide Teacher Controls beside Reminders');
         assert(await page.locator('#widget-picker-search').isVisible(), 'Widget picker should open with a visible search field');
         const allWidgetKeys = await page.locator('#widget-modal [data-widget]').evaluateAll((buttons) => (
             buttons.map((button) => button.dataset.widget)

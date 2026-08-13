@@ -259,9 +259,8 @@ class ClassroomScreenApp {
         this.sectionsToggleButton = document.getElementById('sections-toggle');
         this.sectionsMenu = document.getElementById('sections-menu');
         this.sectionsMenuCloseButton = document.getElementById('sections-menu-close');
-        this.manageScreensDetails = document.getElementById('manage-screens-menu-details');
-        this.screenManagerPageActionsButton = document.getElementById('screen-manager-page-actions-btn');
-        this.screenManagerLibraryButton = document.getElementById('screen-manager-library-btn');
+        this.manageScreensButton = document.getElementById('manage-screens-btn');
+        this.screenDeckManagerDialog = document.getElementById('screen-deck-manager-dialog');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importFileInput = document.getElementById('import-file-input');
@@ -732,22 +731,8 @@ class ClassroomScreenApp {
         this.closeTeacherPanelBtn.addEventListener('click', () => this.toggleTeacherPanel(false));
         this.panelBackdrop.addEventListener('click', () => this.toggleTeacherPanel(false));
 
-        if (this.manageScreensDetails) {
-            this.manageScreensDetails.addEventListener('toggle', () => {
-                if (!this.manageScreensDetails.open) {
-                    return;
-                }
-
-                this.toggleTeacherPanel(false);
-            });
-        }
-
-        if (this.screenManagerPageActionsButton) {
-            this.screenManagerPageActionsButton.addEventListener('click', () => this.openCurrentPageActions());
-        }
-
-        if (this.screenManagerLibraryButton) {
-            this.screenManagerLibraryButton.addEventListener('click', () => this.openDeckLibraryFromScreenManager());
+        if (this.manageScreensButton) {
+            this.manageScreensButton.addEventListener('click', () => this.openDeckLibraryFromScreenManager());
         }
 
         if (this.openWeeklyPlannerButton) {
@@ -845,7 +830,7 @@ class ClassroomScreenApp {
         }
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
-        document.getElementById('save-preset').addEventListener('click', () => this.savePreset());
+        document.getElementById('save-preset').addEventListener('click', () => this.saveCurrentDeckDetails());
         eventBus.on('widget:removed', this.handleWidgetRemovedEvent);
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
         document.addEventListener('widgetChanged', () => this.saveState());
@@ -875,7 +860,6 @@ class ClassroomScreenApp {
 
         if (this.saveSnapshotButton) {
             this.saveSnapshotButton.addEventListener('click', () => {
-                this.syncPresetFilterFromClassProfile();
                 this.saveDatedBackup();
             });
         }
@@ -1090,9 +1074,6 @@ class ClassroomScreenApp {
     closeSectionsMenu(options = {}) {
         const { restoreFocus = false } = options;
         const returnFocus = this.sectionsMenuReturnFocus;
-        if (this.manageScreensDetails) {
-            this.manageScreensDetails.open = false;
-        }
         this.toggleSectionsMenu(false);
         this.sectionsMenuReturnFocus = null;
 
@@ -4356,7 +4337,7 @@ class ClassroomScreenApp {
         const currentValue = this.classProfileSelect.value || this.presetClassFilterInput?.value || '';
         const classProfiles = this.getPresetClassNames();
 
-        this.classProfileSelect.innerHTML = '<option value="">No class</option>';
+        this.classProfileSelect.innerHTML = '<option value="">All classes</option>';
 
         classProfiles.forEach(({ name, count }) => {
             const option = document.createElement('option');
@@ -4395,10 +4376,8 @@ class ClassroomScreenApp {
             return false;
         }
 
-        const selectedClassName = this.classProfileSelect
-            ? this.classProfileSelect.value.trim()
-            : '';
-        const className = selectedClassName || normalizedSource.className || '';
+        const enteredClassName = this.presetClassInput?.value.trim() || '';
+        const className = enteredClassName || normalizedSource.className || '';
         const classId = getStableClassId(className);
         const name = this.getUniquePresetName(`${this.generateSnapshotName(className || normalizedSource.name)} Backup`);
         const id = this.createDeckId();
@@ -4501,9 +4480,7 @@ class ClassroomScreenApp {
         if (this.presetClassFilterInput) {
             this.presetClassFilterInput.value = selectedClass;
         }
-        if (this.presetClassInput) {
-            this.presetClassInput.value = selectedClass;
-        }
+        this.renderLayoutPresetOptions();
         this.renderPresetList();
     }
 
@@ -4861,14 +4838,19 @@ class ClassroomScreenApp {
     renderLayoutPresetOptions() {
         if (!this.layoutPresetSelect) return;
 
+        const selectedClass = this.classProfileSelect?.value || '';
         this.layoutPresetSelect.innerHTML = '<option value="">Select deck</option>';
 
-        this.presets.forEach((preset) => {
-            const option = document.createElement('option');
-            option.value = preset.id;
-            option.textContent = preset.name;
-            this.layoutPresetSelect.appendChild(option);
-        });
+        this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter(Boolean)
+            .filter((preset) => !selectedClass || preset.className === selectedClass)
+            .forEach((preset) => {
+                const option = document.createElement('option');
+                option.value = preset.id;
+                option.textContent = preset.name;
+                this.layoutPresetSelect.appendChild(option);
+            });
     }
 
     savePreset(options = {}) {
@@ -4937,6 +4919,48 @@ class ClassroomScreenApp {
             this.presetNameInput.value = name;
         }
         this.showNotification(`Deck "${name}" saved.`);
+    }
+
+    saveCurrentDeckDetails() {
+        const currentDeckId = this.getCurrentDeckId();
+        const presetIndex = currentDeckId ? this.getPresetIndex(currentDeckId) : -1;
+        const existingPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!existingPreset) {
+            this.showNotification('Current deck not found.', 'error');
+            return false;
+        }
+
+        const requestedName = this.presetNameInput?.value.trim() || existingPreset.name;
+        const duplicate = this.presets.find((preset) => preset
+            && preset.id !== existingPreset.id
+            && String(preset.name || '').trim().toLowerCase() === requestedName.toLowerCase());
+        if (duplicate) {
+            this.showNotification(`Deck "${requestedName}" already exists.`, 'warning');
+            return false;
+        }
+
+        if (requestedName !== existingPreset.name) {
+            const normalizedState = this.normalizeProjectState(this.projectState);
+            this.projectState = {
+                ...normalizedState,
+                currentDeckId: existingPreset.id,
+                projectName: requestedName
+            };
+            this.presets[presetIndex] = {
+                ...existingPreset,
+                name: requestedName,
+                projectState: cloneSerializableData({
+                    ...(existingPreset.projectState || this.buildPresetProjectState(existingPreset)),
+                    currentDeckId: existingPreset.id,
+                    projectName: requestedName
+                })
+            };
+        }
+
+        return this.overwritePreset(existingPreset.id, {
+            focusDashboard: false,
+            successMessage: `Saved details for "${requestedName}".`
+        });
     }
 
     loadPreset(identifier) {
@@ -5044,14 +5068,17 @@ class ClassroomScreenApp {
 
         const selectedDeckId = this.layoutPresetSelect.value;
         if (!selectedDeckId) {
-            this.showNotification('Select a screen first.', 'error');
+            this.showNotification('Select a deck first.', 'error');
             return;
         }
 
-        this.loadPreset(selectedDeckId);
+        if (this.loadPreset(selectedDeckId)) {
+            this.renderDashboard();
+            this.closeDialog(this.screenDeckManagerDialog);
+        }
     }
 
-    overwritePreset(identifier) {
+    overwritePreset(identifier, options = {}) {
         const presetIndex = this.getPresetIndex(identifier);
         const existingPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
         const name = existingPreset?.name || '';
@@ -5062,7 +5089,7 @@ class ClassroomScreenApp {
 
         if (!existingPreset) {
             this.showNotification('Deck not found.', 'error');
-            return;
+            return false;
         }
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : (existingPreset?.folderId || '');
         const now = Date.now();
@@ -5116,8 +5143,11 @@ class ClassroomScreenApp {
         this.dashboardExpandedDeckId = existingPreset.id;
         this.renderDashboard();
         this.renderClassroomReminderDock();
-        this.focusDashboardDeckControl(existingPreset.id, '.dashboard-deck-toggle');
-        this.showNotification(`Deck "${name}" overwritten.`);
+        if (options.focusDashboard !== false) {
+            this.focusDashboardDeckControl(existingPreset.id, '.dashboard-deck-toggle');
+        }
+        this.showNotification(options.successMessage || `Deck "${name}" overwritten.`);
+        return true;
     }
 
     deletePreset(identifier) {
@@ -8838,10 +8868,16 @@ class ClassroomScreenApp {
                                 <p>Choose a deck to reveal its classroom, arranging, presenting, and management options.</p>
                             </div>
                             <div class="dashboard-toolbar__side">
-                                <button id="dashboard-create-btn" class="dashboard-new-deck-btn" type="button">
-                                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                                    <span>New Deck</span>
-                                </button>
+                                <div class="dashboard-toolbar__actions">
+                                    <button id="dashboard-deck-tools-btn" class="dashboard-deck-tools-btn" type="button">
+                                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                                        <span>Deck details</span>
+                                    </button>
+                                    <button id="dashboard-create-btn" class="dashboard-new-deck-btn" type="button">
+                                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                        <span>New Deck</span>
+                                    </button>
+                                </div>
                                 <div class="dashboard-toolbar__meta" aria-label="Deck library summary">
                                     <span class="dashboard-chip">${shownPresets.length} ${shownPresets.length === 1 ? 'deck' : 'decks'}</span>
                                     <span class="dashboard-chip">${classProfiles.length} ${classProfiles.length === 1 ? 'class' : 'classes'}</span>
@@ -9083,10 +9119,14 @@ class ClassroomScreenApp {
                 event.stopPropagation();
                 this.closeDashboardTransientMenus();
                 const teacherOptions = this.dashboardRoot.querySelector('#dashboard-utility-menu');
-                const returnFocus = teacherOptions?.querySelector('summary') || null;
                 if (teacherOptions) {
                     teacherOptions.open = false;
                 }
+                this.dashboardExpandedDeckId = '';
+                this.dashboardExpandedReminderDeckId = '';
+                this.renderDashboard();
+                const returnFocus = this.dashboardRoot
+                    ?.querySelector('#dashboard-utility-menu > summary') || null;
                 this.openSectionsMenu({ returnFocus });
             });
         }
@@ -9145,6 +9185,11 @@ class ClassroomScreenApp {
                     this.handleNavClick('classroom');
                 }
             });
+        }
+
+        const deckToolsButton = this.dashboardRoot.querySelector('#dashboard-deck-tools-btn');
+        if (deckToolsButton) {
+            deckToolsButton.addEventListener('click', () => this.openScreenDeckManager());
         }
 
         const searchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
@@ -9257,7 +9302,8 @@ class ClassroomScreenApp {
             this.helpDialog,
             this.widgetModal,
             this.importDialog,
-            this.nameEntryDialog
+            this.nameEntryDialog,
+            this.screenDeckManagerDialog
         ].filter(Boolean);
         dialogs.forEach((dialog) => {
             dialog.addEventListener('click', (event) => {
@@ -9302,6 +9348,8 @@ class ClassroomScreenApp {
 
     openDashboardHome() {
         this.closeSectionsMenu();
+        this.dashboardExpandedDeckId = '';
+        this.dashboardExpandedReminderDeckId = '';
         this.handleNavClick('dashboard');
     }
 
@@ -9312,6 +9360,7 @@ class ClassroomScreenApp {
     }
 
     openCurrentPageActions() {
+        this.closeDialog(this.screenDeckManagerDialog);
         this.openTeacherControls();
 
         window.requestAnimationFrame(() => {
@@ -9331,12 +9380,55 @@ class ClassroomScreenApp {
         this.dashboardSearchQuery = '';
         this.dashboardExpandedDeckId = '';
         this.dashboardExpandedReminderDeckId = '';
+        this.closeDialog(this.screenDeckManagerDialog);
         this.closeSectionsMenu();
         this.handleNavClick('dashboard');
 
         window.requestAnimationFrame(() => {
             this.dashboardRoot?.querySelector('#dashboard-search-input')?.focus({ preventScroll: true });
         });
+    }
+
+    openScreenDeckManager() {
+        const currentState = this.normalizeProjectState(this.projectState);
+        const currentPreset = this.getPresetRecord(currentState.currentDeckId);
+        const advanced = this.screenDeckManagerDialog?.querySelector('.screen-manager-advanced');
+
+        this.closeSectionsMenu();
+        this.toggleTeacherPanel(false);
+        this.renderProjectControls();
+        if (this.classProfileSelect) {
+            this.classProfileSelect.value = '';
+        }
+        if (this.presetClassFilterInput) {
+            this.presetClassFilterInput.value = '';
+        }
+        this.renderClassProfileOptions();
+
+        if (this.classProfileSelect) {
+            this.classProfileSelect.value = '';
+        }
+        if (this.layoutPresetSelect) {
+            this.layoutPresetSelect.value = '';
+        }
+        if (this.presetNameInput) {
+            this.presetNameInput.value = currentPreset?.name || currentState.projectName || '';
+        }
+        if (this.presetClassInput) {
+            this.presetClassInput.value = currentPreset?.className || '';
+        }
+        if (this.presetPeriodInput) {
+            this.presetPeriodInput.value = currentPreset?.period || '';
+        }
+        if (this.presetFolderSelect) {
+            this.presetFolderSelect.value = currentPreset?.folderId || '';
+        }
+        this.renderLayoutPresetOptions();
+        if (advanced) {
+            advanced.open = false;
+        }
+
+        this.openDialog(this.screenDeckManagerDialog);
     }
 
     closeDashboardTransientMenus() {
@@ -9363,7 +9455,7 @@ class ClassroomScreenApp {
     }
 
     closeAllDialogs() {
-        [this.helpDialog, this.widgetModal].forEach((dialog) => {
+        [this.helpDialog, this.widgetModal, this.screenDeckManagerDialog].forEach((dialog) => {
             if (dialog && dialog.open) {
                 dialog.close();
             }
