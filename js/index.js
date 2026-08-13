@@ -7,6 +7,47 @@ const LOCAL_ASSET_VERSION = '31';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
+const configureLessonActionPlacement = () => {
+    const reminderLauncher = document.getElementById('classroom-reminder-launcher');
+    const teacherControlsQuickButton = document.getElementById('teacher-controls-quick-btn');
+    const widgetPickerFooter = document.querySelector('#widget-modal .widget-picker-footer');
+    const widgetPickerTeacherControlsButton = document.getElementById('widget-picker-teacher-controls-btn');
+
+    // Keep the bottom bar focused on frequently used classroom actions.
+    teacherControlsQuickButton?.remove();
+
+    if (!reminderLauncher || !widgetPickerFooter) {
+        return;
+    }
+
+    reminderLauncher.classList.remove('lesson-quick-action', 'lesson-quick-action--reminders');
+    reminderLauncher.classList.add('control-button', 'control-button--compact');
+    reminderLauncher.querySelector('.lesson-quick-action__icon')
+        ?.classList.remove('lesson-quick-action__icon');
+    reminderLauncher.querySelector('.lesson-quick-action__label')
+        ?.classList.remove('lesson-quick-action__label');
+    reminderLauncher.setAttribute('data-close', '');
+
+    let footerActions = widgetPickerFooter.querySelector('.widget-picker-footer__actions');
+    if (!footerActions) {
+        footerActions = document.createElement('div');
+        footerActions.className = 'widget-picker-footer__actions button-group';
+        footerActions.setAttribute('role', 'group');
+        footerActions.setAttribute('aria-label', 'Widget menu actions');
+        widgetPickerFooter.appendChild(footerActions);
+    }
+
+    footerActions.appendChild(reminderLauncher);
+    if (widgetPickerTeacherControlsButton) {
+        footerActions.appendChild(widgetPickerTeacherControlsButton);
+    }
+
+    // The menu command should always open reminders rather than toggle an already-open dock closed.
+    reminderLauncher.addEventListener('click', () => {
+        reminderLauncher.setAttribute('aria-expanded', 'false');
+    }, { capture: true });
+};
+
 const withLocalAssetVersion = (src) => {
     if (!src.startsWith('./')) {
         return src;
@@ -133,6 +174,8 @@ const teacherDependencyResultPromise = bootstrapTeacherDependencies()
     .catch((error) => ({ failures: [], error }));
 
 const init = async () => {
+    configureLessonActionPlacement();
+
     const { failures, error: dependencyError } = await teacherDependencyResultPromise;
     if (dependencyError) {
         const error = dependencyError;
