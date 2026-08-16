@@ -1869,10 +1869,70 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
         await page.locator('#dashboard-create-btn').click();
         assert(await page.locator('#dashboard-view').isVisible(), 'Cancelling New Deck should keep the dashboard open');
 
+        const className = `Dashboard Class ${Date.now()}`;
+        page.once('dialog', (dialog) => dialog.accept(className));
+        await page.locator('#dashboard-add-class-btn').click();
+        await page.waitForFunction((expectedClass) => {
+            const activeFilter = document.querySelector('.dashboard-filter.is-active');
+            return activeFilter?.dataset.className === expectedClass;
+        }, className, { timeout: 10000 });
+
+        const currentDeckIdBeforeCreation = await page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.currentDeckId || '';
+        });
         const deckName = `Fresh Classroom ${Date.now()}`;
         page.once('dialog', (dialog) => dialog.accept(deckName));
         await page.locator('#dashboard-create-btn').click();
+        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+
+        const classDeck = await page.evaluate(({ expectedName, expectedClass }) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.name === expectedName);
+            const activeFilter = document.querySelector('.dashboard-filter.is-active');
+            return {
+                id: preset?.id || '',
+                classId: preset?.classId || '',
+                className: preset?.className || '',
+                currentDeckId: state.currentDeckId || '',
+                selectedClassName: activeFilter?.dataset.className || '',
+                visibleOnDashboard: Boolean(preset?.id && document.querySelector(`.dashboard-screen-card[data-deck-id="${preset.id}"]`))
+            };
+        }, { expectedName: deckName, expectedClass: className });
+        assert(classDeck.id && classDeck.classId, 'New Deck should create a saved class deck');
+        assert(classDeck.className === className, 'New Deck should inherit the class currently open on the dashboard');
+        assert(classDeck.currentDeckId === currentDeckIdBeforeCreation, 'Dashboard New Deck should not replace the active classroom deck');
+        assert(classDeck.selectedClassName === className && classDeck.visibleOnDashboard, 'Dashboard New Deck should stay in the open class deck list');
+        assert(await page.locator('#classroom-view').isHidden(), 'Dashboard New Deck should not open the classroom automatically');
+
+        await page.locator('[data-dashboard-mode="library"]').click();
+        const noClassDeckName = `Unclassified Deck ${Date.now()}`;
+        page.once('dialog', (dialog) => dialog.accept(noClassDeckName));
+        await page.locator('#dashboard-create-btn').click();
+        await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+        const noClassDeck = await page.evaluate((expectedName) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const preset = presets.find((candidate) => candidate?.name === expectedName);
+            return {
+                classId: preset?.classId || '',
+                className: preset?.className || '',
+                currentDeckId: state.currentDeckId || ''
+            };
+        }, noClassDeckName);
+        assert(!noClassDeck.classId && !noClassDeck.className, 'New Deck should have no class when no class deck list is open');
+        assert(noClassDeck.currentDeckId === currentDeckIdBeforeCreation, 'An unclassified dashboard deck should also leave the active classroom unchanged');
+        assert(await page.locator('#dashboard-view').isVisible(), 'Creating an unclassified deck should stay on the dashboard');
+
+        const classDeckCard = page.locator(`.dashboard-screen-card[data-deck-id="${classDeck.id}"]`);
+        await classDeckCard.locator('[data-deck-action="toggle"]').click();
+        await classDeckCard.locator('[data-deck-action="open"]').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForFunction((expectedDeckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.currentDeckId === expectedDeckId;
+        }, classDeck.id, { timeout: 10000 });
 
         const newDeckState = await page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
@@ -1889,12 +1949,12 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
 
         assert(newDeckState.projectName === deckName, 'New Deck should save the chosen deck name');
         assert(newDeckState.pageCount === 1, 'New Deck should start with one page');
-        assert(newDeckState.widgetCount === 0, 'New Deck should open a blank classroom');
+        assert(newDeckState.widgetCount === 0, 'Opening the new deck should show a blank classroom');
         assert(newDeckState.background?.type === 'gradient' && newDeckState.background?.value === oceanDefaultGradient, 'New Deck should use the Ocean twilight gradient');
         assert(newDeckState.pageBackground?.type === 'gradient' && newDeckState.pageBackground?.value === oceanDefaultGradient, 'New Deck should save the Ocean twilight gradient with its first page');
         assert(newDeckState.renderedBackgroundImage.includes('linear-gradient'), 'New Deck should visibly render its gradient on the classroom canvas');
         assert(newDeckState.selectedGradientCount === 1, 'Background picker should show the default gradient as selected');
-        assert(await page.locator('#teacher-panel.open').count() === 0, 'New Deck should open the classroom in lesson mode');
+        assert(await page.locator('#teacher-panel.open').count() === 0, 'Opening the new deck should enter the classroom in lesson mode');
 
         const projectorPage = await context.newPage();
         await projectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
@@ -2893,12 +2953,14 @@ async function runDeckLibraryStartupSafetyChecks(browser, baseUrl) {
             await dialog.accept(suggestedName);
         });
         await page.locator('#dashboard-create-btn').click();
-        await page.waitForFunction((existingId) => {
-            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
-            return state.currentDeckId && state.currentDeckId !== existingId;
-        }, 'deck-existing-weekly-project', { timeout: 10000 });
+        await page.waitForFunction((name) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.some((preset) => preset?.name === name);
+        }, suggestedName, { timeout: 10000 });
         assert(suggestedName && suggestedName !== 'Weekly Project', 'New Deck should suggest a usable unique name when Weekly Project already exists');
         assert(await page.evaluate((name) => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').some((preset) => preset?.name === name), suggestedName), 'Accepting the New Deck suggestion should immediately create its saved deck record');
+        assert(await page.evaluate(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}').currentDeckId === 'deck-existing-weekly-project'), 'Dashboard New Deck should leave the existing classroom deck active');
+        assert(await page.locator('#dashboard-view').isVisible(), 'Dashboard New Deck should remain on the dashboard');
     } finally {
         await context.close();
     }
@@ -3684,7 +3746,19 @@ async function runWholeClassAssignmentChecks(browser, baseUrl) {
 
         page.once('dialog', (dialog) => dialog.accept(deckName));
         await page.locator('#dashboard-create-btn').click();
+        const createdDeckId = await page.evaluate((expectedName) => {
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return presets.find((candidate) => candidate?.name === expectedName)?.id || '';
+        }, deckName);
+        assert(createdDeckId, 'Dashboard New Deck should create the deck before it is opened');
+        const createdDeckCard = page.locator(`.dashboard-screen-card[data-deck-id="${createdDeckId}"]`);
+        await createdDeckCard.locator('[data-deck-action="toggle"]').click();
+        await createdDeckCard.locator('[data-deck-action="open"]').click();
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await page.waitForFunction((expectedDeckId) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.currentDeckId === expectedDeckId;
+        }, createdDeckId, { timeout: 10000 });
 
         const noClassDeck = await page.evaluate((expectedName) => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
@@ -3856,6 +3930,11 @@ async function runSmoke() {
             await runWholeClassAssignmentChecks(browser, baseUrl);
             await runMemoryCueSyncUiChecks(browser, baseUrl);
             console.log('Class and deck reminder browser checks passed.');
+            return;
+        }
+        if (process.argv.includes('--new-deck-only')) {
+            await runNewDeckNavigationChecks(browser, baseUrl);
+            console.log('New Deck dashboard browser checks passed.');
             return;
         }
         if (!process.argv.includes('--main-ui-only')) {

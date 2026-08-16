@@ -2642,7 +2642,7 @@ class ClassroomScreenApp {
         this.showNotification(`Moved "${movedPage.name || DEFAULT_PAGE_NAME}" ${offset < 0 ? 'left' : 'right'}.`);
     }
 
-    createNewProject(projectName = null) {
+    createNewProject(projectName = null, { className = '', activate = true } = {}) {
         const suggestedName = this.getUniquePresetName(DEFAULT_PROJECT_NAME);
         const requestedName = typeof projectName === 'string' && projectName.trim()
             ? projectName.trim()
@@ -2657,31 +2657,54 @@ class ClassroomScreenApp {
             return false;
         }
 
+        const normalizedClassName = String(className || '').trim().replace(/\s+/g, ' ');
+        const classId = normalizedClassName ? getStableClassId(normalizedClassName) : '';
         const currentDeckId = this.createDeckId();
-        this.activeReminderContext = { deckId: currentDeckId, classId: '', className: '', deckName: resolvedProjectName };
         const blankPage = this.createPageRecord({
             id: this.makeUniquePageId(),
             name: DEFAULT_PAGE_NAME,
             snapshot: this.createBlankPageSnapshot()
         });
 
-        this.projectState = {
+        const blankProjectState = {
             currentDeckId,
             projectName: resolvedProjectName,
+            activeDeckId: currentDeckId,
+            activeClassId: classId,
+            activeClassName: normalizedClassName,
             activePageId: blankPage.id,
             pages: [blankPage]
         };
 
-        this.applyPageSnapshot(blankPage.snapshot);
-        this.renderProjectControls();
-        this.renderClassroomReminderDock();
-        this.saveStateImmediately();
+        if (activate) {
+            this.activeReminderContext = {
+                deckId: currentDeckId,
+                classId,
+                className: normalizedClassName,
+                deckName: resolvedProjectName
+            };
+            this.projectState = blankProjectState;
+            this.applyPageSnapshot(blankPage.snapshot);
+            this.renderProjectControls();
+            this.renderClassroomReminderDock();
+            this.saveStateImmediately();
+        }
+
         const now = Date.now();
-        const projectState = this.buildStateSnapshot();
+        const projectState = activate
+            ? this.buildStateSnapshot()
+            : this.normalizeProjectState({
+                ...blankProjectState,
+                theme: blankPage.snapshot.theme,
+                background: cloneSerializableData(blankPage.snapshot.background),
+                layout: cloneSerializableData(blankPage.snapshot.layout),
+                lessonPlan: cloneSerializableData(blankPage.snapshot.lessonPlan)
+            });
         this.presets.push({
             id: currentDeckId,
             name: resolvedProjectName,
-            className: '',
+            classId,
+            className: normalizedClassName,
             period: '',
             folderId: '',
             isFavorite: false,
@@ -2695,10 +2718,12 @@ class ClassroomScreenApp {
             lastUsedAt: now,
             usageCount: 0
         });
-        this.dashboardExpandedDeckId = currentDeckId;
+        this.dashboardExpandedDeckId = activate ? currentDeckId : '';
         this.savePresets();
         this.renderPresetList();
-        this.showNotification(`Created deck "${resolvedProjectName}".`);
+        this.showNotification(normalizedClassName
+            ? `Created deck "${resolvedProjectName}" in ${normalizedClassName}.`
+            : `Created deck "${resolvedProjectName}" with no class.`);
         return true;
     }
 
@@ -9181,8 +9206,18 @@ class ClassroomScreenApp {
         const createButton = this.dashboardRoot.querySelector('#dashboard-create-btn');
         if (createButton) {
             createButton.addEventListener('click', () => {
-                if (this.createNewProject()) {
-                    this.handleNavClick('classroom');
+                const selectedClassName = this.dashboardNavigationMode === 'library'
+                    ? String(this.dashboardSelectedClassName || '').trim()
+                    : '';
+                if (this.createNewProject(null, { className: selectedClassName, activate: false })) {
+                    this.dashboardNavigationMode = 'library';
+                    this.dashboardSelectedClassName = selectedClassName;
+                    this.dashboardSearchQuery = '';
+                    this.dashboardExpandedDeckId = '';
+                    this.renderDashboard();
+                    window.requestAnimationFrame(() => {
+                        this.dashboardRoot?.querySelector('#dashboard-create-btn')?.focus({ preventScroll: true });
+                    });
                 }
             });
         }
