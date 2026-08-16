@@ -453,9 +453,49 @@
     const nextButton = document.getElementById('next-slide');
     const counter = document.getElementById('slide-counter');
     const progressBar = document.getElementById('progress-bar');
+    const presentationId = 'year7-rhetoric-marine-turtles';
+    const syncChannel = typeof BroadcastChannel === 'function'
+      ? new BroadcastChannel('teacher-screen-local-presentation-sync')
+      : null;
     let currentIndex = 0;
 
-    function showSlide(index) {
+    function getHostMode() {
+      try {
+        if (window.parent === window) return 'standalone';
+        return window.parent.APP_MODE === 'projector'
+          || window.parent.document.body.classList.contains('projector-view')
+          ? 'projector'
+          : 'teacher';
+      } catch (error) {
+        return 'standalone';
+      }
+    }
+
+    function getSyncToken() {
+      try {
+        return window.parent.__TeacherProjectorSyncToken
+          || window.parent.__TeacherScreenProjectorApp?.projectorSyncToken
+          || window.parent.sessionStorage.getItem('teacher-screen-projector-sync-token')
+          || '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    const hostMode = getHostMode();
+    const syncToken = getSyncToken();
+
+    function broadcastSlide() {
+      if (!syncChannel || hostMode !== 'teacher') return;
+      syncChannel.postMessage({
+        type: 'slide-change',
+        presentationId,
+        syncToken,
+        index: currentIndex
+      });
+    }
+
+    function showSlide(index, { broadcast = true } = {}) {
       currentIndex = Math.max(0, Math.min(slides.length - 1, index));
       slides.forEach((slide, slideIndex) => {
         slide.classList.toggle('is-active', slideIndex === currentIndex);
@@ -464,6 +504,23 @@
       nextButton.disabled = currentIndex === slides.length - 1;
       counter.textContent = `${currentIndex + 1} / ${slides.length}`;
       progressBar.style.width = `${((currentIndex + 1) / slides.length) * 100}%`;
+      if (broadcast) broadcastSlide();
+    }
+
+    if (syncChannel && hostMode !== 'standalone') {
+      syncChannel.addEventListener('message', (event) => {
+        const message = event.data || {};
+        if (message.presentationId !== presentationId) return;
+        if (syncToken && message.syncToken && message.syncToken !== syncToken) return;
+
+        if (hostMode === 'projector' && message.type === 'slide-change') {
+          showSlide(Number(message.index) || 0, { broadcast: false });
+        }
+
+        if (hostMode === 'teacher' && message.type === 'request-state') {
+          broadcastSlide();
+        }
+      });
     }
 
     prevButton.addEventListener('click', () => showSlide(currentIndex - 1));
@@ -475,7 +532,10 @@
         showSlide(currentIndex + 1);
       }
     });
-    showSlide(0);
+    showSlide(0, { broadcast: false });
+    if (syncChannel && hostMode === 'projector') {
+      syncChannel.postMessage({ type: 'request-state', presentationId, syncToken });
+    }
   </script>
 </body>
 </html>
