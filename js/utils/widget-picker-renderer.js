@@ -11,6 +11,23 @@ const CATEGORY_TITLES = {
     Secondary: 'Content & display'
 };
 
+const WIDGET_ICON_CLASSES = {
+    timer: 'fa-hourglass-half',
+    'behaviour-tracker': 'fa-chart-line',
+    'noise-meter': 'fa-volume-high',
+    'name-picker': 'fa-shuffle',
+    'qr-code': 'fa-qrcode',
+    'drawing-tool': 'fa-pen',
+    'quiz-game': 'fa-circle-question',
+    'document-viewer': 'fa-file-lines',
+    'url-viewer': 'fa-link',
+    'reveal-manager': 'fa-display',
+    mask: 'fa-eye-slash',
+    notes: 'fa-note-sticky',
+    wellbeing: 'fa-heart',
+    'rich-text': 'fa-font'
+};
+
 function createWidgetPickerButton(widget, {
     focusWidgetType = null,
     favorites = [],
@@ -32,7 +49,9 @@ function createWidgetPickerButton(widget, {
     const icon = document.createElement('span');
     icon.className = 'category-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = widget.icon || '•';
+    const iconGlyph = document.createElement('i');
+    iconGlyph.className = `fa-solid ${WIDGET_ICON_CLASSES[widget.key] || 'fa-shapes'}`;
+    icon.appendChild(iconGlyph);
 
     const copy = document.createElement('span');
     copy.className = 'widget-picker-card__copy';
