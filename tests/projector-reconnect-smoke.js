@@ -44,6 +44,21 @@ async function launchBrowser() {
     throw new Error('Unable to launch Edge, Chrome, or bundled Chromium.');
 }
 
+async function dragElementBy(page, selector, deltaX, deltaY) {
+    const element = page.locator(selector);
+    const box = await element.boundingBox();
+    if (!box) {
+        throw new Error(`Unable to drag hidden element: ${selector}`);
+    }
+
+    const startX = box.x + (box.width / 2);
+    const startY = box.y + (box.height / 2);
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
+    await page.mouse.up();
+}
+
 async function run() {
     const server = createStaticServer();
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -75,6 +90,54 @@ async function run() {
         await teacherPage.waitForFunction(() => Boolean(window.__TeacherScreenApp));
         await projectorPage.waitForFunction(() => window.__TeacherScreenProjectorApp?.hasTeacherSync === true);
         console.log('PASS: An open projector automatically reconnects after the teacher screen refreshes');
+
+        const textBoard = await teacherPage.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.handleNavClick('classroom');
+            const widget = app.addWidget('rich-text', { notification: 'Resize sync test board added' });
+            const info = app.layoutManager.widgets.find((candidate) => candidate.widget === widget);
+            return {
+                id: info.id,
+                width: info.width,
+                height: info.height
+            };
+        });
+        await projectorPage.waitForFunction((widgetId) => (
+            window.__TeacherScreenProjectorApp?.layoutManager.widgets.some((widget) => widget.id === widgetId)
+        ), textBoard.id);
+
+        const projectorNodeWasPreserved = await projectorPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenProjectorApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            window.__projectorResizeSyncNode = info?.element || null;
+            return Boolean(window.__projectorResizeSyncNode);
+        }, textBoard.id);
+        if (!projectorNodeWasPreserved) {
+            throw new Error('Projector Text Board was not available for resize sync testing');
+        }
+
+        await dragElementBy(teacherPage, '.widget.rich-text-widget .resize-handle.bottom-right', 80, 40);
+        await teacherPage.waitForFunction(({ widgetId, initialWidth, initialHeight }) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.width !== initialWidth || info?.height !== initialHeight;
+        }, { widgetId: textBoard.id, initialWidth: textBoard.width, initialHeight: textBoard.height });
+        const resizedTextBoard = await teacherPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return { width: info.width, height: info.height };
+        }, textBoard.id);
+
+        await projectorPage.waitForFunction(({ widgetId, width, height }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.width === width && info?.height === height;
+        }, { widgetId: textBoard.id, ...resizedTextBoard });
+        const projectorKeptTextBoard = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.element === window.__projectorResizeSyncNode;
+        }, textBoard.id);
+        if (!projectorKeptTextBoard) {
+            throw new Error('Projector rebuilt the Text Board instead of applying its resize');
+        }
+        console.log('PASS: Text Board resizing syncs live to the projector without rebuilding its content');
     } finally {
         await context.close();
         await browser.close();

@@ -361,8 +361,8 @@ class ClassroomScreenApp {
         this.layoutManager.setEditable(true);
         this.layoutManager.onLayoutChange = (payload) => {
             if (payload && payload.type === 'widget-update') {
-                this.applyProjectorLayoutDelta(payload, 'projector');
-                eventBus.emit('widget:moved', { payload, source: 'projector' });
+                this.applyProjectorLayoutDelta(payload, 'teacher');
+                eventBus.emit('widget:moved', { payload, source: 'teacher' });
                 return;
             }
             eventBus.emit('layout:updated', { source: 'teacher', payload });

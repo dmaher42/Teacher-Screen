@@ -559,6 +559,11 @@ class ProjectorApp {
                 return;
             }
 
+            if (message.type === 'layout-delta' && message.source === 'teacher' && message.delta) {
+                this.layoutManager.applyLayoutDelta(message.delta);
+                return;
+            }
+
             if (message.type === 'class-reminders-sync' && message.source !== 'projector') {
                 this.renderClassroomReminders(message.reminders);
                 return;
