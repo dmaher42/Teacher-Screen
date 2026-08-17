@@ -9,6 +9,7 @@ const PROJECTOR_APP_MODE = 'projector';
 const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
+const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
 
 window.__ProjectorConnection = {
     window: window,
@@ -519,6 +520,10 @@ class ProjectorApp {
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
         this.projectorSyncToken = getProjectorSyncToken();
+        this.hasTeacherSync = false;
+        this.projectorSyncRetryTimers = [];
+        this.requestTeacherSync = this.requestTeacherSync.bind(this);
+        this.handleVisibilitySync = this.handleVisibilitySync.bind(this);
         window.__TeacherScreenProjectorApp = this;
     }
 
@@ -526,9 +531,6 @@ class ProjectorApp {
         this.backgroundManager.init();
         this.layoutManager.init();
         this.setupEditModeControls();
-
-        // Ask the teacher window for the latest state as soon as the projector starts.
-        this.projectorChannel.postMessage({ type: 'request-sync', syncToken: this.projectorSyncToken });
 
         // Listen for storage events to update in real-time
         window.addEventListener('storage', (event) => {
@@ -548,6 +550,8 @@ class ProjectorApp {
                     return;
                 }
 
+                this.hasTeacherSync = true;
+                this.clearTeacherSyncRetries();
                 this.renderClassroomReminders(message.state.classReminders);
                 if (this.shouldApplyTeacherLayoutUpdate(message.state.layout)) {
                     this.rebuildLayout(message.state);
@@ -575,6 +579,50 @@ class ProjectorApp {
 
         this.loadTheme();
         this.loadSavedState();
+
+        document.addEventListener('visibilitychange', this.handleVisibilitySync);
+        window.addEventListener('focus', this.requestTeacherSync);
+        window.addEventListener('pageshow', this.requestTeacherSync);
+
+        // Register the receiver first, then request the latest state. Retry briefly
+        // in case either window is still starting up and misses the first request.
+        this.requestTeacherSync();
+        this.scheduleTeacherSyncRetries();
+    }
+
+    requestTeacherSync() {
+        if (!this.projectorChannel || !this.projectorSyncToken) {
+            return false;
+        }
+
+        this.projectorChannel.postMessage({
+            type: 'request-sync',
+            syncToken: this.projectorSyncToken
+        });
+        return true;
+    }
+
+    clearTeacherSyncRetries() {
+        this.projectorSyncRetryTimers.forEach((timerId) => window.clearTimeout(timerId));
+        this.projectorSyncRetryTimers = [];
+    }
+
+    scheduleTeacherSyncRetries() {
+        this.clearTeacherSyncRetries();
+        PROJECTOR_SYNC_RETRY_DELAYS_MS.forEach((delayMs) => {
+            const timerId = window.setTimeout(() => {
+                if (!this.hasTeacherSync) {
+                    this.requestTeacherSync();
+                }
+            }, delayMs);
+            this.projectorSyncRetryTimers.push(timerId);
+        });
+    }
+
+    handleVisibilitySync() {
+        if (!document.hidden) {
+            this.requestTeacherSync();
+        }
     }
 
     loadTheme() {
@@ -817,6 +865,13 @@ class ProjectorApp {
     }
 
     destroy() {
+        this.clearTeacherSyncRetries();
+        document.removeEventListener('visibilitychange', this.handleVisibilitySync);
+        window.removeEventListener('focus', this.requestTeacherSync);
+        window.removeEventListener('pageshow', this.requestTeacherSync);
+        if (this.projectorChannel && typeof this.projectorChannel.close === 'function') {
+            this.projectorChannel.close();
+        }
         if (this.revealSync && this.revealSync.channel && typeof this.revealSync.channel.close === 'function') {
             this.revealSync.channel.close();
         }

@@ -485,6 +485,10 @@ class ClassroomScreenApp {
         }
 
         this.updateProjectorVisibility();
+
+        // Announce the fully restored classroom state so an already-open projector
+        // reconnects after the teacher screen is opened or refreshed.
+        window.setTimeout(() => this.broadcastProjectorState(), 0);
     }
 
     setupInternalEventBus() {
@@ -549,13 +553,7 @@ class ClassroomScreenApp {
             }
 
             if (message.type === 'request-sync') {
-                const state = this.buildProjectorStateSnapshot(this.buildStateSnapshot());
-                this.projectorChannel.postMessage({
-                    type: 'layout-update',
-                    state,
-                    source: 'teacher',
-                    syncToken: this.projectorSyncToken
-                });
+                this.broadcastProjectorState();
                 return;
             }
 
@@ -2472,6 +2470,20 @@ class ClassroomScreenApp {
         delete projectorState.activeClassId;
         delete projectorState.activeClassName;
         return projectorState;
+    }
+
+    broadcastProjectorState(source = 'teacher') {
+        if (!this.projectorChannel || !this.projectorSyncToken) {
+            return false;
+        }
+
+        this.projectorChannel.postMessage({
+            type: 'layout-update',
+            state: this.buildProjectorStateSnapshot(this.buildStateSnapshot()),
+            source,
+            syncToken: this.projectorSyncToken
+        });
+        return true;
     }
 
     getDefaultProjectState() {
