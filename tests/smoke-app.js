@@ -4174,6 +4174,7 @@ async function runSmoke() {
         await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
         assert(await page.locator('#widget-modal .widget-picker-footer__actions #classroom-reminder-launcher').isVisible(), 'Add Widget should provide the Reminders action');
         assert(await page.locator('#widget-modal .widget-picker-footer__actions #widget-picker-teacher-controls-btn').isVisible(), 'Add Widget should provide Teacher Controls beside Reminders');
+        assert(await page.locator('#widget-picker-projector-btn').isVisible(), 'Add Widget should provide a Projector action');
         assert(await page.locator('#widget-picker-search').isVisible(), 'Widget picker should open with a visible search field');
         const allWidgetKeys = await page.locator('#widget-modal [data-widget]').evaluateAll((buttons) => (
             buttons.map((button) => button.dataset.widget)
@@ -4191,6 +4192,19 @@ async function runSmoke() {
         await page.locator('#widget-modal [data-filter="Secondary"]').click();
         assert(await page.locator('#widget-modal [data-widget="timer"]').count() === 0, 'Widget filters should hide tools from other categories');
         assert(await page.locator('#widget-modal [data-widget="notes"]').isVisible(), 'Content filter should keep matching display tools visible');
+        const projectorLaunch = await page.evaluate(() => {
+            const originalOpen = window.open;
+            let call = null;
+            window.open = (...args) => {
+                call = args;
+                return null;
+            };
+            document.getElementById('widget-picker-projector-btn').click();
+            window.open = originalOpen;
+            return call;
+        });
+        assert(projectorLaunch?.[0]?.endsWith('/projector.html'), 'Widget picker Projector action should open the projector page');
+        assert(projectorLaunch?.[1] === '_blank' && projectorLaunch?.[2]?.includes('noopener'), 'Widget picker Projector action should open safely in a new tab');
         await page.locator('#widget-modal .modal-close').click();
         await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
 

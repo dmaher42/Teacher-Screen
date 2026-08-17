@@ -4670,7 +4670,15 @@ dialog::backdrop {
     }
 
     .widget-picker-footer > span {
-        max-width: 170px;
+        display: none;
+    }
+
+    .widget-picker-footer__actions {
+        width: 100%;
+    }
+
+    #widget-modal .widget-picker-footer__actions .control-button {
+        flex: 1 1 0;
     }
 }
 

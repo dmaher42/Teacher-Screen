@@ -756,6 +756,10 @@ class ClassroomScreenApp {
                 this.addWidget(button.dataset.quickWidget);
             });
         });
+        const widgetPickerProjectorButton = this.widgetModal?.querySelector('#widget-picker-projector-btn');
+        if (widgetPickerProjectorButton) {
+            widgetPickerProjectorButton.addEventListener('click', () => this.openProjectorView());
+        }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
             widgetPickerTeacherControlsButton.addEventListener('click', () => this.openTeacherControls());
@@ -1763,6 +1767,11 @@ class ClassroomScreenApp {
             onAddWidget: (type) => this.addWidget(type),
             onToggleFavorite: (type) => this.toggleWidgetPickerFavorite(type)
         });
+    }
+
+    openProjectorView() {
+        const projectorUrl = new URL('projector.html', window.location.href);
+        window.open(projectorUrl.toString(), '_blank', 'noopener');
     }
 
     renderThemeSelector() {
