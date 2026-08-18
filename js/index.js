@@ -132,6 +132,7 @@ const TEACHER_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', required: false },
     { src: './js/utils/local-document-store.js', required: true },
     { src: './js/utils/layout-manager.js', required: true },
+    { src: './js/utils/widget-minimize-dock.js', required: true },
     { src: './js/utils/background-manager.js', required: true },
     { src: './js/widgets/noise-meter.js', required: false },
     { src: './js/widgets/noise-meter-widget.js', required: false },
