@@ -1856,7 +1856,7 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
 }
 
 async function runNewDeckNavigationChecks(browser, baseUrl) {
-    const oceanDefaultGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
+    const oceanDefaultGradient = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)';
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
 
@@ -1950,8 +1950,8 @@ async function runNewDeckNavigationChecks(browser, baseUrl) {
         assert(newDeckState.projectName === deckName, 'New Deck should save the chosen deck name');
         assert(newDeckState.pageCount === 1, 'New Deck should start with one page');
         assert(newDeckState.widgetCount === 0, 'Opening the new deck should show a blank classroom');
-        assert(newDeckState.background?.type === 'gradient' && newDeckState.background?.value === oceanDefaultGradient, 'New Deck should use the Ocean twilight gradient');
-        assert(newDeckState.pageBackground?.type === 'gradient' && newDeckState.pageBackground?.value === oceanDefaultGradient, 'New Deck should save the Ocean twilight gradient with its first page');
+        assert(newDeckState.background?.type === 'gradient' && newDeckState.background?.value === oceanDefaultGradient, 'New Deck should use the Ocean sky gradient');
+        assert(newDeckState.pageBackground?.type === 'gradient' && newDeckState.pageBackground?.value === oceanDefaultGradient, 'New Deck should save the Ocean sky gradient with its first page');
         assert(newDeckState.renderedBackgroundImage.includes('linear-gradient'), 'New Deck should visibly render its gradient on the classroom canvas');
         assert(newDeckState.selectedGradientCount === 1, 'Background picker should show the default gradient as selected');
         assert(await page.locator('#teacher-panel.open').count() === 0, 'Opening the new deck should enter the classroom in lesson mode');
