@@ -47,7 +47,7 @@
   align-items: flex-end;
   gap: 0.5rem;
   max-height: calc(100% - var(--widget-minimize-dock-bottom, 1rem) - 1rem);
-  overflow: visible auto;
+  overflow: visible;
   pointer-events: none;
 }
 
