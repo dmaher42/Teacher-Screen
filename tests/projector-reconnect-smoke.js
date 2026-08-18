@@ -142,6 +142,20 @@ async function run() {
         }
         console.log('PASS: Projector hides the misleading Noise Meter microphone status sentence');
 
+        await teacherPage.evaluate((noiseMeterId) => {
+            window.TeacherScreenEventBus.eventBus.emit('noise-meter:level', {
+                widgetId: noiseMeterId,
+                level: 170,
+                listening: true
+            });
+        }, testWidgets.noiseMeterId);
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.meter?.lastLevel === 170
+                && info.widget.meter.lastRenderedWidth > (info.widget.canvas.width * 0.6);
+        }, testWidgets.noiseMeterId);
+        console.log('PASS: Live Noise Meter readings render on the paired projector canvas');
+
         const projectorNodeWasPreserved = await projectorPage.evaluate((widgetId) => {
             const app = window.__TeacherScreenProjectorApp;
             const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);

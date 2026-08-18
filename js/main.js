@@ -526,6 +526,10 @@ class ClassroomScreenApp {
             this.syncTimerStateToProjector(payload);
         });
 
+        this.subscribeToEventBus('noise-meter:level', (payload = {}) => {
+            this.syncNoiseMeterLevelToProjector(payload);
+        });
+
         this.subscribeToEventBus('layout:updated', ({ source = 'teacher' } = {}) => {
             this.saveState(source);
         });
@@ -5956,6 +5960,18 @@ class ClassroomScreenApp {
             type: 'timer-sync',
             source: 'teacher',
             timerState,
+            syncToken: this.projectorSyncToken
+        });
+    }
+
+    syncNoiseMeterLevelToProjector({ widgetId = '', level = 0, listening = false } = {}) {
+        if (!this.projectorChannel || !widgetId) return;
+        this.projectorChannel.postMessage({
+            type: 'noise-meter-sync',
+            source: 'teacher',
+            widgetId,
+            level: Math.min(255, Math.max(0, Number(level) || 0)),
+            listening: listening === true,
             syncToken: this.projectorSyncToken
         });
     }

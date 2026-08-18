@@ -67,7 +67,9 @@ class NoiseMeterWidget {
         this.element.appendChild(controlBar);
 
         // NoiseMeter instance and state
-        this.meter = new NoiseMeter(this.canvas);
+        this.lastLevel = 0;
+        this.lastLevelBroadcastAt = 0;
+        this.meter = new NoiseMeter(this.canvas, (level) => this.handleMeterLevel(level));
         this.started = false;      // "Was actively listening when serialized"
         this.isListening = false;  // "Currently listening right now"
 
@@ -94,6 +96,33 @@ class NoiseMeterWidget {
 
         this.canvas.width = width;
         this.canvas.height = height;
+        this.meter?.renderLevel?.(this.lastLevel);
+    }
+
+    handleMeterLevel(level) {
+        this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
+        if (!this.isListening || this.isProjectorMode?.()) return;
+
+        const now = performance.now();
+        if (now - this.lastLevelBroadcastAt < 100) return;
+        this.lastLevelBroadcastAt = now;
+        this.broadcastLevel(this.lastLevel, true);
+    }
+
+    broadcastLevel(level, listening = this.isListening) {
+        const eventBus = window.TeacherScreenEventBus?.eventBus;
+        if (!eventBus || !this.widgetId || this.isProjectorMode?.()) return false;
+        eventBus.emit('noise-meter:level', {
+            widgetId: this.widgetId,
+            level: Math.min(255, Math.max(0, Number(level) || 0)),
+            listening: listening === true
+        });
+        return true;
+    }
+
+    applySyncedLevel(level) {
+        this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
+        this.meter?.renderLevel?.(this.lastLevel);
     }
 
     /**
@@ -134,6 +163,7 @@ class NoiseMeterWidget {
         this.startButton.textContent = 'Listening…';
         this.startButton.disabled = true;
         this.setStatus('Noise meter is now listening.');
+        this.broadcastLevel(this.lastLevel, true);
         window.TeacherScreenWidgetState.notifyChanged(this, 'microphone-started');
     }
 
@@ -160,6 +190,9 @@ class NoiseMeterWidget {
     stop() {
         if (!this.meter || !this.isListening) return;
 
+        this.isListening = false;
+        this.started = false;
+
         try {
             if (typeof this.meter.stop === 'function') {
                 this.meter.stop();
@@ -168,12 +201,10 @@ class NoiseMeterWidget {
             console.warn('Noise meter stop error:', err);
         }
 
-        this.isListening = false;
-        this.started = false;
-
         this.startButton.disabled = false;
         this.startButton.textContent = 'Start Measuring';
         this.setStatus('Microphone off. Press start to listen.');
+        this.broadcastLevel(0, false);
         window.TeacherScreenWidgetState.notifyChanged(this, 'microphone-stopped');
     }
 
