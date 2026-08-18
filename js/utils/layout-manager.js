@@ -344,7 +344,8 @@ class LayoutManager {
       x: widgetInfo.x,
       y: widgetInfo.y,
       w: widgetInfo.width,
-      h: widgetInfo.height
+      h: widgetInfo.height,
+      stackOrder: this.widgets.map((candidate) => candidate.id)
     });
   }
 
@@ -451,8 +452,13 @@ class LayoutManager {
     this.widgets = [];
   }
 
-  mountWidgetElement(widgetInfo) {
+  mountWidgetElement(widgetInfo, options = {}) {
     const { element, layoutType } = widgetInfo;
+    const appendTo = (target) => {
+      if (!target) return;
+      if (options.preserveStacking === true && element.parentElement === target) return;
+      target.appendChild(element);
+    };
     element.classList.toggle('is-minimized', this.isWidgetMinimized(widgetInfo));
     if (this.mode !== 'stage') {
       element.style.position = 'absolute';
@@ -460,7 +466,7 @@ class LayoutManager {
       element.style.top = `${widgetInfo.y}px`;
       element.style.width = `${widgetInfo.width}px`;
       element.style.height = `${widgetInfo.height}px`;
-      this.container.appendChild(element);
+      appendTo(this.container);
       return;
     }
 
@@ -472,7 +478,7 @@ class LayoutManager {
       element.style.top = `${widgetInfo.y}px`;
       element.style.width = `${widgetInfo.width}px`;
       element.style.height = `${widgetInfo.height}px`;
-      this.stageMain.appendChild(element);
+      appendTo(this.stageMain);
       return;
     }
 
@@ -482,7 +488,7 @@ class LayoutManager {
       element.style.top = '0';
       element.style.width = '100%';
       element.style.height = '100%';
-      this.stageMain.appendChild(element);
+      appendTo(this.stageMain);
       return;
     }
 
@@ -491,7 +497,29 @@ class LayoutManager {
     element.style.top = '';
     element.style.width = '100%';
     element.style.height = `${Math.max(widgetInfo.height, GRID_SIZE * 6)}px`;
-    this.stageSidebar.appendChild(element);
+    appendTo(this.stageSidebar);
+  }
+
+  applyWidgetStackOrder(widgetIds = []) {
+    if (!Array.isArray(widgetIds) || widgetIds.length === 0) return false;
+
+    const order = new Map(widgetIds.map((id, index) => [id, index]));
+    this.widgets.sort((left, right) => {
+      const leftIndex = order.has(left.id) ? order.get(left.id) : Number.MAX_SAFE_INTEGER;
+      const rightIndex = order.has(right.id) ? order.get(right.id) : Number.MAX_SAFE_INTEGER;
+      return leftIndex - rightIndex;
+    });
+    this.widgets.forEach((widgetInfo) => this.mountWidgetElement(widgetInfo));
+    return true;
+  }
+
+  bringWidgetToFront(widgetInfo) {
+    if (!widgetInfo) return false;
+    const stackOrder = this.widgets
+      .filter((candidate) => candidate !== widgetInfo)
+      .map((candidate) => candidate.id);
+    stackOrder.push(widgetInfo.id);
+    return this.applyWidgetStackOrder(stackOrder);
   }
 
   getConstrainedSize(widget, widthPx, heightPx, canvasOverride = null) {
@@ -576,6 +604,7 @@ class LayoutManager {
     event.preventDefault();
     const widgetInfo = this.widgets.find(info => info.element === widgetElement);
     if (!widgetInfo) return;
+    this.bringWidgetToFront(widgetInfo);
 
     const bounded = this.normalizeWidgetDragBounds(
       widgetInfo.x + movement[0],
@@ -1162,6 +1191,7 @@ class LayoutManager {
       const startTop = parseInt(element.style.top, 10) || 0;
 
       const info = this.widgets.find(w => w.element === element);
+      this.bringWidgetToFront(info);
       const rules = info ? WIDGET_SIZE_RULES[info.widget.constructor.name] || {} : {};
       const canvas = this.getCanvasMetrics();
       const colW = canvas.width / this.gridColumns || COL_PX_ESTIMATE;
@@ -1343,6 +1373,9 @@ class LayoutManager {
         : null;
       const dragHandle = timerBodyHandle || e.target.closest('.widget-header-title');
       if (!dragHandle || !widgetElement.contains(dragHandle)) return;
+
+      const widgetInfo = this.widgets.find((info) => info.element === widgetElement);
+      this.bringWidgetToFront(widgetInfo);
 
       isDragging = true;
       startX = e.clientX;
@@ -1687,7 +1720,10 @@ class LayoutManager {
       widget.expandedHeight = widget.height;
     }
     this.clampWidgetToContainer(widget);
-    this.mountWidgetElement(widget);
+    this.mountWidgetElement(widget, { preserveStacking: true });
+    if (Array.isArray(delta.stackOrder)) {
+      this.applyWidgetStackOrder(delta.stackOrder);
+    }
     this.scheduleWidgetLayoutHook(widget);
   }
 

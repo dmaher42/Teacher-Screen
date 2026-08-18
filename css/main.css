@@ -6722,6 +6722,7 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-container {
 
 body.projector-view .widget-control-bar,
 body.projector-view .widget-content-controls,
+body.projector-view .noise-meter-widget-content > .widget-status,
 body.projector-view .rich-text-inline-actions,
 body.projector-view .rich-text-editor-header,
 body.projector-view .rich-text-editor-toolbar,

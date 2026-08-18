@@ -10,6 +10,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
+const PROJECTOR_LOCAL_ASSET_VERSION = '35';
 
 window.__ProjectorConnection = {
     window: window,
@@ -74,7 +75,10 @@ const loadClassicScript = (src, timeoutMs = LOCAL_DEPENDENCY_TIMEOUT_MS) => new 
         });
     }, timeoutMs);
 
-    script.src = src;
+    const isLocalAsset = !/^https?:\/\//i.test(src);
+    script.src = isLocalAsset
+        ? `${src}${src.includes('?') ? '&' : '?'}v=${PROJECTOR_LOCAL_ASSET_VERSION}`
+        : src;
     script.defer = true;
     script.onload = () => settle(resolve);
     script.onerror = () => settle(() => reject(new Error(`Failed to load script: ${src}`)));
@@ -799,6 +803,7 @@ class ProjectorApp {
                 h: widget.height
             });
         });
+        this.layoutManager.applyWidgetStackOrder(nextLayout.widgets.map((widget) => widget.id));
         return true;
     }
 
