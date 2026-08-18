@@ -152,9 +152,30 @@ async function run() {
         await projectorPage.waitForFunction((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             return info?.widget?.meter?.lastLevel === 170
-                && info.widget.meter.lastRenderedWidth > (info.widget.canvas.width * 0.6);
+                && info.widget.meter.lastRenderedWidth > (info.widget.canvas.width * 0.6)
+                && info.widget.meterDisplay?.dataset.noiseState === 'loud'
+                && info.widget.classroomStatusText?.textContent === 'Too Loud';
         }, testWidgets.noiseMeterId);
-        console.log('PASS: Live Noise Meter readings render on the paired projector canvas');
+        console.log('PASS: High live readings render the red Too Loud projector state');
+
+        for (const expected of [
+            { level: 80, state: 'warning', label: 'Getting Loud' },
+            { level: 25, state: 'ready', label: 'Ready to Learn' }
+        ]) {
+            await teacherPage.evaluate(({ noiseMeterId, level }) => {
+                window.TeacherScreenEventBus.eventBus.emit('noise-meter:level', {
+                    widgetId: noiseMeterId,
+                    level,
+                    listening: true
+                });
+            }, { noiseMeterId: testWidgets.noiseMeterId, level: expected.level });
+            await projectorPage.waitForFunction(({ noiseMeterId, state, label }) => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+                return info?.widget?.meterDisplay?.dataset.noiseState === state
+                    && info.widget.classroomStatusText?.textContent === label;
+            }, { noiseMeterId: testWidgets.noiseMeterId, state: expected.state, label: expected.label });
+        }
+        console.log('PASS: Projector Noise Meter shows Ready to Learn, Getting Loud, and Too Loud states');
 
         const projectorNodeWasPreserved = await projectorPage.evaluate((widgetId) => {
             const app = window.__TeacherScreenProjectorApp;

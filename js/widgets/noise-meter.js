@@ -51,23 +51,61 @@ class NoiseMeter {
     const average = Math.min(255, Math.max(0, Number(level) || 0));
     this.lastLevel = average;
 
-    // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Draw meter
-    const width = (average / 255) * this.canvas.width;
-    this.lastRenderedWidth = width;
-    
-    // Color based on noise level
-    if (average < 50) {
-      this.ctx.fillStyle = '#4CAF50'; // Green
-    } else if (average < 150) {
-      this.ctx.fillStyle = '#FFC107'; // Yellow
-    } else {
-      this.ctx.fillStyle = '#F44336'; // Red
+
+    const canvasWidth = this.canvas.width;
+    const canvasHeight = this.canvas.height;
+    const horizontalPadding = Math.max(8, Math.round(canvasWidth * 0.025));
+    const verticalPadding = Math.max(8, Math.round(canvasHeight * 0.12));
+    const segmentCount = canvasWidth < 260 ? 12 : 18;
+    const gap = Math.max(3, Math.round(canvasWidth * 0.012));
+    const availableWidth = Math.max(1, canvasWidth - (horizontalPadding * 2) - (gap * (segmentCount - 1)));
+    const segmentWidth = availableWidth / segmentCount;
+    const segmentHeight = Math.max(12, canvasHeight - (verticalPadding * 2));
+    const displayRatio = Math.min(1, average / 190);
+    const activeSegments = average > 0 ? Math.max(1, Math.ceil(displayRatio * segmentCount)) : 0;
+    const zoneColors = [
+      { active: '#22c55e', idle: 'rgba(34, 197, 94, 0.18)' },
+      { active: '#fbbf24', idle: 'rgba(251, 191, 36, 0.16)' },
+      { active: '#fb4f5f', idle: 'rgba(251, 79, 95, 0.16)' }
+    ];
+
+    this.lastRenderedWidth = displayRatio * canvasWidth;
+
+    for (let index = 0; index < segmentCount; index += 1) {
+      const zoneIndex = Math.min(2, Math.floor((index / segmentCount) * 3));
+      const isActive = index < activeSegments;
+      const x = horizontalPadding + (index * (segmentWidth + gap));
+      const radius = Math.min(8, segmentWidth / 2, segmentHeight / 2);
+
+      this.ctx.save();
+      this.ctx.fillStyle = isActive ? zoneColors[zoneIndex].active : zoneColors[zoneIndex].idle;
+      if (isActive) {
+        this.ctx.shadowColor = zoneColors[zoneIndex].active;
+        this.ctx.shadowBlur = average >= 150 ? 16 : 9;
+      }
+      this.roundedRect(x, verticalPadding, segmentWidth, segmentHeight, radius);
+      this.ctx.fill();
+      this.ctx.restore();
     }
-    
-    this.ctx.fillRect(0, 0, width, this.canvas.height);
+  }
+
+  roundedRect(x, y, width, height, radius) {
+    this.ctx.beginPath();
+    if (typeof this.ctx.roundRect === 'function') {
+      this.ctx.roundRect(x, y, width, height, radius);
+      return;
+    }
+    this.ctx.moveTo(x + radius, y);
+    this.ctx.lineTo(x + width - radius, y);
+    this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    this.ctx.lineTo(x + width, y + height - radius);
+    this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    this.ctx.lineTo(x + radius, y + height);
+    this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    this.ctx.lineTo(x, y + radius);
+    this.ctx.quadraticCurveTo(x, y, x + radius, y);
+    this.ctx.closePath();
   }
 
   stop() {

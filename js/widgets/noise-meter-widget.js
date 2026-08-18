@@ -28,6 +28,36 @@ class NoiseMeterWidget {
         this.canvas.className = 'noise-meter-canvas';
         this.canvas.width = 300;
         this.canvas.height = 80;
+        this.canvas.setAttribute('aria-hidden', 'true');
+
+        this.meterDisplay = document.createElement('div');
+        this.meterDisplay.className = 'noise-meter-display';
+        this.meterDisplay.dataset.noiseState = 'ready';
+
+        this.classroomStatus = document.createElement('div');
+        this.classroomStatus.className = 'noise-meter-classroom-status';
+        this.classroomStatus.setAttribute('role', 'status');
+        this.classroomStatus.setAttribute('aria-live', 'polite');
+
+        this.classroomStatusDot = document.createElement('span');
+        this.classroomStatusDot.className = 'noise-meter-status-dot';
+        this.classroomStatusDot.setAttribute('aria-hidden', 'true');
+
+        this.classroomStatusText = document.createElement('span');
+        this.classroomStatusText.className = 'noise-meter-status-text';
+        this.classroomStatusText.textContent = 'Ready to Learn';
+        this.classroomStatus.append(this.classroomStatusDot, this.classroomStatusText);
+
+        this.scale = document.createElement('div');
+        this.scale.className = 'noise-meter-scale';
+        this.scale.setAttribute('aria-hidden', 'true');
+        this.scale.innerHTML = `
+            <span data-state="ready">Quiet</span>
+            <span data-state="warning">Getting Loud</span>
+            <span data-state="loud">Too Loud</span>
+        `;
+
+        this.meterDisplay.append(this.classroomStatus, this.canvas, this.scale);
 
         // Start button (can be placed inside a modal or overlay)
         this.startButton = document.createElement('button');
@@ -51,7 +81,7 @@ class NoiseMeterWidget {
 
         // Assemble widget content
         this.element.appendChild(this.helpText);
-        this.element.appendChild(this.canvas);
+        this.element.appendChild(this.meterDisplay);
         this.element.appendChild(this.status);
         const controlBar = document.createElement('div');
         controlBar.className = 'widget-control-bar';
@@ -72,6 +102,7 @@ class NoiseMeterWidget {
         this.meter = new NoiseMeter(this.canvas, (level) => this.handleMeterLevel(level));
         this.started = false;      // "Was actively listening when serialized"
         this.isListening = false;  // "Currently listening right now"
+        this.updateVisualState(0);
 
         // Bind handlers so we can remove them later
         this.handleStartClick = this.start.bind(this);
@@ -84,11 +115,8 @@ class NoiseMeterWidget {
     setEditable() {}
 
     onWidgetLayout() {
-        const width = Math.max(180, Math.floor(this.element.clientWidth || this.canvas.width || 300));
-        const reservedHeight = (this.helpText?.offsetHeight || 0)
-            + (this.status?.offsetHeight || 24)
-            + 96;
-        const height = Math.max(80, Math.floor((this.element.clientHeight || 160) - reservedHeight));
+        const width = Math.max(180, Math.floor(this.canvas.clientWidth || this.element.clientWidth || this.canvas.width || 300));
+        const height = Math.max(80, Math.floor(this.canvas.clientHeight || this.canvas.height || 80));
 
         if (this.canvas.width === width && this.canvas.height === height) {
             return;
@@ -101,6 +129,7 @@ class NoiseMeterWidget {
 
     handleMeterLevel(level) {
         this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
+        this.updateVisualState(this.lastLevel);
         if (!this.isListening || this.isProjectorMode?.()) return;
 
         const now = performance.now();
@@ -123,6 +152,26 @@ class NoiseMeterWidget {
     applySyncedLevel(level) {
         this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
         this.meter?.renderLevel?.(this.lastLevel);
+        this.updateVisualState(this.lastLevel);
+    }
+
+    updateVisualState(level = 0) {
+        const safeLevel = Math.min(255, Math.max(0, Number(level) || 0));
+        const state = safeLevel < 50 ? 'ready' : safeLevel < 150 ? 'warning' : 'loud';
+        const label = state === 'ready'
+            ? 'Ready to Learn'
+            : state === 'warning'
+                ? 'Getting Loud'
+                : 'Too Loud';
+
+        if (this.meterDisplay) this.meterDisplay.dataset.noiseState = state;
+        if (this.classroomStatusText) this.classroomStatusText.textContent = label;
+        this.scale?.querySelectorAll('[data-state]').forEach((item) => {
+            const isActive = item.dataset.state === state;
+            item.classList.toggle('is-active', isActive);
+            if (isActive) item.setAttribute('aria-current', 'true');
+            else item.removeAttribute('aria-current');
+        });
     }
 
     /**
@@ -204,6 +253,7 @@ class NoiseMeterWidget {
         this.startButton.disabled = false;
         this.startButton.textContent = 'Start Measuring';
         this.setStatus('Microphone off. Press start to listen.');
+        this.updateVisualState(0);
         this.broadcastLevel(0, false);
         window.TeacherScreenWidgetState.notifyChanged(this, 'microphone-stopped');
     }
