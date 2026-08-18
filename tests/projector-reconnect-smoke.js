@@ -155,6 +155,28 @@ async function run() {
             throw new Error('Projector rebuilt the Text Board instead of applying its resize');
         }
         console.log('PASS: Text Board resizing syncs live to the projector without rebuilding its content');
+
+        await projectorPage.evaluate((widgetId) => {
+            window.__TeacherScreenProjectorApp.layoutManager.applyLayoutDelta({
+                type: 'widget-update',
+                id: widgetId,
+                w: 999,
+                h: 777
+            });
+        }, textBoard.id);
+        await teacherPage.evaluate(() => window.__TeacherScreenApp.broadcastProjectorState());
+        await projectorPage.waitForFunction(({ widgetId, width, height }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.width === width && info?.height === height;
+        }, { widgetId: textBoard.id, ...resizedTextBoard });
+        const projectorRecoveredWithoutRebuild = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.element === window.__projectorResizeSyncNode;
+        }, textBoard.id);
+        if (!projectorRecoveredWithoutRebuild) {
+            throw new Error('Projector rebuilt the Text Board while recovering missed geometry');
+        }
+        console.log('PASS: Full teacher sync repairs missed Text Board resizing without rebuilding content');
     } finally {
         await context.close();
         await browser.close();

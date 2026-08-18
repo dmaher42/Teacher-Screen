@@ -555,7 +555,10 @@ class ProjectorApp {
                 this.renderClassroomReminders(message.state.classReminders);
                 if (this.shouldApplyTeacherLayoutUpdate(message.state.layout)) {
                     this.rebuildLayout(message.state);
+                } else {
+                    this.applyTeacherLayoutGeometry(message.state.layout);
                 }
+                this.lastTeacherLayoutSnapshot = JSON.parse(JSON.stringify(message.state.layout));
                 return;
             }
 
@@ -779,6 +782,24 @@ class ProjectorApp {
         }
 
         return false;
+    }
+
+    applyTeacherLayoutGeometry(nextLayout) {
+        if (!nextLayout || !Array.isArray(nextLayout.widgets)) {
+            return false;
+        }
+
+        nextLayout.widgets.forEach((widget) => {
+            this.layoutManager.applyLayoutDelta({
+                type: 'widget-update',
+                id: widget.id,
+                x: widget.x,
+                y: widget.y,
+                w: widget.width,
+                h: widget.height
+            });
+        });
+        return true;
     }
 
 
