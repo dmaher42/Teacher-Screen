@@ -91,6 +91,23 @@ async function run() {
         await projectorPage.waitForFunction(() => window.__TeacherScreenProjectorApp?.hasTeacherSync === true);
         console.log('PASS: An open projector automatically reconnects after the teacher screen refreshes');
 
+        const projectorLaunch = await teacherPage.evaluate(() => {
+            const originalOpen = window.open;
+            let call = null;
+            window.open = (...args) => {
+                call = args;
+                return null;
+            };
+            window.__TeacherScreenApp.openProjectorView();
+            window.open = originalOpen;
+            return call;
+        });
+        const projectorLaunchUrl = new URL(projectorLaunch?.[0] || baseUrl);
+        if (projectorLaunchUrl.searchParams.get('syncToken') !== syncToken) {
+            throw new Error('Projector action did not preserve the teacher pairing token');
+        }
+        console.log('PASS: Projector action opens a paired projector that can receive teacher updates');
+
         const textBoard = await teacherPage.evaluate(() => {
             const app = window.__TeacherScreenApp;
             app.handleNavClick('classroom');

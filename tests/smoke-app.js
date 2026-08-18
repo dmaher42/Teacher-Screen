@@ -4203,7 +4203,9 @@ async function runSmoke() {
             window.open = originalOpen;
             return call;
         });
-        assert(projectorLaunch?.[0]?.endsWith('/projector.html'), 'Widget picker Projector action should open the projector page');
+        const projectorLaunchUrl = new URL(projectorLaunch?.[0] || baseUrl);
+        assert(projectorLaunchUrl.pathname.endsWith('/projector.html'), 'Widget picker Projector action should open the projector page');
+        assert(Boolean(projectorLaunchUrl.searchParams.get('syncToken')), 'Widget picker Projector action should pair the projector with its teacher screen');
         assert(projectorLaunch?.[1] === '_blank' && projectorLaunch?.[2]?.includes('noopener'), 'Widget picker Projector action should open safely in a new tab');
         await page.locator('#widget-modal .modal-close').click();
         await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });

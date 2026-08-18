@@ -1770,8 +1770,7 @@ class ClassroomScreenApp {
     }
 
     openProjectorView() {
-        const projectorUrl = new URL('projector.html', window.location.href);
-        window.open(projectorUrl.toString(), '_blank', 'noopener');
+        window.open(this.getPairedProjectorUrl(), '_blank', 'noopener');
     }
 
     renderThemeSelector() {
