@@ -3,15 +3,11 @@
 (() => {
   'use strict';
 
-  const LayoutManager = window.LayoutManager;
-  if (!LayoutManager || LayoutManager.prototype.__widgetMinimizeDockInstalled) {
-    return;
-  }
-
   const DOCK_CLASS = 'widget-minimize-dock';
   const STYLESHEET_ID = 'widget-minimize-dock-styles';
   const DOCK_MARGIN_PX = 16;
   const DOCK_TOOLBAR_GAP_PX = 12;
+  const MIN_DOCK_INLINE_WIDTH_PX = 160;
 
   const isTeacherMode = () => (
     window.TeacherScreenAppMode
@@ -43,20 +39,13 @@
     document.head.appendChild(stylesheet);
   };
 
-  const getWidgetName = (widgetInfo) => (
-    widgetInfo?.element
-      ?.querySelector(':scope > .widget-header .widget-header-title span')
-      ?.textContent
-      ?.trim()
-    || 'widget'
-  );
-
   const updateDockOffset = (layoutManager, dock) => {
     if (!layoutManager?.container || !dock?.isConnected) {
       return;
     }
 
     let bottomOffset = DOCK_MARGIN_PX;
+    let rightOffset = DOCK_MARGIN_PX;
     const toolbar = document.getElementById('lesson-quick-actions');
 
     if (toolbar) {
@@ -72,14 +61,27 @@
         && toolbarRect.top < containerRect.bottom;
 
       if (toolbarIsVisible && toolbarIsNearBottom && toolbarOverlapsCanvas) {
-        bottomOffset = Math.max(
-          DOCK_MARGIN_PX,
-          Math.round(containerRect.bottom - toolbarRect.top + DOCK_TOOLBAR_GAP_PX)
-        );
+        const availableWidthBesideToolbar = toolbarRect.left
+          - containerRect.left
+          - DOCK_MARGIN_PX
+          - DOCK_TOOLBAR_GAP_PX;
+
+        if (availableWidthBesideToolbar >= MIN_DOCK_INLINE_WIDTH_PX) {
+          rightOffset = Math.max(
+            DOCK_MARGIN_PX,
+            Math.round(containerRect.right - toolbarRect.left + DOCK_TOOLBAR_GAP_PX)
+          );
+        } else {
+          bottomOffset = Math.max(
+            DOCK_MARGIN_PX,
+            Math.round(containerRect.bottom - toolbarRect.top + DOCK_TOOLBAR_GAP_PX)
+          );
+        }
       }
     }
 
     dock.style.setProperty('--widget-minimize-dock-bottom', `${bottomOffset}px`);
+    dock.style.setProperty('--widget-minimize-dock-right', `${rightOffset}px`);
   };
 
   const ensureDock = (layoutManager) => {
@@ -168,79 +170,33 @@
     }
   };
 
-  const prototype = LayoutManager.prototype;
-  prototype.__widgetMinimizeDockInstalled = true;
-
-  const originalCreateWidgetHeader = prototype.createWidgetHeader;
-  prototype.createWidgetHeader = function createWidgetHeaderWithMinimizeButton(widget, widgetElement, widgetType) {
-    const result = originalCreateWidgetHeader.call(this, widget, widgetElement, widgetType);
-
-    if (!isTeacherMode()) {
-      return result;
+  const installMinimizeDock = () => {
+    const LayoutManager = window.LayoutManager;
+    if (!LayoutManager || LayoutManager.prototype.__widgetMinimizeDockInstalled) {
+      return Boolean(LayoutManager);
     }
 
-    const header = widgetElement.querySelector(':scope > .widget-header');
-    const optionsMenu = header?.querySelector(':scope > .widget-header-menu');
-    const minimizeButton = widget?.minimizeButton;
+    const prototype = LayoutManager.prototype;
+    prototype.__widgetMinimizeDockInstalled = true;
 
-    if (!header || !optionsMenu || !minimizeButton) {
-      return result;
-    }
-
-    minimizeButton.classList.remove('widget-header-menu__item');
-    minimizeButton.classList.add('widget-header-action', 'widget-header-action--minimize');
-    minimizeButton.setAttribute('data-widget-header-control', 'minimize');
-    header.insertBefore(minimizeButton, optionsMenu);
-
-    return result;
-  };
-
-  const originalRefreshWidgetMinimizeControl = prototype.refreshWidgetMinimizeControl;
-  prototype.refreshWidgetMinimizeControl = function refreshDockedMinimizeControl(widgetInfo) {
-    originalRefreshWidgetMinimizeControl.call(this, widgetInfo);
-
-    const minimizeButton = widgetInfo?.minimizeButton || widgetInfo?.widget?.minimizeButton;
-    if (!minimizeButton) {
-      return;
-    }
-
-    const minimized = this.isWidgetMinimized(widgetInfo);
-    const widgetName = getWidgetName(widgetInfo);
-    const actionLabel = minimized
-      ? `Restore ${widgetName}`
-      : `Minimise ${widgetName}`;
-
-    minimizeButton.classList.remove('widget-header-menu__item', 'is-expanded');
-    minimizeButton.classList.add('widget-header-action', 'widget-header-action--minimize');
-    minimizeButton.classList.toggle('is-minimized', minimized);
-    minimizeButton.innerHTML = minimized
-      ? '<i class="fas fa-window-restore" aria-hidden="true"></i>'
-      : '<i class="fas fa-window-minimize" aria-hidden="true"></i>';
-    minimizeButton.setAttribute('aria-label', actionLabel);
-    minimizeButton.setAttribute('aria-pressed', minimized ? 'true' : 'false');
-    minimizeButton.title = actionLabel;
-
-    applyMinimizedHeaderState(this, widgetInfo);
-  };
-
-  const originalMountWidgetElement = prototype.mountWidgetElement;
-  prototype.mountWidgetElement = function mountWidgetOrDock(widgetInfo, options = {}) {
+    const originalMountWidgetElement = prototype.mountWidgetElement;
+    prototype.mountWidgetElement = function mountWidgetOrDock(widgetInfo, options = {}) {
     if (isTeacherMode() && this.isWidgetMinimized(widgetInfo)) {
       mountInDock(this, widgetInfo);
       return;
     }
 
     return originalMountWidgetElement.call(this, widgetInfo, options);
-  };
+    };
 
-  const originalUpdateWidgetChrome = prototype.updateWidgetChrome;
-  prototype.updateWidgetChrome = function updateWidgetChromeWithDock(widgetInfo) {
+    const originalUpdateWidgetChrome = prototype.updateWidgetChrome;
+    prototype.updateWidgetChrome = function updateWidgetChromeWithDock(widgetInfo) {
     originalUpdateWidgetChrome.call(this, widgetInfo);
     applyMinimizedHeaderState(this, widgetInfo);
-  };
+    };
 
-  const originalClampWidgetToContainer = prototype.clampWidgetToContainer;
-  prototype.clampWidgetToContainer = function clampExpandedBoundsWhileDocked(widgetInfo) {
+    const originalClampWidgetToContainer = prototype.clampWidgetToContainer;
+    prototype.clampWidgetToContainer = function clampExpandedBoundsWhileDocked(widgetInfo) {
     if (!this.isWidgetMinimized(widgetInfo)) {
       return originalClampWidgetToContainer.call(this, widgetInfo);
     }
@@ -254,10 +210,10 @@
     originalClampWidgetToContainer.call(this, widgetInfo);
     widgetInfo.expandedHeight = widgetInfo.height;
     widgetInfo.height = minimizedHeight;
-  };
+    };
 
-  const originalEnsureTeacherWidgetSpacing = prototype.ensureTeacherWidgetSpacing;
-  prototype.ensureTeacherWidgetSpacing = function ensureExpandedWidgetSpacingOnly() {
+    const originalEnsureTeacherWidgetSpacing = prototype.ensureTeacherWidgetSpacing;
+    prototype.ensureTeacherWidgetSpacing = function ensureExpandedWidgetSpacingOnly() {
     if (!isTeacherMode()) {
       return originalEnsureTeacherWidgetSpacing.call(this);
     }
@@ -270,16 +226,22 @@
     } finally {
       this.widgets = allWidgets;
     }
-  };
+    };
 
-  const originalResolveWidgetPlacementConflict = prototype.resolveWidgetPlacementConflict;
-  prototype.resolveWidgetPlacementConflict = function skipDockedWidgetPlacement(widgetInfo) {
+    const originalResolveWidgetPlacementConflict = prototype.resolveWidgetPlacementConflict;
+    prototype.resolveWidgetPlacementConflict = function skipDockedWidgetPlacement(widgetInfo) {
     if (this.isWidgetMinimized(widgetInfo)) {
       return false;
     }
 
     return originalResolveWidgetPlacementConflict.call(this, widgetInfo);
+    };
+
+    loadStylesheet();
+    return true;
   };
 
-  loadStylesheet();
+  if (!installMinimizeDock()) {
+    window.addEventListener('teacher-screen:layout-manager-ready', installMinimizeDock, { once: true });
+  }
 })();

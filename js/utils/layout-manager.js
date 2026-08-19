@@ -1793,4 +1793,5 @@ class LayoutManager {
 // Ensure the class is available globally before other scripts instantiate it.
 if (typeof window !== 'undefined') {
   window.LayoutManager = LayoutManager;
+  window.dispatchEvent(new CustomEvent('teacher-screen:layout-manager-ready'));
 }

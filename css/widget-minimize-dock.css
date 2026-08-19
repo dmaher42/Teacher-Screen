@@ -1,45 +1,9 @@
 /* Compact minimised-widget dock */
 
-.widget-header-action {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
-  margin: 0;
-  padding: 0;
-  border: 1px solid rgba(87, 112, 132, 0.22);
-  border-radius: 0.55rem;
-  color: inherit;
-  background: rgba(255, 255, 255, 0.82);
-  font: inherit;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    transform 140ms ease;
-}
-
-.widget-header-action:hover,
-.widget-header-action:focus-visible {
-  border-color: rgba(47, 150, 255, 0.55);
-  outline: none;
-  background: rgba(235, 247, 255, 0.98);
-}
-
-.widget-header-action:active {
-  transform: translateY(1px);
-}
-
-.widget-header-action i {
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
 .widget-minimize-dock {
   position: absolute;
   z-index: 180;
-  right: 1rem;
+  right: var(--widget-minimize-dock-right, 1rem);
   bottom: var(--widget-minimize-dock-bottom, 1rem);
   left: 1rem;
   display: flex;
@@ -105,7 +69,6 @@
   white-space: nowrap;
 }
 
-.widget-minimize-dock > .widget.is-minimized .widget-header-action,
 .widget-minimize-dock > .widget.is-minimized .widget-header-menu__toggle {
   width: 1.9rem;
   height: 1.9rem;
@@ -137,11 +100,5 @@
     flex-basis: 9.5rem;
     width: 9.5rem !important;
     max-width: 9.5rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .widget-header-action {
-    transition: none;
   }
 }

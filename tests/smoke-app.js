@@ -4451,6 +4451,27 @@ async function runSmoke() {
         assert(true, 'Show to students should restore projector visibility without changing the teacher widget');
 
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
+        const richTextMinimizeButton = page.locator('.widget.rich-text-widget .widget-header-menu__popover .widget-minimize-btn');
+        assert(await richTextMinimizeButton.isVisible(), 'The widget options menu should expose Minimise widget');
+        await richTextMinimizeButton.click();
+        await page.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget.is-minimized', { timeout: 10000 });
+        const minimizedDockPosition = await page.locator('.widget-minimize-dock > .widget.rich-text-widget').evaluate((widget) => {
+            const widgetRect = widget.getBoundingClientRect();
+            const canvasRect = document.getElementById('widgets-container').getBoundingClientRect();
+            const toolbarRect = document.getElementById('lesson-quick-actions').getBoundingClientRect();
+            return {
+                bottomGap: canvasRect.bottom - widgetRect.bottom,
+                clearsToolbar: widgetRect.right + 10 <= toolbarRect.left
+            };
+        });
+        assert(minimizedDockPosition.bottomGap >= 12 && minimizedDockPosition.bottomGap <= 20, 'Minimised widgets should sit along the bottom edge of the teacher screen');
+        assert(minimizedDockPosition.clearsToolbar, 'Bottom-docked widgets should stop before the lesson toolbar');
+        await page.locator('.widget-minimize-dock > .widget.rich-text-widget .widget-header-menu > summary').click();
+        await page.locator('.widget-minimize-dock > .widget.rich-text-widget .widget-minimize-btn').click();
+        await page.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget', { state: 'detached', timeout: 10000 });
+        assert(await page.locator('.widget.rich-text-widget > .widget-content').isVisible(), 'Restoring a bottom-docked widget should return its teacher content');
+
+        await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
         assert(await page.locator('#widget-settings-modal #projectorToggle').count() === 0, 'Widget settings should not repeat the replaced projector visibility switch');
