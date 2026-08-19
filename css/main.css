@@ -4793,22 +4793,6 @@ dialog::backdrop {
     overflow: visible;
 }
 
-.widget.is-minimized > .widget-content,
-.widget.is-minimized > .resize-handle {
-    display: none !important;
-}
-
-.widget.is-minimized > .widget-header {
-    flex: 1 1 auto;
-    border-bottom: 0;
-}
-
-body.is-classroom-active:not(.projector-view) .widget.is-minimized {
-    border-color: color-mix(in srgb, var(--widget-chrome-accent, #4097f5) 28%, var(--widget-chrome-line, #d9e4ec) 72%);
-    background: var(--widget-chrome-soft, #f4f8fb);
-    box-shadow: 0 6px 16px rgba(31, 72, 110, 0.12);
-}
-
 .layout-edit-mode .widget.is-dragging {
     transition: none;
     cursor: grabbing;
@@ -7368,7 +7352,7 @@ body.projector-view .pomodoro-settings-controls {
     font-size: 0.72rem;
 }
 
-.widget-minimize-btn:not(.widget-header-menu__item) {
+.widget-projector-visibility-btn:not(.widget-header-menu__item) {
     position: relative;
     top: auto;
     right: auto;
@@ -7392,47 +7376,30 @@ body.projector-view .pomodoro-settings-controls {
     font-size: 0.76rem;
 }
 
-.widget-minimize-btn:not(.widget-header-menu__item).is-expanded {
+.widget-projector-visibility-btn:not(.widget-header-menu__item).is-visible {
     background-color: color-mix(in srgb, var(--primary-color, #8e82ff) 12%, var(--card-background, #ffffff) 88%);
     color: #18a957;
 }
 
-.widget-minimize-btn:not(.widget-header-menu__item).is-minimized {
+.widget-projector-visibility-btn:not(.widget-header-menu__item).is-teacher-only {
     background-color: color-mix(in srgb, var(--bg-surface, #f8fafc) 72%, var(--card-background, #ffffff) 28%);
     color: #d94a4a;
 }
 
-.widget-minimize-btn:not(.widget-header-menu__item):focus-visible {
+.widget-projector-visibility-btn:not(.widget-header-menu__item):focus-visible {
     outline: 2px solid var(--primary-color, #8e82ff);
     outline-offset: 2px;
 }
 
-.widget-minimize-btn.widget-header-menu__item {
+.widget-projector-visibility-btn.widget-header-menu__item {
     color: var(--text-primary, #1e293b);
-    min-height: 48px;
-    white-space: normal;
 }
 
-.widget-minimize-btn.widget-header-menu__item span {
-    display: grid;
-    gap: 1px;
-}
-
-.widget-minimize-btn.widget-header-menu__item strong {
-    font: inherit;
-}
-
-.widget-minimize-btn.widget-header-menu__item small {
-    color: var(--text-secondary, #64748b);
-    font-size: 0.68rem;
-    font-weight: 550;
-}
-
-.widget-minimize-btn.widget-header-menu__item.is-expanded i {
+.widget-projector-visibility-btn.widget-header-menu__item.is-visible i {
     color: #178a4b;
 }
 
-.widget-minimize-btn.widget-header-menu__item.is-minimized i {
+.widget-projector-visibility-btn.widget-header-menu__item.is-teacher-only i {
     color: color-mix(in srgb, var(--primary-color, #8e82ff) 72%, #1d4ed8 28%);
 }
 

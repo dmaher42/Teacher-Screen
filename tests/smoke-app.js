@@ -4390,13 +4390,17 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
-        assert(await page.locator('.widget.rich-text-widget .widget-header-menu__item').count() === 4, 'The Text Board options menu should contain minimise, present, settings, and remove actions');
+        const richTextMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
+        assert(
+            await richTextMenu.locator('.widget-projector-visibility-btn').count() === 1
+                && await richTextMenu.locator('.widget-header-settings-btn').count() === 1
+                && await richTextMenu.locator('.widget-remove-btn').count() === 1,
+            'The Text Board options menu should contain student visibility, settings, and remove actions'
+        );
         const widgetMenuScale = await page.locator('.widget.rich-text-widget .widget-header-menu__popover').evaluate((popover) => {
             const popoverRect = popover.getBoundingClientRect();
             const items = Array.from(popover.querySelectorAll('.widget-header-menu__item'));
-            const labels = items
-                .filter((item) => !item.classList.contains('widget-minimize-btn'))
-                .map((item) => item.querySelector('span'));
+            const labels = items.map((item) => item.querySelector('span'));
             return {
                 width: popoverRect.width,
                 rowsFillMenu: items.every((item) => item.getBoundingClientRect().width >= popoverRect.width - 14),
@@ -4413,45 +4417,38 @@ async function runSmoke() {
             return rect.left >= 0 && rect.right <= window.innerWidth;
         }), 'The widget options menu should remain fully inside the screen');
 
-        const richTextBoxBeforeMinimize = await getElementBox(page, '.widget.rich-text-widget');
-        const minimizeButton = page.locator('.widget.rich-text-widget .widget-minimize-btn');
-        assert(await minimizeButton.textContent().then((text) => text.includes('Minimise') && text.includes('students')), 'The widget menu should explain that minimising also hides the widget from students');
-        await minimizeButton.click();
-        await page.waitForSelector('.widget.rich-text-widget.is-minimized', { timeout: 10000 });
-        const richTextBoxWhileMinimized = await getElementBox(page, '.widget.rich-text-widget');
-        assert(richTextBoxWhileMinimized.height <= 42, 'Minimising should collapse the teacher widget to its title bar');
-        assert(richTextBoxWhileMinimized.height < richTextBoxBeforeMinimize.height - 40, 'Minimising should reclaim meaningful teacher-screen space');
-        assert(await page.locator('.widget.rich-text-widget > .widget-content').isHidden(), 'A minimised teacher widget should hide its content and resize controls');
+        const richTextBoxBeforeHide = await getElementBox(page, '.widget.rich-text-widget');
+        const studentVisibilityButton = page.locator('.widget.rich-text-widget .widget-projector-visibility-btn');
+        assert(await studentVisibilityButton.textContent().then((text) => text.includes('Hide from students')), 'The widget menu should provide a clear Hide from students action');
+        await studentVisibilityButton.click();
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const widget = state.layout?.widgets?.find((item) => item?.type === 'RichTextWidget');
-            return widget?.visibleOnProjector === false && widget.height > 42;
+            return widget?.visibleOnProjector === false;
         }, { timeout: 10000 });
-        assert(true, 'A minimised widget should save its student-hidden state and remember its expanded height');
+        const richTextBoxWhileHiddenFromStudents = await getElementBox(page, '.widget.rich-text-widget');
+        assert(Math.abs(richTextBoxWhileHiddenFromStudents.height - richTextBoxBeforeHide.height) <= 2, 'Hiding from students should keep the full widget visible to the teacher');
+        assert(await page.locator('.widget.rich-text-widget > .widget-content').isVisible(), 'Hiding from students should keep widget content visible to the teacher');
 
-        const minimizedProjectorPage = await context.newPage();
+        const studentHiddenProjectorPage = await context.newPage();
         try {
-            await minimizedProjectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
-            await minimizedProjectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), { timeout: 15000 });
-            await minimizedProjectorPage.waitForTimeout(500);
-            assert(await minimizedProjectorPage.locator('.widget.rich-text-widget').count() === 0, 'A minimised widget should be hidden from the student projector');
+            await studentHiddenProjectorPage.goto(await getPairedProjectorUrl(page, baseUrl), { waitUntil: 'domcontentloaded' });
+            await studentHiddenProjectorPage.waitForFunction(() => Boolean(window.__TeacherScreenProjectorApp), { timeout: 15000 });
+            await studentHiddenProjectorPage.waitForTimeout(500);
+            assert(await studentHiddenProjectorPage.locator('.widget.rich-text-widget').count() === 0, 'A teacher-only widget should be hidden from the student projector');
         } finally {
-            await minimizedProjectorPage.close();
+            await studentHiddenProjectorPage.close();
         }
 
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
-        assert(await minimizeButton.textContent().then((text) => text.includes('Restore') && text.includes('students')), 'A minimised widget should offer one clear restore-and-show action');
-        await minimizeButton.click();
-        await page.waitForSelector('.widget.rich-text-widget.is-minimized', { state: 'detached', timeout: 10000 });
-        const richTextBoxAfterRestore = await getElementBox(page, '.widget.rich-text-widget');
-        assert(Math.abs(richTextBoxAfterRestore.height - richTextBoxBeforeMinimize.height) <= 2, 'Restoring should return the teacher widget to its previous height');
-        assert(await page.locator('.widget.rich-text-widget > .widget-content').isVisible(), 'Restoring should return the widget content to the teacher screen');
+        assert(await studentVisibilityButton.textContent().then((text) => text.includes('Show to students')), 'A teacher-only widget should offer a clear Show to students action');
+        await studentVisibilityButton.click();
         await page.waitForFunction(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const widget = state.layout?.widgets?.find((item) => item?.type === 'RichTextWidget');
             return widget?.visibleOnProjector === true;
         }, { timeout: 10000 });
-        assert(true, 'Restoring should show the widget to students again');
+        assert(true, 'Show to students should restore projector visibility without changing the teacher widget');
 
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();

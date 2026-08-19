@@ -207,8 +207,8 @@
     const minimized = this.isWidgetMinimized(widgetInfo);
     const widgetName = getWidgetName(widgetInfo);
     const actionLabel = minimized
-      ? `Restore ${widgetName} and show it to students`
-      : `Minimise ${widgetName} and hide it from students`;
+      ? `Restore ${widgetName}`
+      : `Minimise ${widgetName}`;
 
     minimizeButton.classList.remove('widget-header-menu__item', 'is-expanded');
     minimizeButton.classList.add('widget-header-action', 'widget-header-action--minimize');

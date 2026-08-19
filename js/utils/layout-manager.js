@@ -888,6 +888,7 @@ class LayoutManager {
       width: finalW,
       height: finalH,
       expandedHeight: finalH,
+      minimized: false,
       visibleOnProjector: true,
       projectorVisibilityConfigured: false
     };
@@ -897,6 +898,7 @@ class LayoutManager {
     this.widgets.push(widgetInfo);
     this.updateWidgetChrome(widgetInfo);
     this.refreshWidgetMinimizeControl(widgetInfo);
+    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
     this.setupModeStructure();
     this.widgets.forEach((info) => {
@@ -915,8 +917,14 @@ class LayoutManager {
     return widgetElement;
   }
 
+  getWidgetProjectorVisibilityLabel(widgetInfo) {
+    return widgetInfo && widgetInfo.visibleOnProjector !== false
+      ? 'Visible to students'
+      : 'Teacher only';
+  }
+
   isWidgetMinimized(widgetInfo) {
-    return layoutManagerIsTeacherMode() && widgetInfo?.visibleOnProjector === false;
+    return layoutManagerIsTeacherMode() && widgetInfo?.minimized === true;
   }
 
   refreshWidgetMinimizeControl(widgetInfo) {
@@ -929,11 +937,9 @@ class LayoutManager {
 
     widgetInfo.minimizeButton = minimizeButton;
     minimizeButton.innerHTML = isMinimized
-      ? '<i class="fas fa-window-restore" aria-hidden="true"></i><span><strong>Restore widget</strong><small>Show to students</small></span>'
-      : '<i class="fas fa-window-minimize" aria-hidden="true"></i><span><strong>Minimise widget</strong><small>Hide from students</small></span>';
-    minimizeButton.setAttribute('aria-label', isMinimized
-      ? 'Restore widget and show it to students'
-      : 'Minimise widget and hide it from students');
+      ? '<i class="fas fa-window-restore" aria-hidden="true"></i><span>Restore widget</span>'
+      : '<i class="fas fa-window-minimize" aria-hidden="true"></i><span>Minimise widget</span>';
+    minimizeButton.setAttribute('aria-label', isMinimized ? 'Restore widget' : 'Minimise widget');
     minimizeButton.classList.toggle('is-expanded', !isMinimized);
     minimizeButton.classList.toggle('is-minimized', isMinimized);
   }
@@ -961,11 +967,38 @@ class LayoutManager {
       widgetInfo.expandedHeight = widgetInfo.height;
     }
 
-    widgetInfo.visibleOnProjector = !nextMinimized;
-    widgetInfo.projectorVisibilityConfigured = true;
+    widgetInfo.minimized = nextMinimized;
     this.refreshWidgetMinimizeControl(widgetInfo);
     this.mountWidgetElement(widgetInfo);
     if (!nextMinimized) this.scheduleWidgetLayoutHook(widgetInfo);
+    this.saveLayout();
+  }
+
+  refreshWidgetProjectorVisibilityControl(widgetInfo) {
+    if (!widgetInfo) return;
+
+    const projectorVisibilityButton = widgetInfo.projectorVisibilityButton || widgetInfo.widget?.projectorVisibilityButton;
+    if (!projectorVisibilityButton) return;
+
+    widgetInfo.projectorVisibilityButton = projectorVisibilityButton;
+    const isVisible = widgetInfo.visibleOnProjector !== false;
+    projectorVisibilityButton.innerHTML = isVisible
+      ? '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from students</span>'
+      : '<i class="fas fa-eye" aria-hidden="true"></i><span>Show to students</span>';
+    projectorVisibilityButton.setAttribute('aria-label', isVisible
+      ? 'Hide widget from students'
+      : 'Show widget to students');
+    projectorVisibilityButton.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+    projectorVisibilityButton.classList.toggle('is-visible', isVisible);
+    projectorVisibilityButton.classList.toggle('is-teacher-only', !isVisible);
+  }
+
+  setWidgetProjectorVisibility(widgetInfo, visibleOnProjector) {
+    if (!widgetInfo) return;
+
+    widgetInfo.visibleOnProjector = visibleOnProjector !== false;
+    widgetInfo.projectorVisibilityConfigured = true;
+    this.refreshWidgetProjectorVisibilityControl(widgetInfo);
     this.saveLayout();
   }
 
@@ -1023,23 +1056,39 @@ class LayoutManager {
       menuToggle.focus();
     });
 
-    // Minimise on the teacher screen and hide from the student projector.
+    // Student/projector visibility without hiding the widget from the teacher.
     if (layoutManagerIsTeacherMode()) {
       const minimizeButton = document.createElement('button');
       minimizeButton.className = 'widget-minimize-btn widget-header-menu__item';
       minimizeButton.type = 'button';
-      minimizeButton.innerHTML = '<i class="fas fa-window-minimize" aria-hidden="true"></i><span><strong>Minimise widget</strong><small>Hide from students</small></span>';
-
-      minimizeButton.addEventListener('click', (e) => {
-        e.stopPropagation();
+      minimizeButton.innerHTML = '<i class="fas fa-window-minimize" aria-hidden="true"></i><span>Minimise widget</span>';
+      minimizeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
         const widgetInfo = this.widgets.find(info => info.widget === widget);
         if (!widgetInfo) return;
         this.setWidgetMinimized(widgetInfo, !this.isWidgetMinimized(widgetInfo));
         closeMenu();
       });
-
       widget.minimizeButton = minimizeButton;
       menuItems.appendChild(minimizeButton);
+
+      const projectorVisibilityButton = document.createElement('button');
+      projectorVisibilityButton.className = 'widget-projector-visibility-btn widget-header-menu__item';
+      projectorVisibilityButton.type = 'button';
+      projectorVisibilityButton.setAttribute('role', 'menuitem');
+      projectorVisibilityButton.setAttribute('aria-pressed', 'false');
+      projectorVisibilityButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i><span>Hide from students</span>';
+
+      projectorVisibilityButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const widgetInfo = this.widgets.find(info => info.widget === widget);
+        if (!widgetInfo) return;
+        this.setWidgetProjectorVisibility(widgetInfo, widgetInfo.visibleOnProjector === false);
+        closeMenu();
+      });
+
+      widget.projectorVisibilityButton = projectorVisibilityButton;
+      menuItems.appendChild(projectorVisibilityButton);
     }
 
     const widgetMenuActions = typeof widget.getHeaderMenuActions === 'function'
@@ -1492,6 +1541,7 @@ class LayoutManager {
         y: widgetInfo.y,
         width: widgetInfo.width,
         height: savedHeight,
+        minimized: widgetInfo.minimized === true,
         visibleOnProjector: widgetInfo.projectorVisibilityConfigured === true
           ? widgetInfo.visibleOnProjector !== false
           : true,
@@ -1676,6 +1726,7 @@ class LayoutManager {
       const visibleOnProjector = widgetData.projectorVisibilityConfigured === true
         ? widgetData.visibleOnProjector !== false
         : true;
+      const minimized = widgetData.minimized === true;
 
       const widgetInfo = {
         id: resolvedWidgetId,
@@ -1685,8 +1736,9 @@ class LayoutManager {
         x: finalX,
         y: finalY,
         width: finalW,
-        height: visibleOnProjector ? finalH : MINIMIZED_WIDGET_HEIGHT,
+        height: minimized ? MINIMIZED_WIDGET_HEIGHT : finalH,
         expandedHeight: finalH,
+        minimized,
         projectorVisibilityConfigured: widgetData.projectorVisibilityConfigured === true,
         visibleOnProjector
       };
@@ -1694,6 +1746,7 @@ class LayoutManager {
       this.widgets.push(widgetInfo);
       this.updateWidgetChrome(widgetInfo);
       this.refreshWidgetMinimizeControl(widgetInfo);
+      this.refreshWidgetProjectorVisibilityControl(widgetInfo);
 
       if (typeof widget.setEditable === 'function') {
         widget.setEditable(this.editable);
