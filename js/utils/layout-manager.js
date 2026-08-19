@@ -338,13 +338,16 @@ class LayoutManager {
 
   emitWidgetUpdate(widgetInfo) {
     if (!widgetInfo || !this.onLayoutChange || this.isRestoring) return;
+    const syncedHeight = this.isWidgetMinimized(widgetInfo) && Number.isFinite(widgetInfo.expandedHeight)
+      ? widgetInfo.expandedHeight
+      : widgetInfo.height;
     this.onLayoutChange({
       type: 'widget-update',
       id: widgetInfo.id,
       x: widgetInfo.x,
       y: widgetInfo.y,
       w: widgetInfo.width,
-      h: widgetInfo.height,
+      h: syncedHeight,
       stackOrder: this.widgets.map((candidate) => candidate.id)
     });
   }
@@ -1541,7 +1544,7 @@ class LayoutManager {
         y: widgetInfo.y,
         width: widgetInfo.width,
         height: savedHeight,
-        minimized: widgetInfo.minimized === true,
+        minimized: options.forProjector === true ? false : widgetInfo.minimized === true,
         visibleOnProjector: widgetInfo.projectorVisibilityConfigured === true
           ? widgetInfo.visibleOnProjector !== false
           : true,
@@ -1726,7 +1729,7 @@ class LayoutManager {
       const visibleOnProjector = widgetData.projectorVisibilityConfigured === true
         ? widgetData.visibleOnProjector !== false
         : true;
-      const minimized = widgetData.minimized === true;
+      const minimized = layoutManagerIsTeacherMode() && widgetData.minimized === true;
 
       const widgetInfo = {
         id: resolvedWidgetId,

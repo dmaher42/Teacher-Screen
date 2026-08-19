@@ -111,7 +111,14 @@ async function run() {
         const testWidgets = await teacherPage.evaluate(() => {
             const app = window.__TeacherScreenApp;
             app.handleNavClick('classroom');
-            const textBoardWidget = app.addWidget('rich-text', { notification: 'Resize sync test board added' });
+            const textBoardWidget = app.addWidget('rich-text', {
+                notification: 'Resize sync test board added',
+                initialData: {
+                    content: '<p>Projector sync content marker</p>',
+                    displayMode: false,
+                    presentationMode: 'normal'
+                }
+            });
             const noiseMeterWidget = app.addWidget('noise-meter', { notification: 'Layer sync test meter added' });
             const info = app.layoutManager.widgets.find((candidate) => candidate.widget === textBoardWidget);
             const noiseInfo = app.layoutManager.widgets.find((candidate) => candidate.widget === noiseMeterWidget);
@@ -130,6 +137,11 @@ async function run() {
             return widgets.some((widget) => widget.id === textBoardId)
                 && widgets.some((widget) => widget.id === noiseMeterId);
         }, { textBoardId: textBoard.id, noiseMeterId: testWidgets.noiseMeterId });
+        await projectorPage.waitForFunction((textBoardId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === textBoardId);
+            return info?.widget?.element?.textContent?.includes('Projector sync content marker');
+        }, textBoard.id);
+        console.log('PASS: Projector receives the Text Board content during initial pairing');
 
         const projectorNoiseStatusHidden = await projectorPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
@@ -209,6 +221,53 @@ async function run() {
             throw new Error('Projector rebuilt the Text Board instead of applying its resize');
         }
         console.log('PASS: Text Board resizing syncs live to the projector without rebuilding its content');
+
+        await teacherPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            app.layoutManager.setWidgetMinimized(info, true);
+            app.broadcastProjectorState();
+        }, textBoard.id);
+        await teacherPage.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget.is-minimized', { timeout: 10000 });
+        await projectorPage.waitForFunction(({ widgetId, width, height }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.width === width
+                && info?.height === height
+                && !info.element.classList.contains('is-minimized')
+                && info.widget?.element?.textContent?.includes('Projector sync content marker');
+        }, { widgetId: textBoard.id, ...resizedTextBoard });
+        const projectorKeptExpandedNode = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.element === window.__projectorResizeSyncNode;
+        }, textBoard.id);
+        if (!projectorKeptExpandedNode) {
+            throw new Error('Minimising the teacher widget rebuilt the projector widget');
+        }
+        console.log('PASS: Teacher minimisation stays local while the projector keeps full content and geometry');
+
+        const reconnectWhileMinimizedPage = await context.newPage();
+        try {
+            await reconnectWhileMinimizedPage.goto(`${baseUrl}/projector.html?syncToken=${syncToken}`, { waitUntil: 'domcontentloaded' });
+            await reconnectWhileMinimizedPage.waitForFunction(() => window.__TeacherScreenProjectorApp?.hasTeacherSync === true);
+            await reconnectWhileMinimizedPage.waitForFunction(({ widgetId, width, height }) => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.width === width
+                    && info?.height === height
+                    && !info.element.classList.contains('is-minimized')
+                    && info.widget?.element?.textContent?.includes('Projector sync content marker');
+            }, { widgetId: textBoard.id, ...resizedTextBoard });
+            console.log('PASS: A reconnecting projector receives the full widget while the teacher copy is minimised');
+        } finally {
+            await reconnectWhileMinimizedPage.close();
+        }
+
+        await teacherPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            app.layoutManager.setWidgetMinimized(info, false);
+            app.broadcastProjectorState();
+        }, textBoard.id);
+        await teacherPage.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget', { state: 'detached', timeout: 10000 });
 
         const syncedStackOrder = await Promise.all([
             teacherPage.evaluate(() => {
