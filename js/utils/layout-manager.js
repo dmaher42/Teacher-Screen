@@ -348,6 +348,7 @@ class LayoutManager {
       y: widgetInfo.y,
       w: widgetInfo.width,
       h: syncedHeight,
+      minimized: this.isWidgetMinimized(widgetInfo),
       stackOrder: this.widgets.map((candidate) => candidate.id)
     });
   }
@@ -1771,7 +1772,12 @@ class LayoutManager {
     widget.x = typeof delta.x === 'number' ? delta.x : widget.x;
     widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
     widget.width = typeof delta.w === 'number' ? delta.w : widget.width;
-    widget.height = typeof delta.h === 'number' ? delta.h : widget.height;
+    const requestedHeight = typeof delta.h === 'number' ? delta.h : widget.height;
+    const isTeacherCompactHeight = !layoutManagerIsTeacherMode()
+      && (delta.minimized === true || requestedHeight <= MINIMIZED_WIDGET_HEIGHT);
+    widget.height = isTeacherCompactHeight && Number.isFinite(widget.expandedHeight)
+      ? widget.expandedHeight
+      : requestedHeight;
     if (!this.isWidgetMinimized(widget)) {
       widget.expandedHeight = widget.height;
     }

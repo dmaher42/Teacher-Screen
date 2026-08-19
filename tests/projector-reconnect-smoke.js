@@ -245,6 +245,32 @@ async function run() {
         }
         console.log('PASS: Teacher minimisation stays local while the projector keeps full content and geometry');
 
+        await teacherPage.evaluate(({ widgetId, syncToken }) => {
+            window.__TeacherScreenApp.projectorChannel.postMessage({
+                type: 'layout-delta',
+                source: 'teacher',
+                syncToken,
+                delta: {
+                    type: 'widget-update',
+                    id: widgetId,
+                    h: 40,
+                    minimized: true
+                }
+            });
+        }, { widgetId: textBoard.id, syncToken });
+        await projectorPage.waitForTimeout(250);
+        const projectorIgnoredCompactDelta = await projectorPage.evaluate(({ widgetId, width, height }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.width === width
+                && info?.height === height
+                && !info.element.classList.contains('is-minimized')
+                && info.widget?.element?.textContent?.includes('Projector sync content marker');
+        }, { widgetId: textBoard.id, ...resizedTextBoard });
+        if (!projectorIgnoredCompactDelta) {
+            throw new Error('A compact minimised-height update collapsed the projector widget');
+        }
+        console.log('PASS: Projector ignores compact minimised-height updates from an older teacher tab');
+
         const reconnectWhileMinimizedPage = await context.newPage();
         try {
             await reconnectWhileMinimizedPage.goto(`${baseUrl}/projector.html?syncToken=${syncToken}`, { waitUntil: 'domcontentloaded' });
