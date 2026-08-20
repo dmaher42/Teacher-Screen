@@ -199,6 +199,94 @@ async function run() {
             throw new Error('Projector Text Board was not available for resize sync testing');
         }
 
+        const compactTextBoardHeight = 360;
+        await teacherPage.evaluate(({ widgetId, height }) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            app.applyProjectorLayoutDelta({
+                type: 'widget-update',
+                id: widgetId,
+                x: info.x,
+                y: info.y,
+                w: info.width,
+                h: height
+            });
+        }, { widgetId: textBoard.id, height: compactTextBoardHeight });
+        await projectorPage.waitForFunction(({ widgetId, height }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.height === height;
+        }, { widgetId: textBoard.id, height: compactTextBoardHeight });
+        textBoard.height = compactTextBoardHeight;
+
+        await teacherPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenApp.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            const html = [
+                '<p><strong>Week 5 - Friday - 21/08/26</strong></p>',
+                '<p><strong>Learning goal:</strong> Turn our BTN notes into a clear TEEL paragraph</p>',
+                '<ol><li>Wordle</li><li>BTN Segment 1 - Teacher model</li><li>BTN Segment 2 - Write together</li></ol>',
+                '<p><strong>Brain Break</strong></p>',
+                '<ol><li>BTN Segment 3 - Independent TEEL paragraph</li><li>Check and submit</li></ol>',
+                '<p>Projector sync content marker</p>'
+            ].join('');
+            info.widget.deserialize({ content: html, displayMode: false, presentationMode: 'normal' });
+            window.TeacherScreenWidgetState.notifyChanged(info.widget, 'content-updated');
+        }, textBoard.id);
+        await projectorPage.waitForFunction((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.element?.textContent?.includes('Check and submit');
+        }, textBoard.id);
+        await projectorPage.waitForFunction((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            const editor = info?.widget?.quill?.root || info?.widget?.editorSurface;
+            const scale = Number.parseFloat(info?.widget?.element?.style.getPropertyValue('--rich-text-projector-fit') || '1');
+            return info?.element === window.__projectorResizeSyncNode
+                && scale < 1
+                && editor?.scrollHeight <= editor?.clientHeight + 2;
+        }, textBoard.id);
+        await projectorPage.waitForTimeout(450);
+        const liveTextBoardState = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            const editor = info?.widget?.quill?.root || info?.widget?.editorSurface;
+            return {
+                preservedNode: info?.element === window.__projectorResizeSyncNode,
+                scale: Number.parseFloat(info?.widget?.element?.style.getPropertyValue('--rich-text-projector-fit') || '1'),
+                scrollHeight: editor?.scrollHeight || 0,
+                clientHeight: editor?.clientHeight || 0
+            };
+        }, textBoard.id);
+        if (!liveTextBoardState.preservedNode
+            || liveTextBoardState.scale >= 1
+            || liveTextBoardState.scrollHeight > liveTextBoardState.clientHeight + 2) {
+            throw new Error(`Text Board live fit failed: ${JSON.stringify(liveTextBoardState)}`);
+        }
+        console.log('PASS: Text Board content updates in place and automatically fits the projector frame');
+
+        await teacherPage.evaluate(({ widgetId, syncToken }) => {
+            window.__TeacherScreenApp.projectorChannel.postMessage({
+                type: 'widget-state-update',
+                source: 'teacher',
+                id: widgetId,
+                widgetType: 'RichTextWidget',
+                data: {
+                    content: '<p>Stale content must not replace the current board</p>',
+                    displayMode: false,
+                    presentationMode: 'normal'
+                },
+                revision: 1,
+                syncToken
+            });
+        }, { widgetId: textBoard.id, syncToken });
+        await projectorPage.waitForTimeout(150);
+        const ignoredStaleTextState = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.element?.textContent?.includes('Check and submit')
+                && !info?.widget?.element?.textContent?.includes('Stale content');
+        }, textBoard.id);
+        if (!ignoredStaleTextState) {
+            throw new Error('An older Text Board state replaced the current projector content');
+        }
+        console.log('PASS: Projector ignores stale Text Board content updates');
+
         await dragElementBy(teacherPage, '.widget.rich-text-widget .resize-handle.bottom-right', 80, 40);
         await teacherPage.waitForFunction(({ widgetId, initialWidth, initialHeight }) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);

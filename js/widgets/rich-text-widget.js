@@ -17,6 +17,8 @@ class RichTextWidget {
     this.presentationMode = 'normal';
     this.isApplyingSmartFormatting = false;
     this.lastEditorSelection = null;
+    this.autoFitFrame = null;
+    this.autoFitTimer = null;
     const appModeUtils = window.TeacherScreenAppMode || {};
     this.isProjectorMode = appModeUtils.isProjectorMode || (() => (
       window.APP_MODE === 'projector'
@@ -139,7 +141,9 @@ class RichTextWidget {
       const QuillEditor = window.Quill;
       if (!QuillEditor) {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
+        this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
         this.editorSurface.innerHTML = this.pendingContent;
+        this.syncEditorLayout();
         return;
       }
 
@@ -810,6 +814,7 @@ class RichTextWidget {
       this.isDisplayMode = true;
     }
     this.updateDisplayModeUI();
+    window.TeacherScreenWidgetState.notifyChanged(this, 'presentation-mode-updated');
   }
 
   getInsertedText(delta = {}) {
@@ -1105,7 +1110,8 @@ class RichTextWidget {
     }
 
     const toolbar = this.editorContainer.querySelector('.rich-text-editor-toolbar, .ql-toolbar');
-    const editorShell = this.editorContainer.querySelector('.ql-container');
+    const editorShell = this.editorContainer.querySelector('.ql-container')
+      || this.editorContainer.querySelector('.rich-text-editor-fallback');
     const editor = this.editorContainer.querySelector('.ql-editor');
 
     if (!editorShell || !editor) {
@@ -1121,6 +1127,64 @@ class RichTextWidget {
 
     editorShell.style.height = `${availableHeight}px`;
     editor.style.minHeight = `${availableHeight}px`;
+    this.scheduleProjectorAutoFit();
+  }
+
+  scheduleProjectorAutoFit() {
+    if (!this.autoFitTimer) {
+      this.autoFitTimer = setTimeout(() => {
+        this.autoFitTimer = null;
+        this.fitProjectorContent();
+      }, 350);
+    }
+
+    if (this.autoFitFrame) {
+      return;
+    }
+
+    this.autoFitFrame = requestAnimationFrame(() => {
+      this.autoFitFrame = null;
+      this.fitProjectorContent();
+    });
+  }
+
+  fitProjectorContent() {
+    const editor = this.quill?.root
+      || (this.editorSurface.matches('.ql-editor') ? this.editorSurface : this.editorSurface.querySelector('.ql-editor'));
+    if (!editor || !this.isProjectorMode() || editor.clientHeight <= 0) {
+      this.element.style.removeProperty('--rich-text-projector-fit');
+      this.element.style.removeProperty('--rich-text-projector-font-size');
+      return;
+    }
+
+    const minimumScale = 0.62;
+    const baseFontSize = this.presentationMode === 'large' ? 1.65 : 1.35;
+    const fits = (scale) => {
+      this.element.style.setProperty('--rich-text-projector-fit', scale.toFixed(3));
+      this.element.style.setProperty('--rich-text-projector-font-size', `${(baseFontSize * scale).toFixed(3)}rem`);
+      window.getComputedStyle(editor).fontSize;
+      return editor.scrollHeight <= editor.clientHeight + 2;
+    };
+
+    if (fits(1)) {
+      return;
+    }
+
+    let low = minimumScale;
+    let high = 1;
+    if (!fits(low)) {
+      return;
+    }
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = (low + high) / 2;
+      if (fits(candidate)) {
+        low = candidate;
+      } else {
+        high = candidate;
+      }
+    }
+    fits(low);
   }
 
   updateDisplayModeUI() {
@@ -1179,6 +1243,8 @@ class RichTextWidget {
     if (this.quill) {
       this.quill.enable(!this.isProjectorMode() && !this.isDisplayMode);
       this.syncEditorLayout();
+    } else {
+      this.scheduleProjectorAutoFit();
     }
   }
 
@@ -1200,6 +1266,16 @@ class RichTextWidget {
     if (this.initTimer) {
       clearTimeout(this.initTimer);
       this.initTimer = null;
+    }
+
+    if (this.autoFitFrame) {
+      cancelAnimationFrame(this.autoFitFrame);
+      this.autoFitFrame = null;
+    }
+
+    if (this.autoFitTimer) {
+      clearTimeout(this.autoFitTimer);
+      this.autoFitTimer = null;
     }
 
     if (this.quill && typeof this.quill.off === 'function') {

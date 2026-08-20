@@ -5824,9 +5824,12 @@ body.projector-view .rich-text-inline-edit-button {
     display: none;
 }
 
-.rich-text-widget-inner .ql-toolbar,
-.rich-text-widget-inner .ql-editor {
+.rich-text-widget-inner .ql-toolbar {
     transition: all 0.3s ease;
+}
+
+.rich-text-widget-inner .ql-editor {
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .rich-text-widget-inner .ql-toolbar {
@@ -6586,13 +6589,12 @@ body.projector-view .rich-text-widget-inner .rich-text-editor-toolbar {
 
 .rich-text-widget-inner.display-mode .ql-editor {
     font-size: 1.3rem;
-    transition: font-size 0.3s ease;
 }
 
 .rich-text-widget-inner.display-mode .ql-editor,
 .rich-text-widget-inner.is-projector-mode .ql-editor,
 body.projector-view .rich-text-widget-inner .ql-editor {
-    font-size: 1.35rem;
+    font-size: var(--rich-text-projector-font-size, 1.35rem);
     line-height: 1.72;
     padding: 1.5rem 1.65rem 1.8rem;
 }
@@ -6600,20 +6602,20 @@ body.projector-view .rich-text-widget-inner .ql-editor {
 .rich-text-widget-inner.display-mode .ql-editor h2,
 .rich-text-widget-inner.is-projector-mode .ql-editor h2,
 body.projector-view .rich-text-widget-inner .ql-editor h2 {
-    font-size: 2.1rem;
+    font-size: 1.56em;
     margin-top: 0.6rem;
 }
 
 .rich-text-widget-inner.display-mode .ql-editor h3,
 .rich-text-widget-inner.is-projector-mode .ql-editor h3,
 body.projector-view .rich-text-widget-inner .ql-editor h3 {
-    font-size: 1.55rem;
+    font-size: 1.15em;
 }
 
 .rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor,
 .rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor,
 body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor {
-    font-size: 1.65rem;
+    font-size: var(--rich-text-projector-font-size, 1.65rem);
     line-height: 1.82;
     padding: 1.9rem 2rem 2.1rem;
 }
@@ -6621,13 +6623,13 @@ body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-
 .rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor h2,
 .rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor h2,
 body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor h2 {
-    font-size: 2.45rem;
+    font-size: 1.48em;
 }
 
 .rich-text-widget-inner[data-presentation-mode="large"].display-mode .ql-editor h3,
 .rich-text-widget-inner[data-presentation-mode="large"].is-projector-mode .ql-editor h3,
 body.projector-view .rich-text-widget-inner[data-presentation-mode="large"] .ql-editor h3 {
-    font-size: 1.75rem;
+    font-size: 1.06em;
 }
 
 .rich-text-widget-inner[data-presentation-mode="focus"].display-mode .ql-container,

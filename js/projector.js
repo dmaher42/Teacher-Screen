@@ -10,7 +10,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '39';
+const PROJECTOR_LOCAL_ASSET_VERSION = '40';
 
 window.__ProjectorConnection = {
     window: window,
@@ -525,6 +525,7 @@ class ProjectorApp {
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
         this.projectorSyncToken = getProjectorSyncToken();
         this.hasTeacherSync = false;
+        this.widgetStateRevisions = new Map();
         this.projectorSyncRetryTimers = [];
         this.requestTeacherSync = this.requestTeacherSync.bind(this);
         this.handleVisibilitySync = this.handleVisibilitySync.bind(this);
@@ -568,6 +569,11 @@ class ProjectorApp {
 
             if (message.type === 'layout-delta' && message.source === 'teacher' && message.delta) {
                 this.layoutManager.applyLayoutDelta(message.delta);
+                return;
+            }
+
+            if (message.type === 'widget-state-update' && message.source === 'teacher') {
+                this.applyWidgetStateUpdate(message);
                 return;
             }
 
@@ -810,6 +816,33 @@ class ProjectorApp {
             });
         });
         this.layoutManager.applyWidgetStackOrder(nextLayout.widgets.map((widget) => widget.id));
+        return true;
+    }
+
+    applyWidgetStateUpdate(message = {}) {
+        const revision = Number(message.revision) || 0;
+        const previousRevision = this.widgetStateRevisions.get(message.id) || 0;
+        if (!message.id || revision <= previousRevision) {
+            return false;
+        }
+
+        const widgetInfo = this.layoutManager.widgets.find((candidate) => candidate.id === message.id);
+        if (!widgetInfo
+            || widgetInfo.widget?.constructor?.name !== message.widgetType
+            || typeof widgetInfo.widget?.deserialize !== 'function') {
+            this.requestTeacherSync();
+            return false;
+        }
+
+        try {
+            widgetInfo.widget.deserialize(message.data || {});
+        } catch (error) {
+            console.warn('[Projector] Live widget update failed; requesting a full refresh.', error);
+            this.requestTeacherSync();
+            return false;
+        }
+        this.widgetStateRevisions.set(message.id, revision);
+        this.layoutManager.scheduleWidgetLayoutHook(widgetInfo);
         return true;
     }
 

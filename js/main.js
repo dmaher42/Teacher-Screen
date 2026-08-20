@@ -345,6 +345,7 @@ class ClassroomScreenApp {
         window.__TeacherProjectorSyncToken = this.projectorSyncToken;
 
         this.projectorChannel = new BroadcastChannel('teacher-screen-sync');
+        this.projectorWidgetRevisions = new Map();
         this.eventBusSubscriptions = [];
 
         this.handleWidgetRemovedEvent = (payload) => {
@@ -839,7 +840,7 @@ class ClassroomScreenApp {
         document.getElementById('save-preset').addEventListener('click', () => this.saveCurrentDeckDetails());
         eventBus.on('widget:removed', this.handleWidgetRemovedEvent);
         document.addEventListener('widgetRemoved', (event) => this.handleWidgetRemoved(event.detail.widget));
-        document.addEventListener('widgetChanged', () => this.saveState());
+        document.addEventListener('widgetChanged', (event) => this.handleWidgetStateChange(event.detail));
 
         // Request Open Planner
         document.addEventListener('requestOpenPlanner', () => {
@@ -2496,6 +2497,38 @@ class ClassroomScreenApp {
             syncToken: this.projectorSyncToken
         });
         return true;
+    }
+
+    handleWidgetStateChange(detail = {}) {
+        const widget = detail?.widget;
+        const widgetInfo = widget
+            ? this.layoutManager.widgets.find((candidate) => candidate.widget === widget)
+            : null;
+
+        const serializeWidget = typeof widget?.serializeForProjector === 'function'
+            ? widget.serializeForProjector.bind(widget)
+            : typeof widget?.serialize === 'function'
+                ? widget.serialize.bind(widget)
+                : null;
+
+        if (widgetInfo && serializeWidget && this.projectorChannel && this.projectorSyncToken) {
+            const revision = Math.max(
+                Date.now(),
+                (this.projectorWidgetRevisions.get(widgetInfo.id) || 0) + 1
+            );
+            this.projectorWidgetRevisions.set(widgetInfo.id, revision);
+            this.projectorChannel.postMessage({
+                type: 'widget-state-update',
+                source: 'teacher',
+                id: widgetInfo.id,
+                widgetType: widget.constructor?.name || '',
+                data: serializeWidget(),
+                revision,
+                syncToken: this.projectorSyncToken
+            });
+        }
+
+        this.saveState();
     }
 
     getDefaultProjectState() {
