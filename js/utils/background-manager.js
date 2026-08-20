@@ -2,7 +2,8 @@ class BackgroundManager {
   constructor(containerElement) {
     this.container = containerElement;
     this.currentTheme = 'theme-ocean';
-    const oceanDefaultGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
+    const oceanDefaultGradient = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)';
+    const oceanTwilightGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
     this.themeDefaults = {
       'theme-light': { type: 'solid', value: '#ffffff', source: 'theme-default' },
       'theme-ocean': { type: 'gradient', value: oceanDefaultGradient, source: 'theme-default' },
@@ -13,7 +14,7 @@ class BackgroundManager {
       solid: ['#ffffff', '#f0f0f0', '#e6f3f7'],
       gradient: [
         oceanDefaultGradient,
-        'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)',
+        oceanTwilightGradient,
         'linear-gradient(to top, #a8edea 0%, #fed6e3 100%)'
       ],
       image: [
