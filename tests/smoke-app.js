@@ -3881,6 +3881,105 @@ async function runWholeClassAssignmentChecks(browser, baseUrl) {
     }
 }
 
+async function runWidgetStartupLayoutChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await makeExternalAssetsDeterministic(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+
+        await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
+        await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
+        await page.waitForFunction(() => document.querySelectorAll('.widget.rich-text-widget').length === 2, { timeout: 10000 });
+        const newTextBoardPlacement = await page.locator('.widget.rich-text-widget').evaluateAll((widgets) => {
+            const [first, second] = widgets.map((widget) => widget.getBoundingClientRect());
+            return {
+                separated: first.right <= second.left
+                    || second.right <= first.left
+                    || first.bottom <= second.top
+                    || second.bottom <= first.top,
+                first: { x: first.x, y: first.y, width: first.width, height: first.height },
+                second: { x: second.x, y: second.y, width: second.width, height: second.height }
+            };
+        });
+        assert(newTextBoardPlacement.separated, `New Text Boards should open beside existing widgets instead of almost completely overlapping (${JSON.stringify(newTextBoardPlacement)})`);
+
+        await page.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
+        await page.waitForSelector('.widget.behaviour-tracker-widget', { timeout: 10000 });
+        const learningTimeStartupSize = await page.locator('.widget.behaviour-tracker-widget').evaluate((widget) => {
+            const widgetRect = widget.getBoundingClientRect();
+            const canvasRect = document.getElementById('widgets-container').getBoundingClientRect();
+            return {
+                widthRatio: widgetRect.width / canvasRect.width,
+                heightRatio: widgetRect.height / canvasRect.height
+            };
+        });
+        assert(
+            learningTimeStartupSize.widthRatio <= 0.55 && learningTimeStartupSize.heightRatio <= 0.75,
+            `Learning-Time Tracker should open at a useful dashboard size instead of taking over the classroom (${JSON.stringify(learningTimeStartupSize)})`
+        );
+        const learningTimeWidget = page.locator('.widget.behaviour-tracker-widget');
+        await learningTimeWidget.locator('.widget-header-menu > summary').click();
+        await learningTimeWidget.locator('.widget-remove-btn').click();
+        await page.waitForSelector('.widget.behaviour-tracker-widget', { state: 'detached', timeout: 10000 });
+
+        const firstTextBoard = page.locator('.widget.rich-text-widget').first();
+        const restoredPositionTarget = await firstTextBoard.evaluate((widget) => {
+            const rect = widget.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        });
+        await firstTextBoard.locator('.widget-header-menu > summary').click();
+        await firstTextBoard.locator('.widget-minimize-btn').click();
+        const dockedTextBoard = page.locator('.widget-minimize-dock > .widget.rich-text-widget');
+        await dockedTextBoard.locator('.widget-header-menu > summary').click();
+        const minimizedMenuBounds = await dockedTextBoard.locator('.widget-header-menu__popover').evaluate((menu) => {
+            const menuRect = menu.getBoundingClientRect();
+            const canvasRect = document.getElementById('widgets-container').getBoundingClientRect();
+            return {
+                fitsHorizontally: menuRect.left >= canvasRect.left && menuRect.right <= canvasRect.right,
+                left: menuRect.left,
+                right: menuRect.right,
+                canvasLeft: canvasRect.left,
+                canvasRight: canvasRect.right
+            };
+        });
+        assert(minimizedMenuBounds.fitsHorizontally, `A minimised widget menu should open fully inside the classroom (${JSON.stringify(minimizedMenuBounds)})`);
+        await dockedTextBoard.locator('.widget-minimize-btn').click();
+        await page.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget', { state: 'detached', timeout: 10000 });
+        const restoredPosition = await page.locator('.widget.rich-text-widget').last().evaluate((widget) => {
+            const rect = widget.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        });
+        assert(
+            Math.abs(restoredPosition.x - restoredPositionTarget.x) <= 1
+                && Math.abs(restoredPosition.y - restoredPositionTarget.y) <= 1
+                && Math.abs(restoredPosition.width - restoredPositionTarget.width) <= 1
+                && Math.abs(restoredPosition.height - restoredPositionTarget.height) <= 1,
+            `Restoring a minimised widget should return it to its saved size and position (${JSON.stringify({ restoredPositionTarget, restoredPosition })})`
+        );
+
+        assert(pageErrors.length === 0, `Widget startup layout checks should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Widget startup layout checks should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -3935,6 +4034,11 @@ async function runSmoke() {
         if (process.argv.includes('--new-deck-only')) {
             await runNewDeckNavigationChecks(browser, baseUrl);
             console.log('New Deck dashboard browser checks passed.');
+            return;
+        }
+        if (process.argv.includes('--widget-startup-only')) {
+            await runWidgetStartupLayoutChecks(browser, baseUrl);
+            console.log('Widget startup layout browser checks passed.');
             return;
         }
         if (!process.argv.includes('--main-ui-only')) {

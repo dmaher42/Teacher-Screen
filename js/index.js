@@ -3,7 +3,7 @@ import './utils/app-bus.js';
 import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
-const LOCAL_ASSET_VERSION = '42';
+const LOCAL_ASSET_VERSION = '43';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 

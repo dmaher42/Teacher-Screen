@@ -51,7 +51,7 @@ function isValidLayout(layout) {
 const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
-  BehaviourTrackerWidget: { minW: 5, minH: 6, defaultW: 6, defaultH: 8 },
+  BehaviourTrackerWidget: { minW: 4, minH: 4, defaultW: 5, defaultH: 5 },
   NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
@@ -62,7 +62,7 @@ const WIDGET_SIZE_RULES = {
   RevealManagerWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
-  RichTextWidget: { minW: 4, minH: 3, defaultW: 6, defaultH: 5 },
+  RichTextWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
   MaskWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
