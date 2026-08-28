@@ -2,9 +2,10 @@ class BackgroundManager {
   constructor(containerElement) {
     this.container = containerElement;
     this.currentTheme = 'theme-ocean';
+    const lightDefaultGradient = 'linear-gradient(135deg, #e8f1f6 0%, #dbe9f0 55%, #c9dee8 100%)';
     const oceanDefaultGradient = 'linear-gradient(135deg, #0f172a 0%, #16324a 55%, #164e63 100%)';
     this.themeDefaults = {
-      'theme-light': { type: 'solid', value: '#ffffff', source: 'theme-default' },
+      'theme-light': { type: 'gradient', value: lightDefaultGradient, source: 'theme-default' },
       'theme-ocean': { type: 'gradient', value: oceanDefaultGradient, source: 'theme-default' },
       'theme-professional': { type: 'solid', value: '#111827', source: 'theme-default' }
     };
@@ -13,6 +14,7 @@ class BackgroundManager {
       solid: ['#ffffff', '#f0f0f0', '#e6f3f7'],
       gradient: [
         oceanDefaultGradient,
+        lightDefaultGradient,
         'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)',
         'linear-gradient(to top, #a8edea 0%, #fed6e3 100%)'
       ],
@@ -43,6 +45,16 @@ class BackgroundManager {
     const type = data.type || '';
     const value = String(data.value || '').trim().toLowerCase();
     return (type === 'color' || type === 'solid') && value === '#1f2937' && !data.source;
+  }
+
+  isPreviousLightDefault(data) {
+    if (!data || typeof data !== 'object') return false;
+    const type = data.type || '';
+    const value = String(data.value || '').trim().toLowerCase();
+    return data.source === 'theme-default'
+      && data.theme === 'theme-light'
+      && (type === 'color' || type === 'solid')
+      && value === '#ffffff';
   }
 
   safeParseLocalStorage(key) {
@@ -81,7 +93,13 @@ class BackgroundManager {
       && savedBackground.theme === themeName;
 
     if (isSavedDefaultForCurrentTheme) {
-      this.currentBackground = { ...savedBackground };
+      const shouldUpgradeLightDefault = this.isPreviousLightDefault(savedBackground);
+      this.currentBackground = shouldUpgradeLightDefault
+        ? { ...this.defaultBackground }
+        : { ...savedBackground };
+      if (shouldUpgradeLightDefault) {
+        this.saveBackground();
+      }
       this.applyBackground();
       return;
     }
@@ -177,10 +195,16 @@ class BackgroundManager {
         this.currentBackground = { type: data.type, value: data.settings.url || '', source: 'custom' };
       }
     } else if (this.isValidBackground(data)) {
-      this.currentBackground = {
-        ...data,
-        source: data.source || 'custom'
-      };
+      if (this.isPreviousLightDefault(data)) {
+        this.currentTheme = 'theme-light';
+        this.defaultBackground = this.getThemeDefaultBackground('theme-light');
+        this.currentBackground = { ...this.defaultBackground };
+      } else {
+        this.currentBackground = {
+          ...data,
+          source: data.source || 'custom'
+        };
+      }
     } else {
       this.currentBackground = { ...this.defaultBackground };
       localStorage.removeItem('background');
