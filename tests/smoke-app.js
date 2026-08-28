@@ -5353,6 +5353,10 @@ async function runSmoke() {
         assert(await page.locator('.widget-placeholder').textContent().then((text) => text.trim() === ''), 'New blank page should not show instructional placeholder text');
 
         await openTeacherPanel(page);
+        const projectPagesDetails = page.locator('#teacher-panel .control-card--project-pages > details');
+        if (!await projectPagesDetails.evaluate((details) => details.open)) {
+            await projectPagesDetails.locator(':scope > summary').click();
+        }
         await page.locator('#teacher-page-switcher [data-page-id]').first().click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         await page.waitForSelector('.widget.pomodoro-widget', { timeout: 10000 });
@@ -5728,7 +5732,9 @@ async function runSmoke() {
         assert(mobileTeacherControlsScale.openSectionCount === 1, 'Mobile Teacher Controls should keep one focused section open');
         assert(mobileTeacherControlsScale.lastCardVisible, 'Mobile Teacher Controls should show all section choices without initial scrolling');
         assert(await mobilePage.locator('#top-nav').evaluate((element) => getComputedStyle(element).opacity === '0'), 'Mobile Teacher Controls should not be obscured by the Home button');
+        assert(!await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Mobile Teacher Controls should not be obscured by the widget menu');
         await closeTeacherPanel(mobilePage);
+        assert(await mobilePage.locator('#lesson-quick-actions').isVisible(), 'Closing Mobile Teacher Controls should restore the widget menu');
 
         assert(pageErrors.length === 0, `Browser page errors should be absent (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Browser console errors should be absent (${consoleErrors.join('; ')})`);

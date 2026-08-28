@@ -3459,6 +3459,12 @@ body.is-classroom-active .lesson-quick-actions {
     display: flex;
 }
 
+body:has(#teacher-panel.open) .lesson-quick-actions {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .lesson-quick-action {
     min-width: 48px;
     min-height: 42px;
