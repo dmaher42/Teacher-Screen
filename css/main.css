@@ -10522,10 +10522,6 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
     box-shadow: 0 5px 12px rgba(47, 143, 244, 0.2);
 }
 
-.teacher-panel #new-page-btn {
-    grid-column: 1 / -1;
-}
-
 .teacher-panel .modal-danger-btn {
     border-color: rgba(190, 49, 68, 0.2);
     background: #fff0f2;

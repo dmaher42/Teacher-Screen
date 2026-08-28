@@ -3980,6 +3980,60 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
     }
 }
 
+async function runBackgroundControlsChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await makeExternalAssetsDeterministic(context);
+    const pageErrors = [];
+    const consoleErrors = [];
+
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+        await openTeacherPanel(page);
+
+        const quickActions = await page.locator('#new-page-btn, #change-background-btn').evaluateAll((buttons) => {
+            const [newPage, changeBackground] = buttons.map((button) => button.getBoundingClientRect());
+            return {
+                count: buttons.length,
+                equalWidth: Math.abs(newPage.width - changeBackground.width) <= 2,
+                sameRow: Math.abs(newPage.top - changeBackground.top) <= 2
+            };
+        });
+        assert(
+            quickActions.count === 2 && quickActions.equalWidth && quickActions.sameRow,
+            'New Page and Change background should share the visible quick-action row'
+        );
+
+        await page.locator('#change-background-btn').click();
+        await page.waitForSelector('#deck-appearance-controls[open] #background-selector', { timeout: 10000 });
+        assert(
+            await page.locator('#background-selector .background-swatch:visible').count() > 0,
+            'Change background should reveal the existing background selector'
+        );
+        assert(
+            await page.locator('#teacher-panel .control-card > details[open]').count() === 1,
+            'Change background should keep Teacher Controls focused on one open section'
+        );
+
+        assert(pageErrors.length === 0, `Background controls should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Background controls should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -4039,6 +4093,11 @@ async function runSmoke() {
         if (process.argv.includes('--widget-startup-only')) {
             await runWidgetStartupLayoutChecks(browser, baseUrl);
             console.log('Widget startup layout browser checks passed.');
+            return;
+        }
+        if (process.argv.includes('--background-controls-only')) {
+            await runBackgroundControlsChecks(browser, baseUrl);
+            console.log('Background controls browser checks passed.');
             return;
         }
         if (!process.argv.includes('--main-ui-only')) {
@@ -4469,6 +4528,7 @@ async function runSmoke() {
             const summaries = Array.from(panel.querySelectorAll('.control-card > details > summary'));
             const deckCardRect = panel.querySelector('.control-card--project-pages')?.getBoundingClientRect();
             const newPageRect = panel.querySelector('#new-page-btn')?.getBoundingClientRect();
+            const backgroundButtonRect = panel.querySelector('#change-background-btn')?.getBoundingClientRect();
             const deckBodyRect = panel.querySelector('.control-card--project-pages .card-body')?.getBoundingClientRect();
             const lastCardRect = panel.querySelector('.control-card:last-child')?.getBoundingClientRect();
             const advancedSummary = panel.querySelector('.project-page-advanced > summary');
@@ -4478,7 +4538,11 @@ async function runSmoke() {
                 openSectionCount: panel.querySelectorAll('.control-card > details[open]').length,
                 deckCardHeight: deckCardRect?.height || 0,
                 summariesCompact: summaries.every((summary) => summary.getBoundingClientRect().height <= 52),
-                newPageFillsRow: (newPageRect?.width || 0) >= (deckBodyRect?.width || 0) - 24,
+                pageQuickActionsShareRow: !!newPageRect?.width
+                    && !!backgroundButtonRect?.width
+                    && Math.abs(newPageRect.width - backgroundButtonRect.width) <= 2
+                    && Math.abs(newPageRect.top - backgroundButtonRect.top) <= 2
+                    && backgroundButtonRect.right <= (deckBodyRect?.right || 0),
                 lastCardVisible: (lastCardRect?.bottom || Infinity) <= window.innerHeight,
                 advancedControlClosed: advancedSummary ? getComputedStyle(advancedSummary, '::after').content.includes('+') : false
             };
@@ -4488,9 +4552,12 @@ async function runSmoke() {
         assert(teacherControlsScale.openSectionCount === 1, 'Teacher Controls should open with only Current deck and pages expanded');
         assert(teacherControlsScale.deckCardHeight <= 420, `Current deck and pages should keep the larger touch-friendly controls within a compact card (${JSON.stringify(teacherControlsScale)})`);
         assert(teacherControlsScale.summariesCompact, 'Teacher Controls section rows should share a compact height');
-        assert(teacherControlsScale.newPageFillsRow, 'New Page should align to the full action row');
+        assert(teacherControlsScale.pageQuickActionsShareRow, 'New Page and Change background should share the quick-action row');
         assert(teacherControlsScale.lastCardVisible, 'All Teacher Controls sections should be reachable in the first desktop view');
         assert(teacherControlsScale.advancedControlClosed, 'More page actions should show the correct closed-state affordance');
+        await page.locator('#change-background-btn').click();
+        assert(await page.locator('#deck-appearance-controls').getAttribute('open') !== null, 'Change background should open the existing appearance controls');
+        assert(await page.locator('#background-selector .background-swatch').first().isVisible(), 'Change background should reveal the background selector');
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();

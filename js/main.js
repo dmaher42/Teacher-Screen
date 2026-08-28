@@ -246,6 +246,7 @@ class ClassroomScreenApp {
         this.teacherPageSwitcher = document.getElementById('teacher-page-switcher');
         this.newProjectButton = document.getElementById('new-project-btn');
         this.newPageButton = document.getElementById('new-page-btn');
+        this.changeBackgroundButton = document.getElementById('change-background-btn');
         this.movePageLeftButton = document.getElementById('move-page-left-btn');
         this.movePageRightButton = document.getElementById('move-page-right-btn');
         this.duplicatePageButton = document.getElementById('duplicate-page-btn');
@@ -771,6 +772,8 @@ class ClassroomScreenApp {
         }
         this.widgetModal.querySelector('.modal-close').addEventListener('click', () => this.closeDialog(this.widgetModal));
         this.setupDialogControls();
+
+        this.changeBackgroundButton?.addEventListener('click', () => this.openBackgroundControls());
 
         // Accordion Cards
         const detailsElements = document.querySelectorAll('.control-card > details');
@@ -9461,6 +9464,22 @@ class ClassroomScreenApp {
         this.closeDialog(this.widgetModal);
         this.closeSectionsMenu();
         this.toggleTeacherPanel(true);
+    }
+
+    openBackgroundControls() {
+        const appearanceControls = this.teacherPanel?.querySelector('#deck-appearance-controls');
+        if (!appearanceControls) return;
+
+        this.teacherPanel
+            .querySelectorAll('.control-card > details')
+            .forEach((details) => {
+                details.open = details === appearanceControls;
+            });
+
+        window.requestAnimationFrame(() => {
+            appearanceControls.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            appearanceControls.querySelector('summary')?.focus({ preventScroll: true });
+        });
     }
 
     openCurrentPageActions() {
