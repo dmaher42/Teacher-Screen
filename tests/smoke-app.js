@@ -959,7 +959,7 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
         await addWidget(page, 'reveal-manager', '.widget.reveal-manager-widget', 'Presentation');
 
         const tallWidgetBeforeDrag = await getElementBox(page, '.widget.reveal-manager-widget');
-        await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, 320);
+        await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 400, 320);
         const tallWidgetAfterDrag = await getElementBox(page, '.widget.reveal-manager-widget');
         const canvasAfterTallDrag = await getElementBox(page, '#widgets-container');
         const toolbarAfterTallDrag = await getElementBox(page, '#lesson-quick-actions');
@@ -968,8 +968,13 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
             'A wide tall widget should still move down as far as the lesson toolbar safely allows'
         );
         assert(
+            tallWidgetAfterDrag.x < toolbarAfterTallDrag.x + toolbarAfterTallDrag.width
+                && tallWidgetAfterDrag.x + tallWidgetAfterDrag.width > toolbarAfterTallDrag.x,
+            `The tall-widget boundary check should place the widget in the toolbar column (${JSON.stringify({ tallWidgetAfterDrag, toolbarAfterTallDrag })})`
+        );
+        assert(
             tallWidgetAfterDrag.y + tallWidgetAfterDrag.height <= toolbarAfterTallDrag.y - 8,
-            'A wide tall widget that cannot fit beside the lesson toolbar should stop above it'
+            `A wide tall widget that cannot fit beside the lesson toolbar should stop above it (${JSON.stringify({ tallWidgetAfterDrag, toolbarAfterTallDrag })})`
         );
         assert(
             Math.abs(tallWidgetAfterDrag.height - tallWidgetBeforeDrag.height) <= 1,
@@ -4386,6 +4391,7 @@ async function runSmoke() {
         const highlightColourMenu = richTextToolbar.locator('[data-format-menu="background"]');
         assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
         assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
+        assert(await richTextToolbar.locator('select[aria-label="Line spacing"] option').allTextContents().then((options) => options.join('|') === 'Tight|Normal|Relaxed'), 'Text Board should offer clear line-spacing choices');
         assert(await richTextToolbar.locator('.rich-text-toolbar-present').count() === 0, 'Present should not take permanent space in the formatting toolbar');
         assert(await richTextToolbar.locator('.rich-text-toolbar-main [data-format-menu]').count() === 0, 'Colour tools should not crowd the everyday formatting bar');
 
@@ -4423,7 +4429,9 @@ async function runSmoke() {
                 && discussionButton.scrollWidth <= discussionButton.clientWidth + 1;
         }), 'More should stay inside the Text Board without clipping its longest teaching-block label');
 
-        if (await richTextEditor.count() === 1) {
+        const richTextQuillAvailable = await richTextEditor.count() === 1
+            && await richTextEditor.evaluate((root) => Boolean(window.Quill?.find?.(root.parentElement)));
+        if (richTextQuillAvailable) {
             const selectAllRichText = async (text = 'Selection safeguard') => {
                 await richTextEditor.evaluate((root, nextText) => {
                     const editor = window.Quill?.find(root.parentElement);
@@ -4455,6 +4463,23 @@ async function runSmoke() {
                 assert(state.moreMenuOpen, `${label} should open without closing More`);
                 assert(state.panelReceivesPointer, `${label} should be visible and clickable below the toolbar`);
             };
+
+            await richTextEditor.evaluate((root) => {
+                const editor = window.Quill.find(root.parentElement);
+                editor.setText('Racket Ball\nSpeed Ball\nStreet Racket', 'api');
+                editor.setSelection(0, editor.getLength() - 1, 'api');
+            });
+            const lineSpacingControl = richTextToolbar.locator('select[aria-label="Line spacing"]');
+            await lineSpacingControl.selectOption('tight');
+            const spacingState = await richTextEditor.evaluate((root) => ({
+                lineCount: root.querySelectorAll('.ql-line-spacing-tight').length,
+                firstLineHeight: Number.parseFloat(getComputedStyle(root.firstElementChild).lineHeight),
+                editorFontSize: Number.parseFloat(getComputedStyle(root).fontSize),
+                savedHtml: root.innerHTML
+            }));
+            assert(spacingState.lineCount === 3, `Tight line spacing should apply to every selected line (${JSON.stringify(spacingState)})`);
+            assert(spacingState.firstLineHeight <= spacingState.editorFontSize * 1.2, 'Tight line spacing should visibly reduce the distance between lines');
+            assert(spacingState.savedHtml.includes('ql-line-spacing-tight'), 'Chosen line spacing should be saved with Text Board content');
 
             await selectAllRichText();
             await textColourMenu.locator('summary').click();

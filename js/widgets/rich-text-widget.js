@@ -10,6 +10,16 @@ if (window.Quill && !window.Quill.imports['formats/displayCallout']) {
   window.Quill.register(DisplayCalloutBlot, true);
 }
 
+if (window.Quill && !window.Quill.imports['formats/lineSpacing']) {
+  const Parchment = window.Quill.import('parchment');
+  const LineSpacingClass = new Parchment.ClassAttributor('lineSpacing', 'ql-line-spacing', {
+    scope: Parchment.Scope.BLOCK,
+    whitelist: ['tight', 'normal', 'relaxed']
+  });
+
+  window.Quill.register(LineSpacingClass, true);
+}
+
 class RichTextWidget {
   constructor() {
     this.pendingContent = '';
@@ -273,6 +283,14 @@ class RichTextWidget {
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Layout</span>
             <div class="rich-text-toolbar-more-row">
+              <label class="rich-text-toolbar-layout-field">
+                <span>Line spacing</span>
+                <select data-format="lineSpacing" aria-label="Line spacing">
+                  <option value="tight">Tight</option>
+                  <option value="">Normal</option>
+                  <option value="relaxed">Relaxed</option>
+                </select>
+              </label>
               <div class="rich-text-toolbar-actions">
                 <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Columns</span></button>
               </div>

@@ -6461,7 +6461,7 @@ body.projector-view .rich-text-inline-edit-button {
       min-height: 0;
       font-family: 'Poppins', sans-serif;
       font-size: 1rem;
-      line-height: 1.62;
+      line-height: 1.45;
       letter-spacing: 0.01em;
       padding: 0.65rem 0.75rem 0.75rem;
       color: var(--text-primary);
@@ -6481,11 +6481,26 @@ body.projector-view .rich-text-inline-edit-button {
 }
 
 .rich-text-widget-inner .ql-editor > p {
-    margin: 0 0 0.82rem;
+    margin: 0 0 0.28rem;
 }
 
 .rich-text-widget-inner .ql-editor > p:last-child {
     margin-bottom: 0;
+}
+
+.rich-text-widget-inner .ql-editor .ql-line-spacing-tight {
+    line-height: 1.18;
+    margin-bottom: 0.08rem;
+}
+
+.rich-text-widget-inner .ql-editor .ql-line-spacing-normal {
+    line-height: 1.45;
+    margin-bottom: 0.28rem;
+}
+
+.rich-text-widget-inner .ql-editor .ql-line-spacing-relaxed {
+    line-height: 1.82;
+    margin-bottom: 0.72rem;
 }
 
 .rich-text-widget-inner .ql-editor .ql-size-small {
@@ -11906,6 +11921,29 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section {
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section + .rich-text-toolbar-more-section {
     padding-top: 9px;
     border-top: 1px solid rgba(27, 74, 101, 0.11);
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-layout-field {
+    display: grid;
+    grid-template-columns: auto minmax(96px, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--widget-chrome-ink);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-layout-field select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 1px solid rgba(27, 74, 101, 0.13);
+    border-radius: 8px;
+    background: var(--widget-chrome-surface);
+    color: var(--widget-chrome-ink);
+    font: inherit;
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-colour-menu summary {
