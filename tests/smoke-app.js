@@ -4515,15 +4515,33 @@ async function runSmoke() {
         }), 'More should reveal every advanced formatting control above the editor');
         await moreFormatting.locator(':scope > summary').click();
 
-        assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => header.getBoundingClientRect().height <= 37), 'The permanent widget grab bar should stay about five percent slimmer');
-        assert(await page.locator('.widget.rich-text-widget .widget-header .fa-grip-vertical').count() === 0, 'The draggable widget header should not show a redundant grip icon');
+        const compactTextBoardChrome = await page.locator('.widget.rich-text-widget').evaluate((widget) => {
+            const header = widget.querySelector(':scope > .widget-header');
+            const toolbar = widget.querySelector('.rich-text-editor-toolbar');
+            const title = header?.querySelector('.widget-header-title span');
+            const grip = header?.querySelector('.widget-header-title');
+            const headerRect = header?.getBoundingClientRect();
+            const toolbarRect = toolbar?.getBoundingClientRect();
+            const gripStyle = grip ? getComputedStyle(grip, '::before') : null;
+            return {
+                titleVisible: !!title && title.getBoundingClientRect().width > 1,
+                rowsOverlap: !!headerRect && !!toolbarRect && Math.abs(headerRect.top - toolbarRect.top) <= 2,
+                combinedHeight: !!headerRect && !!toolbarRect
+                    ? Math.max(headerRect.bottom, toolbarRect.bottom) - Math.min(headerRect.top, toolbarRect.top)
+                    : Number.POSITIVE_INFINITY,
+                gripVisible: !!gripStyle && gripStyle.content !== 'none' && gripStyle.width !== 'auto'
+            };
+        });
+        assert(!compactTextBoardChrome.titleVisible, 'Text Board should not spend permanent space on a visible title');
+        assert(compactTextBoardChrome.rowsOverlap && compactTextBoardChrome.combinedHeight <= 46, `Text Board controls should share one compact top row (${JSON.stringify(compactTextBoardChrome)})`);
+        assert(compactTextBoardChrome.gripVisible, 'Text Board should retain a compact visual drag handle');
         assert(await page.locator('.widget.rich-text-widget .widget-header-actions').count() === 0, 'Widget editing buttons should not remain exposed in a row');
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'Each widget should expose one compact options menu');
         assert(await page.locator('.widget.rich-text-widget .widget-header').evaluate((header) => {
             const titleRect = header.querySelector('.widget-header-title')?.getBoundingClientRect();
             const menuRect = header.querySelector('.widget-header-menu > summary')?.getBoundingClientRect();
-            return !!titleRect && !!menuRect && menuRect.left - titleRect.right <= 8;
-        }), 'The widget options menu should stay beside the title instead of colliding with corner controls');
+            return !!titleRect && !!menuRect && titleRect.left < menuRect.left;
+        }), 'The drag handle and widget options should stay at opposite ends of the shared toolbar row');
         const richTextOptionsToggle = page.locator('.widget.rich-text-widget .widget-header-menu > summary');
         const richTextOptionsMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
         assert(await richTextOptionsMenu.isHidden(), 'Widget options should stay hidden until requested');
@@ -4585,8 +4603,8 @@ async function runSmoke() {
         await page.locator('#change-background-btn').click();
         assert(await page.locator('#deck-appearance-controls').getAttribute('open') !== null, 'Change background should open the existing appearance controls');
         assert(await page.locator('#background-selector .background-swatch').first().isVisible(), 'Change background should reveal the background selector');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the widget grab bar visible');
-        assert(await page.locator('.widget.rich-text-widget .widget-header-title').textContent().then((text) => text.includes('Text Board')), 'The grab bar should use the friendly Text Board label');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the Text Board drag handle and options visible');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-title').getAttribute('aria-label') === 'Move Text Board', 'The title-free drag handle should retain its accessible Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         const richTextMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
         assert(
