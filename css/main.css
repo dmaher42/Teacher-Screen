@@ -916,7 +916,6 @@ details:focus-visible,
 }
 
 .control-button,
-.timer-preset-btn,
 #open-projector-view,
 .button-group button {
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color, #8e82ff) 90%, #ffffff 10%), var(--primary-color, #8e82ff));
@@ -926,7 +925,6 @@ details:focus-visible,
 }
 
 .control-button:hover,
-.timer-preset-btn:hover,
 #open-projector-view:hover,
 .button-group button:hover {
     filter: brightness(1.04);
@@ -934,7 +932,6 @@ details:focus-visible,
 }
 
 .control-button:active,
-.timer-preset-btn:active,
 #open-projector-view:active,
 .button-group button:active {
     filter: brightness(0.98);
@@ -2230,74 +2227,6 @@ body.is-dashboard-active.is-sections-menu-open .sections-menu {
 .control-button--ghost:hover {
     background: color-mix(in srgb, var(--card-background, #ffffff) 76%, var(--bg-surface, #f8fafc) 24%);
     filter: none;
-}
-
-.timer-status-panel {
-    display: grid;
-    gap: 10px;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--primary-color, #8e82ff) 16%, var(--border-color, #dfe4e2) 84%);
-    border-radius: 16px;
-    background: linear-gradient(180deg,
-        color-mix(in srgb, var(--primary-color, #8e82ff) 8%, #ffffff 92%),
-        color-mix(in srgb, var(--bg-surface, #f8fafc) 88%, #ffffff 12%));
-}
-
-.timer-status-panel__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.timer-status-badge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    min-height: 30px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
-    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.timer-status-badge[data-state="running"] {
-    background: color-mix(in srgb, #22c55e 18%, #ffffff 82%);
-    color: color-mix(in srgb, #166534 84%, #0f172a 16%);
-}
-
-.timer-status-badge[data-state="stopped"] {
-    background: color-mix(in srgb, #f59e0b 18%, #ffffff 82%);
-    color: color-mix(in srgb, #b45309 82%, #0f172a 18%);
-}
-
-.timer-status-badge[data-state="idle"] {
-    background: color-mix(in srgb, var(--primary-color, #8e82ff) 14%, #ffffff 86%);
-    color: color-mix(in srgb, var(--primary-color, #8e82ff) 82%, #1f2937 18%);
-}
-
-.timer-status-badge[data-state="empty"] {
-    background: color-mix(in srgb, var(--text-secondary, #64748b) 12%, #ffffff 88%);
-    color: color-mix(in srgb, var(--text-primary, #0f172a) 78%, #64748b 22%);
-}
-
-.timer-status-display {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    color: var(--text-primary, #0f172a);
-}
-
-.timer-status-meta {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    color: color-mix(in srgb, var(--text-color, #333) 72%, #64748b 28%);
 }
 
 .presentation-status-panel {
@@ -6856,13 +6785,6 @@ body.projector-view .drawing-tool-surface {
     transform: translateY(0);
 }
 
-/* Timer Preset Buttons */
-.timer-preset-btn {
-    padding: var(--spacing-sm, 10px) var(--spacing-md, 16px);
-    font-size: 0.95rem;
-    margin-left: var(--spacing-sm, 10px);
-}
-
 /* Refactored Widget Styles (Timer Proof of Concept) */
 .timer-widget-content {
     display: flex;
@@ -10596,8 +10518,7 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 }
 
 .teacher-panel #save-project-screen-btn,
-.teacher-panel #new-page-btn,
-.teacher-panel #start-timer {
+.teacher-panel #new-page-btn {
     border-color: #2f8ff4;
     background: linear-gradient(135deg, #3ba1fb, #247fe7);
     color: #ffffff;
@@ -10648,62 +10569,6 @@ body.is-classroom-active:not(.projector-view) .project-switcher.project-switcher
 .teacher-panel .project-page-actions--advanced {
     margin: 0;
     padding: 8px;
-}
-
-.teacher-panel .timer-inputs {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: end;
-    gap: 6px;
-}
-
-.teacher-panel .timer-input-field {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-    color: #526b7a;
-    font-size: 0.64rem;
-    font-weight: 750;
-    line-height: 1.2;
-    text-align: center;
-}
-
-.teacher-panel .timer-input-separator {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    color: #617b8a;
-    font-weight: 800;
-}
-
-.teacher-panel .timer-inputs input {
-    min-width: 0;
-    text-align: center;
-}
-
-.teacher-panel .timer-inputs + .button-group + .button-group {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.teacher-panel .timer-status-panel {
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 12px;
-}
-
-.teacher-panel .timer-status-badge {
-    min-height: 26px;
-    padding: 3px 8px;
-    font-size: 0.66rem;
-}
-
-.teacher-panel .timer-status-display {
-    font-size: 1.72rem;
-}
-
-.teacher-panel .timer-status-meta {
-    font-size: 0.78rem;
-    line-height: 1.35;
 }
 
 .teacher-panel .theme-selector {

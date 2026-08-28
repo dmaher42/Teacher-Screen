@@ -4575,6 +4575,8 @@ async function runSmoke() {
         assert(teacherControlsScale.width >= 390 && teacherControlsScale.width <= 402, 'Desktop Teacher Controls should use a focused compact drawer width');
         assert(teacherControlsScale.headerHeight <= 70, 'Teacher Controls header should stay compact');
         assert(teacherControlsScale.openSectionCount === 1, 'Teacher Controls should open with only Current deck and pages expanded');
+        assert(await page.getByRole('heading', { name: 'Timer Control', exact: true }).count() === 0, 'Teacher Controls should not duplicate the Timer widget controls');
+        assert(await page.locator('#teacher-panel #start-timer, #teacher-panel #stop-timer, #teacher-panel #reset-timer').count() === 0, 'Teacher Controls should not retain hidden timer actions');
         assert(teacherControlsScale.deckCardHeight <= 420, `Current deck and pages should keep the larger touch-friendly controls within a compact card (${JSON.stringify(teacherControlsScale)})`);
         assert(teacherControlsScale.summariesCompact, 'Teacher Controls section rows should share a compact height');
         assert(teacherControlsScale.pageQuickActionsShareRow, 'New Page and Change background should share the quick-action row');

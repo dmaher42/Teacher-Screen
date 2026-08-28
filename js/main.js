@@ -291,10 +291,6 @@ class ClassroomScreenApp {
         this.plannerModal = document.getElementById('planner-modal');
         this.plannerModalCloseBtn = this.plannerModal ? this.plannerModal.querySelector('.modal-close-btn') : null;
         this.plannerGrid = document.getElementById('planner-calendar-grid');
-        this.timerStatusBadge = document.getElementById('timer-status-badge');
-        this.timerStatusDisplay = document.getElementById('timer-status-display');
-        this.timerStatusMeta = document.getElementById('timer-status-meta');
-        this.resetTimerButton = document.getElementById('reset-timer');
         this.agendaModal = document.getElementById('agenda-modal');
         this.agendaList = document.getElementById('agenda-list');
         this.agendaModalCloseBtn = this.agendaModal ? this.agendaModal.querySelector('.modal-close-btn') : null;
@@ -474,7 +470,6 @@ class ClassroomScreenApp {
         this.renderWidgetModal();
         this.displaySavedLayouts();
         this.initializeSavedNotes();
-        this.syncTimerControlsFromWidget();
         this.renderProjectControls();
         this.teachingAssistant.init();
 
@@ -499,7 +494,6 @@ class ClassroomScreenApp {
         });
 
         this.subscribeToEventBus('timer:started', ({ minutes, showNotification = true, ...payload } = {}) => {
-            this.syncTimerControlsFromPayload({ ...payload, minutes });
             this.syncTimerStateToProjector({ ...payload, minutes });
             if (!Number.isFinite(minutes) || minutes <= 0) {
                 return;
@@ -511,7 +505,6 @@ class ClassroomScreenApp {
         });
 
         this.subscribeToEventBus('timer:stopped', ({ showNotification = true, ...payload } = {}) => {
-            this.syncTimerControlsFromPayload(payload);
             this.syncTimerStateToProjector(payload);
             if (showNotification) {
                 this.showNotification('Timer stopped.');
@@ -519,12 +512,10 @@ class ClassroomScreenApp {
         });
 
         this.subscribeToEventBus('timer:reset', (payload = {}) => {
-            this.syncTimerControlsFromPayload(payload);
             this.syncTimerStateToProjector(payload);
         });
 
         this.subscribeToEventBus('timer:updated', (payload = {}) => {
-            this.syncTimerControlsFromPayload(payload);
             this.syncTimerStateToProjector(payload);
         });
 
@@ -802,13 +793,6 @@ class ClassroomScreenApp {
             });
         });
 
-        // Other controls...
-        document.getElementById('start-timer').addEventListener('click', () => this.startTimerFromControls());
-        document.getElementById('stop-timer').addEventListener('click', () => this.stopTimerFromControls());
-        if (this.resetTimerButton) {
-            this.resetTimerButton.addEventListener('click', () => this.resetTimerFromControls());
-        }
-
         // Widget Settings Modal Logic
         document.addEventListener('openWidgetSettings', (e) => this.openWidgetSettings(e.detail.widget));
 
@@ -822,22 +806,6 @@ class ClassroomScreenApp {
                 this.closeWidgetSettings();
             }
         });
-
-        // Timer presets set the duration first; Start remains the explicit action.
-        const preset5 = document.getElementById('timer-preset-5');
-        if (preset5) {
-            preset5.addEventListener('click', () => this.applyTimerPresetToControls(5));
-        }
-
-        const preset10 = document.getElementById('timer-preset-10');
-        if (preset10) {
-            preset10.addEventListener('click', () => this.applyTimerPresetToControls(10));
-        }
-
-        const preset15 = document.getElementById('timer-preset-15');
-        if (preset15) {
-            preset15.addEventListener('click', () => this.applyTimerPresetToControls(15));
-        }
 
         document.getElementById('reset-layout').addEventListener('click', () => this.resetLayout());
         document.getElementById('save-preset').addEventListener('click', () => this.saveCurrentDeckDetails());
@@ -1149,7 +1117,6 @@ class ClassroomScreenApp {
             if (panelContent) {
                 panelContent.scrollTop = 0;
             }
-            this.syncTimerControlsFromWidget();
             window.requestAnimationFrame(() => this.closeTeacherPanelBtn?.focus({ preventScroll: true }));
             return;
         }
@@ -5971,14 +5938,7 @@ class ClassroomScreenApp {
         if (this.widgets.length === 0 && !this.widgetsContainer.querySelector('.widget-placeholder')) {
             this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
         }
-        if (widget instanceof TimerWidget) {
-            this.syncTimerControlsFromWidget();
-        }
         this.saveState();
-    }
-
-    getPrimaryTimerWidget() {
-        return this.widgets.find(widget => widget instanceof TimerWidget) || null;
     }
 
     collectTimerStateSnapshots() {
@@ -6011,173 +5971,6 @@ class ClassroomScreenApp {
             warningCount: Math.max(0, Math.floor(Number(warningCount) || 0)),
             syncToken: this.projectorSyncToken
         });
-    }
-
-    formatTimerStatusDisplay(remainingSeconds = 0, currentPhase = null, isIntervalMode = false) {
-        const safeSeconds = Number.isFinite(remainingSeconds) ? Math.max(0, Math.floor(remainingSeconds)) : 0;
-        const minutes = Math.floor(safeSeconds / 60);
-        const seconds = safeSeconds % 60;
-        const label = isIntervalMode && currentPhase ? `${currentPhase}: ` : '';
-        return `${label}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    renderTimerControlState({
-        hasTimer = false,
-        running = false,
-        remainingSeconds = 0,
-        display = '00:00',
-        isIntervalMode = false,
-        currentPhase = null,
-        statusMessage = ''
-    } = {}) {
-        if (!this.timerStatusBadge || !this.timerStatusDisplay || !this.timerStatusMeta) {
-            return;
-        }
-
-        let badgeText = 'No Timer';
-        let badgeState = 'empty';
-        let metaText = statusMessage || 'Add a timer widget or press Start to begin.';
-
-        if (hasTimer) {
-            if (running) {
-                badgeText = 'Running';
-                badgeState = 'running';
-                metaText = statusMessage || (isIntervalMode && currentPhase
-                    ? `${currentPhase} phase is active on the classroom screen.`
-                    : 'Timer is active on the classroom screen.');
-            } else if (remainingSeconds > 0) {
-                badgeText = 'Stopped';
-                badgeState = 'stopped';
-                metaText = statusMessage || 'Timer is ready to resume or reset.';
-            } else {
-                badgeText = 'Ready';
-                badgeState = 'idle';
-                metaText = statusMessage || 'Timer widget is ready. Set a duration and press Start.';
-            }
-        }
-
-        this.timerStatusBadge.textContent = badgeText;
-        this.timerStatusBadge.dataset.state = badgeState;
-        this.timerStatusDisplay.textContent = display || this.formatTimerStatusDisplay(remainingSeconds, currentPhase, isIntervalMode);
-        this.timerStatusMeta.textContent = metaText;
-
-        if (this.resetTimerButton) {
-            this.resetTimerButton.disabled = !hasTimer;
-        }
-    }
-
-    syncTimerControlsFromWidget(widget = this.getPrimaryTimerWidget()) {
-        if (!widget) {
-            this.renderTimerControlState();
-            return;
-        }
-
-        this.renderTimerControlState({
-            hasTimer: true,
-            running: !!widget.running,
-            remainingSeconds: widget.time,
-            display: typeof widget.getDisplayText === 'function'
-                ? widget.getDisplayText()
-                : this.formatTimerStatusDisplay(widget.time, widget.currentPhase, widget.isIntervalMode),
-            isIntervalMode: !!widget.isIntervalMode,
-            currentPhase: widget.currentPhase || null,
-            statusMessage: widget.latestStatusMessage || ''
-        });
-    }
-
-    syncTimerControlsFromPayload(payload = {}) {
-        const timerWidget = this.getPrimaryTimerWidget();
-        if (!timerWidget) {
-            this.renderTimerControlState();
-            return;
-        }
-
-        if (payload.widgetId && timerWidget.widgetId && payload.widgetId !== timerWidget.widgetId) {
-            return;
-        }
-
-        this.renderTimerControlState({
-            hasTimer: true,
-            running: typeof payload.running === 'boolean' ? payload.running : !!timerWidget.running,
-            remainingSeconds: Number.isFinite(payload.remainingSeconds) ? payload.remainingSeconds : timerWidget.time,
-            display: payload.display || (typeof timerWidget.getDisplayText === 'function'
-                ? timerWidget.getDisplayText()
-                : this.formatTimerStatusDisplay(timerWidget.time, timerWidget.currentPhase, timerWidget.isIntervalMode)),
-            isIntervalMode: typeof payload.isIntervalMode === 'boolean' ? payload.isIntervalMode : !!timerWidget.isIntervalMode,
-            currentPhase: payload.currentPhase || timerWidget.currentPhase || null,
-            statusMessage: payload.statusMessage || timerWidget.latestStatusMessage || ''
-        });
-    }
-
-    startTimerFromControls() {
-        const timerWidget = this.ensureTimerWidget();
-        if (timerWidget) {
-            const hours = parseInt(document.getElementById('timer-hours').value, 10) || 0;
-            const minutes = parseInt(document.getElementById('timer-minutes').value, 10) || 0;
-            const seconds = parseInt(document.getElementById('timer-seconds').value, 10) || 0;
-            const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-            const totalMinutes = totalSeconds / 60;
-            if (totalSeconds > 0) {
-                eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes: totalMinutes, seconds: totalSeconds });
-            } else {
-                this.showNotification('Please set a timer duration.', 'warning');
-            }
-        }
-    }
-
-    applyTimerPresetToControls(minutes) {
-        const safeMinutes = Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
-        document.getElementById('timer-hours').value = 0;
-        document.getElementById('timer-minutes').value = safeMinutes;
-        document.getElementById('timer-seconds').value = 0;
-        this.showNotification(`Timer set to ${safeMinutes} minute${safeMinutes === 1 ? '' : 's'}. Press Start to begin.`, 'success');
-    }
-
-    startTimerPresetFromControls(minutes) {
-        const timerWidget = this.ensureTimerWidget();
-        if (!timerWidget) {
-            return;
-        }
-
-        eventBus.emit('timer:start', { widgetId: timerWidget.widgetId, minutes });
-    }
-
-    stopTimerFromControls() {
-        const timerWidget = this.getPrimaryTimerWidget();
-        if (timerWidget) {
-            eventBus.emit('timer:stop', { widgetId: timerWidget.widgetId });
-        } else {
-            this.showNotification('No timer widget found.', 'error');
-        }
-    }
-
-    resetTimerFromControls() {
-        const timerWidget = this.getPrimaryTimerWidget();
-        if (timerWidget) {
-            eventBus.emit('timer:reset', { widgetId: timerWidget.widgetId });
-        } else {
-            this.showNotification('No timer widget found.', 'error');
-            this.renderTimerControlState();
-        }
-    }
-
-    ensureTimerWidget() {
-        let timerWidget = this.getPrimaryTimerWidget();
-        if (timerWidget) {
-            this.syncTimerControlsFromWidget(timerWidget);
-            return timerWidget;
-        }
-
-        this.addWidget('timer');
-        timerWidget = this.getPrimaryTimerWidget();
-
-        if (!timerWidget) {
-            this.showNotification('Unable to create a timer widget.', 'error');
-            return null;
-        }
-
-        this.syncTimerControlsFromWidget(timerWidget);
-        return timerWidget;
     }
 
     isRevealManagerWidget(widget) {
