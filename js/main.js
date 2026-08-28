@@ -6000,7 +6000,7 @@ class ClassroomScreenApp {
         });
     }
 
-    syncNoiseMeterLevelToProjector({ widgetId = '', level = 0, listening = false } = {}) {
+    syncNoiseMeterLevelToProjector({ widgetId = '', level = 0, listening = false, warningCount = 0 } = {}) {
         if (!this.projectorChannel || !widgetId) return;
         this.projectorChannel.postMessage({
             type: 'noise-meter-sync',
@@ -6008,6 +6008,7 @@ class ClassroomScreenApp {
             widgetId,
             level: Math.min(255, Math.max(0, Number(level) || 0)),
             listening: listening === true,
+            warningCount: Math.max(0, Math.floor(Number(warningCount) || 0)),
             syncToken: this.projectorSyncToken
         });
     }

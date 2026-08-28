@@ -9,9 +9,12 @@ class NoiseMeter {
     this.stream = null;
     this.dataArray = null;
     this.animationFrameId = null;
+    this.backgroundSampleTimerId = null;
     this.running = false;
     this.lastLevel = 0;
     this.lastRenderedWidth = 0;
+    this.handleVisibilityChange = this.onVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
   
   async start() {
@@ -44,7 +47,66 @@ class NoiseMeter {
     const average = this.dataArray.reduce((a, b) => a + b) / this.dataArray.length;
     this.renderLevel(average);
     if (this.onLevel) this.onLevel(average);
-    this.animationFrameId = requestAnimationFrame(() => this.draw());
+    this.scheduleNextSample();
+  }
+
+  scheduleNextSample() {
+    this.cancelScheduledSample();
+    if (!this.running) return;
+
+    if (document.visibilityState === 'hidden') {
+      // Browsers pause requestAnimationFrame for background tabs and minimised
+      // windows. Keep sampling while the microphone is active so the separate
+      // projector window continues receiving live readings.
+      this.backgroundSampleTimerId = window.setTimeout(() => {
+        this.backgroundSampleTimerId = null;
+        this.draw();
+      }, 100);
+      return;
+    }
+
+    this.animationFrameId = requestAnimationFrame(() => {
+      this.animationFrameId = null;
+      this.draw();
+    });
+  }
+
+  cancelScheduledSample() {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    if (this.backgroundSampleTimerId !== null) {
+      window.clearTimeout(this.backgroundSampleTimerId);
+      this.backgroundSampleTimerId = null;
+    }
+  }
+
+  onVisibilityChange() {
+    if (!this.running) return;
+    this.draw();
+  }
+
+  playWarningTone() {
+    const context = this.audioContext;
+    if (!context || context.state !== 'running') return false;
+
+    const startAt = context.currentTime + 0.02;
+    [0, 0.18].forEach((offset, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const toneStart = startAt + offset;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(index === 0 ? 660 : 820, toneStart);
+      gain.gain.setValueAtTime(0.0001, toneStart);
+      gain.gain.exponentialRampToValueAtTime(0.16, toneStart + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, toneStart + 0.13);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(toneStart);
+      oscillator.stop(toneStart + 0.14);
+    });
+    return true;
   }
 
   renderLevel(level = 0) {
@@ -110,10 +172,7 @@ class NoiseMeter {
 
   stop() {
     this.running = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+    this.cancelScheduledSample();
     try {
       this.microphone?.disconnect?.();
     } catch (_error) {
@@ -129,6 +188,7 @@ class NoiseMeter {
 
   destroy() {
     this.stop();
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     if (this.audioContext && this.audioContext.state !== 'closed') {
       void this.audioContext.close();
     }

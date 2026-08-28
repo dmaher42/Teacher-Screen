@@ -10,7 +10,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '41';
+const PROJECTOR_LOCAL_ASSET_VERSION = '42';
 
 window.__ProjectorConnection = {
     window: window,
@@ -592,7 +592,7 @@ class ProjectorApp {
 
             if (message.type === 'noise-meter-sync' && message.source === 'teacher' && message.widgetId) {
                 const widgetInfo = this.layoutManager.widgets.find((widget) => widget.id === message.widgetId);
-                widgetInfo?.widget?.applySyncedLevel?.(message.level);
+                widgetInfo?.widget?.applySyncedLevel?.(message.level, message.warningCount);
                 return;
             }
 

@@ -8743,6 +8743,45 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+.noise-meter-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.noise-meter-warning-counter {
+    display: inline-flex;
+    flex: 0 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 38px;
+    padding: 7px 12px;
+    border: 1px solid rgba(248, 250, 252, 0.24);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #f8fafc;
+    font-size: clamp(0.74rem, 1.15vw, 0.95rem);
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.noise-meter-warning-counter strong {
+    min-width: 1.35em;
+    color: #ffffff;
+    font-size: clamp(1.2rem, 2.2vw, 1.75rem);
+    line-height: 1;
+    text-align: center;
+}
+
+.noise-meter-warning-counter.is-incremented strong {
+    animation: noise-meter-count-pop 320ms ease-out;
+}
+
 .noise-meter-status-dot {
     width: 11px;
     height: 11px;
@@ -8809,6 +8848,18 @@ body.projector-view .noise-meter-classroom-status {
     font-size: clamp(1.15rem, 2.4vw, 2rem);
 }
 
+body.projector-view .noise-meter-warning-counter {
+    width: 100%;
+    min-height: 54px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: clamp(0.85rem, 1.15vw, 1.25rem);
+}
+
+body.projector-view .noise-meter-warning-counter strong {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
 body.projector-view .noise-meter-status-dot {
     width: 15px;
     height: 15px;
@@ -8823,8 +8874,18 @@ body.projector-view .noise-meter-scale {
     to { filter: saturate(1.18) brightness(1.05); }
 }
 
+@keyframes noise-meter-count-pop {
+    0% { transform: scale(0.72); color: #fbbf24; }
+    65% { transform: scale(1.18); color: #ffffff; }
+    100% { transform: scale(1); color: #ffffff; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .noise-meter-display[data-noise-state="loud"] {
+        animation: none;
+    }
+
+    .noise-meter-warning-counter.is-incremented strong {
         animation: none;
     }
 }

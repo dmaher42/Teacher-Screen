@@ -189,6 +189,97 @@ async function run() {
         }
         console.log('PASS: Projector Noise Meter shows Ready to Learn, Getting Loud, and Too Loud states');
 
+        const warningCounterState = await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+
+            let warningToneCount = 0;
+            widget.meter.playWarningTone = () => {
+                warningToneCount += 1;
+                return true;
+            };
+            widget.isListening = true;
+            widget.handleMeterLevel(25);
+            widget.handleMeterLevel(155);
+            widget.handleMeterLevel(180);
+            widget.handleMeterLevel(110);
+            widget.handleMeterLevel(155);
+            widget.broadcastLevel(widget.lastLevel, true);
+
+            return {
+                warningCount: widget.warningCount,
+                warningToneCount,
+                displayedCount: widget.warningCounterValue?.textContent,
+                savedCount: widget.serialize().warningCount
+            };
+        }, testWidgets.noiseMeterId);
+        if (warningCounterState?.warningCount !== 2
+            || warningCounterState.warningToneCount !== 2
+            || warningCounterState.displayedCount !== '2'
+            || warningCounterState.savedCount !== 2) {
+            throw new Error(`Noise warnings should count and sound once per Too Loud crossing (${JSON.stringify(warningCounterState)})`);
+        }
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.warningCount === 2
+                && info.widget.warningCounterValue?.textContent === '2';
+        }, testWidgets.noiseMeterId);
+        console.log('PASS: Each new Too Loud crossing adds one visible warning and plays one alert sound');
+
+        await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            info?.widget?.resetWarningCount?.();
+        }, testWidgets.noiseMeterId);
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.warningCount === 0
+                && info.widget.warningCounterValue?.textContent === '0';
+        }, testWidgets.noiseMeterId);
+        console.log('PASS: Reset count clears the teacher and projector warning totals together');
+
+        const backgroundMeterState = await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            const meter = widget?.meter;
+            if (!widget || !meter) return null;
+
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                value: 'hidden'
+            });
+            meter.analyser = {
+                getByteFrequencyData(data) {
+                    data.fill(80);
+                }
+            };
+            meter.dataArray = new Uint8Array(8);
+            meter.running = true;
+            widget.isListening = true;
+            widget.started = true;
+            document.dispatchEvent(new Event('visibilitychange'));
+
+            const state = {
+                widgetStillListening: widget.isListening,
+                meterStillRunning: meter.running,
+                backgroundTimerScheduled: meter.backgroundSampleTimerId !== null,
+                animationFramePaused: meter.animationFrameId === null
+            };
+
+            meter.stop();
+            widget.isListening = false;
+            widget.started = false;
+            delete document.visibilityState;
+            return state;
+        }, testWidgets.noiseMeterId);
+        if (!backgroundMeterState?.widgetStillListening
+            || !backgroundMeterState.meterStillRunning
+            || !backgroundMeterState.backgroundTimerScheduled
+            || !backgroundMeterState.animationFramePaused) {
+            throw new Error(`Noise Meter should keep sampling while the teacher screen is hidden (${JSON.stringify(backgroundMeterState)})`);
+        }
+        console.log('PASS: Noise Meter keeps sampling when the teacher screen is minimised or inactive');
+
         const projectorNodeWasPreserved = await projectorPage.evaluate((widgetId) => {
             const app = window.__TeacherScreenProjectorApp;
             const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);

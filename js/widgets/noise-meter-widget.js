@@ -48,6 +48,16 @@ class NoiseMeterWidget {
         this.classroomStatusText.textContent = 'Ready to Learn';
         this.classroomStatus.append(this.classroomStatusDot, this.classroomStatusText);
 
+        this.warningCounter = document.createElement('div');
+        this.warningCounter.className = 'noise-meter-warning-counter';
+        this.warningCounter.setAttribute('role', 'status');
+        this.warningCounter.setAttribute('aria-live', 'polite');
+        this.warningCounterLabel = document.createElement('span');
+        this.warningCounterLabel.textContent = 'Warnings';
+        this.warningCounterValue = document.createElement('strong');
+        this.warningCounterValue.textContent = '0';
+        this.warningCounter.append(this.warningCounterLabel, this.warningCounterValue);
+
         this.scale = document.createElement('div');
         this.scale.className = 'noise-meter-scale';
         this.scale.setAttribute('aria-hidden', 'true');
@@ -57,7 +67,10 @@ class NoiseMeterWidget {
             <span data-state="loud">Too Loud</span>
         `;
 
-        this.meterDisplay.append(this.classroomStatus, this.canvas, this.scale);
+        const statusRow = document.createElement('div');
+        statusRow.className = 'noise-meter-status-row';
+        statusRow.append(this.classroomStatus, this.warningCounter);
+        this.meterDisplay.append(statusRow, this.canvas, this.scale);
 
         // Start button (can be placed inside a modal or overlay)
         this.startButton = document.createElement('button');
@@ -92,6 +105,11 @@ class NoiseMeterWidget {
 
         const secondaryActions = document.createElement('div');
         secondaryActions.className = 'secondary-actions';
+        this.resetCountButton = document.createElement('button');
+        this.resetCountButton.type = 'button';
+        this.resetCountButton.textContent = 'Reset count';
+        this.resetCountButton.setAttribute('aria-label', 'Reset noise warning count');
+        secondaryActions.appendChild(this.resetCountButton);
 
         controlBar.append(primaryActions, secondaryActions);
         this.element.appendChild(controlBar);
@@ -99,6 +117,10 @@ class NoiseMeterWidget {
         // NoiseMeter instance and state
         this.lastLevel = 0;
         this.lastLevelBroadcastAt = 0;
+        this.warningCount = 0;
+        this.warningArmed = true;
+        this.tooLoudThreshold = 150;
+        this.warningRearmThreshold = 120;
         this.meter = new NoiseMeter(this.canvas, (level) => this.handleMeterLevel(level));
         this.started = false;      // "Was actively listening when serialized"
         this.isListening = false;  // "Currently listening right now"
@@ -106,10 +128,9 @@ class NoiseMeterWidget {
 
         // Bind handlers so we can remove them later
         this.handleStartClick = this.start.bind(this);
-        this.handleVisibilityChange = this.onVisibilityChange.bind(this);
-
+        this.handleResetCountClick = this.resetWarningCount.bind(this);
         this.startButton.addEventListener('click', this.handleStartClick);
-        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+        this.resetCountButton.addEventListener('click', this.handleResetCountClick);
     }
 
     setEditable() {}
@@ -132,6 +153,16 @@ class NoiseMeterWidget {
         this.updateVisualState(this.lastLevel);
         if (!this.isListening || this.isProjectorMode?.()) return;
 
+        if (this.lastLevel <= this.warningRearmThreshold) {
+            this.warningArmed = true;
+        } else if (this.lastLevel >= this.tooLoudThreshold && this.warningArmed) {
+            this.warningArmed = false;
+            this.warningCount += 1;
+            this.updateWarningCounter();
+            this.meter?.playWarningTone?.();
+            window.TeacherScreenWidgetState.notifyChanged(this, 'noise-warning-recorded');
+        }
+
         const now = performance.now();
         if (now - this.lastLevelBroadcastAt < 100) return;
         this.lastLevelBroadcastAt = now;
@@ -144,15 +175,35 @@ class NoiseMeterWidget {
         eventBus.emit('noise-meter:level', {
             widgetId: this.widgetId,
             level: Math.min(255, Math.max(0, Number(level) || 0)),
-            listening: listening === true
+            listening: listening === true,
+            warningCount: this.warningCount
         });
         return true;
     }
 
-    applySyncedLevel(level) {
+    applySyncedLevel(level, warningCount = this.warningCount) {
         this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
+        this.warningCount = Math.max(0, Math.floor(Number(warningCount) || 0));
         this.meter?.renderLevel?.(this.lastLevel);
         this.updateVisualState(this.lastLevel);
+        this.updateWarningCounter();
+    }
+
+    updateWarningCounter() {
+        if (this.warningCounterValue) {
+            this.warningCounterValue.textContent = String(this.warningCount);
+        }
+        this.warningCounter?.classList.remove('is-incremented');
+        void this.warningCounter?.offsetWidth;
+        this.warningCounter?.classList.add('is-incremented');
+    }
+
+    resetWarningCount() {
+        this.warningCount = 0;
+        this.warningArmed = this.lastLevel <= this.warningRearmThreshold;
+        this.updateWarningCounter();
+        this.broadcastLevel(this.lastLevel, this.isListening);
+        window.TeacherScreenWidgetState.notifyChanged(this, 'noise-warning-count-reset');
     }
 
     updateVisualState(level = 0) {
@@ -259,16 +310,6 @@ class NoiseMeterWidget {
     }
 
     /**
-     * Automatically pause the meter when the tab is hidden to avoid
-     * unnecessary mic usage and distractions.
-     */
-    onVisibilityChange() {
-        if (document.visibilityState === 'hidden') {
-            this.stop();
-        }
-    }
-
-    /**
      * Remove the widget from the DOM and notify listeners.
      * Also stops the meter and cleans up listeners.
      */
@@ -286,7 +327,7 @@ class NoiseMeterWidget {
         }
 
         this.startButton.removeEventListener('click', this.handleStartClick);
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        this.resetCountButton.removeEventListener('click', this.handleResetCountClick);
 
         this.element.remove();
 
@@ -302,7 +343,8 @@ class NoiseMeterWidget {
         return {
             type: 'NoiseMeterWidget',
             // "started" means "was listening when saved" (we cannot auto-start on load without user interaction)
-            started: this.isListening
+            started: this.isListening,
+            warningCount: this.warningCount
         };
     }
 
@@ -315,6 +357,9 @@ class NoiseMeterWidget {
         const wasStarted = !!(data && data.started);
         this.started = wasStarted;
         this.isListening = false;
+        this.warningCount = Math.max(0, Math.floor(Number(data?.warningCount) || 0));
+        this.warningArmed = true;
+        this.updateWarningCounter();
 
         if (wasStarted) {
             this.setStatus('Previously listening. Press start to resume (microphone permissions required).');
