@@ -856,12 +856,12 @@ async function runBottomWidgetContainmentChecks(browser, baseUrl) {
             'The collision check should position the widget over the toolbar column'
         );
         assert(
-            timerAboveToolbar.y + timerAboveToolbar.height <= toolbarAfterCollision.y - 8,
-            'A widget in the toolbar column should stop above the lesson toolbar'
+            timerAboveToolbar.y + timerAboveToolbar.height > toolbarAfterCollision.y + 20,
+            'A widget should be movable underneath the floating widget selector'
         );
         assert(
             Math.abs(timerAboveToolbar.height - timerBeforeDrag.height) <= 1,
-            'Avoiding the lesson toolbar should not resize a standard widget'
+            'Moving underneath the widget selector should not resize a standard widget'
         );
 
         await page.locator('.widget.pomodoro-widget .pomodoro-display').focus();
@@ -870,8 +870,8 @@ async function runBottomWidgetContainmentChecks(browser, baseUrl) {
         }
         const timerAfterKeyboardMove = await getElementBox(page, '.widget.pomodoro-widget');
         assert(
-            timerAfterKeyboardMove.y + timerAfterKeyboardMove.height <= toolbarAfterCollision.y - 8,
-            'Keyboard movement should also keep a widget above the lesson toolbar'
+            timerAfterKeyboardMove.y + timerAfterKeyboardMove.height > toolbarAfterCollision.y + 20,
+            'Keyboard movement should also allow a widget underneath the widget selector'
         );
 
         await page.locator('#lesson-quick-actions [data-quick-widget="name-picker"]').click();
@@ -934,8 +934,8 @@ async function runBottomWidgetContainmentChecks(browser, baseUrl) {
         const mobileToolbar = await getElementBox(mobilePage, '#lesson-quick-actions');
 
         assert(
-            mobileTimerAfterDrag.y + mobileTimerAfterDrag.height <= mobileToolbar.y - 8,
-            'A mobile widget should stop above the nearly full-width lesson toolbar'
+            mobileTimerAfterDrag.y + mobileTimerAfterDrag.height > mobileToolbar.y + 20,
+            'A mobile widget should be movable underneath the nearly full-width widget selector'
         );
         assert(
             Math.abs(mobileTimerAfterDrag.height - mobileTimerBeforeDrag.height) <= 1,
@@ -973,8 +973,8 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
             `The tall-widget boundary check should place the widget in the toolbar column (${JSON.stringify({ tallWidgetAfterDrag, toolbarAfterTallDrag })})`
         );
         assert(
-            tallWidgetAfterDrag.y + tallWidgetAfterDrag.height <= toolbarAfterTallDrag.y - 8,
-            `A wide tall widget that cannot fit beside the lesson toolbar should stop above it (${JSON.stringify({ tallWidgetAfterDrag, toolbarAfterTallDrag })})`
+            tallWidgetAfterDrag.y + tallWidgetAfterDrag.height > toolbarAfterTallDrag.y + 20,
+            `A wide tall widget should move underneath the widget selector (${JSON.stringify({ tallWidgetAfterDrag, toolbarAfterTallDrag })})`
         );
         assert(
             Math.abs(tallWidgetAfterDrag.height - tallWidgetBeforeDrag.height) <= 1,

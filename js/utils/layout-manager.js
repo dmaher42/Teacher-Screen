@@ -555,9 +555,9 @@ class LayoutManager {
     return { width: w, height: h };
   }
 
-  normalizeWidgetBounds(x, y, width, height) {
+  normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar = true } = {}) {
     const canvas = this.getCanvasMetrics();
-    const toolbarObstacle = this.getTeacherToolbarObstacle();
+    const toolbarObstacle = avoidTeacherToolbar ? this.getTeacherToolbarObstacle() : null;
     const requestedWidth = Number.isFinite(width) && width > 0 ? width : 320;
     const requestedHeight = Number.isFinite(height) && height > 0 ? height : 240;
     const minimumHeight = requestedHeight <= MINIMIZED_WIDGET_HEIGHT
@@ -579,7 +579,7 @@ class LayoutManager {
   }
 
   normalizeWidgetDragBounds(x, y, width, height) {
-    return this.normalizeWidgetBounds(x, y, width, height);
+    return this.normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar: false });
   }
 
   updateWidgetChrome(widgetInfo) {
@@ -963,7 +963,7 @@ class LayoutManager {
       const restoreHeight = Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
         : GRID_SIZE * 4;
-      const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight);
+      const bounded = this.normalizeWidgetDragBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight);
       widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
       widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
       widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
