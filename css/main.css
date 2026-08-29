@@ -8620,8 +8620,8 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    gap: 12px;
-    padding: 16px;
+    gap: 9px;
+    padding: 14px 16px 12px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.32);
     border-radius: 18px;
@@ -8632,6 +8632,11 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
         0 14px 34px rgba(15, 23, 42, 0.18);
     transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.widget.noise-meter-widget .widget-content {
+    padding-bottom: 6px;
+    overflow: hidden;
 }
 
 .noise-meter-display[data-noise-state="warning"] {
@@ -8704,6 +8709,51 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     animation: noise-meter-count-pop 320ms ease-out;
 }
 
+.noise-meter-threshold-control {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    margin-top: 7px;
+    padding: 9px 10px 7px;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #2563eb) 18%, var(--border-color-light, #e5e7eb));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 5%, var(--bg-surface, #ffffff));
+}
+
+.noise-meter-threshold-heading,
+.noise-meter-threshold-scale {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.noise-meter-threshold-heading {
+    color: var(--text-color, #334155);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.noise-meter-threshold-heading output {
+    color: var(--primary-color, #2563eb);
+    font-weight: 800;
+}
+
+.noise-meter-threshold-control input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+    margin: 0;
+    accent-color: var(--primary-color, #2563eb);
+    cursor: pointer;
+}
+
+.noise-meter-threshold-scale {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.62rem;
+    font-weight: 650;
+}
+
 .noise-meter-status-dot {
     width: 11px;
     height: 11px;
@@ -8716,7 +8766,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 .noise-meter-display .noise-meter-canvas {
     flex: 1 1 auto;
     width: 100%;
-    min-height: 80px;
+    min-height: 54px;
     border: 0;
     border-radius: 12px;
     background: transparent;
@@ -8724,10 +8774,11 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .noise-meter-scale {
     display: grid;
+    flex: 0 0 auto;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     color: rgba(226, 232, 240, 0.56);
-    font-size: clamp(0.68rem, 1.1vw, 0.9rem);
+    font-size: clamp(0.66rem, 1.05vw, 0.86rem);
     font-weight: 750;
     letter-spacing: 0.04em;
     text-align: center;
@@ -8735,8 +8786,9 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 }
 
 .noise-meter-scale span {
-    padding-top: 7px;
+    padding-top: 5px;
     border-top: 3px solid currentColor;
+    line-height: 1.1;
     transition: color 160ms ease, transform 160ms ease;
 }
 
@@ -8755,6 +8807,10 @@ body.projector-view .noise-meter-display {
     padding: clamp(18px, 3vw, 34px);
     border-color: rgba(148, 163, 184, 0.22);
     border-radius: 24px;
+}
+
+body.projector-view .noise-meter-display .noise-meter-canvas {
+    min-height: 80px;
 }
 
 body.projector-view .widget.noise-meter-widget .widget-content {
@@ -8782,6 +8838,10 @@ body.projector-view .noise-meter-warning-counter strong {
     font-size: clamp(2rem, 4vw, 3.5rem);
 }
 
+body.projector-view .noise-meter-threshold-control {
+    display: none;
+}
+
 body.projector-view .noise-meter-status-dot {
     width: 15px;
     height: 15px;
@@ -8789,6 +8849,30 @@ body.projector-view .noise-meter-status-dot {
 
 body.projector-view .noise-meter-scale {
     font-size: clamp(0.78rem, 1.45vw, 1.15rem);
+}
+
+.noise-meter-widget-content > .widget-status {
+    flex: 0 0 auto;
+    min-height: 30px;
+    margin: 5px 5px 0;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 5%, transparent);
+    color: var(--text-secondary, #64748b);
+    font-size: 0.76rem;
+    line-height: 1.25;
+}
+
+.noise-meter-widget-content > .widget-control-bar {
+    position: static;
+    flex: 0 0 auto;
+    width: 100%;
+    margin-top: auto;
+    padding: 8px 2px 2px;
+    border-top: 1px solid var(--border-color-light, #e5e7eb);
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 @keyframes noise-meter-alert-pulse {

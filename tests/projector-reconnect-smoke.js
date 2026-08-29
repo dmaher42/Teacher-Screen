@@ -238,6 +238,53 @@ async function run() {
         }, testWidgets.noiseMeterId);
         console.log('PASS: Reset count clears the teacher and projector warning totals together');
 
+        const adjustableLimitState = await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+
+            let warningToneCount = 0;
+            widget.meter.playWarningTone = () => {
+                warningToneCount += 1;
+                return true;
+            };
+            widget.isListening = true;
+            widget.setNoiseThreshold(100);
+            widget.handleMeterLevel(60);
+            widget.handleMeterLevel(95);
+            widget.handleMeterLevel(105);
+            widget.handleMeterLevel(115);
+            widget.handleMeterLevel(65);
+            widget.handleMeterLevel(105);
+            widget.broadcastLevel(widget.lastLevel, true);
+
+            return {
+                threshold: widget.tooLoudThreshold,
+                thresholdLabel: widget.thresholdOutput?.textContent,
+                thresholdAriaText: widget.thresholdInput?.getAttribute('aria-valuetext'),
+                warningCount: widget.warningCount,
+                warningToneCount,
+                state: widget.meterDisplay?.dataset.noiseState,
+                savedThreshold: widget.serialize().noiseThreshold
+            };
+        }, testWidgets.noiseMeterId);
+        if (adjustableLimitState?.threshold !== 100
+            || adjustableLimitState.thresholdLabel !== 'Quiet'
+            || adjustableLimitState.thresholdAriaText !== 'Quiet'
+            || adjustableLimitState.warningCount !== 2
+            || adjustableLimitState.warningToneCount !== 2
+            || adjustableLimitState.state !== 'loud'
+            || adjustableLimitState.savedThreshold !== 100) {
+            throw new Error(`Adjusted Noise Meter limit should control warnings, sound, and saved state (${JSON.stringify(adjustableLimitState)})`);
+        }
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.tooLoudThreshold === 100
+                && info.widget.warningCount === 2
+                && info.widget.meterDisplay?.dataset.noiseState === 'loud';
+        }, testWidgets.noiseMeterId);
+        console.log('PASS: Teacher Noise limit changes the warning point and synchronises it to the projector');
+
         const backgroundMeterState = await teacherPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             const widget = info?.widget;

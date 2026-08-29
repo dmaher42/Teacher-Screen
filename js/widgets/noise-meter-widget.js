@@ -1,3 +1,5 @@
+let noiseMeterThresholdControlSequence = 0;
+
 /**
  * Noise Meter Widget Class
  * Wraps the NoiseMeter canvas visualization inside a widget container.
@@ -72,6 +74,31 @@ class NoiseMeterWidget {
         statusRow.append(this.classroomStatus, this.warningCounter);
         this.meterDisplay.append(statusRow, this.canvas, this.scale);
 
+        this.thresholdControl = document.createElement('div');
+        this.thresholdControl.className = 'noise-meter-threshold-control';
+        const thresholdHeading = document.createElement('div');
+        thresholdHeading.className = 'noise-meter-threshold-heading';
+        const thresholdLabel = document.createElement('label');
+        thresholdLabel.textContent = 'Noise limit';
+        this.thresholdOutput = document.createElement('output');
+        this.thresholdOutput.textContent = 'Balanced';
+        thresholdHeading.append(thresholdLabel, this.thresholdOutput);
+        this.thresholdInput = document.createElement('input');
+        this.thresholdInput.type = 'range';
+        this.thresholdInput.min = '80';
+        this.thresholdInput.max = '200';
+        this.thresholdInput.step = '10';
+        this.thresholdInput.value = '150';
+        this.thresholdInput.setAttribute('aria-label', 'Accepted classroom noise level');
+        noiseMeterThresholdControlSequence += 1;
+        this.thresholdInput.id = `noise-meter-threshold-${noiseMeterThresholdControlSequence}`;
+        thresholdLabel.htmlFor = this.thresholdInput.id;
+        const thresholdScale = document.createElement('div');
+        thresholdScale.className = 'noise-meter-threshold-scale';
+        thresholdScale.setAttribute('aria-hidden', 'true');
+        thresholdScale.innerHTML = '<span>Quieter</span><span>Louder</span>';
+        this.thresholdControl.append(thresholdHeading, this.thresholdInput, thresholdScale);
+
         // Start button (can be placed inside a modal or overlay)
         this.startButton = document.createElement('button');
         this.startButton.type = 'button';
@@ -95,6 +122,7 @@ class NoiseMeterWidget {
         // Assemble widget content
         this.element.appendChild(this.helpText);
         this.element.appendChild(this.meterDisplay);
+        this.element.appendChild(this.thresholdControl);
         this.element.appendChild(this.status);
         const controlBar = document.createElement('div');
         controlBar.className = 'widget-control-bar';
@@ -125,12 +153,15 @@ class NoiseMeterWidget {
         this.started = false;      // "Was actively listening when serialized"
         this.isListening = false;  // "Currently listening right now"
         this.updateVisualState(0);
+        this.updateNoiseThresholdControl();
 
         // Bind handlers so we can remove them later
         this.handleStartClick = this.start.bind(this);
         this.handleResetCountClick = this.resetWarningCount.bind(this);
+        this.handleThresholdInput = this.onThresholdInput.bind(this);
         this.startButton.addEventListener('click', this.handleStartClick);
         this.resetCountButton.addEventListener('click', this.handleResetCountClick);
+        this.thresholdInput.addEventListener('input', this.handleThresholdInput);
     }
 
     setEditable() {}
@@ -176,17 +207,54 @@ class NoiseMeterWidget {
             widgetId: this.widgetId,
             level: Math.min(255, Math.max(0, Number(level) || 0)),
             listening: listening === true,
-            warningCount: this.warningCount
+            warningCount: this.warningCount,
+            noiseThreshold: this.tooLoudThreshold
         });
         return true;
     }
 
-    applySyncedLevel(level, warningCount = this.warningCount) {
+    applySyncedLevel(level, warningCount = this.warningCount, noiseThreshold = this.tooLoudThreshold) {
         this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
         this.warningCount = Math.max(0, Math.floor(Number(warningCount) || 0));
+        this.setNoiseThreshold(noiseThreshold, { notify: false, broadcast: false });
         this.meter?.renderLevel?.(this.lastLevel);
         this.updateVisualState(this.lastLevel);
         this.updateWarningCounter();
+    }
+
+    describeNoiseThreshold(value = this.tooLoudThreshold) {
+        if (value <= 100) return 'Quiet';
+        if (value <= 140) return 'Calm';
+        if (value <= 170) return 'Balanced';
+        return 'Lively';
+    }
+
+    updateNoiseThresholdControl() {
+        const description = this.describeNoiseThreshold();
+        if (this.thresholdInput) {
+            this.thresholdInput.value = String(this.tooLoudThreshold);
+            this.thresholdInput.setAttribute('aria-valuetext', description);
+        }
+        if (this.thresholdOutput) this.thresholdOutput.textContent = description;
+    }
+
+    setNoiseThreshold(value, { notify = true, broadcast = true } = {}) {
+        const minimum = Number(this.thresholdInput?.min) || 80;
+        const maximum = Number(this.thresholdInput?.max) || 200;
+        const step = Number(this.thresholdInput?.step) || 10;
+        const requested = Number(value);
+        const safeValue = Number.isFinite(requested) ? requested : 150;
+        this.tooLoudThreshold = Math.min(maximum, Math.max(minimum, Math.round(safeValue / step) * step));
+        this.warningRearmThreshold = Math.max(30, this.tooLoudThreshold - 30);
+        this.warningArmed = this.lastLevel <= this.warningRearmThreshold;
+        this.updateNoiseThresholdControl();
+        this.updateVisualState(this.lastLevel);
+        if (broadcast) this.broadcastLevel(this.lastLevel, this.isListening);
+        if (notify) window.TeacherScreenWidgetState.notifyChanged(this, 'noise-threshold-changed');
+    }
+
+    onThresholdInput(event) {
+        this.setNoiseThreshold(event?.target?.value);
     }
 
     updateWarningCounter() {
@@ -208,7 +276,12 @@ class NoiseMeterWidget {
 
     updateVisualState(level = 0) {
         const safeLevel = Math.min(255, Math.max(0, Number(level) || 0));
-        const state = safeLevel < 50 ? 'ready' : safeLevel < 150 ? 'warning' : 'loud';
+        const warningThreshold = Math.max(40, this.tooLoudThreshold - 100);
+        const state = safeLevel < warningThreshold
+            ? 'ready'
+            : safeLevel < this.tooLoudThreshold
+                ? 'warning'
+                : 'loud';
         const label = state === 'ready'
             ? 'Ready to Learn'
             : state === 'warning'
@@ -328,6 +401,7 @@ class NoiseMeterWidget {
 
         this.startButton.removeEventListener('click', this.handleStartClick);
         this.resetCountButton.removeEventListener('click', this.handleResetCountClick);
+        this.thresholdInput.removeEventListener('input', this.handleThresholdInput);
 
         this.element.remove();
 
@@ -344,7 +418,8 @@ class NoiseMeterWidget {
             type: 'NoiseMeterWidget',
             // "started" means "was listening when saved" (we cannot auto-start on load without user interaction)
             started: this.isListening,
-            warningCount: this.warningCount
+            warningCount: this.warningCount,
+            noiseThreshold: this.tooLoudThreshold
         };
     }
 
@@ -358,11 +433,12 @@ class NoiseMeterWidget {
         this.started = wasStarted;
         this.isListening = false;
         this.warningCount = Math.max(0, Math.floor(Number(data?.warningCount) || 0));
+        this.setNoiseThreshold(data?.noiseThreshold, { notify: false, broadcast: false });
         this.warningArmed = true;
         this.updateWarningCounter();
 
         if (wasStarted) {
-            this.setStatus('Previously listening. Press start to resume (microphone permissions required).');
+            this.setStatus('Microphone paused. Press Start Measuring to resume.');
         } else {
             this.setStatus('Microphone off. Press start to listen.');
         }

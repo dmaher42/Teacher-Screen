@@ -52,7 +52,7 @@ const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   BehaviourTrackerWidget: { minW: 4, minH: 4, defaultW: 5, defaultH: 5 },
-  NoiseMeterWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
+  NoiseMeterWidget: { minW: 4, minH: 5, defaultW: 5, defaultH: 5 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
   QuizGameWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 6 },
