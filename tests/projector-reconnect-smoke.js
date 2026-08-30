@@ -128,24 +128,41 @@ async function run() {
                     width: info.width,
                     height: info.height
                 },
-                noiseMeterId: noiseInfo.id,
-                noiseMeterDimensions: {
+                noiseMeter: {
+                    id: noiseInfo.id,
                     width: noiseInfo.width,
                     height: noiseInfo.height
                 }
             };
         });
         const textBoard = testWidgets.textBoard;
-        const noiseMeter = testWidgets.noiseMeterDimensions;
+        const noiseMeter = testWidgets.noiseMeter;
         if ((noiseMeter.width * noiseMeter.height) >= (textBoard.width * textBoard.height)) {
             throw new Error(`Noise Meter should open smaller than a Text Board (${JSON.stringify({ noiseMeter, textBoard })})`);
         }
         console.log('PASS: Noise Meter opens with a compact classroom footprint');
+        const thresholdPlacement = await teacherPage.evaluate((noiseMeterId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+            app.openWidgetSettings(widget);
+            const placement = {
+                visibleOnWidget: widget.element.contains(widget.thresholdControl),
+                availableInSettings: document.getElementById('widget-settings-modal')?.contains(widget.thresholdControl) === true
+            };
+            app.closeWidgetSettings({ restoreFocus: false });
+            return placement;
+        }, noiseMeter.id);
+        if (thresholdPlacement?.visibleOnWidget || !thresholdPlacement?.availableInSettings) {
+            throw new Error(`Noise limit should live in Noise Meter Settings (${JSON.stringify(thresholdPlacement)})`);
+        }
+        console.log('PASS: Noise limit is available in Settings without taking space on the widget');
         await projectorPage.waitForFunction(({ textBoardId, noiseMeterId }) => {
             const widgets = window.__TeacherScreenProjectorApp?.layoutManager.widgets || [];
             return widgets.some((widget) => widget.id === textBoardId)
                 && widgets.some((widget) => widget.id === noiseMeterId);
-        }, { textBoardId: textBoard.id, noiseMeterId: testWidgets.noiseMeterId });
+        }, { textBoardId: textBoard.id, noiseMeterId: noiseMeter.id });
         await projectorPage.waitForFunction((textBoardId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === textBoardId);
             return info?.widget?.element?.textContent?.includes('Projector sync content marker');
@@ -157,7 +174,7 @@ async function run() {
             return info?.widget?.status
                 ? window.getComputedStyle(info.widget.status).display === 'none'
                 : false;
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         if (!projectorNoiseStatusHidden) {
             throw new Error('Projector should hide the Noise Meter microphone status sentence');
         }
@@ -169,14 +186,14 @@ async function run() {
                 level: 170,
                 listening: true
             });
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         await projectorPage.waitForFunction((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             return info?.widget?.meter?.lastLevel === 170
                 && info.widget.meter.lastRenderedWidth > (info.widget.canvas.width * 0.6)
                 && info.widget.meterDisplay?.dataset.noiseState === 'loud'
                 && info.widget.classroomStatusText?.textContent === 'Too Loud';
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         console.log('PASS: High live readings render the red Too Loud projector state');
 
         for (const expected of [
@@ -189,12 +206,12 @@ async function run() {
                     level,
                     listening: true
                 });
-            }, { noiseMeterId: testWidgets.noiseMeterId, level: expected.level });
+            }, { noiseMeterId: noiseMeter.id, level: expected.level });
             await projectorPage.waitForFunction(({ noiseMeterId, state, label }) => {
                 const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
                 return info?.widget?.meterDisplay?.dataset.noiseState === state
                     && info.widget.classroomStatusText?.textContent === label;
-            }, { noiseMeterId: testWidgets.noiseMeterId, state: expected.state, label: expected.label });
+            }, { noiseMeterId: noiseMeter.id, state: expected.state, label: expected.label });
         }
         console.log('PASS: Projector Noise Meter shows Ready to Learn, Getting Loud, and Too Loud states');
 
@@ -222,7 +239,7 @@ async function run() {
                 displayedCount: widget.warningCounterValue?.textContent,
                 savedCount: widget.serialize().warningCount
             };
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         if (warningCounterState?.warningCount !== 2
             || warningCounterState.warningToneCount !== 2
             || warningCounterState.displayedCount !== '2'
@@ -233,18 +250,18 @@ async function run() {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             return info?.widget?.warningCount === 2
                 && info.widget.warningCounterValue?.textContent === '2';
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         console.log('PASS: Each new Too Loud crossing adds one visible warning and plays one alert sound');
 
         await teacherPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             info?.widget?.resetWarningCount?.();
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         await projectorPage.waitForFunction((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             return info?.widget?.warningCount === 0
                 && info.widget.warningCounterValue?.textContent === '0';
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         console.log('PASS: Reset count clears the teacher and projector warning totals together');
 
         const adjustableLimitState = await teacherPage.evaluate((noiseMeterId) => {
@@ -276,7 +293,7 @@ async function run() {
                 state: widget.meterDisplay?.dataset.noiseState,
                 savedThreshold: widget.serialize().noiseThreshold
             };
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         if (adjustableLimitState?.threshold !== 100
             || adjustableLimitState.thresholdLabel !== 'Quiet'
             || adjustableLimitState.thresholdAriaText !== 'Quiet'
@@ -291,7 +308,7 @@ async function run() {
             return info?.widget?.tooLoudThreshold === 100
                 && info.widget.warningCount === 2
                 && info.widget.meterDisplay?.dataset.noiseState === 'loud';
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         console.log('PASS: Teacher Noise limit changes the warning point and synchronises it to the projector');
 
         const backgroundMeterState = await teacherPage.evaluate((noiseMeterId) => {
@@ -327,7 +344,7 @@ async function run() {
             widget.started = false;
             delete document.visibilityState;
             return state;
-        }, testWidgets.noiseMeterId);
+        }, noiseMeter.id);
         if (!backgroundMeterState?.widgetStillListening
             || !backgroundMeterState.meterStillRunning
             || !backgroundMeterState.backgroundTimerScheduled

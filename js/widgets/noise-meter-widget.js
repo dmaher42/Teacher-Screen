@@ -116,13 +116,13 @@ class NoiseMeterWidget {
         const modalStartButton = this.startButton.cloneNode(true);
         modalStartButton.addEventListener('click', () => this.start());
         const modalStatus = this.status.cloneNode(true);
+        this.controlsOverlay.appendChild(this.thresholdControl);
         this.controlsOverlay.appendChild(modalStartButton);
         this.controlsOverlay.appendChild(modalStatus);
 
         // Assemble widget content
         this.element.appendChild(this.helpText);
         this.element.appendChild(this.meterDisplay);
-        this.element.appendChild(this.thresholdControl);
         this.element.appendChild(this.status);
         const controlBar = document.createElement('div');
         controlBar.className = 'widget-control-bar';
