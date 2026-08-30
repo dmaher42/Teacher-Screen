@@ -90,6 +90,8 @@ class LayoutManager {
     this.interactionEnabled = true;
     this.containerResizeObserver = null;
     this.lastContainerSize = null;
+    this.selectedWidgetElement = null;
+    this.widgetSelectionListenersBound = false;
 
     if (typeof debounce === 'function') {
         this.saveLayout = debounce(this.saveLayout.bind(this), 200);
@@ -114,6 +116,9 @@ class LayoutManager {
     this.interactionEnabled = this.editable;
     this.container.classList.toggle('layout-edit-mode', this.editable);
     this.container.dataset.layoutMode = this.editable ? 'arrange' : 'teach';
+    if (!this.editable) {
+      this.setSelectedWidgetElement(null);
+    }
     this.widgets.forEach((widgetInfo) => {
       this.updateWidgetChrome(widgetInfo);
       if (widgetInfo.widget && typeof widgetInfo.widget.setEditable === 'function') {
@@ -124,6 +129,7 @@ class LayoutManager {
 
   init() {
     this.applyGridStyles();
+    this.bindWidgetSelectionListeners();
     window.addEventListener('resize', () => {
       this.clampAllWidgetsToContainer();
       this.saveLayout({ emitFull: false });
@@ -526,6 +532,70 @@ class LayoutManager {
     return this.applyWidgetStackOrder(stackOrder);
   }
 
+  bindWidgetSelectionListeners() {
+    if (this.widgetSelectionListenersBound) return;
+    this.widgetSelectionListenersBound = true;
+
+    const findManagedWidget = (target) => {
+      const widgetElement = target instanceof Element ? target.closest('.widget') : null;
+      if (!widgetElement) return null;
+      return this.widgets.some((widgetInfo) => widgetInfo.element === widgetElement)
+        ? widgetElement
+        : null;
+    };
+
+    document.addEventListener('pointerdown', (event) => {
+      if (!this.editable || !layoutManagerIsTeacherMode()) return;
+
+      const widgetElement = findManagedWidget(event.target);
+      if (widgetElement) {
+        this.setSelectedWidgetElement(widgetElement);
+        return;
+      }
+
+      if (event.target instanceof Element && event.target.closest('#widget-settings-modal')) return;
+      this.setSelectedWidgetElement(null);
+    }, true);
+
+    document.addEventListener('focusin', (event) => {
+      if (!this.editable || !layoutManagerIsTeacherMode()) return;
+      const widgetElement = findManagedWidget(event.target);
+      if (widgetElement) this.setSelectedWidgetElement(widgetElement);
+    }, true);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !this.editable || !this.selectedWidgetElement) return;
+      if (document.querySelector('#widget-settings-modal.visible')) return;
+      this.setSelectedWidgetElement(null);
+    });
+  }
+
+  setSelectedWidgetElement(widgetElement) {
+    const nextWidgetElement = widgetElement && this.widgets.some((widgetInfo) => widgetInfo.element === widgetElement)
+      ? widgetElement
+      : null;
+    if (this.selectedWidgetElement === nextWidgetElement) return;
+
+    const previousWidgetElement = this.selectedWidgetElement;
+    if (previousWidgetElement) {
+      const previousHeader = previousWidgetElement.querySelector(':scope > .widget-header');
+      previousHeader?.querySelectorAll('.widget-header-menu[open]').forEach((menu) => {
+        menu.open = false;
+      });
+      if (previousHeader?.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      previousWidgetElement.classList.remove('is-editing-selected');
+    }
+
+    this.selectedWidgetElement = nextWidgetElement;
+    if (nextWidgetElement) {
+      nextWidgetElement.classList.add('is-editing-selected');
+    }
+
+    this.widgets.forEach((widgetInfo) => this.updateWidgetChrome(widgetInfo));
+  }
+
   getConstrainedSize(widget, widthPx, heightPx, canvasOverride = null) {
     // Convert rules to pixels roughly
     const type = widget.constructor.name;
@@ -586,12 +656,16 @@ class LayoutManager {
     const header = widgetInfo?.element?.querySelector(':scope > .widget-header');
     if (!header) return;
 
+    const editingChromeAvailable = this.editable && (
+      this.isWidgetMinimized(widgetInfo)
+      || widgetInfo.element === this.selectedWidgetElement
+    );
     header.setAttribute('aria-hidden', this.editable ? 'false' : 'true');
     header.toggleAttribute('inert', !this.editable);
 
     const bodyDragHandle = widgetInfo.element.querySelector('.widget-body-drag-handle');
     if (bodyDragHandle) {
-      bodyDragHandle.tabIndex = this.editable ? 0 : -1;
+      bodyDragHandle.tabIndex = editingChromeAvailable ? 0 : -1;
     }
   }
 
@@ -621,6 +695,10 @@ class LayoutManager {
     widgetElement.style.left = `${widgetInfo.x}px`;
     widgetElement.style.top = `${widgetInfo.y}px`;
     this.resolveWidgetPlacementConflict(widgetInfo);
+
+    if (this.editable && layoutManagerIsTeacherMode()) {
+      this.setSelectedWidgetElement(widgetElement);
+    }
     this.emitWidgetUpdate(widgetInfo);
     this.saveLayout({ emitFull: false });
   }
@@ -912,6 +990,10 @@ class LayoutManager {
 
     this.resolveWidgetPlacementConflict(widgetInfo);
 
+    if (this.editable && layoutManagerIsTeacherMode()) {
+      this.setSelectedWidgetElement(widgetElement);
+    }
+
     if (typeof widget.setEditable === 'function') {
       widget.setEditable(this.editable);
     }
@@ -954,6 +1036,10 @@ class LayoutManager {
     const nextMinimized = minimized === true;
     if (nextMinimized === this.isWidgetMinimized(widgetInfo)) return;
 
+    if (nextMinimized && widgetInfo.element === this.selectedWidgetElement) {
+      this.setSelectedWidgetElement(null);
+    }
+
     if (nextMinimized) {
       if (Number.isFinite(widgetInfo.height) && widgetInfo.height > MINIMIZED_WIDGET_HEIGHT) {
         widgetInfo.expandedHeight = widgetInfo.height;
@@ -973,6 +1059,7 @@ class LayoutManager {
 
     widgetInfo.minimized = nextMinimized;
     this.refreshWidgetMinimizeControl(widgetInfo);
+    this.updateWidgetChrome(widgetInfo);
     this.mountWidgetElement(widgetInfo);
     if (!nextMinimized) this.scheduleWidgetLayoutHook(widgetInfo);
     this.saveLayout();
@@ -1170,6 +1257,9 @@ class LayoutManager {
   removeWidget(widget) {
     const widgetInfo = this.widgets.find(info => info.widget === widget);
     if (widgetInfo) {
+      if (widgetInfo.element === this.selectedWidgetElement) {
+        this.setSelectedWidgetElement(null);
+      }
       this.teardownWidgetLayout(widgetInfo);
       let widgetRemovedEventDispatched = false;
 

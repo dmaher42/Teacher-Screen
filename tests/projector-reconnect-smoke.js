@@ -59,6 +59,19 @@ async function dragElementBy(page, selector, deltaX, deltaY) {
     await page.mouse.up();
 }
 
+async function selectWidgetForEditing(page, selector) {
+    const element = page.locator(selector).first();
+    const box = await element.boundingBox();
+    if (!box) {
+        throw new Error(`Unable to select hidden widget: ${selector}`);
+    }
+
+    await page.mouse.click(box.x + 3, box.y + Math.min(Math.max(box.height / 2, 3), box.height - 3));
+    await page.waitForFunction((widgetSelector) => (
+        document.querySelector(widgetSelector)?.classList.contains('is-editing-selected') === true
+    ), selector, { timeout: 10000 });
+}
+
 async function run() {
     const server = createStaticServer();
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -451,6 +464,7 @@ async function run() {
         }
         console.log('PASS: Projector ignores stale Text Board content updates');
 
+        await selectWidgetForEditing(teacherPage, '.widget.rich-text-widget');
         await dragElementBy(teacherPage, '.widget.rich-text-widget .resize-handle.bottom-right', 80, 40);
         await teacherPage.waitForFunction(({ widgetId, initialWidth, initialHeight }) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);

@@ -364,6 +364,16 @@ async function dragElementBy(page, selector, deltaX, deltaY) {
     await page.mouse.up();
 }
 
+async function selectWidgetForEditing(page, selector) {
+    const widget = page.locator(selector).first();
+    const box = await widget.boundingBox();
+    assert(!!box, `${selector} should have a bounding box before selection`);
+    await page.mouse.click(box.x + 3, box.y + Math.min(Math.max(box.height / 2, 3), box.height - 3));
+    await page.waitForFunction((widgetSelector) => (
+        document.querySelector(widgetSelector)?.classList.contains('is-editing-selected') === true
+    ), selector, { timeout: 10000 });
+}
+
 async function getElementBox(page, selector) {
     const box = await page.locator(selector).boundingBox();
     assert(!!box, `${selector} should have a bounding box`);
@@ -579,6 +589,7 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Autosaved widgets should survive switching to another deck and back');
 
+        await selectWidgetForEditing(page, '.widget.rich-text-widget');
         await page.locator('.widget.rich-text-widget .widget-header-menu__toggle').click();
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
@@ -1018,6 +1029,7 @@ async function runTallWidgetVerticalMovementChecks(browser, baseUrl) {
             'A reloaded tall widget should remain fully inside the classroom canvas'
         );
 
+        await selectWidgetForEditing(page, '.widget.reveal-manager-widget');
         await dragElementBy(page, '.widget.reveal-manager-widget .widget-header-title', 0, -600);
         const tallWidgetAfterUpwardDrag = await getElementBox(page, '.widget.reveal-manager-widget');
         const canvasAfterUpwardDrag = await getElementBox(page, '#widgets-container');
@@ -3939,6 +3951,7 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
             `Learning-Time Tracker should open at a useful dashboard size instead of taking over the classroom (${JSON.stringify(learningTimeStartupSize)})`
         );
         const learningTimeWidget = page.locator('.widget.behaviour-tracker-widget');
+        await selectWidgetForEditing(page, '.widget.behaviour-tracker-widget');
         await learningTimeWidget.locator('.widget-header-menu > summary').click();
         await learningTimeWidget.locator('.widget-remove-btn').click();
         await page.waitForSelector('.widget.behaviour-tracker-widget', { state: 'detached', timeout: 10000 });
@@ -3948,6 +3961,7 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
             const rect = widget.getBoundingClientRect();
             return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
         });
+        await selectWidgetForEditing(page, '.widget.rich-text-widget');
         await firstTextBoard.locator('.widget-header-menu > summary').click();
         await firstTextBoard.locator('.widget-minimize-btn').click();
         const dockedTextBoard = page.locator('.widget-minimize-dock > .widget.rich-text-widget');
@@ -4381,7 +4395,7 @@ async function runSmoke() {
         await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
         await page.waitForSelector('.widget.rich-text-widget', { timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget').count() === 1, 'Quick Text action should add a Rich Text Board');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The compact widget grab bar should always remain visible');
+        assert(await page.locator('.widget.rich-text-widget.is-editing-selected .widget-header').isVisible(), 'A newly added Text Board should start selected with its editing controls visible');
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should be visible in edit mode');
         const richTextWidget = page.locator('.widget.rich-text-widget');
         const richTextEditor = richTextWidget.locator('.ql-editor');
@@ -4525,7 +4539,8 @@ async function runSmoke() {
             const gripStyle = grip ? getComputedStyle(grip, '::before') : null;
             return {
                 titleVisible: !!title && title.getBoundingClientRect().width > 1,
-                rowsOverlap: !!headerRect && !!toolbarRect && Math.abs(headerRect.top - toolbarRect.top) <= 2,
+                headerOutOfFlow: !!header && getComputedStyle(header).position === 'absolute',
+                rowsOverlap: !!headerRect && !!toolbarRect && Math.abs(headerRect.top - toolbarRect.top) <= 8,
                 combinedHeight: !!headerRect && !!toolbarRect
                     ? Math.max(headerRect.bottom, toolbarRect.bottom) - Math.min(headerRect.top, toolbarRect.top)
                     : Number.POSITIVE_INFINITY,
@@ -4533,7 +4548,7 @@ async function runSmoke() {
             };
         });
         assert(!compactTextBoardChrome.titleVisible, 'Text Board should not spend permanent space on a visible title');
-        assert(compactTextBoardChrome.rowsOverlap && compactTextBoardChrome.combinedHeight <= 46, `Text Board controls should share one compact top row (${JSON.stringify(compactTextBoardChrome)})`);
+        assert(compactTextBoardChrome.headerOutOfFlow && compactTextBoardChrome.rowsOverlap && compactTextBoardChrome.combinedHeight <= 48, `Text Board controls should float over one compact top row (${JSON.stringify(compactTextBoardChrome)})`);
         assert(compactTextBoardChrome.gripVisible, 'Text Board should retain a compact visual drag handle');
         assert(await page.locator('.widget.rich-text-widget .widget-header-actions').count() === 0, 'Widget editing buttons should not remain exposed in a row');
         assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'Each widget should expose one compact options menu');
@@ -4542,6 +4557,20 @@ async function runSmoke() {
             const menuRect = header.querySelector('.widget-header-menu > summary')?.getBoundingClientRect();
             return !!titleRect && !!menuRect && titleRect.left < menuRect.left;
         }), 'The drag handle and widget options should stay at opposite ends of the shared toolbar row');
+
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        await page.waitForTimeout(200);
+        assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-menu > summary').isVisible(), 'An unselected Text Board should retain its faint three-dot button');
+        assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-title').isHidden(), 'An unselected Text Board should hide its move control');
+        assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-menu > summary').evaluate((button) => Number.parseFloat(getComputedStyle(button).opacity) <= 0.2), 'The unselected three-dot button should remain extremely faint');
+        assert(await page.locator('.widget.rich-text-widget .resize-handle.bottom-right').evaluate((handle) => getComputedStyle(handle).pointerEvents === 'none'), 'An unselected widget should not expose an active resize handle');
+        await page.locator('#widget-modal .modal-close').click();
+        await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
+        await selectWidgetForEditing(page, '.widget.rich-text-widget');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Selecting a Text Board should reveal its editing controls');
+        assert(await page.locator('.widget.rich-text-widget .resize-handle.bottom-right').evaluate((handle) => getComputedStyle(handle).pointerEvents === 'auto'), 'Selecting a widget should activate its resize handle');
+
         const richTextOptionsToggle = page.locator('.widget.rich-text-widget .widget-header-menu > summary');
         const richTextOptionsMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
         assert(await richTextOptionsMenu.isHidden(), 'Widget options should stay hidden until requested');
@@ -4603,7 +4632,10 @@ async function runSmoke() {
         await page.locator('#change-background-btn').click();
         assert(await page.locator('#deck-appearance-controls').getAttribute('open') !== null, 'Change background should open the existing appearance controls');
         assert(await page.locator('#background-selector .background-swatch').first().isVisible(), 'Change background should reveal the background selector');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Teacher Controls should leave the Text Board drag handle and options visible');
+        assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-title').isHidden(), 'Opening Teacher Controls should clear the selected widget and hide its move control');
+        assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-menu > summary').isVisible(), 'The faint three-dot button should remain available after deselection');
+        await selectWidgetForEditing(page, '.widget.rich-text-widget');
+        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Selecting the Text Board should restore its drag handle and options');
         assert(await page.locator('.widget.rich-text-widget .widget-header-title').getAttribute('aria-label') === 'Move Text Board', 'The title-free drag handle should retain its accessible Text Board label');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         const richTextMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
@@ -4687,6 +4719,7 @@ async function runSmoke() {
         await page.waitForSelector('.widget-minimize-dock > .widget.rich-text-widget', { state: 'detached', timeout: 10000 });
         assert(await page.locator('.widget.rich-text-widget > .widget-content').isVisible(), 'Restoring a bottom-docked widget should return its teacher content');
 
+        await selectWidgetForEditing(page, '.widget.rich-text-widget');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         await page.locator('.widget.rich-text-widget .widget-header-settings-btn').click();
         await page.waitForSelector('#widget-settings-modal.visible', { timeout: 10000 });
@@ -4700,7 +4733,8 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget .rich-text-editor-toolbar').isVisible(), 'Rich Text toolbar should return after quick Edit');
         await closeTeacherPanel(page);
         assert(await page.locator('#widgets-container.layout-edit-mode').count() === 1, 'Closing Teacher Controls should keep widget movement available');
-        assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'The widget grab bar should remain visible after closing Teacher Controls');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-title').isHidden(), 'The widget move control should disappear after clicking away from the widget');
+        assert(await page.locator('.widget.rich-text-widget .widget-header-menu > summary').isVisible(), 'The faint three-dot button should remain after clicking away from the widget');
 
         await addWidget(page, 'timer', '.widget.pomodoro-widget', 'Pomodoro');
         await page.waitForTimeout(800);
@@ -4844,6 +4878,24 @@ async function runSmoke() {
         assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-tool').count() >= 4, 'Drawing Tool should expose compact tool choices');
         assert(await page.locator('.widget.drawing-tool-widget .drawing-tool-swatch').count() >= 4, 'Drawing Tool should expose quick colour swatches');
         assert(await page.locator('.drawing-board').count() === 0, 'Legacy fixed drawing board should not be present during lesson mode');
+        await page.locator('#add-widget-btn').click();
+        await page.waitForSelector('#widget-modal[open]', { timeout: 10000 });
+        await page.locator('#widget-modal .modal-close').click();
+        await page.waitForSelector('#widget-modal[open]', { state: 'detached', timeout: 10000 });
+        assert(await page.locator('.widget.drawing-tool-widget .widget-header-title').isHidden(), 'An unselected Drawing Tool should hide its move control');
+        assert(await page.locator('.widget.drawing-tool-widget .widget-header-menu > summary').isVisible(), 'An unselected Drawing Tool should retain its faint three-dot button');
+        const drawingCanvas = page.locator('.widget.drawing-tool-widget .drawing-tool-canvas');
+        const drawingBeforeSelectionStroke = await drawingCanvas.evaluate((canvas) => canvas.toDataURL());
+        const drawingCanvasBox = await drawingCanvas.boundingBox();
+        assert(!!drawingCanvasBox, 'Drawing Tool canvas should have a bounding box');
+        const drawingStartX = drawingCanvasBox.x + drawingCanvasBox.width / 2;
+        const drawingStartY = drawingCanvasBox.y + drawingCanvasBox.height / 2;
+        await page.mouse.move(drawingStartX, drawingStartY);
+        await page.mouse.down();
+        await page.mouse.move(drawingStartX + 24, drawingStartY + 16, { steps: 6 });
+        await page.mouse.up();
+        assert(await page.locator('.widget.drawing-tool-widget .widget-header').isVisible(), 'The first Drawing Tool stroke should select the widget and reveal its controls');
+        assert(await drawingCanvas.evaluate((canvas, before) => canvas.toDataURL() !== before, drawingBeforeSelectionStroke), 'The first Drawing Tool stroke should still draw while selecting the widget');
         await addWidget(page, 'quiz-game', '.widget.quiz-game-widget', 'Quiz Game');
         await page.locator('.widget.quiz-game-widget button', { hasText: 'Reveal Answer' }).click();
         await page.waitForSelector('.widget.quiz-game-widget .quiz-game-answer.is-correct', { timeout: 10000 });
