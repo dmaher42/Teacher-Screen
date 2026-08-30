@@ -11295,9 +11295,9 @@ body.is-classroom-active:not(.projector-view) .widget {
 }
 
 body.is-classroom-active:not(.projector-view) .widget-header {
-    min-height: 36px;
-    gap: 8px;
-    padding: 4px 7px 4px 8px;
+    min-height: 28px;
+    gap: 6px;
+    padding: 2px 6px;
     border-bottom-color: var(--widget-chrome-line);
     background:
         linear-gradient(90deg, rgba(64, 151, 245, 0.1), transparent 46%),
@@ -11307,9 +11307,9 @@ body.is-classroom-active:not(.projector-view) .widget-header {
 
 body.is-classroom-active:not(.projector-view) .widget-header-title {
     flex: 1 1 auto;
-    gap: 7px;
+    gap: 5px;
     color: var(--widget-chrome-ink);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 750;
 }
 
@@ -11318,8 +11318,8 @@ body.is-classroom-active:not(.projector-view) .widget-header-menu {
 }
 
 body.is-classroom-active:not(.projector-view) .widget-header-menu > summary {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     border-color: rgba(27, 74, 101, 0.12);
     border-radius: 9px;
     background: rgba(255, 255, 255, 0.84);
