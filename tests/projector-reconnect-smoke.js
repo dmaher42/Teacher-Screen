@@ -128,10 +128,19 @@ async function run() {
                     width: info.width,
                     height: info.height
                 },
-                noiseMeterId: noiseInfo.id
+                noiseMeterId: noiseInfo.id,
+                noiseMeterDimensions: {
+                    width: noiseInfo.width,
+                    height: noiseInfo.height
+                }
             };
         });
         const textBoard = testWidgets.textBoard;
+        const noiseMeter = testWidgets.noiseMeterDimensions;
+        if ((noiseMeter.width * noiseMeter.height) >= (textBoard.width * textBoard.height)) {
+            throw new Error(`Noise Meter should open smaller than a Text Board (${JSON.stringify({ noiseMeter, textBoard })})`);
+        }
+        console.log('PASS: Noise Meter opens with a compact classroom footprint');
         await projectorPage.waitForFunction(({ textBoardId, noiseMeterId }) => {
             const widgets = window.__TeacherScreenProjectorApp?.layoutManager.widgets || [];
             return widgets.some((widget) => widget.id === textBoardId)

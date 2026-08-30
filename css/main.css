@@ -8620,8 +8620,8 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    gap: 9px;
-    padding: 14px 16px 12px;
+    gap: 7px;
+    padding: 11px 14px 10px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.32);
     border-radius: 18px;
@@ -8657,8 +8657,8 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     display: inline-flex;
     align-items: center;
     gap: 9px;
-    min-height: 38px;
-    padding: 8px 14px;
+    min-height: 34px;
+    padding: 6px 12px;
     border: 1px solid color-mix(in srgb, var(--noise-state-color) 54%, rgba(255, 255, 255, 0.26));
     border-radius: 999px;
     background: color-mix(in srgb, var(--noise-state-color) 17%, rgba(15, 23, 42, 0.82));
@@ -8675,7 +8675,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 9px;
 }
 
 .noise-meter-warning-counter {
@@ -8683,11 +8683,11 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 0 1 auto;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     max-width: 100%;
     box-sizing: border-box;
-    min-height: 38px;
-    padding: 7px 12px;
+    min-height: 34px;
+    padding: 5px 10px;
     border: 1px solid rgba(248, 250, 252, 0.24);
     border-radius: 14px;
     background: rgba(15, 23, 42, 0.72);
@@ -8700,7 +8700,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 .noise-meter-warning-counter strong {
     min-width: 1.35em;
     color: #ffffff;
-    font-size: clamp(1.2rem, 2.2vw, 1.75rem);
+    font-size: clamp(1.15rem, 2vw, 1.55rem);
     line-height: 1;
     text-align: center;
 }
@@ -8713,9 +8713,9 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 0 0 auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 3px;
-    margin-top: 7px;
-    padding: 9px 10px 7px;
+    gap: 1px;
+    margin-top: 4px;
+    padding: 5px 9px 4px;
     border: 1px solid color-mix(in srgb, var(--primary-color, #2563eb) 18%, var(--border-color-light, #e5e7eb));
     border-radius: 12px;
     background: color-mix(in srgb, var(--primary-color, #2563eb) 5%, var(--bg-surface, #ffffff));
@@ -8742,7 +8742,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .noise-meter-threshold-control input[type="range"] {
     width: 100%;
-    min-height: 24px;
+    min-height: 18px;
     margin: 0;
     accent-color: var(--primary-color, #2563eb);
     cursor: pointer;
@@ -8750,7 +8750,7 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 
 .noise-meter-threshold-scale {
     color: var(--text-secondary, #64748b);
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 650;
 }
 
@@ -8853,13 +8853,13 @@ body.projector-view .noise-meter-scale {
 
 .noise-meter-widget-content > .widget-status {
     flex: 0 0 auto;
-    min-height: 30px;
-    margin: 5px 5px 0;
-    padding: 6px 8px;
+    min-height: 24px;
+    margin: 3px 5px 0;
+    padding: 4px 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--primary-color, #2563eb) 5%, transparent);
     color: var(--text-secondary, #64748b);
-    font-size: 0.76rem;
+    font-size: 0.71rem;
     line-height: 1.25;
 }
 
@@ -8868,7 +8868,7 @@ body.projector-view .noise-meter-scale {
     flex: 0 0 auto;
     width: 100%;
     margin-top: auto;
-    padding: 8px 2px 2px;
+    padding: 5px 2px 0;
     border-top: 1px solid var(--border-color-light, #e5e7eb);
     background: transparent;
     box-shadow: none;

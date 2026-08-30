@@ -52,7 +52,7 @@ const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   BehaviourTrackerWidget: { minW: 4, minH: 4, defaultW: 5, defaultH: 5 },
-  NoiseMeterWidget: { minW: 4, minH: 5, defaultW: 5, defaultH: 5 },
+  NoiseMeterWidget: { minW: 4, minH: 4.25, defaultW: 4.5, defaultH: 4.25 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
   QuizGameWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 6 },
@@ -1681,6 +1681,19 @@ class LayoutManager {
         } else {
           finalW = !Number.isFinite(finalW) || finalW <= 0 ? preferredW : finalW;
           finalH = !Number.isFinite(finalH) || finalH <= 0 ? preferredH : finalH;
+        }
+      }
+
+      if (widget.constructor.name === 'NoiseMeterWidget') {
+        const preferredW = rules.defaultW ? rules.defaultW * colW : finalW;
+        const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
+        const oversizedDefaultW = 5 * colW;
+        const oversizedDefaultH = 5 * rowH;
+        if (Number.isFinite(finalW) && Math.abs(finalW - oversizedDefaultW) <= GRID_SIZE) {
+          finalW = preferredW;
+        }
+        if (Number.isFinite(finalH) && Math.abs(finalH - oversizedDefaultH) <= GRID_SIZE) {
+          finalH = preferredH;
         }
       }
 
