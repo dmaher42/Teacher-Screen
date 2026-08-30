@@ -20,7 +20,22 @@ class NoiseMeter {
   async start() {
     try {
       this.stop();
+      if (!window.isSecureContext) {
+        const error = new Error('Microphone access requires a secure page.');
+        error.name = 'InsecureContextError';
+        throw error;
+      }
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        const error = new Error('This browser does not provide microphone access.');
+        error.name = 'NotSupportedError';
+        throw error;
+      }
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        const error = new Error('This browser does not support live audio analysis.');
+        error.name = 'NotSupportedError';
+        throw error;
+      }
       this.audioContext = this.audioContext || new AudioContextClass();
       if (this.audioContext.state === 'suspended') {
         await this.audioContext.resume();

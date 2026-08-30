@@ -139,6 +139,7 @@ class NoiseMeterWidget {
         this.meter = new NoiseMeter(this.canvas, (level) => this.handleMeterLevel(level));
         this.started = false;      // "Was actively listening when serialized"
         this.isListening = false;  // "Currently listening right now"
+        this.isStarting = false;   // Prevent overlapping permission requests
         this.updateVisualState(0);
         this.updateNoiseThresholdControl();
 
@@ -290,8 +291,9 @@ class NoiseMeterWidget {
      * Handles both sync and Promise-returning NoiseMeter.start() implementations.
      */
     start() {
-        if (!this.meter || this.isListening) return;
+        if (!this.meter || this.isListening || this.isStarting) return;
 
+        this.isStarting = true;
         this.setStatus('Requesting microphone access…');
         this.startButton.disabled = true;
         this.startButton.textContent = 'Starting…';
@@ -318,6 +320,7 @@ class NoiseMeterWidget {
      * Updates state and UI.
      */
     onStartSuccess() {
+        this.isStarting = false;
         this.isListening = true;
         this.started = true;
         this.startButton.textContent = 'Listening…';
@@ -332,15 +335,40 @@ class NoiseMeterWidget {
      */
     onStartError(err) {
         console.error('Noise meter start error:', err);
+        this.isStarting = false;
         this.isListening = false;
         this.started = false;
 
         this.startButton.textContent = 'Start Measuring';
         this.startButton.disabled = false;
 
-        const message =
-            'Unable to access the microphone. Please check permissions and try again.';
-        this.setStatus(message);
+        this.setStatus(this.getMicrophoneErrorMessage(err));
+    }
+
+    getMicrophoneErrorMessage(err) {
+        const errorName = String(err?.name || '');
+        const errorMessage = String(err?.message || '');
+
+        if (!window.isSecureContext || errorName === 'InsecureContextError') {
+            return 'Microphone access needs the secure Teacher Screen website.';
+        }
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function'
+            || errorName === 'NotSupportedError') {
+            return 'This browser cannot provide microphone access. Open Teacher Screen in Chrome and try again.';
+        }
+        if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+            if (/system/i.test(errorMessage)) {
+                return 'Microphone access is blocked by Windows. Allow desktop apps to use the microphone, then try again.';
+            }
+            return 'Microphone permission is blocked for Teacher Screen. Allow Microphone in the site controls, then try again.';
+        }
+        if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+            return 'No microphone was found. Connect or enable a microphone, then try again.';
+        }
+        if (errorName === 'NotReadableError' || errorName === 'TrackStartError' || errorName === 'AbortError') {
+            return 'The microphone is busy or unavailable. Close other audio apps, then try again.';
+        }
+        return 'The microphone could not start. Check the browser microphone control, then try again.';
     }
 
     /**
@@ -348,8 +376,9 @@ class NoiseMeterWidget {
      * Safe to call multiple times.
      */
     stop() {
-        if (!this.meter || !this.isListening) return;
+        if (!this.meter || (!this.isListening && !this.isStarting)) return;
 
+        this.isStarting = false;
         this.isListening = false;
         this.started = false;
 
@@ -419,6 +448,7 @@ class NoiseMeterWidget {
         const wasStarted = !!(data && data.started);
         this.started = wasStarted;
         this.isListening = false;
+        this.isStarting = false;
         this.warningCount = Math.max(0, Math.floor(Number(data?.warningCount) || 0));
         this.setNoiseThreshold(data?.noiseThreshold, { notify: false, broadcast: false });
         this.warningArmed = true;

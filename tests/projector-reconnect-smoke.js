@@ -179,6 +179,70 @@ async function run() {
             throw new Error(`Noise Meter setup controls should live in Settings (${JSON.stringify(thresholdPlacement)})`);
         }
         console.log('PASS: Noise Meter setup controls stay in Settings instead of taking student-view space');
+        const microphoneStartGuard = await teacherPage.evaluate(async (noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+
+            const originalStart = widget.meter.start;
+            let resolveStart;
+            let startCalls = 0;
+            widget.meter.start = () => {
+                startCalls += 1;
+                return new Promise((resolve) => {
+                    resolveStart = resolve;
+                });
+            };
+
+            widget.start();
+            widget.start();
+            const whilePending = {
+                startCalls,
+                isStarting: widget.isStarting,
+                buttonDisabled: widget.startButton.disabled,
+                buttonText: widget.startButton.textContent
+            };
+            resolveStart();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const afterSuccess = {
+                isStarting: widget.isStarting,
+                isListening: widget.isListening,
+                buttonText: widget.startButton.textContent
+            };
+
+            widget.meter.start = originalStart;
+            widget.stop();
+            return { whilePending, afterSuccess };
+        }, noiseMeter.id);
+        if (microphoneStartGuard?.whilePending?.startCalls !== 1
+            || microphoneStartGuard.whilePending.isStarting !== true
+            || microphoneStartGuard.whilePending.buttonDisabled !== true
+            || microphoneStartGuard.whilePending.buttonText !== 'Starting…'
+            || microphoneStartGuard.afterSuccess.isStarting !== false
+            || microphoneStartGuard.afterSuccess.isListening !== true
+            || microphoneStartGuard.afterSuccess.buttonText !== 'Listening…') {
+            throw new Error(`Noise Meter should allow only one microphone request at a time (${JSON.stringify(microphoneStartGuard)})`);
+        }
+        console.log('PASS: Noise Meter prevents overlapping microphone permission requests');
+
+        const microphoneErrorMessages = await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+            return {
+                permission: widget.getMicrophoneErrorMessage({ name: 'NotAllowedError', message: 'Permission denied' }),
+                system: widget.getMicrophoneErrorMessage({ name: 'NotAllowedError', message: 'Permission denied by system' }),
+                missing: widget.getMicrophoneErrorMessage({ name: 'NotFoundError' }),
+                busy: widget.getMicrophoneErrorMessage({ name: 'NotReadableError' })
+            };
+        }, noiseMeter.id);
+        if (!microphoneErrorMessages?.permission?.includes('site controls')
+            || !microphoneErrorMessages?.system?.includes('Windows')
+            || !microphoneErrorMessages?.missing?.includes('No microphone')
+            || !microphoneErrorMessages?.busy?.includes('busy')) {
+            throw new Error(`Noise Meter should explain microphone failures clearly (${JSON.stringify(microphoneErrorMessages)})`);
+        }
+        console.log('PASS: Noise Meter explains blocked, missing, and busy microphone states');
         await projectorPage.waitForFunction(({ textBoardId, noiseMeterId }) => {
             const widgets = window.__TeacherScreenProjectorApp?.layoutManager.widgets || [];
             return widgets.some((widget) => widget.id === textBoardId)
