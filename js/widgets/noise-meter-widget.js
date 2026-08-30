@@ -110,37 +110,24 @@ class NoiseMeterWidget {
         this.status.className = 'widget-status';
         this.status.textContent = 'Microphone off. Press start to listen.';
 
-        // Controls overlay (not appended here if controls live in a separate modal)
-        this.controlsOverlay = document.createElement('div');
-        this.controlsOverlay.className = 'widget-content-controls';
-        const modalStartButton = this.startButton.cloneNode(true);
-        modalStartButton.addEventListener('click', () => this.start());
-        const modalStatus = this.status.cloneNode(true);
-        this.controlsOverlay.appendChild(this.thresholdControl);
-        this.controlsOverlay.appendChild(modalStartButton);
-        this.controlsOverlay.appendChild(modalStatus);
-
-        // Assemble widget content
-        this.element.appendChild(this.helpText);
-        this.element.appendChild(this.meterDisplay);
-        this.element.appendChild(this.status);
-        const controlBar = document.createElement('div');
-        controlBar.className = 'widget-control-bar';
-
-        const primaryActions = document.createElement('div');
-        primaryActions.className = 'primary-actions';
-        primaryActions.appendChild(this.startButton);
-
-        const secondaryActions = document.createElement('div');
-        secondaryActions.className = 'secondary-actions';
         this.resetCountButton = document.createElement('button');
         this.resetCountButton.type = 'button';
         this.resetCountButton.textContent = 'Reset count';
         this.resetCountButton.setAttribute('aria-label', 'Reset noise warning count');
-        secondaryActions.appendChild(this.resetCountButton);
 
-        controlBar.append(primaryActions, secondaryActions);
-        this.element.appendChild(controlBar);
+        // Teacher setup lives in Widget settings so the classroom surface stays
+        // focused on the student-facing noise signal.
+        this.controlsOverlay = document.createElement('div');
+        this.controlsOverlay.className = 'widget-content-controls';
+        this.controlsOverlay.append(
+            this.thresholdControl,
+            this.startButton,
+            this.resetCountButton,
+            this.status
+        );
+
+        // Assemble the compact student-facing surface.
+        this.element.append(this.helpText, this.meterDisplay);
 
         // NoiseMeter instance and state
         this.lastLevel = 0;

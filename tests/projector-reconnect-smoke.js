@@ -150,10 +150,11 @@ async function run() {
         });
         const textBoard = testWidgets.textBoard;
         const noiseMeter = testWidgets.noiseMeter;
-        if ((noiseMeter.width * noiseMeter.height) >= (textBoard.width * textBoard.height)) {
-            throw new Error(`Noise Meter should open smaller than a Text Board (${JSON.stringify({ noiseMeter, textBoard })})`);
+        const noiseMeterAreaRatio = (noiseMeter.width * noiseMeter.height) / (textBoard.width * textBoard.height);
+        if (noiseMeterAreaRatio > 0.5) {
+            throw new Error(`Noise Meter should use at most half the space of a Text Board (${JSON.stringify({ noiseMeter, textBoard, noiseMeterAreaRatio })})`);
         }
-        console.log('PASS: Noise Meter opens with a compact classroom footprint');
+        console.log('PASS: Noise Meter opens as a compact supporting indicator');
         const thresholdPlacement = await teacherPage.evaluate((noiseMeterId) => {
             const app = window.__TeacherScreenApp;
             const info = app?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
@@ -162,15 +163,22 @@ async function run() {
             app.openWidgetSettings(widget);
             const placement = {
                 visibleOnWidget: widget.element.contains(widget.thresholdControl),
-                availableInSettings: document.getElementById('widget-settings-modal')?.contains(widget.thresholdControl) === true
+                thresholdInSettings: document.getElementById('widget-settings-modal')?.contains(widget.thresholdControl) === true,
+                startInSettings: document.getElementById('widget-settings-modal')?.contains(widget.startButton) === true,
+                resetInSettings: document.getElementById('widget-settings-modal')?.contains(widget.resetCountButton) === true,
+                statusInSettings: document.getElementById('widget-settings-modal')?.contains(widget.status) === true
             };
             app.closeWidgetSettings({ restoreFocus: false });
             return placement;
         }, noiseMeter.id);
-        if (thresholdPlacement?.visibleOnWidget || !thresholdPlacement?.availableInSettings) {
-            throw new Error(`Noise limit should live in Noise Meter Settings (${JSON.stringify(thresholdPlacement)})`);
+        if (thresholdPlacement?.visibleOnWidget
+            || !thresholdPlacement?.thresholdInSettings
+            || !thresholdPlacement?.startInSettings
+            || !thresholdPlacement?.resetInSettings
+            || !thresholdPlacement?.statusInSettings) {
+            throw new Error(`Noise Meter setup controls should live in Settings (${JSON.stringify(thresholdPlacement)})`);
         }
-        console.log('PASS: Noise limit is available in Settings without taking space on the widget');
+        console.log('PASS: Noise Meter setup controls stay in Settings instead of taking student-view space');
         await projectorPage.waitForFunction(({ textBoardId, noiseMeterId }) => {
             const widgets = window.__TeacherScreenProjectorApp?.layoutManager.widgets || [];
             return widgets.some((widget) => widget.id === textBoardId)
@@ -184,9 +192,9 @@ async function run() {
 
         const projectorNoiseStatusHidden = await projectorPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
-            return info?.widget?.status
-                ? window.getComputedStyle(info.widget.status).display === 'none'
-                : false;
+            if (!info?.widget?.status) return false;
+            return !info.widget.element?.contains(info.widget.status)
+                || window.getComputedStyle(info.widget.status).display === 'none';
         }, noiseMeter.id);
         if (!projectorNoiseStatusHidden) {
             throw new Error('Projector should hide the Noise Meter microphone status sentence');
