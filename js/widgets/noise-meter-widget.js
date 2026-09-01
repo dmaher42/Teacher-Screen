@@ -46,7 +46,7 @@ class NoiseMeterWidget {
         this.classroomStatusDot.setAttribute('aria-hidden', 'true');
 
         this.classroomStatusText = document.createElement('span');
-        this.classroomStatusText.className = 'noise-meter-status-text';
+        this.classroomStatusText.className = 'noise-meter-status-text visually-hidden';
         this.classroomStatusText.textContent = 'Ready to Learn';
         this.classroomStatus.append(this.classroomStatusDot, this.classroomStatusText);
 
@@ -54,25 +54,16 @@ class NoiseMeterWidget {
         this.warningCounter.className = 'noise-meter-warning-counter';
         this.warningCounter.setAttribute('role', 'status');
         this.warningCounter.setAttribute('aria-live', 'polite');
-        this.warningCounterLabel = document.createElement('span');
-        this.warningCounterLabel.textContent = 'Warnings';
+        this.warningCounter.setAttribute('aria-label', '0 noise warnings');
         this.warningCounterValue = document.createElement('strong');
         this.warningCounterValue.textContent = '0';
-        this.warningCounter.append(this.warningCounterLabel, this.warningCounterValue);
-
-        this.scale = document.createElement('div');
-        this.scale.className = 'noise-meter-scale';
-        this.scale.setAttribute('aria-hidden', 'true');
-        this.scale.innerHTML = `
-            <span data-state="ready">Quiet</span>
-            <span data-state="warning">Getting Loud</span>
-            <span data-state="loud">Too Loud</span>
-        `;
+        this.warningCounterValue.setAttribute('aria-hidden', 'true');
+        this.warningCounter.append(this.warningCounterValue);
 
         const statusRow = document.createElement('div');
         statusRow.className = 'noise-meter-status-row';
         statusRow.append(this.classroomStatus, this.warningCounter);
-        this.meterDisplay.append(statusRow, this.canvas, this.scale);
+        this.meterDisplay.append(statusRow, this.canvas);
 
         this.thresholdControl = document.createElement('div');
         this.thresholdControl.className = 'noise-meter-threshold-control';
@@ -249,6 +240,8 @@ class NoiseMeterWidget {
         if (this.warningCounterValue) {
             this.warningCounterValue.textContent = String(this.warningCount);
         }
+        const warningLabel = `${this.warningCount} noise ${this.warningCount === 1 ? 'warning' : 'warnings'}`;
+        this.warningCounter?.setAttribute('aria-label', warningLabel);
         this.warningCounter?.classList.remove('is-incremented');
         void this.warningCounter?.offsetWidth;
         this.warningCounter?.classList.add('is-incremented');
@@ -278,12 +271,6 @@ class NoiseMeterWidget {
 
         if (this.meterDisplay) this.meterDisplay.dataset.noiseState = state;
         if (this.classroomStatusText) this.classroomStatusText.textContent = label;
-        this.scale?.querySelectorAll('[data-state]').forEach((item) => {
-            const isActive = item.dataset.state === state;
-            item.classList.toggle('is-active', isActive);
-            if (isActive) item.setAttribute('aria-current', 'true');
-            else item.removeAttribute('aria-current');
-        });
     }
 
     /**

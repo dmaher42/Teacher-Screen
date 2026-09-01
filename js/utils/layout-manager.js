@@ -52,7 +52,7 @@ const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   BehaviourTrackerWidget: { minW: 4, minH: 4, defaultW: 5, defaultH: 5 },
-  NoiseMeterWidget: { minW: 3, minH: 2.25, defaultW: 3.5, defaultH: 2.25 },
+  NoiseMeterWidget: { minW: 2.5, minH: 1.25, defaultW: 3, defaultH: 1.5 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
   QuizGameWidget: { minW: 5, minH: 4, defaultW: 6, defaultH: 6 },
@@ -1780,7 +1780,8 @@ class LayoutManager {
         const knownPreviousDefaults = [
           { width: 5 * colW, height: 5 * rowH },
           { width: 4.5 * colW, height: 4.25 * rowH },
-          { width: 4.5 * colW, height: 3.5 * rowH }
+          { width: 4.5 * colW, height: 3.5 * rowH },
+          { width: 3.5 * colW, height: 2.25 * rowH }
         ];
         const matchesPreviousDefault = knownPreviousDefaults.some((size) => (
           Number.isFinite(finalW)

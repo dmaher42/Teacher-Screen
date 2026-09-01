@@ -8620,11 +8620,10 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    gap: 5px;
-    padding: 8px 10px 7px;
+    padding: 5px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.32);
-    border-radius: 18px;
+    border-radius: 12px;
     background:
         radial-gradient(circle at 16% 12%, color-mix(in srgb, var(--noise-state-color) 18%, transparent), transparent 42%),
         linear-gradient(145deg, #17233a 0%, #101827 58%, #0a1020 100%);
@@ -8653,54 +8652,42 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 }
 
 .noise-meter-classroom-status {
-    align-self: flex-start;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    min-height: 28px;
-    padding: 4px 9px;
-    border: 1px solid color-mix(in srgb, var(--noise-state-color) 54%, rgba(255, 255, 255, 0.26));
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--noise-state-color) 17%, rgba(15, 23, 42, 0.82));
-    color: #f8fafc;
-    font-size: clamp(0.78rem, 1.3vw, 1rem);
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    line-height: 1.1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    justify-content: center;
 }
 
 .noise-meter-status-row {
+    position: absolute;
+    z-index: 1;
+    top: 7px;
+    right: 7px;
+    left: 7px;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    pointer-events: none;
 }
 
 .noise-meter-warning-counter {
     display: inline-flex;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    max-width: 100%;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
     box-sizing: border-box;
-    min-height: 28px;
-    padding: 3px 8px;
+    padding: 0;
     border: 1px solid rgba(248, 250, 252, 0.24);
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.72);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.82);
     color: #f8fafc;
-    font-size: clamp(0.65rem, 1vw, 0.8rem);
-    font-weight: 750;
-    white-space: nowrap;
 }
 
 .noise-meter-warning-counter strong {
-    min-width: 1.35em;
+    min-width: 0;
     color: #ffffff;
-    font-size: clamp(1rem, 1.6vw, 1.25rem);
+    font-size: 0.9rem;
     line-height: 1;
     text-align: center;
 }
@@ -8766,51 +8753,20 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
 .noise-meter-display .noise-meter-canvas {
     flex: 1 1 auto;
     width: 100%;
-    min-height: 38px;
+    min-height: 0;
     border: 0;
     border-radius: 12px;
     background: transparent;
 }
 
-.noise-meter-scale {
-    display: grid;
-    flex: 0 0 auto;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
-    color: rgba(226, 232, 240, 0.56);
-    font-size: clamp(0.56rem, 0.85vw, 0.7rem);
-    font-weight: 750;
-    letter-spacing: 0.04em;
-    text-align: center;
-    text-transform: uppercase;
-}
-
-.noise-meter-scale span {
-    padding-top: 3px;
-    border-top: 2px solid currentColor;
-    line-height: 1.1;
-    transition: color 160ms ease, transform 160ms ease;
-}
-
-.noise-meter-scale span[data-state="ready"] { color: rgba(34, 197, 94, 0.55); }
-.noise-meter-scale span[data-state="warning"] { color: rgba(251, 191, 36, 0.5); }
-.noise-meter-scale span[data-state="loud"] { color: rgba(251, 79, 95, 0.5); }
-
-.noise-meter-scale span.is-active {
-    color: var(--noise-state-color);
-    transform: translateY(-2px);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--noise-state-color) 70%, transparent);
-}
-
 body.projector-view .noise-meter-display {
-    gap: clamp(12px, 2.2vh, 24px);
-    padding: clamp(18px, 3vw, 34px);
+    padding: clamp(7px, 1.2vw, 12px);
     border-color: rgba(148, 163, 184, 0.22);
-    border-radius: 24px;
+    border-radius: 16px;
 }
 
 body.projector-view .noise-meter-display .noise-meter-canvas {
-    min-height: 80px;
+    min-height: 0;
 }
 
 body.projector-view .widget.noise-meter-widget .widget-content {
@@ -8820,22 +8776,16 @@ body.projector-view .widget.noise-meter-widget .widget-content {
 }
 
 body.projector-view .noise-meter-classroom-status {
-    align-self: center;
-    min-height: 54px;
-    padding: 11px 22px;
-    font-size: clamp(1.15rem, 2.4vw, 2rem);
+    align-self: auto;
 }
 
 body.projector-view .noise-meter-warning-counter {
-    width: 100%;
-    min-height: 54px;
-    padding: 10px 14px;
-    border-radius: 18px;
-    font-size: clamp(0.85rem, 1.15vw, 1.25rem);
+    width: clamp(32px, 4vw, 44px);
+    height: clamp(32px, 4vw, 44px);
 }
 
 body.projector-view .noise-meter-warning-counter strong {
-    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-size: clamp(1rem, 2vw, 1.6rem);
 }
 
 body.projector-view .noise-meter-threshold-control {
@@ -8843,12 +8793,8 @@ body.projector-view .noise-meter-threshold-control {
 }
 
 body.projector-view .noise-meter-status-dot {
-    width: 15px;
-    height: 15px;
-}
-
-body.projector-view .noise-meter-scale {
-    font-size: clamp(0.78rem, 1.45vw, 1.15rem);
+    width: clamp(10px, 1.4vw, 15px);
+    height: clamp(10px, 1.4vw, 15px);
 }
 
 @keyframes noise-meter-alert-pulse {

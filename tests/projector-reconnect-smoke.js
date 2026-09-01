@@ -151,10 +151,35 @@ async function run() {
         const textBoard = testWidgets.textBoard;
         const noiseMeter = testWidgets.noiseMeter;
         const noiseMeterAreaRatio = (noiseMeter.width * noiseMeter.height) / (textBoard.width * textBoard.height);
-        if (noiseMeterAreaRatio > 0.5) {
-            throw new Error(`Noise Meter should use at most half the space of a Text Board (${JSON.stringify({ noiseMeter, textBoard, noiseMeterAreaRatio })})`);
+        if (noiseMeterAreaRatio > 0.3) {
+            throw new Error(`Noise Meter should use no more than 30% of a Text Board (${JSON.stringify({ noiseMeter, textBoard, noiseMeterAreaRatio })})`);
         }
-        console.log('PASS: Noise Meter opens as a compact supporting indicator');
+        const minimalNoiseMeter = await teacherPage.evaluate((noiseMeterId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+            const canvas = app.layoutManager.getCanvasMetrics();
+            const minimum = app.layoutManager.getConstrainedSize(widget, 1, 1);
+            const previousMinimumArea = (3 * canvas.width / app.layoutManager.gridColumns)
+                * (2.25 * canvas.height / app.layoutManager.gridRows);
+            return {
+                minimumAreaRatio: (minimum.width * minimum.height) / previousMinimumArea,
+                visibleCounterText: widget.warningCounter?.textContent?.trim(),
+                counterLabel: widget.warningCounter?.getAttribute('aria-label'),
+                statusTextHidden: widget.classroomStatusText?.classList.contains('visually-hidden') === true,
+                scaleRemoved: !widget.element.querySelector('.noise-meter-scale')
+            };
+        }, noiseMeter.id);
+        if (!minimalNoiseMeter
+            || minimalNoiseMeter.minimumAreaRatio > 0.5
+            || minimalNoiseMeter.visibleCounterText !== '0'
+            || minimalNoiseMeter.counterLabel !== '0 noise warnings'
+            || !minimalNoiseMeter.statusTextHidden
+            || !minimalNoiseMeter.scaleRemoved) {
+            throw new Error(`Noise Meter should be at least 50% smaller at minimum and show only its meter and counter (${JSON.stringify(minimalNoiseMeter)})`);
+        }
+        console.log('PASS: Noise Meter opens compactly, resizes over 50% smaller, and removes classroom text');
         const thresholdPlacement = await teacherPage.evaluate((noiseMeterId) => {
             const app = window.__TeacherScreenApp;
             const info = app?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
