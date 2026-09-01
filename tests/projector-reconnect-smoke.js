@@ -444,11 +444,14 @@ async function run() {
                 return true;
             };
             widget.isListening = true;
-            widget.handleMeterLevel(25);
-            widget.handleMeterLevel(155);
-            widget.handleMeterLevel(180);
-            widget.handleMeterLevel(110);
-            widget.handleMeterLevel(155);
+            const sampledAt = performance.now();
+            widget.handleMeterLevel(25, sampledAt);
+            widget.handleMeterLevel(155, sampledAt);
+            widget.handleMeterLevel(180, sampledAt + 500);
+            widget.handleMeterLevel(110, sampledAt + 1000);
+            widget.handleMeterLevel(155, sampledAt + 1500);
+            widget.handleMeterLevel(110, sampledAt + 11000);
+            widget.handleMeterLevel(155, sampledAt + 11000);
             widget.broadcastLevel(widget.lastLevel, true);
 
             return {
@@ -458,18 +461,18 @@ async function run() {
                 savedCount: widget.serialize().warningCount
             };
         }, noiseMeter.id);
-        if (warningCounterState?.warningCount !== 2
+        if (warningCounterState?.warningCount !== 3
             || warningCounterState.warningToneCount !== 2
-            || warningCounterState.displayedCount !== '2'
-            || warningCounterState.savedCount !== 2) {
-            throw new Error(`Noise warnings should count and sound once per Too Loud crossing (${JSON.stringify(warningCounterState)})`);
+            || warningCounterState.displayedCount !== '3'
+            || warningCounterState.savedCount !== 3) {
+            throw new Error(`Noise warnings should count every Too Loud crossing and limit chimes to once per 10 seconds (${JSON.stringify(warningCounterState)})`);
         }
         await projectorPage.waitForFunction((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
-            return info?.widget?.warningCount === 2
-                && info.widget.warningCounterValue?.textContent === '2';
+            return info?.widget?.warningCount === 3
+                && info.widget.warningCounterValue?.textContent === '3';
         }, noiseMeter.id);
-        console.log('PASS: Each new Too Loud crossing adds one visible warning and plays one alert sound');
+        console.log('PASS: Every Too Loud crossing is counted while the chime is limited to once per 10 seconds');
 
         await teacherPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
@@ -493,13 +496,15 @@ async function run() {
                 return true;
             };
             widget.isListening = true;
+            widget.lastWarningToneAt = Number.NEGATIVE_INFINITY;
             widget.setNoiseThreshold(100);
-            widget.handleMeterLevel(60);
-            widget.handleMeterLevel(95);
-            widget.handleMeterLevel(105);
-            widget.handleMeterLevel(115);
-            widget.handleMeterLevel(65);
-            widget.handleMeterLevel(105);
+            const sampledAt = performance.now();
+            widget.handleMeterLevel(60, sampledAt);
+            widget.handleMeterLevel(95, sampledAt + 100);
+            widget.handleMeterLevel(105, sampledAt + 200);
+            widget.handleMeterLevel(115, sampledAt + 300);
+            widget.handleMeterLevel(65, sampledAt + 11000);
+            widget.handleMeterLevel(105, sampledAt + 11200);
             widget.broadcastLevel(widget.lastLevel, true);
 
             return {

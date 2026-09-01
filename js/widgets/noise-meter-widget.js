@@ -1,4 +1,5 @@
 let noiseMeterThresholdControlSequence = 0;
+const NOISE_WARNING_TONE_COOLDOWN_MS = 10000;
 
 /**
  * Noise Meter Widget Class
@@ -153,6 +154,7 @@ class NoiseMeterWidget {
         this.lastLevelBroadcastAt = 0;
         this.warningCount = 0;
         this.warningArmed = true;
+        this.lastWarningToneAt = Number.NEGATIVE_INFINITY;
         this.tooLoudThreshold = 150;
         this.warningRearmThreshold = 120;
         this.meter = new NoiseMeter(this.canvas, (level) => this.handleMeterLevel(level));
@@ -191,7 +193,7 @@ class NoiseMeterWidget {
         this.meter?.renderLevel?.(this.lastLevel, { record: false });
     }
 
-    handleMeterLevel(level) {
+    handleMeterLevel(level, sampledAt = performance.now()) {
         this.lastLevel = Math.min(255, Math.max(0, Number(level) || 0));
         this.updateVisualState(this.lastLevel);
         if (!this.isListening || this.isProjectorMode?.()) return;
@@ -202,14 +204,21 @@ class NoiseMeterWidget {
             this.warningArmed = false;
             this.warningCount += 1;
             this.updateWarningCounter();
-            this.meter?.playWarningTone?.();
+            this.playWarningToneIfReady(sampledAt);
             window.TeacherScreenWidgetState.notifyChanged(this, 'noise-warning-recorded');
         }
 
-        const now = performance.now();
+        const now = sampledAt;
         if (now - this.lastLevelBroadcastAt < 100) return;
         this.lastLevelBroadcastAt = now;
         this.broadcastLevel(this.lastLevel, true);
+    }
+
+    playWarningToneIfReady(now = performance.now()) {
+        if (now - this.lastWarningToneAt < NOISE_WARNING_TONE_COOLDOWN_MS) return false;
+        const didPlay = this.meter?.playWarningTone?.() === true;
+        if (didPlay) this.lastWarningToneAt = now;
+        return didPlay;
     }
 
     broadcastLevel(level, listening = this.isListening) {
