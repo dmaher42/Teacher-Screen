@@ -189,6 +189,8 @@ async function run() {
             const placement = {
                 visibleOnWidget: widget.element.contains(widget.thresholdControl),
                 thresholdInSettings: document.getElementById('widget-settings-modal')?.contains(widget.thresholdControl) === true,
+                displayInSettings: document.getElementById('widget-settings-modal')?.contains(widget.displayModeControl) === true,
+                displayChoices: Array.from(widget.displayModeInputs?.keys?.() || []),
                 startInSettings: document.getElementById('widget-settings-modal')?.contains(widget.startButton) === true,
                 resetInSettings: document.getElementById('widget-settings-modal')?.contains(widget.resetCountButton) === true,
                 statusInSettings: document.getElementById('widget-settings-modal')?.contains(widget.status) === true
@@ -198,12 +200,14 @@ async function run() {
         }, noiseMeter.id);
         if (thresholdPlacement?.visibleOnWidget
             || !thresholdPlacement?.thresholdInSettings
+            || !thresholdPlacement?.displayInSettings
+            || thresholdPlacement?.displayChoices?.join(',') !== 'compact,gauge,timeline'
             || !thresholdPlacement?.startInSettings
             || !thresholdPlacement?.resetInSettings
             || !thresholdPlacement?.statusInSettings) {
             throw new Error(`Noise Meter setup controls should live in Settings (${JSON.stringify(thresholdPlacement)})`);
         }
-        console.log('PASS: Noise Meter setup controls stay in Settings instead of taking student-view space');
+        console.log('PASS: Noise Meter setup and three display choices stay in Settings instead of taking student-view space');
         const microphoneStartGuard = await teacherPage.evaluate(async (noiseMeterId) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
             const widget = info?.widget;
@@ -370,6 +374,64 @@ async function run() {
             }, { noiseMeterId: noiseMeter.id, state: expected.state, label: expected.label });
         }
         console.log('PASS: Projector Noise Meter shows Ready to Learn, Getting Loud, and Too Loud states');
+
+        const displayModeState = await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            const widget = info?.widget;
+            if (!widget) return null;
+
+            widget.setDisplayMode('gauge');
+            const gauge = {
+                mode: widget.displayMode,
+                canvasMode: widget.meter?.displayMode,
+                savedMode: widget.serialize().displayMode,
+                selected: widget.displayModeInputs?.get('gauge')?.checked === true
+            };
+
+            widget.setDisplayMode('timeline');
+            [35, 72, 130, 175, 95].forEach((level, index) => {
+                widget.meter.lastHistorySampleAt = Date.now() - 300;
+                widget.meter.renderLevel(level);
+                widget.lastLevel = level;
+            });
+            widget.broadcastLevel(widget.lastLevel, true);
+            const timeline = {
+                mode: widget.displayMode,
+                canvasMode: widget.meter?.displayMode,
+                savedMode: widget.serialize().displayMode,
+                historySamples: widget.meter?.levelHistory?.length || 0,
+                selected: widget.displayModeInputs?.get('timeline')?.checked === true
+            };
+            return { gauge, timeline };
+        }, noiseMeter.id);
+        if (displayModeState?.gauge?.mode !== 'gauge'
+            || displayModeState.gauge.canvasMode !== 'gauge'
+            || displayModeState.gauge.savedMode !== 'gauge'
+            || !displayModeState.gauge.selected
+            || displayModeState.timeline?.mode !== 'timeline'
+            || displayModeState.timeline.canvasMode !== 'timeline'
+            || displayModeState.timeline.savedMode !== 'timeline'
+            || displayModeState.timeline.historySamples < 5
+            || !displayModeState.timeline.selected) {
+            throw new Error(`Noise Meter display choices should render and save correctly (${JSON.stringify(displayModeState)})`);
+        }
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.displayMode === 'timeline'
+                && info.widget.meter?.displayMode === 'timeline'
+                && info.widget.meterDisplay?.dataset.displayMode === 'timeline'
+                && info.widget.serialize().displayMode === 'timeline';
+        }, noiseMeter.id);
+        console.log('PASS: Gauge and rolling Timeline modes save and synchronise to the projector');
+
+        await teacherPage.evaluate((noiseMeterId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            info?.widget?.setDisplayMode?.('compact');
+        }, noiseMeter.id);
+        await projectorPage.waitForFunction((noiseMeterId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
+            return info?.widget?.displayMode === 'compact';
+        }, noiseMeter.id);
 
         const warningCounterState = await teacherPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);

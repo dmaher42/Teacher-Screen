@@ -5960,7 +5960,14 @@ class ClassroomScreenApp {
         });
     }
 
-    syncNoiseMeterLevelToProjector({ widgetId = '', level = 0, listening = false, warningCount = 0, noiseThreshold = 150 } = {}) {
+    syncNoiseMeterLevelToProjector({
+        widgetId = '',
+        level = 0,
+        listening = false,
+        warningCount = 0,
+        noiseThreshold = 150,
+        displayMode = 'compact'
+    } = {}) {
         if (!this.projectorChannel || !widgetId) return;
         this.projectorChannel.postMessage({
             type: 'noise-meter-sync',
@@ -5970,6 +5977,7 @@ class ClassroomScreenApp {
             listening: listening === true,
             warningCount: Math.max(0, Math.floor(Number(warningCount) || 0)),
             noiseThreshold: Math.min(200, Math.max(80, Math.round((Number(noiseThreshold) || 150) / 10) * 10)),
+            displayMode: ['compact', 'gauge', 'timeline'].includes(displayMode) ? displayMode : 'compact',
             syncToken: this.projectorSyncToken
         });
     }

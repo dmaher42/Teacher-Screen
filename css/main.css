@@ -8696,6 +8696,65 @@ body.projector-view .quiz-game-widget-content.is-tight .quiz-game-scoreboard {
     animation: noise-meter-count-pop 320ms ease-out;
 }
 
+.noise-meter-display-control {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.noise-meter-display-control legend {
+    margin-bottom: 2px;
+    color: var(--text-color, #334155);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.noise-meter-display-choices {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-color-light, #e5e7eb);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--bg-surface, #ffffff) 84%, var(--primary-color, #2563eb) 4%);
+}
+
+.noise-meter-display-choices label {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.noise-meter-display-choices input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.noise-meter-display-choices label:has(input:checked) {
+    background: var(--primary-color, #2563eb);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color, #2563eb) 24%, transparent);
+    color: #ffffff;
+}
+
+.noise-meter-display-choices label:has(input:focus-visible) {
+    outline: 2px solid var(--focus-outline-color, #ffae00);
+    outline-offset: 2px;
+}
+
 .noise-meter-threshold-control {
     flex: 0 0 auto;
     display: grid;

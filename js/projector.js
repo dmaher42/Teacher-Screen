@@ -592,7 +592,12 @@ class ProjectorApp {
 
             if (message.type === 'noise-meter-sync' && message.source === 'teacher' && message.widgetId) {
                 const widgetInfo = this.layoutManager.widgets.find((widget) => widget.id === message.widgetId);
-                widgetInfo?.widget?.applySyncedLevel?.(message.level, message.warningCount, message.noiseThreshold);
+                widgetInfo?.widget?.applySyncedLevel?.(
+                    message.level,
+                    message.warningCount,
+                    message.noiseThreshold,
+                    message.displayMode
+                );
                 return;
             }
 
