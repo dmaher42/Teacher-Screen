@@ -60,21 +60,21 @@ class RevealManagerWidget {
                     <section class="reveal-manager__section reveal-manager__open-section" aria-label="Load presentation">
                         <div class="reveal-manager__intro">
                             <h3 class="reveal-manager__section-title">Load presentation</h3>
-                            <p>Choose a PowerPoint or PDF from this device, or paste a presentation link.</p>
+                            <p>For synced teacher and projector slides, choose a PowerPoint or PDF from this device.</p>
                         </div>
                         <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">
                             <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
                             Choose PowerPoint or PDF
                         </button>
-                        <div class="reveal-manager__divider" aria-hidden="true"><span>or use a link</span></div>
+                        <div class="reveal-manager__divider" aria-hidden="true"><span>or open a web link separately</span></div>
                         <label class="reveal-field reveal-manager-row reveal-external-row">
-                            <span class="reveal-field-label">Google Slides or PowerPoint link</span>
+                            <span class="reveal-field-label">Google Slides or PowerPoint web link (not synced)</span>
                             <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Google Slides or PowerPoint link" placeholder="Paste a presentation link">
                         </label>
                         <p class="reveal-external-validation" role="status" aria-live="polite" hidden></p>
                         <div class="reveal-manager-row reveal-manager-actions reveal-link-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-input-btn">Open link</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save link</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-input-btn">Open web link</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save web link</button>
                         </div>
                         <details class="reveal-manager__advanced">
                             <summary>Advanced: Reveal HTML</summary>
@@ -2412,9 +2412,7 @@ class RevealManagerWidget {
             this.inlineDeckContainer.__teacherScreenRevealDeck = null;
             this.revealDeck = null;
             const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
-            this.setStatus(externalRuntime?.canMirrorInApp
-                ? `${externalRuntime.sourceLabel} ready. Use Show on projector when the class should see it.`
-                : `${this.getSourceTypeLabel(this.activeDeck.type)} link ready. Use an embeddable link to mirror it inside Teacher Screen and the projector.`);
+            this.setStatus(`${externalRuntime?.sourceLabel || this.getSourceTypeLabel(this.activeDeck.type)} web links open separately and do not sync slides. Choose a PowerPoint or PDF file for synced controls.`);
             return null;
         }
 
@@ -2527,7 +2525,7 @@ class RevealManagerWidget {
         card.appendChild(heading);
 
         const message = document.createElement('p');
-        message.textContent = `${sourceLabel} can preview here in an embeddable view, but Projector opens the live source window because external decks do not slide-sync through Teacher Screen. Reveal Prev / Next controls still stay reserved for HTML decks.`;
+        message.textContent = `${sourceLabel} web links open separately and do not sync slides. Choose the PowerPoint or PDF file when the teacher and projector need to advance together.`;
         card.appendChild(message);
 
         const link = document.createElement('a');

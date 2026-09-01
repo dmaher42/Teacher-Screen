@@ -5,6 +5,7 @@ const { chromium } = require('playwright-core');
 
 const root = path.resolve(__dirname, '..');
 const syncToken = 'projector-reconnect-smoke-token';
+const useRealReveal = process.argv.includes('--real-reveal');
 const mimeTypes = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
@@ -81,10 +82,82 @@ async function run() {
     const context = await browser.newContext();
 
     try {
-        await context.route(/^https:\/\//, (route) => route.abort('blockedbyclient'));
-        await context.addInitScript((token) => {
+        await context.route(/^https:\/\//, (route) => {
+            const hostname = new URL(route.request().url()).hostname;
+            if (useRealReveal && hostname === 'cdn.jsdelivr.net') {
+                return route.continue();
+            }
+            return route.abort('blockedbyclient');
+        });
+        await context.addInitScript(({ token, fakeReveal }) => {
             sessionStorage.setItem('teacher-screen-projector-sync-token', token);
-        }, syncToken);
+            if (!fakeReveal) {
+                return;
+            }
+            window.Reveal = class FakeRevealDeck {
+                constructor() {
+                    this.indices = { h: 0, v: 0 };
+                    this.listeners = new Map();
+                    this.ready = false;
+                }
+
+                on(type, listener) {
+                    const listeners = this.listeners.get(type) || new Set();
+                    listeners.add(listener);
+                    this.listeners.set(type, listeners);
+                }
+
+                off(type, listener) {
+                    this.listeners.get(type)?.delete(listener);
+                }
+
+                emit(type) {
+                    const event = { indexh: this.indices.h, indexv: this.indices.v };
+                    this.listeners.get(type)?.forEach((listener) => listener(event));
+                }
+
+                async initialize() {
+                    this.ready = true;
+                    return this;
+                }
+
+                isReady() {
+                    return this.ready;
+                }
+
+                getIndices() {
+                    return { ...this.indices };
+                }
+
+                slide(h = 0, v = 0) {
+                    this.indices = { h, v };
+                    this.emit('slidechanged');
+                }
+
+                next() {
+                    this.slide(this.indices.h + 1, this.indices.v);
+                }
+
+                prev() {
+                    this.slide(Math.max(0, this.indices.h - 1), this.indices.v);
+                }
+
+                up() {
+                    this.slide(this.indices.h, Math.max(0, this.indices.v - 1));
+                }
+
+                down() {
+                    this.slide(this.indices.h, this.indices.v + 1);
+                }
+
+                layout() {}
+
+                destroy() {
+                    this.ready = false;
+                    this.listeners.clear();
+                }
+            };
+        }, { token: syncToken, fakeReveal: !useRealReveal });
 
         const projectorPage = await context.newPage();
         await projectorPage.goto(`${baseUrl}/projector.html?syncToken=${syncToken}`, { waitUntil: 'domcontentloaded' });
@@ -297,7 +370,14 @@ async function run() {
             return info?.widget?.activeDeck?.sourceUrl === sourceUrl
                 && info.widget.getExternalPresentationRuntime?.(info.widget.activeDeck)?.canMirrorInApp === true;
         }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
-        console.log('PASS: A loaded web presentation is mirrored into the paired projector layout');
+        const externalSyncGuidance = await teacherPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.statusLabel?.textContent || '';
+        }, presentation.id);
+        if (!externalSyncGuidance.includes('do not sync slides') || !externalSyncGuidance.includes('PowerPoint or PDF')) {
+            throw new Error(`Web presentations should direct the teacher to the synced file route (${externalSyncGuidance})`);
+        }
+        console.log('PASS: A web-link presentation is clearly identified as a separate, non-synced source');
 
         const presentationReconnectPage = await context.newPage();
         try {
@@ -306,7 +386,7 @@ async function run() {
                 const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
                 return info?.widget?.activeDeck?.sourceUrl === sourceUrl;
             }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
-            console.log('PASS: A reconnecting projector restores the active web presentation');
+            console.log('PASS: A reconnecting projector restores the web-link preview without claiming slide sync');
         } finally {
             await presentationReconnectPage.close();
         }
@@ -328,6 +408,110 @@ async function run() {
             return info?.widget?.element?.textContent?.includes('Projector sync content marker');
         }, textBoard.id);
         console.log('PASS: Projector receives the Text Board content during initial pairing');
+
+        const localPresentation = await teacherPage.evaluate(async () => {
+            const app = window.__TeacherScreenApp;
+            const widget = app.addWidget('reveal-manager', { notification: 'Local presentation slide sync test added' });
+            await widget.launchDeck({
+                id: Date.now(),
+                name: 'Local Projector Sync Test',
+                type: 'html',
+                content: '<section><h2>Slide one</h2></section><section><h2>Slide two</h2></section>'
+            });
+            const info = app.layoutManager.widgets.find((candidate) => candidate.widget === widget);
+            app.broadcastProjectorState();
+            return { id: info.id };
+        });
+        await projectorPage.waitForFunction((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.activeDeck?.type === 'html'
+                && info.widget.revealDeck?.isReady?.() === true;
+        }, localPresentation.id);
+        await teacherPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenApp.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            info.widget.navigate('next');
+        }, localPresentation.id);
+        await teacherPage.waitForFunction((widgetId) => {
+            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.currentIndices?.h === 1;
+        }, localPresentation.id);
+        await projectorPage.waitForTimeout(350);
+        const syncedLocalSlide = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return {
+                stored: info?.widget?.currentIndices?.h,
+                rendered: info?.widget?.revealDeck?.getIndices?.().h
+            };
+        }, localPresentation.id);
+        if (syncedLocalSlide.stored !== 1 || syncedLocalSlide.rendered !== 1) {
+            throw new Error(`Projector did not follow the teacher to slide two (${JSON.stringify(syncedLocalSlide)})`);
+        }
+        console.log('PASS: Local PowerPoint/PDF presentation slide changes sync live to the projector');
+
+        await teacherPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            if (info?.widget) {
+                app.layoutManager.removeWidget(info.widget);
+                app.widgets = app.widgets.filter((widget) => widget !== info.widget);
+                app.broadcastProjectorState();
+            }
+        }, localPresentation.id);
+        await projectorPage.waitForFunction((widgetId) => (
+            !window.__TeacherScreenProjectorApp?.layoutManager.widgets.some((widget) => widget.id === widgetId)
+        ), localPresentation.id);
+
+        const localWebPresentation = await teacherPage.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            const widget = app.addWidget('url-viewer', { notification: 'Local web presentation sync test added' });
+            widget.loadUrl('presentations/year7-rhetoric-marine-turtles/slides.html');
+            widget.setChromeless(true);
+            const info = app.layoutManager.widgets.find((candidate) => candidate.widget === widget);
+            app.broadcastProjectorState();
+            return { id: info.id };
+        });
+        await Promise.all([
+            teacherPage.waitForFunction((widgetId) => {
+                const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.widget?.contentArea?.querySelector('iframe')?.contentDocument
+                    ?.querySelector('#slide-counter')?.textContent === '1 / 6';
+            }, localWebPresentation.id),
+            projectorPage.waitForFunction((widgetId) => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.widget?.contentArea?.querySelector('iframe')?.contentDocument
+                    ?.querySelector('#slide-counter')?.textContent === '1 / 6';
+            }, localWebPresentation.id)
+        ]);
+        await teacherPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenApp.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            info.widget.contentArea.querySelector('iframe').contentDocument.querySelector('#next-slide').click();
+        }, localWebPresentation.id);
+        await Promise.all([
+            teacherPage.waitForFunction((widgetId) => {
+                const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.widget?.contentArea?.querySelector('iframe')?.contentDocument
+                    ?.querySelector('#slide-counter')?.textContent === '2 / 6';
+            }, localWebPresentation.id),
+            projectorPage.waitForFunction((widgetId) => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.widget?.contentArea?.querySelector('iframe')?.contentDocument
+                    ?.querySelector('#slide-counter')?.textContent === '2 / 6';
+            }, localWebPresentation.id)
+        ]);
+        console.log('PASS: The saved Rhetoric web presentation advances on teacher and projector together');
+
+        await teacherPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            if (info?.widget) {
+                app.layoutManager.removeWidget(info.widget);
+                app.widgets = app.widgets.filter((widget) => widget !== info.widget);
+                app.broadcastProjectorState();
+            }
+        }, localWebPresentation.id);
+        await projectorPage.waitForFunction((widgetId) => (
+            !window.__TeacherScreenProjectorApp?.layoutManager.widgets.some((widget) => widget.id === widgetId)
+        ), localWebPresentation.id);
 
         const projectorNoiseStatusHidden = await projectorPage.evaluate((noiseMeterId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === noiseMeterId);
