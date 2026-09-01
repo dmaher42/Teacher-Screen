@@ -5135,6 +5135,60 @@ async function runSmoke() {
         });
         assert(externalSlidesVisibilityResume.rebuildCount === 0 && externalSlidesVisibilityResume.sameSurface, 'Embedded Slides should keep the same frame when the browser tab becomes visible again');
 
+        const presentationMoveProbeBefore = await smokeSlidesWidget.evaluate(async (widget) => {
+            const stage = widget.querySelector('.reveal-manager__stage');
+            const frame = document.createElement('iframe');
+            frame.className = 'presentation-move-state-probe';
+            frame.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0';
+            window.__presentationMoveProbeLoads = 0;
+            frame.addEventListener('load', () => {
+                window.__presentationMoveProbeLoads += 1;
+            });
+            frame.srcdoc = '<p>Presentation slide state probe</p>';
+            stage.appendChild(frame);
+            await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+            frame.contentWindow.__presentationSlide = 3;
+            const rect = widget.getBoundingClientRect();
+            return {
+                loads: window.__presentationMoveProbeLoads,
+                left: rect.left,
+                top: rect.top
+            };
+        });
+        const presentationDragHandle = smokeSlidesWidget.locator('.widget-header-title');
+        const presentationDragBox = await presentationDragHandle.boundingBox();
+        if (!presentationDragBox) throw new Error('Presentation drag handle was not measurable');
+        await page.mouse.move(presentationDragBox.x + presentationDragBox.width / 2, presentationDragBox.y + presentationDragBox.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(presentationDragBox.x + presentationDragBox.width / 2 + 60, presentationDragBox.y + presentationDragBox.height / 2 + 40, { steps: 4 });
+        await page.mouse.up();
+        await page.waitForTimeout(150);
+        const presentationMoveProbeAfter = await smokeSlidesWidget.evaluate((widget) => {
+            const frame = widget.querySelector('.presentation-move-state-probe');
+            const rect = widget.getBoundingClientRect();
+            return {
+                loads: window.__presentationMoveProbeLoads,
+                slide: frame?.contentWindow?.__presentationSlide || 0,
+                left: rect.left,
+                top: rect.top,
+                stackOrder: getComputedStyle(widget).zIndex
+            };
+        });
+        assert(
+            presentationMoveProbeBefore.loads === 1
+                && presentationMoveProbeAfter.loads === 1
+                && presentationMoveProbeAfter.slide === 3,
+            `Moving Presentation should preserve the mounted slide surface (${JSON.stringify({ presentationMoveProbeBefore, presentationMoveProbeAfter })})`
+        );
+        assert(
+            presentationMoveProbeAfter.left !== presentationMoveProbeBefore.left
+                || presentationMoveProbeAfter.top !== presentationMoveProbeBefore.top,
+            'Presentation should still move while preserving its current slide'
+        );
+        assert(Number(presentationMoveProbeAfter.stackOrder) > 1, 'Moved Presentation should still come to the front');
+        await smokeSlidesWidget.locator('.presentation-move-state-probe').evaluate((frame) => frame.remove());
+        await page.evaluate(() => { delete window.__presentationMoveProbeLoads; });
+
         const originalSlidesSize = await smokeSlidesWidget.evaluate((widget) => ({
             width: widget.style.width,
             height: widget.style.height

@@ -713,9 +713,14 @@ async function run() {
             }),
             projectorPage.evaluate(() => {
                 const app = window.__TeacherScreenProjectorApp;
+                const visualOrder = [...app.layoutManager.widgets].sort((left, right) => {
+                    const leftLayer = Number.parseInt(getComputedStyle(left.element).zIndex, 10) || 0;
+                    const rightLayer = Number.parseInt(getComputedStyle(right.element).zIndex, 10) || 0;
+                    return leftLayer - rightLayer;
+                });
                 return {
                     ids: app.layoutManager.widgets.map((widget) => widget.id),
-                    topId: app.layoutManager.widgets.find((widget) => widget.element === app.layoutManager.container.lastElementChild)?.id || ''
+                    topId: visualOrder.at(-1)?.id || ''
                 };
             })
         ]);
@@ -726,7 +731,7 @@ async function run() {
             || syncedStackOrder[1].topId !== textBoard.id) {
             throw new Error('Projector did not preserve the teacher widget front-to-back order');
         }
-        console.log('PASS: Projector preserves the teacher widget front-to-back order after resizing');
+        console.log('PASS: Projector preserves the teacher widget visual front-to-back order after resizing');
 
         await projectorPage.evaluate((widgetId) => {
             window.__TeacherScreenProjectorApp.layoutManager.applyLayoutDelta({

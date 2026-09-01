@@ -519,7 +519,11 @@ class LayoutManager {
       const rightIndex = order.has(right.id) ? order.get(right.id) : Number.MAX_SAFE_INTEGER;
       return leftIndex - rightIndex;
     });
-    this.widgets.forEach((widgetInfo) => this.mountWidgetElement(widgetInfo));
+    // Keep mounted widget DOM in place. Re-appending an iframe-backed widget reloads
+    // its document, which sends embedded presentations back to their first slide.
+    this.widgets.forEach((widgetInfo, index) => {
+      widgetInfo.element.style.setProperty('--widget-stack-order', String(index + 1));
+    });
     return true;
   }
 
