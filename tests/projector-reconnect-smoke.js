@@ -121,7 +121,7 @@ async function run() {
         }
         console.log('PASS: Projector action opens a paired projector that can receive teacher updates');
 
-        const testWidgets = await teacherPage.evaluate(() => {
+        const testWidgets = await teacherPage.evaluate(async () => {
             const app = window.__TeacherScreenApp;
             app.handleNavClick('classroom');
             const textBoardWidget = app.addWidget('rich-text', {
@@ -273,6 +273,52 @@ async function run() {
             return widgets.some((widget) => widget.id === textBoardId)
                 && widgets.some((widget) => widget.id === noiseMeterId);
         }, { textBoardId: textBoard.id, noiseMeterId: noiseMeter.id });
+
+        const presentation = await teacherPage.evaluate(async () => {
+            const app = window.__TeacherScreenApp;
+            const widget = app.addWidget('reveal-manager', { notification: 'Presentation sync test added' });
+            await widget.loadExternalSource({
+                type: 'google-slides',
+                sourceUrl: 'https://docs.google.com/presentation/d/projector-sync-test-deck/edit',
+                name: 'Projector Sync Test Slides'
+            });
+            const info = app.layoutManager.widgets.find((candidate) => candidate.widget === widget);
+            return {
+                id: info.id,
+                sourceUrl: widget.activeDeck?.sourceUrl || ''
+            };
+        });
+        await projectorPage.waitForFunction(({ widgetId, sourceUrl }) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return info?.widget?.activeDeck?.sourceUrl === sourceUrl
+                && info.widget.getExternalPresentationRuntime?.(info.widget.activeDeck)?.canMirrorInApp === true;
+        }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
+        console.log('PASS: A loaded web presentation is mirrored into the paired projector layout');
+
+        const presentationReconnectPage = await context.newPage();
+        try {
+            await presentationReconnectPage.goto(`${baseUrl}/projector.html?syncToken=${syncToken}`, { waitUntil: 'domcontentloaded' });
+            await presentationReconnectPage.waitForFunction(({ widgetId, sourceUrl }) => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+                return info?.widget?.activeDeck?.sourceUrl === sourceUrl;
+            }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
+            console.log('PASS: A reconnecting projector restores the active web presentation');
+        } finally {
+            await presentationReconnectPage.close();
+        }
+
+        await teacherPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenApp;
+            const info = app.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            if (info?.widget) {
+                app.layoutManager.removeWidget(info.widget);
+                app.widgets = app.widgets.filter((widget) => widget !== info.widget);
+                app.broadcastProjectorState();
+            }
+        }, presentation.id);
+        await projectorPage.waitForFunction((widgetId) => (
+            !window.__TeacherScreenProjectorApp?.layoutManager.widgets.some((widget) => widget.id === widgetId)
+        ), presentation.id);
         await projectorPage.waitForFunction((textBoardId) => {
             const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === textBoardId);
             return info?.widget?.element?.textContent?.includes('Projector sync content marker');

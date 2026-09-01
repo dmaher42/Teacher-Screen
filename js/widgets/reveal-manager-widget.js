@@ -57,36 +57,44 @@ class RevealManagerWidget {
                 </div>
 
                 <div class="reveal-manager__panel advanced-controls" hidden>
-                    <section class="reveal-manager__section reveal-manager__open-section" aria-label="Open presentation">
-                        <h3 class="reveal-manager__section-title">Open presentation</h3>
-                        <div class="reveal-manager-fields">
-                            <label class="reveal-field">
-                                <span class="reveal-field-label">Source</span>
-                                <select class="reveal-source-type" aria-label="Select presentation source type">
-                                    <option value="google-slides" selected>Google Slides link</option>
-                                    <option value="powerpoint">PowerPoint link</option>
-                                    <option value="html">Reveal HTML (advanced)</option>
-                                </select>
-                            </label>
-                            <label class="reveal-field">
-                                <span class="reveal-field-label">Name <span class="reveal-field-optional">Optional</span></span>
-                                <input type="text" class="reveal-deck-name" aria-label="Presentation name" placeholder="e.g. Lesson introduction">
-                            </label>
+                    <section class="reveal-manager__section reveal-manager__open-section" aria-label="Load presentation">
+                        <div class="reveal-manager__intro">
+                            <h3 class="reveal-manager__section-title">Load presentation</h3>
+                            <p>Choose a PowerPoint or PDF from this device, or paste a presentation link.</p>
                         </div>
-                        <label class="reveal-field reveal-manager-row reveal-external-row" hidden>
-                            <span class="reveal-field-label">Presentation link</span>
-                            <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Presentation link" placeholder="Paste the share or present URL">
+                        <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">
+                            <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                            Choose PowerPoint or PDF
+                        </button>
+                        <div class="reveal-manager__divider" aria-hidden="true"><span>or use a link</span></div>
+                        <label class="reveal-field reveal-manager-row reveal-external-row">
+                            <span class="reveal-field-label">Google Slides or PowerPoint link</span>
+                            <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Google Slides or PowerPoint link" placeholder="Paste a presentation link">
                         </label>
                         <p class="reveal-external-validation" role="status" aria-live="polite" hidden></p>
-                        <label class="reveal-field reveal-manager-row reveal-html-row">
-                            <span class="reveal-field-label">Reveal HTML</span>
-                            <textarea class="reveal-content-textarea" aria-label="Reveal HTML" placeholder="Paste full Reveal HTML here"></textarea>
-                        </label>
-                        <div class="reveal-manager-row reveal-manager-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-open-input-btn">Open presentation</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-convert-btn">Choose PowerPoint or PDF</button>
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save for later</button>
+                        <div class="reveal-manager-row reveal-manager-actions reveal-link-actions">
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-input-btn">Open link</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save link</button>
                         </div>
+                        <details class="reveal-manager__advanced">
+                            <summary>Advanced: Reveal HTML</summary>
+                            <div class="reveal-manager__advanced-content">
+                                <label class="reveal-field">
+                                    <span class="reveal-field-label">Name <span class="reveal-field-optional">Optional</span></span>
+                                    <input type="text" class="reveal-deck-name" aria-label="Presentation name" placeholder="e.g. Lesson introduction">
+                                </label>
+                                <label class="reveal-field reveal-manager-row reveal-html-row">
+                                    <span class="reveal-field-label">Reveal HTML</span>
+                                    <textarea class="reveal-content-textarea" aria-label="Reveal HTML" placeholder="Paste full Reveal HTML here"></textarea>
+                                </label>
+                                <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-html-btn">Open Reveal HTML</button>
+                            </div>
+                        </details>
+                        <select class="reveal-source-type" aria-label="Presentation source type" hidden>
+                            <option value="google-slides" selected>Google Slides</option>
+                            <option value="powerpoint">PowerPoint</option>
+                            <option value="html">Reveal HTML</option>
+                        </select>
                         <input type="file" class="reveal-deck-file-input" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
                     </section>
 
@@ -135,6 +143,7 @@ class RevealManagerWidget {
         this.externalRow = this.element.querySelector('.reveal-external-row');
         this.htmlInput = this.element.querySelector('.reveal-content-textarea');
         this.openFromSetupButton = this.element.querySelector('.reveal-open-input-btn');
+        this.openHtmlButton = this.element.querySelector('.reveal-open-html-btn');
         this.saveButton = this.element.querySelector('.reveal-save-btn');
         this.convertButton = this.element.querySelector('.reveal-convert-btn');
         this.deckFileInput = this.element.querySelector('.reveal-deck-file-input');
@@ -148,6 +157,7 @@ class RevealManagerWidget {
 
         this.handleLaunchFromInputs = this.handleLaunchFromInputs.bind(this);
         this.handleOpenFromSetup = this.handleOpenFromSetup.bind(this);
+        this.handleOpenHtml = this.handleOpenHtml.bind(this);
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
         this.handleProjectorClick = this.handleProjectorClick.bind(this);
@@ -168,6 +178,7 @@ class RevealManagerWidget {
 
         this.launchButton.addEventListener('click', this.handleLaunchFromInputs);
         this.openFromSetupButton.addEventListener('click', this.handleOpenFromSetup);
+        this.openHtmlButton.addEventListener('click', this.handleOpenHtml);
         this.prevButton.addEventListener('click', this.handlePrevClick);
         this.nextButton.addEventListener('click', this.handleNextClick);
         this.projectorButton.addEventListener('click', this.handleProjectorClick);
@@ -179,8 +190,8 @@ class RevealManagerWidget {
         this.deleteButton.addEventListener('click', this.handleDeleteDeck);
         this.toggleControlsButton.addEventListener('click', this.handleToggleControls);
         this.sourceTypeSelect.addEventListener('change', this.handleSourceTypeChange);
-        this.externalUrlInput.addEventListener('input', () => this.updateSourceFields());
-        this.externalUrlInput.addEventListener('blur', () => this.updateSourceFields());
+        this.externalUrlInput.addEventListener('input', () => this.updateExternalLinkFields());
+        this.externalUrlInput.addEventListener('blur', () => this.updateExternalLinkFields());
         this.element.addEventListener('click', this.handleRootInteraction);
         this.element.addEventListener('focusin', this.handleRootInteraction);
         document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);
@@ -617,11 +628,11 @@ class RevealManagerWidget {
         const isStoredImport = !isExternal && this.isStoredImportDeck(this.activeDeck);
 
         if (this.htmlRow) {
-            this.htmlRow.hidden = isExternal;
+            this.htmlRow.hidden = false;
         }
 
         if (this.externalRow) {
-            this.externalRow.hidden = !isExternal;
+            this.externalRow.hidden = false;
         }
 
         if (this.externalUrlInput) {
@@ -653,6 +664,16 @@ class RevealManagerWidget {
         );
     }
 
+    updateExternalLinkFields() {
+        const detectedSourceType = this.detectExternalSourceTypeFromUrl(this.externalUrlInput?.value || '');
+        if (detectedSourceType && this.sourceTypeSelect) {
+            this.sourceTypeSelect.value = detectedSourceType;
+        } else if (this.sourceTypeSelect?.value === 'html') {
+            this.sourceTypeSelect.value = 'google-slides';
+        }
+        this.updateSourceFields();
+    }
+
     handleSourceTypeChange() {
         this.updateSourceFields();
     }
@@ -682,6 +703,10 @@ class RevealManagerWidget {
         this.nextButton.disabled = !isLiveRevealDeck;
         this.nextButton.hidden = !isLiveRevealDeck;
         this.projectorButton.hidden = !hasDeck;
+        this.projectorButton.textContent = isLiveRevealDeck ? 'Show on projector' : 'Open presentation window';
+        this.projectorButton.title = isLiveRevealDeck
+            ? 'Show this presentation on the paired projector screen'
+            : 'Open the web presentation in its own presentation window';
         this.emptyState.hidden = true;
         this.toggleCompact(this.isCompact);
     }
@@ -2726,6 +2751,28 @@ class RevealManagerWidget {
     async handleOpenFromSetup(event) {
         event?.stopPropagation();
 
+        this.updateExternalLinkFields();
+
+        if (this.activeDeck) {
+            await this.stopDeck();
+        }
+
+        const deck = this.buildDeckFromInputs();
+        if (!deck) return false;
+
+        await this.launchDeck(deck, { preserveIndices: false });
+        if (this.activeDeck) {
+            this.toggleCompact(true);
+        }
+        return !!this.activeDeck;
+    }
+
+    async handleOpenHtml(event) {
+        event?.stopPropagation();
+        if (this.sourceTypeSelect) {
+            this.sourceTypeSelect.value = 'html';
+        }
+
         if (this.activeDeck) {
             await this.stopDeck();
         }
@@ -2750,6 +2797,7 @@ class RevealManagerWidget {
     }
 
     handleSaveDeck() {
+        this.updateExternalLinkFields();
         const deck = this.buildDeckFromInputs();
         if (!deck) return;
 
@@ -3123,6 +3171,7 @@ class RevealManagerWidget {
     remove() {
         this.onLayoutDiscard();
         this.launchButton.removeEventListener('click', this.handleLaunchFromInputs);
+        this.openHtmlButton.removeEventListener('click', this.handleOpenHtml);
         this.openFromSetupButton.removeEventListener('click', this.handleOpenFromSetup);
         this.prevButton.removeEventListener('click', this.handlePrevClick);
         this.nextButton.removeEventListener('click', this.handleNextClick);
