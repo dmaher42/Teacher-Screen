@@ -757,6 +757,15 @@ class ClassroomScreenApp {
         if (widgetPickerProjectorButton) {
             widgetPickerProjectorButton.addEventListener('click', () => this.openProjectorView());
         }
+        const widgetPickerResourcesButton = this.widgetModal?.querySelector('#widget-picker-resources-btn');
+        if (widgetPickerResourcesButton) {
+            widgetPickerResourcesButton.addEventListener('click', () => {
+                this.closeDialog(this.widgetModal);
+                this.openResourceLibrary(this.resourceLibrarySource, {
+                    className: this.activeReminderContext?.className || ''
+                });
+            });
+        }
         const widgetPickerTeacherControlsButton = this.widgetModal?.querySelector('#widget-picker-teacher-controls-btn');
         if (widgetPickerTeacherControlsButton) {
             widgetPickerTeacherControlsButton.addEventListener('click', () => this.openTeacherControls());
@@ -7104,6 +7113,7 @@ class ClassroomScreenApp {
         const status = this.getResourceProviderStatus();
         const entries = this.getVisibleResourceEntries();
         const isLocal = this.resourceLibrarySource === 'local';
+        const className = String(this.dashboardSelectedClassName || '').trim();
         const isConfigured = status.configured !== false;
         const isConnected = status.connected === true;
         const statusLabel = this.resourceLibraryLoading
@@ -7185,17 +7195,22 @@ class ClassroomScreenApp {
                 <div class="resource-library__header">
                     <div>
                         <p class="dashboard-toolbar__label">Resource Library</p>
-                        <h2>Teaching resources</h2>
-                        <p>Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.</p>
+                        <h2>${escapeHtml(className ? `${className} resources` : 'Teaching resources')}</h2>
+                        <p>${escapeHtml(className
+                            ? `Open teaching files for ${className}, then add supported material to the current deck.`
+                            : 'Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.')}</p>
                         <p class="resource-current-deck"><strong>Adding to:</strong> ${escapeHtml(currentDeckName)}</p>
                     </div>
-                    <div class="resource-source-tabs" role="group" aria-label="Resource locations">
-                        <button class="resource-source-tab${isLocal ? ' is-active' : ''}" type="button" data-resource-source="local" aria-pressed="${isLocal ? 'true' : 'false'}">
-                            <i class="fa-solid fa-folder" aria-hidden="true"></i> Computer Folder
-                        </button>
-                        <button class="resource-source-tab${!isLocal ? ' is-active' : ''}" type="button" data-resource-source="google-drive" aria-pressed="${!isLocal ? 'true' : 'false'}">
-                            <i class="fa-brands fa-google-drive" aria-hidden="true"></i> Google Drive
-                        </button>
+                    <div class="resource-library__header-actions">
+                        ${className ? `<button id="resource-back-to-class-btn" class="control-button" type="button"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to ${escapeHtml(className)} decks</button>` : ''}
+                        <div class="resource-source-tabs" role="group" aria-label="Resource locations">
+                            <button class="resource-source-tab${isLocal ? ' is-active' : ''}" type="button" data-resource-source="local" aria-pressed="${isLocal ? 'true' : 'false'}">
+                                <i class="fa-solid fa-folder" aria-hidden="true"></i> Computer Folder
+                            </button>
+                            <button class="resource-source-tab${!isLocal ? ' is-active' : ''}" type="button" data-resource-source="google-drive" aria-pressed="${!isLocal ? 'true' : 'false'}">
+                                <i class="fa-brands fa-google-drive" aria-hidden="true"></i> Google Drive
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -7227,12 +7242,18 @@ class ClassroomScreenApp {
         `;
     }
 
-    openResourceLibrary(source = this.resourceLibrarySource) {
+    openResourceLibrary(source = this.resourceLibrarySource, { className = '' } = {}) {
         this.resourceLibrarySource = source === 'google-drive' ? 'google-drive' : 'local';
         this.dashboardNavigationMode = 'resources';
-        this.dashboardSelectedClassName = '';
+        this.dashboardSelectedClassName = String(className || '').trim();
+        this.resourceLibraryView = 'all';
         this.dashboardSearchQuery = '';
-        this.renderDashboard();
+        this.resourceLibrarySearchQuery = '';
+        if (document.body.classList.contains('is-dashboard-active')) {
+            this.renderDashboard();
+        } else {
+            this.handleNavClick('dashboard');
+        }
         void this.refreshResourceLibrary({ restore: true });
     }
 
@@ -7747,6 +7768,18 @@ class ClassroomScreenApp {
     }
 
     bindResourceLibraryEvents() {
+        this.dashboardRoot.querySelector('#resource-back-to-class-btn')?.addEventListener('click', () => {
+            const className = String(this.dashboardSelectedClassName || '').trim();
+            this.dashboardNavigationMode = 'library';
+            this.dashboardExpandedDeckId = '';
+            this.renderDashboard();
+            window.requestAnimationFrame(() => {
+                this.dashboardRoot
+                    ?.querySelector(`.dashboard-filter[data-class-name="${CSS.escape(className)}"]`)
+                    ?.focus({ preventScroll: true });
+            });
+        });
+
         this.dashboardRoot.querySelectorAll('[data-resource-source]').forEach((button) => {
             button.addEventListener('click', () => this.setResourceSource(button.dataset.resourceSource));
         });
@@ -8683,6 +8716,7 @@ class ClassroomScreenApp {
         const isResourceLibrary = navigationMode === 'resources';
 
         const selectedClassName = String(this.dashboardSelectedClassName || '').trim();
+        const isClassResourceLibrary = isResourceLibrary && Boolean(selectedClassName);
         const searchQuery = String(this.dashboardSearchQuery || '').trim().toLowerCase();
         const classProfiles = this.getPresetClassNames();
         const sortedPresets = this.presets
@@ -8778,7 +8812,7 @@ class ClassroomScreenApp {
                     </nav>
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">
-                            <h3>${isResourceLibrary ? 'Resource Views' : 'Your Classes'}</h3>
+                            <h3>${isResourceLibrary && !isClassResourceLibrary ? 'Resource Views' : 'Your Classes'}</h3>
                             ${isResourceLibrary ? '' : `
                                 <button id="dashboard-add-class-btn" class="dashboard-add-class" type="button" aria-label="Add class">
                                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
@@ -8786,7 +8820,7 @@ class ClassroomScreenApp {
                                 </button>
                             `}
                         </div>
-                        ${isResourceLibrary
+                        ${isResourceLibrary && !isClassResourceLibrary
                             ? `<div class="dashboard-class-list" id="dashboard-resource-view-list" aria-label="Filter teaching resources">
                                 ${[
                                     { view: 'all', label: 'All resources', icon: 'fa-folder-open' },
@@ -8848,7 +8882,7 @@ class ClassroomScreenApp {
             classItems.forEach((item) => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                const isSelectedClass = navigationMode === 'library' && item.className === selectedClassName;
+                const isSelectedClass = item.className === selectedClassName;
                 const deckCountLabel = `${item.count} ${item.count === 1 ? 'deck' : 'decks'}`;
                 button.className = `dashboard-filter${isSelectedClass ? ' is-active' : ''}`;
                 button.dataset.className = item.className;
@@ -8876,6 +8910,21 @@ class ClassroomScreenApp {
 
         const screenGrid = this.dashboardRoot.querySelector('#dashboard-screen-grid');
         if (screenGrid) {
+            if (navigationMode === 'library' && selectedClassName) {
+                screenGrid.insertAdjacentHTML('beforeend', `
+                    <article class="dashboard-class-resources-card" aria-label="Resources for ${escapeHtml(selectedClassName)}">
+                        <button class="dashboard-deck-toggle dashboard-class-resources-button" type="button" data-class-resources="${escapeHtml(selectedClassName)}">
+                            <span class="dashboard-deck-toggle__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span>
+                            <span class="dashboard-deck-toggle__copy">
+                                <span class="dashboard-screen-card__heading"><span class="dashboard-deck-title">Resources</span></span>
+                                <span class="dashboard-deck-subtitle">${escapeHtml(selectedClassName)}</span>
+                            </span>
+                            <span class="dashboard-deck-summary">Teaching files<small>Available while using any deck</small></span>
+                            <span class="dashboard-deck-chevron" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
+                    </article>
+                `);
+            }
             if (shownPresets.length === 0) {
                 const emptyMessage = navigationMode === 'favorites'
                     ? 'No favourites yet. Use the star on a lesson deck to pin it here.'
@@ -8969,6 +9018,14 @@ class ClassroomScreenApp {
                 });
             }
         }
+
+        this.dashboardRoot.querySelectorAll('[data-class-resources]').forEach((button) => {
+            button.addEventListener('click', () => {
+                this.openResourceLibrary(this.resourceLibrarySource, {
+                    className: button.dataset.classResources || ''
+                });
+            });
+        });
 
         this.dashboardRoot.querySelectorAll('[data-deck-action]').forEach((control) => {
             control.addEventListener('click', () => {

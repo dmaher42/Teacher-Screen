@@ -1297,8 +1297,13 @@ async function runResourceLibraryFlowChecks(page) {
     }, null, { timeout: 10000 });
     assert(true, 'Adding a PDF resource should persist it in recent resources');
 
-    await page.locator('#dashboard-tab').dispatchEvent('click');
-    await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
+    await page.locator('#add-widget-btn').click();
+    const classroomResourcesButton = page.locator('#widget-modal #widget-picker-resources-btn');
+    assert(await classroomResourcesButton.isVisible(), 'An open deck should keep Resources available from Add Widget');
+    await classroomResourcesButton.click();
+    await page.waitForSelector('#dashboard-view:not([hidden]) .dashboard-resources-panel', { timeout: 10000 });
+    assert(await page.locator('.resource-current-deck').textContent().then((text) => text.includes('Adding to:')), 'Opening Resources from a deck should preserve the active deck as the add target');
+
     await page.locator('[data-dashboard-mode="resources"]').click();
     await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
     await page.locator('[data-resource-view="recent"]').click();
@@ -2332,6 +2337,13 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         await migrationClass.click();
         assert(await page.locator('.dashboard-screen-card').count() === 3, 'Class filtering should retain every matching migrated deck');
         assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Class filtering should keep Deck Library active');
+        assert(await page.locator('[data-class-resources="Migration Class"]').isVisible(), 'A selected class should show its Resources folder beside its decks');
+        await page.locator('[data-class-resources="Migration Class"]').click();
+        await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
+        assert(await page.locator('.dashboard-resources-panel h2').textContent().then((text) => text.trim() === 'Migration Class resources'), 'Class Resources should open in the dashboard main area with the class context');
+        assert(await page.locator('.dashboard-filter[data-class-name="Migration Class"].is-active').count() === 1, 'Opening class Resources should keep the selected class visible');
+        await page.locator('#resource-back-to-class-btn').click();
+        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Migration Class'), 'Back to class decks should restore the same selected class');
         await page.waitForFunction(() => document.activeElement?.dataset?.className === 'Migration Class', null, { timeout: 10000 });
 
         await page.locator('[data-dashboard-mode="library"]').click();
