@@ -962,6 +962,72 @@ export class LocalFolderResourceProvider {
         return current;
     }
 
+    async createFolder(name, pathSegments = []) {
+        const folderName = asTrimmedString(name);
+        normalizePathSegments([folderName]);
+        const normalizedPath = normalizePathSegments(pathSegments);
+
+        if (!this.directoryHandle || this.permission !== 'granted') {
+            throw new ResourceLibraryError(
+                'Reconnect the selected resources folder before creating a folder.',
+                'permission-required'
+            );
+        }
+
+        let writePermission = typeof this.directoryHandle.queryPermission === 'function'
+            ? 'prompt'
+            : (typeof this.directoryHandle.requestPermission === 'function' ? 'prompt' : 'granted');
+        if (typeof this.directoryHandle.queryPermission === 'function') {
+            try {
+                writePermission = await this.directoryHandle.queryPermission({ mode: 'readwrite' });
+            } catch (error) {
+                writePermission = 'prompt';
+            }
+        }
+        if (writePermission !== 'granted' && typeof this.directoryHandle.requestPermission === 'function') {
+            try {
+                writePermission = await this.directoryHandle.requestPermission({ mode: 'readwrite' });
+            } catch (error) {
+                writePermission = 'denied';
+            }
+        }
+        if (writePermission !== 'granted') {
+            throw new ResourceLibraryError(
+                'Allow editing for the selected resources folder to create a new folder.',
+                'write-permission-required'
+            );
+        }
+
+        try {
+            const directory = await this._resolveDirectory(this.directoryHandle, normalizedPath);
+            if (typeof directory.getDirectoryHandle !== 'function') {
+                throw new ResourceLibraryError(
+                    'This browser cannot create folders in the selected location.',
+                    'folder-creation-unavailable'
+                );
+            }
+
+            try {
+                await directory.getDirectoryHandle(folderName, { create: false });
+                throw new ResourceLibraryError(
+                    `A folder named "${folderName}" already exists here.`,
+                    'folder-already-exists'
+                );
+            } catch (error) {
+                if (error instanceof ResourceLibraryError) throw error;
+                if (error?.name !== 'NotFoundError') throw error;
+            }
+
+            await directory.getDirectoryHandle(folderName, { create: true });
+            this.lastError = null;
+            return folderName;
+        } catch (error) {
+            const mapped = mapFileSystemError(error, 'The new resource folder could not be created.');
+            this.lastError = mapped;
+            throw mapped;
+        }
+    }
+
     async list(pathSegments = []) {
         const normalizedPath = normalizePathSegments(pathSegments);
         const rootHandle = await this._getConnectedHandle();

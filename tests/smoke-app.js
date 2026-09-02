@@ -1141,7 +1141,7 @@ async function installResourceFolderMock(context) {
                 name,
                 async queryPermission(options = {}) {
                     window.__resourceDirectoryPermissionQuery = options;
-                    return 'granted';
+                    return options.mode === 'readwrite' ? 'prompt' : 'granted';
                 },
                 async requestPermission(options = {}) {
                     window.__resourceDirectoryPermissionRequest = options;
@@ -1152,9 +1152,14 @@ async function installResourceFolderMock(context) {
                         yield entry;
                     }
                 },
-                async getDirectoryHandle(entryName) {
+                async getDirectoryHandle(entryName, options = {}) {
                     const entry = children.get(entryName);
                     if (entry?.kind === 'directory') return entry;
+                    if (options.create === true) {
+                        const createdDirectory = createDirectoryHandle(entryName, []);
+                        children.set(entryName, createdDirectory);
+                        return createdDirectory;
+                    }
                     throw createNotFoundError(entryName);
                 },
                 async getFileHandle(entryName) {
@@ -1275,6 +1280,13 @@ async function runResourceLibraryFlowChecks(page) {
     await page.locator('[data-resource-view="all"]').click();
     await waitForResourceNames(page, rootResourceNames);
 
+    page.once('dialog', (dialog) => dialog.accept('Year 8 HPE'));
+    await page.locator('#resource-new-folder-btn').click();
+    const rootResourceNamesAfterCreate = [...rootResourceNames, 'Year 8 HPE'];
+    await waitForResourceNames(page, rootResourceNamesAfterCreate);
+    assert(await page.locator('.resource-card', { hasText: 'Year 8 HPE' }).locator('[data-resource-action="folder"]').isVisible(), 'New folder should create a real browsable folder in the connected resource location');
+    assert(await page.evaluate(() => window.__resourceDirectoryPermissionRequest?.mode === 'readwrite'), 'Creating a resource folder should request write permission only when New folder is used');
+
     await page.locator('.resource-card', { hasText: 'Lesson handout.pdf' }).locator('[data-resource-action="add"]').click();
     await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
     await page.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
@@ -1310,7 +1322,7 @@ async function runResourceLibraryFlowChecks(page) {
     await localSourceButton.dispatchEvent('click');
     await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'Local folder connected', null, { timeout: 10000 });
     await page.locator('[data-resource-view="all"]').click();
-    await waitForResourceNames(page, rootResourceNames);
+    await waitForResourceNames(page, rootResourceNamesAfterCreate);
     assert(true, 'Switching back from Google Drive should retain the live local-folder connection');
 }
 

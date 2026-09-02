@@ -7216,6 +7216,9 @@ class ClassroomScreenApp {
 
                 <div class="resource-toolbar">
                     <div class="resource-breadcrumbs" aria-label="Current resource folder">${breadcrumbMarkup}</div>
+                    ${isLocal && isConnected
+                        ? '<button id="resource-new-folder-btn" class="control-button" type="button"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> New folder</button>'
+                        : ''}
                     <input id="resource-search-input" class="resource-search" type="search" aria-label="Search teaching resources" placeholder="Search this resource view" value="${escapeHtml(this.resourceLibrarySearchQuery)}">
                 </div>
                 <input id="resource-folder-fallback-input" type="file" multiple webkitdirectory directory hidden aria-label="Choose a teaching resources folder">
@@ -7651,6 +7654,42 @@ class ClassroomScreenApp {
         }
     }
 
+    async createResourceFolder() {
+        if (this.resourceLibrarySource !== 'local') return;
+        const provider = this.localResourceProvider;
+        if (!provider || typeof provider.createFolder !== 'function') {
+            this.showNotification('Folder creation is unavailable in this browser.', 'error');
+            return;
+        }
+
+        const response = window.prompt('Name the new resource folder', '');
+        if (typeof response !== 'string') return;
+        const folderName = response.trim();
+        if (!folderName) {
+            this.showNotification('Enter a folder name.', 'warning');
+            return;
+        }
+
+        try {
+            await provider.createFolder(
+                folderName,
+                this.resourceLibraryPath.map((resource) => resource.name)
+            );
+            this.resourceLibraryView = 'all';
+            this.resourceLibrarySearchQuery = '';
+            await this.refreshResourceLibrary();
+            this.showNotification(`Created the resource folder "${folderName}".`, 'success');
+            window.requestAnimationFrame(() => {
+                const matchingCard = Array.from(this.dashboardRoot?.querySelectorAll('.resource-card') || [])
+                    .find((card) => card.querySelector('h3')?.textContent?.trim() === folderName);
+                matchingCard?.querySelector('[data-resource-action="folder"]')?.focus({ preventScroll: true });
+            });
+        } catch (error) {
+            console.warn('Unable to create resource folder:', error);
+            this.showNotification(error?.message || 'The new resource folder could not be created.', 'error');
+        }
+    }
+
     handleFallbackResourceFiles(fileList) {
         const files = Array.from(fileList || []);
         const firstRelativePath = files[0]?.webkitRelativePath || '';
@@ -7735,6 +7774,9 @@ class ClassroomScreenApp {
                     this.dashboardRoot?.querySelector('#resource-refresh-btn')?.focus({ preventScroll: true });
                 });
             });
+        });
+        this.dashboardRoot.querySelector('#resource-new-folder-btn')?.addEventListener('click', () => {
+            void this.createResourceFolder();
         });
 
         this.dashboardRoot.querySelectorAll('[data-resource-breadcrumb]').forEach((button) => {
