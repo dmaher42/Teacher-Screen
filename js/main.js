@@ -8208,7 +8208,8 @@ class ClassroomScreenApp {
                 };
             case MEMORY_CUE_SYNC_STATES.ERROR:
                 return {
-                    status: `${email ? `${email} - ` : ''}Sync paused${queuedCount ? ` - ${queuedLabel}` : ''}`,
+                    status: `${email ? `${email} - ` : ''}Sync paused${queuedCount ? ` - ${queuedLabel}` : ''}`
+                        + `${state.error ? ` - ${String(state.error).trim()}` : ''}`,
                     action: 'retry',
                     actionLabel: 'Retry'
                 };
