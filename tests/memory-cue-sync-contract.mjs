@@ -343,6 +343,24 @@ const readBinding = (storage) => {
     return entry ? JSON.parse(entry[1]) : null;
 };
 
+test('a completed redirect resumes the pending installed-app connection', async (t) => {
+    const storage = new MemoryStorage({
+        'teacherScreenMemoryCueSync:v1:pendingConnection': JSON.stringify({ active: true, startedAt: 1_800_000_000_000 })
+    });
+    const auth = new FakeAuthAdapter({ currentUser: null, nextUser: USER_A });
+    auth.finishRedirect = async () => clone(USER_A);
+    const harness = createHarness({ storage, auth });
+    t.after(() => harness.sync.dispose());
+
+    await harness.sync.init();
+
+    assert.equal(harness.sync.getState().status, MEMORY_CUE_SYNC_STATES.CONNECTED);
+    assert.equal(harness.confirmations.length, 1);
+    assert.equal(harness.confirmations[0].user.email, USER_A.email);
+    assert.equal(readBinding(storage)?.active, true);
+    assert.equal(storage.getItem('teacherScreenMemoryCueSync:v1:pendingConnection'), null);
+});
+
 async function settleUntil(predicate, message, attempts = 100) {
     for (let index = 0; index < attempts; index += 1) {
         if (predicate()) return;

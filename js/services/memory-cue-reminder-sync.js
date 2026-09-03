@@ -4,6 +4,7 @@ const FIREBASE_MODULE_BASE = 'https://www.gstatic.com/firebasejs/10.14.1';
 const FIREBASE_APP_NAME = 'teacher-screen-memory-cue';
 const SYNC_VERSION = 1;
 const BINDING_KEY = 'teacherScreenMemoryCueSync:v1:binding';
+const PENDING_CONNECTION_KEY = 'teacherScreenMemoryCueSync:v1:pendingConnection';
 const QUEUE_KEY_PREFIX = 'teacherScreenMemoryCueSync:v1:queue:';
 const MANIFEST_KEY_PREFIX = 'teacherScreenMemoryCueSync:v1:manifest:';
 const TOMBSTONE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
@@ -289,6 +290,7 @@ const isOfflineError = (error) => {
 
 function createFirebaseAdapters(config = MEMORY_CUE_FIREBASE_CONFIG) {
     let firebasePromise = null;
+    let redirectResultPromise = null;
 
     const getFirebase = async () => {
         if (!firebasePromise) {
@@ -323,6 +325,15 @@ function createFirebaseAdapters(config = MEMORY_CUE_FIREBASE_CONFIG) {
         return firebasePromise;
     };
 
+    const getRedirectUser = async () => {
+        const firebase = await getFirebase();
+        if (!redirectResultPromise) {
+            redirectResultPromise = firebase.authModule.getRedirectResult(firebase.auth);
+        }
+        const result = await redirectResultPromise;
+        return normalizeUser(result?.user || firebase.auth.currentUser);
+    };
+
     return {
         authAdapter: {
             async start(onUser) {
@@ -352,8 +363,15 @@ function createFirebaseAdapters(config = MEMORY_CUE_FIREBASE_CONFIG) {
                     ) {
                         return authenticatedUser;
                     }
+                    if (/popup-closed|popup-cancelled|cancelled-popup|user-cancel/i.test(`${error?.code || ''} ${error?.message || ''}`)) {
+                        await firebase.authModule.signInWithRedirect(firebase.auth, provider);
+                        return { redirecting: true };
+                    }
                     throw error;
                 }
+            },
+            async finishRedirect() {
+                return getRedirectUser();
             },
             async signOut() {
                 const firebase = await getFirebase();
@@ -482,6 +500,25 @@ export class MemoryCueReminderSync {
         return nextBinding;
     }
 
+    readPendingConnection() {
+        const pending = safeParse(this.storage?.getItem?.(PENDING_CONNECTION_KEY), {});
+        return {
+            active: pending.active === true,
+            startedAt: normalizeTimestamp(pending.startedAt, 0)
+        };
+    }
+
+    writePendingConnection() {
+        this.storage?.setItem?.(PENDING_CONNECTION_KEY, JSON.stringify({
+            active: true,
+            startedAt: this.now()
+        }));
+    }
+
+    clearPendingConnection() {
+        this.storage?.removeItem?.(PENDING_CONNECTION_KEY);
+    }
+
     readQueue(uid) {
         const queue = safeParse(this.storage?.getItem?.(getAccountStorageKey(QUEUE_KEY_PREFIX, uid)), createEmptyQueue());
         return {
@@ -548,6 +585,58 @@ export class MemoryCueReminderSync {
 
     async init() {
         this.eventTarget?.addEventListener?.('online', this.handleOnline);
+        const pendingConnection = this.readPendingConnection();
+        if (pendingConnection.active && typeof this.authAdapter.finishRedirect === 'function') {
+            this.setState({ status: MEMORY_CUE_SYNC_STATES.CONNECTING, connected: false, error: '' });
+            try {
+                await this.ensureAuthObserver();
+                const user = normalizeUser(await this.authAdapter.finishRedirect());
+                if (!user) {
+                    this.clearPendingConnection();
+                    this.setState({
+                        status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
+                        connected: false,
+                        error: ''
+                    });
+                    return;
+                }
+                const previousBinding = this.readBinding();
+                const reminders = this.getLocalReminders();
+                const approved = await Promise.resolve(this.confirmConnection({
+                    user,
+                    previousBinding,
+                    reminderCount: Array.isArray(reminders) ? reminders.length : 0
+                }));
+                if (!approved) {
+                    this.clearPendingConnection();
+                    await this.authAdapter.signOut();
+                    this.setState({
+                        status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
+                        connected: false,
+                        email: previousBinding.email,
+                        error: ''
+                    });
+                    return;
+                }
+                this.writeBinding({
+                    uid: user.uid,
+                    email: user.email,
+                    active: true,
+                    connectedAt: this.now()
+                });
+                this.clearPendingConnection();
+                await this.activateBoundUser(user);
+                return;
+            } catch (error) {
+                this.clearPendingConnection();
+                this.setState({
+                    status: isOfflineError(error) ? MEMORY_CUE_SYNC_STATES.OFFLINE : MEMORY_CUE_SYNC_STATES.ERROR,
+                    connected: false,
+                    error: normalizeText(error?.message || 'Memory Cue sign-in could not be completed.', 300)
+                });
+                return;
+            }
+        }
         const binding = this.readBinding();
         if (!binding.active || !binding.uid) {
             this.setState({ status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY, connected: false, email: binding.email });
@@ -625,10 +714,13 @@ export class MemoryCueReminderSync {
         const previousBinding = this.readBinding();
         const connectionAttempt = ++this.connectionAttempt;
         this.connecting = true;
+        this.writePendingConnection();
         this.setState({ status: MEMORY_CUE_SYNC_STATES.CONNECTING, connected: false, error: '' });
         try {
             await this.ensureAuthObserver();
-            const user = normalizeUser(await this.authAdapter.signIn());
+            const signInResult = await this.authAdapter.signIn();
+            if (signInResult?.redirecting === true) return false;
+            const user = normalizeUser(signInResult);
             if (connectionAttempt !== this.connectionAttempt) {
                 await Promise.resolve(this.authAdapter.signOut()).catch(() => {});
                 return false;
@@ -648,6 +740,7 @@ export class MemoryCueReminderSync {
                     return false;
                 }
                 if (!approved) {
+                    this.clearPendingConnection();
                     await this.authAdapter.signOut();
                     this.setState({
                         status: previousBinding.active
@@ -674,9 +767,11 @@ export class MemoryCueReminderSync {
                 active: true,
                 connectedAt: this.now()
             });
+            this.clearPendingConnection();
             const activated = await this.activateBoundUser(user);
             return activated && connectionAttempt === this.connectionAttempt;
         } catch (error) {
+            this.clearPendingConnection();
             this.currentUser = null;
             const reconnectRequired = previousBinding.active
                 && previousBinding.uid
