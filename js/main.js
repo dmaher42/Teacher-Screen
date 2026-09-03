@@ -1130,10 +1130,8 @@ class ClassroomScreenApp {
 
     toggleTeacherPanel(forceState = null, options = {}) {
         const nextOpen = forceState !== null ? forceState : !this.isTeacherPanelOpen;
-        if (nextOpen === this.isTeacherPanelOpen) {
-            return;
-        }
-        if (nextOpen) {
+        const stateChanged = nextOpen !== this.isTeacherPanelOpen;
+        if (nextOpen && stateChanged) {
             const activeElement = document.activeElement;
             if (activeElement instanceof HTMLElement && !this.teacherPanel.contains(activeElement)) {
                 this.teacherPanelReturnFocus = activeElement;
@@ -1147,6 +1145,13 @@ class ClassroomScreenApp {
         this.studentView.classList.toggle('panel-open', this.isTeacherPanelOpen);
         document.body.classList.toggle('is-arrange-mode', this.isTeacherPanelOpen);
         this.teacherControlsQuickButton?.setAttribute('aria-expanded', this.isTeacherPanelOpen ? 'true' : 'false');
+
+        // Reconcile the DOM even when the controller already believes it is closed.
+        // A restored/stale `panel-open` class otherwise leaves the widget canvas at
+        // 65% width with no visible Teacher Controls panel beside it.
+        if (!stateChanged) {
+            return;
+        }
 
         if (this.isTeacherPanelOpen) {
             const panelContent = this.teacherPanel ? this.teacherPanel.querySelector('.panel-content') : null;

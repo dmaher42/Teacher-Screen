@@ -4196,6 +4196,35 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
             `Restoring a minimised widget should return it to its saved size and position (${JSON.stringify({ restoredPositionTarget, restoredPosition })})`
         );
 
+        await page.setViewportSize({ width: 781, height: 588 });
+        await page.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.isTeacherPanelOpen = false;
+            app.studentView.classList.add('panel-open');
+            app.teacherPanel.classList.remove('open');
+            app.teacherPanel.inert = true;
+            app.teacherPanel.setAttribute('aria-hidden', 'true');
+            app.toggleTeacherPanel(false, { restoreFocus: false });
+        });
+        await page.waitForFunction(() => {
+            const app = window.__TeacherScreenApp;
+            const canvasRect = document.getElementById('widgets-container').getBoundingClientRect();
+            return !app.studentView.classList.contains('panel-open')
+                && canvasRect.width / window.innerWidth >= 0.95;
+        }, null, { timeout: 10000 });
+        const reconciledClosedPanel = await page.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            const canvasRect = document.getElementById('widgets-container').getBoundingClientRect();
+            return {
+                staleCanvasClassRemoved: !app.studentView.classList.contains('panel-open'),
+                canvasWidthRatio: canvasRect.width / window.innerWidth
+            };
+        });
+        assert(
+            reconciledClosedPanel.staleCanvasClassRemoved && reconciledClosedPanel.canvasWidthRatio >= 0.95,
+            `Closing Teacher Controls should always return widgets to the full screen width (${JSON.stringify(reconciledClosedPanel)})`
+        );
+
         assert(pageErrors.length === 0, `Widget startup layout checks should not raise page errors (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Widget startup layout checks should not raise console errors (${consoleErrors.join('; ')})`);
     } finally {
