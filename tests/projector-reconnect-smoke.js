@@ -427,6 +427,17 @@ async function run() {
             return info?.widget?.activeDeck?.type === 'html'
                 && info.widget.revealDeck?.isReady?.() === true;
         }, localPresentation.id);
+        await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            window.__projectorPresentationSurface = info.widget.inlineDeckContainer.firstElementChild;
+            window.__projectorPresentationDeck = info.widget.revealDeck;
+            window.__projectorPresentationLaunchCount = 0;
+            const originalLaunchDeck = info.widget.launchDeck.bind(info.widget);
+            info.widget.launchDeck = (...args) => {
+                window.__projectorPresentationLaunchCount += 1;
+                return originalLaunchDeck(...args);
+            };
+        }, localPresentation.id);
         await teacherPage.evaluate((widgetId) => {
             const info = window.__TeacherScreenApp.layoutManager.widgets.find((widget) => widget.id === widgetId);
             info.widget.navigate('next');
@@ -446,7 +457,43 @@ async function run() {
         if (syncedLocalSlide.stored !== 1 || syncedLocalSlide.rendered !== 1) {
             throw new Error(`Projector did not follow the teacher to slide two (${JSON.stringify(syncedLocalSlide)})`);
         }
-        console.log('PASS: Local PowerPoint/PDF presentation slide changes sync live to the projector');
+        const projectorPresentationAfterSlideChange = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return {
+                launchCount: window.__projectorPresentationLaunchCount,
+                sameSurface: info?.widget?.inlineDeckContainer?.firstElementChild === window.__projectorPresentationSurface,
+                sameDeck: info?.widget?.revealDeck === window.__projectorPresentationDeck
+            };
+        }, localPresentation.id);
+        if (projectorPresentationAfterSlideChange.launchCount !== 0
+            || !projectorPresentationAfterSlideChange.sameSurface
+            || !projectorPresentationAfterSlideChange.sameDeck) {
+            throw new Error(`Projector reloaded the presentation while following a slide change (${JSON.stringify(projectorPresentationAfterSlideChange)})`);
+        }
+        console.log('PASS: Local PowerPoint/PDF slide changes sync without reloading the projector presentation');
+
+        await teacherPage.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.handleNavClick('dashboard');
+            app.handleNavClick('classroom');
+        });
+        await projectorPage.waitForTimeout(450);
+        const projectorPresentationAfterScreenSwitch = await projectorPage.evaluate((widgetId) => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
+            return {
+                launchCount: window.__projectorPresentationLaunchCount,
+                sameSurface: info?.widget?.inlineDeckContainer?.firstElementChild === window.__projectorPresentationSurface,
+                sameDeck: info?.widget?.revealDeck === window.__projectorPresentationDeck,
+                rendered: info?.widget?.revealDeck?.getIndices?.().h
+            };
+        }, localPresentation.id);
+        if (projectorPresentationAfterScreenSwitch.launchCount !== 0
+            || !projectorPresentationAfterScreenSwitch.sameSurface
+            || !projectorPresentationAfterScreenSwitch.sameDeck
+            || projectorPresentationAfterScreenSwitch.rendered !== 1) {
+            throw new Error(`Projector reloaded or moved the presentation while the teacher switched screens (${JSON.stringify(projectorPresentationAfterScreenSwitch)})`);
+        }
+        console.log('PASS: Switching teacher screens leaves the projector presentation running in place');
 
         await teacherPage.evaluate((widgetId) => {
             const app = window.__TeacherScreenApp;

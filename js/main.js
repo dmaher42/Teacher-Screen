@@ -2515,6 +2515,8 @@ class ClassroomScreenApp {
         const widgetInfo = widget
             ? this.layoutManager.widgets.find((candidate) => candidate.widget === widget)
             : null;
+        const isPresentationPositionOnly = detail?.action === 'slide-position-updated'
+            && widget?.constructor?.name === 'RevealManagerWidget';
 
         const serializeWidget = typeof widget?.serializeForProjector === 'function'
             ? widget.serializeForProjector.bind(widget)
@@ -2522,7 +2524,11 @@ class ClassroomScreenApp {
                 ? widget.serialize.bind(widget)
                 : null;
 
-        if (widgetInfo && serializeWidget && this.projectorChannel && this.projectorSyncToken) {
+        if (widgetInfo
+            && serializeWidget
+            && this.projectorChannel
+            && this.projectorSyncToken
+            && !isPresentationPositionOnly) {
             const revision = Math.max(
                 Date.now(),
                 (this.projectorWidgetRevisions.get(widgetInfo.id) || 0) + 1
