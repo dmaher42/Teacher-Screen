@@ -1195,10 +1195,22 @@ async function installResourceFolderMock(context) {
                 new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
             )]
         ]);
+        const englishClassFolder = createDirectoryHandle('Year 7 English Resources', [
+            ['English class brief.pdf', createFileHandle(
+                'English class brief.pdf',
+                'application/pdf',
+                '%PDF-1.4\nMock class-specific teaching resource\n%%EOF'
+            )]
+        ]);
 
+        window.__resourceDirectoryChoice = 'global';
+        window.__resourceDirectoryChoices = {
+            global: rootFolder,
+            english: englishClassFolder
+        };
         window.showDirectoryPicker = async (options = {}) => {
             window.__resourceDirectoryPickerOptions = options;
-            return rootFolder;
+            return window.__resourceDirectoryChoices[window.__resourceDirectoryChoice] || rootFolder;
         };
     });
 }
@@ -1329,6 +1341,42 @@ async function runResourceLibraryFlowChecks(page) {
     await page.locator('[data-resource-view="all"]').click();
     await waitForResourceNames(page, rootResourceNamesAfterCreate);
     assert(true, 'Switching back from Google Drive should retain the live local-folder connection');
+
+    await page.locator('[data-dashboard-mode="library"]').click();
+    const englishClass = page.locator('.dashboard-filter[data-class-name="Year 7 English"]');
+    await englishClass.click();
+    await page.locator('[data-class-resources="Year 7 English"]').click();
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked', null, { timeout: 10000 });
+    assert(await page.locator('#resource-connect-btn').textContent().then((text) => text.trim() === 'Choose class folder'), 'A class should begin with its own unconnected resource folder');
+    assert(await page.locator('.resource-connection-card__copy').textContent().then((text) => text.includes('Every deck in this class will share it')), 'Class Resources should explain that its folder is shared by the class decks');
+
+    await page.evaluate(() => {
+        window.__resourceDirectoryChoice = 'english';
+    });
+    await page.locator('#resource-connect-btn').click();
+    await waitForResourceNames(page, ['English class brief.pdf']);
+    assert(await page.locator('.resource-connection-card__copy strong').textContent().then((text) => text.trim() === 'Year 7 English Resources'), 'The selected class should show its own connected folder');
+
+    await page.locator('#resource-back-to-class-btn').click();
+    const englishDeck = page.locator('.dashboard-screen-card').first();
+    const englishDeckToggle = englishDeck.locator('[data-deck-action="toggle"]');
+    if (await englishDeckToggle.getAttribute('aria-expanded') !== 'true') {
+        await englishDeckToggle.click();
+    }
+    await englishDeck.locator('[data-deck-action="open"]').click();
+    await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
+    await page.locator('#add-widget-btn').click();
+    await page.locator('#widget-picker-resources-btn').click();
+    await page.waitForSelector('#dashboard-view:not([hidden]) .dashboard-resources-panel', { timeout: 10000 });
+    await waitForResourceNames(page, ['English class brief.pdf']);
+    assert(await page.locator('.dashboard-resources-panel h2').textContent().then((text) => text.trim() === 'Year 7 English resources'), 'Every deck in a class should reopen that class resource folder');
+
+    await page.locator('#resource-back-to-class-btn').click();
+    page.once('dialog', (dialog) => dialog.accept('Resource Test Class'));
+    await page.locator('#dashboard-add-class-btn').click();
+    await page.locator('[data-class-resources="Resource Test Class"]').click();
+    await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked', null, { timeout: 10000 });
+    assert(await page.locator('.resource-grid').textContent().then((text) => !text.includes('English class brief.pdf')), 'A different class should not inherit another class resource folder');
 }
 
 async function runMobileResourceLibraryChecks(page) {
@@ -1371,7 +1419,10 @@ async function runMobileResourceLibraryChecks(page) {
             actionsFit
         };
     });
-    assert(resourceLayout.viewportFits && resourceLayout.mainFits && resourceLayout.panelFits, '390px Resources view should not create horizontal overflow');
+    assert(
+        resourceLayout.viewportFits && resourceLayout.mainFits && resourceLayout.panelFits,
+        `390px Resources view should not create horizontal overflow (${JSON.stringify(resourceLayout)})`
+    );
     assert(resourceLayout.actionsFit, '390px resource cards should keep every action usable inside its card');
 
     await page.locator('#resource-search-input').fill('diagram');

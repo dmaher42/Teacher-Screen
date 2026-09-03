@@ -8938,7 +8938,6 @@ body.projector-view .noise-meter-status-dot {
 
 .notes-panel__summary {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
     margin-top: 14px;
 }
@@ -12209,6 +12208,7 @@ body.is-dashboard-active .resource-library__header-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
 }
@@ -12765,6 +12765,24 @@ body.is-dashboard-active .resource-favorite-btn:focus-visible,
 body.is-dashboard-active .resource-card__actions button:focus-visible {
     outline: 3px solid var(--a11y-focus-outline, #ffae00) !important;
     outline-offset: 2px;
+}
+
+@media (min-width: 641px) and (max-width: 1180px) {
+    body.is-dashboard-active .resource-library__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    body.is-dashboard-active .resource-library__header-actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    body.is-dashboard-active .resource-source-tabs {
+        flex-shrink: 0;
+        overflow: visible;
+    }
 }
 
 @media (max-width: 860px) {

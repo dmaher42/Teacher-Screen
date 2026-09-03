@@ -16,7 +16,7 @@ import {
     LocalFolderResourceProvider,
     ResourceLibraryState,
     createResourceKey
-} from './services/resource-library-service.js';
+} from './services/resource-library-service.js?v=2';
 import { GoogleDriveResourceProvider } from './services/google-drive-provider.js';
 import {
     CLASS_REMINDER_STORE_VERSION,
@@ -317,6 +317,7 @@ class ClassroomScreenApp {
         this.unsubscribeMemoryCueReminderSync = null;
         this.resourceLibraryState = new ResourceLibraryState();
         this.localResourceProvider = new LocalFolderResourceProvider();
+        this.localResourceProviders = new Map([['global', this.localResourceProvider]]);
         this.googleDriveResourceProvider = new GoogleDriveResourceProvider();
         this.resourceLibrarySource = 'local';
         this.resourceLibraryView = 'all';
@@ -6990,10 +6991,44 @@ class ClassroomScreenApp {
         return parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     }
 
+    getResourceClassContext() {
+        const className = String(this.dashboardSelectedClassName || '').trim();
+        if (!className) return { className: '', classId: '' };
+        const matchingPreset = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .find((preset) => preset?.className === className);
+        return {
+            className,
+            classId: matchingPreset?.classId || getStableClassId(className)
+        };
+    }
+
+    getLocalResourceContextKey() {
+        const { classId } = this.getResourceClassContext();
+        return classId ? `class:${classId}` : 'global';
+    }
+
+    getLocalResourceProvider() {
+        const contextKey = this.getLocalResourceContextKey();
+        let provider = this.localResourceProviders.get(contextKey);
+        if (provider) return provider;
+        const pickerSuffix = contextKey
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 64) || 'class';
+        provider = new LocalFolderResourceProvider({
+            connectionKey: `resources-folder:${contextKey}`,
+            pickerId: `teacher-screen-resources-${pickerSuffix}`
+        });
+        this.localResourceProviders.set(contextKey, provider);
+        return provider;
+    }
+
     getResourceProvider(source = this.resourceLibrarySource) {
         return source === 'google-drive'
             ? this.googleDriveResourceProvider
-            : this.localResourceProvider;
+            : this.getLocalResourceProvider();
     }
 
     getResourceProviderStatus(source = this.resourceLibrarySource) {
@@ -7079,16 +7114,23 @@ class ClassroomScreenApp {
     getVisibleResourceEntries() {
         const currentSource = this.resourceLibrarySource;
         let entries = Array.isArray(this.resourceLibraryEntries) ? this.resourceLibraryEntries : [];
+        const currentLocalRootId = currentSource === 'local'
+            ? String(this.getResourceProviderStatus('local').rootId || '')
+            : '';
+        const matchesCurrentLocation = (resource) => resource
+            && resource.provider === currentSource
+            && (currentSource !== 'local'
+                || (Boolean(currentLocalRootId) && resource.rootId === currentLocalRootId));
 
         if (this.resourceLibraryView === 'favorites') {
             const storedFavorites = this.getStoredResourceCollection('getFavorites')
-                .filter((resource) => resource && resource.provider === currentSource);
+                .filter(matchesCurrentLocation);
             entries = storedFavorites.length > 0
                 ? storedFavorites
                 : entries.filter((resource) => this.isResourceFavorite(resource));
         } else if (this.resourceLibraryView === 'recent') {
             entries = this.getStoredResourceCollection('getRecents')
-                .filter((resource) => resource && resource.provider === currentSource);
+                .filter(matchesCurrentLocation);
         }
 
         const query = String(this.resourceLibrarySearchQuery || '').trim().toLowerCase();
@@ -7120,17 +7162,19 @@ class ClassroomScreenApp {
             ? 'Loading'
             : (status.label || (isConnected ? 'Connected' : 'Not connected'));
         const statusDetail = this.resourceLibraryMessage
-            || status.detail
+            || (isLocal && className && !isConnected
+                ? `Choose one computer folder for ${className}. Every deck in this class will share it.`
+                : status.detail)
             || (isLocal
                 ? 'Choose the teaching-resources folder you want Teacher Screen to use.'
                 : 'Connect Google Drive to open teaching resources without downloading them first.');
         const connectionActionLabel = isConnected
-            ? (isLocal ? 'Change folder' : 'Reconnect')
-            : (isLocal ? 'Choose folder' : (isConfigured ? 'Connect Google Drive' : 'Google setup required'));
+            ? (isLocal ? (className ? 'Change class folder' : 'Change folder') : 'Reconnect')
+            : (isLocal ? (className ? 'Choose class folder' : 'Choose folder') : (isConfigured ? 'Connect Google Drive' : 'Google setup required'));
         const statusClass = isConnected ? 'is-connected' : (status.state === 'error' ? 'is-error' : '');
         const statusState = this.resourceLibraryLoading ? 'loading' : (status.state || (isConnected ? 'connected' : 'disconnected'));
         const sourceRootLabel = isLocal
-            ? (status.folderName || 'Computer folder')
+            ? (status.folderName || (className ? `${className} folder` : 'Computer folder'))
             : (status.folderName || 'Google Drive');
         const currentDeckName = this.normalizeProjectState(this.projectState).projectName || DEFAULT_PROJECT_NAME;
 
@@ -7197,7 +7241,7 @@ class ClassroomScreenApp {
                         <p class="dashboard-toolbar__label">Resource Library</p>
                         <h2>${escapeHtml(className ? `${className} resources` : 'Teaching resources')}</h2>
                         <p>${escapeHtml(className
-                            ? `Open teaching files for ${className}, then add supported material to the current deck.`
+                            ? `This folder is shared by every deck in ${className}. Open a file here to add it to the current deck.`
                             : 'Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.')}</p>
                         <p class="resource-current-deck"><strong>Adding to:</strong> ${escapeHtml(currentDeckName)}</p>
                     </div>
@@ -7249,6 +7293,9 @@ class ClassroomScreenApp {
         this.resourceLibraryView = 'all';
         this.dashboardSearchQuery = '';
         this.resourceLibrarySearchQuery = '';
+        this.resourceLibraryPath = [];
+        this.resourceLibraryEntries = [];
+        this.resourceLibraryMessage = '';
         if (document.body.classList.contains('is-dashboard-active')) {
             this.renderDashboard();
         } else {
@@ -7275,7 +7322,11 @@ class ClassroomScreenApp {
             if (!status.connected) {
                 if (refreshId !== this.resourceLibraryRefreshId) return;
                 this.resourceLibraryEntries = [];
-                this.resourceLibraryMessage = status.detail || '';
+                this.resourceLibraryMessage = this.resourceLibrarySource === 'local'
+                    && this.dashboardSelectedClassName
+                    && status.state === 'idle'
+                    ? ''
+                    : (status.detail || '');
                 return;
             }
 
@@ -7677,7 +7728,7 @@ class ClassroomScreenApp {
 
     async createResourceFolder() {
         if (this.resourceLibrarySource !== 'local') return;
-        const provider = this.localResourceProvider;
+        const provider = this.getResourceProvider('local');
         if (!provider || typeof provider.createFolder !== 'function') {
             this.showNotification('Folder creation is unavailable in this browser.', 'error');
             return;
@@ -7715,8 +7766,10 @@ class ClassroomScreenApp {
         const files = Array.from(fileList || []);
         const firstRelativePath = files[0]?.webkitRelativePath || '';
         const selectedRootName = firstRelativePath.split('/').filter(Boolean)[0] || 'Selected folder';
-        const fallbackStorageKey = `teacherScreenFallbackResourceRoot:${selectedRootName}`;
-        let fallbackRootId = this.resourceFallbackRootIds.get(selectedRootName) || '';
+        const localContextKey = this.getLocalResourceContextKey();
+        const fallbackContextKey = `${localContextKey}:${selectedRootName}`;
+        const fallbackStorageKey = `teacherScreenFallbackResourceRoot:${fallbackContextKey}`;
+        let fallbackRootId = this.resourceFallbackRootIds.get(fallbackContextKey) || '';
         try {
             fallbackRootId = fallbackRootId || sessionStorage.getItem(fallbackStorageKey) || '';
         } catch (error) {
@@ -7725,7 +7778,7 @@ class ClassroomScreenApp {
         if (!fallbackRootId) {
             fallbackRootId = `local-session:${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
         }
-        this.resourceFallbackRootIds.set(selectedRootName, fallbackRootId);
+        this.resourceFallbackRootIds.set(fallbackContextKey, fallbackRootId);
         try {
             sessionStorage.setItem(fallbackStorageKey, fallbackRootId);
         } catch (error) {

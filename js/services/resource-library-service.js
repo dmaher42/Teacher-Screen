@@ -541,13 +541,13 @@ function createLocalRootId() {
     return `local-root:${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function saveDirectoryHandle(handle, rootId) {
+async function saveDirectoryHandle(handle, rootId, connectionKey = LOCAL_FOLDER_HANDLE_KEY) {
     const database = await openHandleDatabase();
     const transaction = database.transaction(HANDLE_STORE_NAME, 'readwrite');
     transaction.objectStore(HANDLE_STORE_NAME).put({
         handle,
         rootId: asTrimmedString(rootId) || createLocalRootId()
-    }, LOCAL_FOLDER_HANDLE_KEY);
+    }, asTrimmedString(connectionKey) || LOCAL_FOLDER_HANDLE_KEY);
     await waitForTransaction(
         transaction,
         'Teacher Screen could not remember the selected resources folder.',
@@ -555,11 +555,11 @@ async function saveDirectoryHandle(handle, rootId) {
     );
 }
 
-async function loadDirectoryHandle() {
+async function loadDirectoryHandle(connectionKey = LOCAL_FOLDER_HANDLE_KEY) {
     const database = await openHandleDatabase();
     const transaction = database.transaction(HANDLE_STORE_NAME, 'readonly');
     return waitForRequest(
-        transaction.objectStore(HANDLE_STORE_NAME).get(LOCAL_FOLDER_HANDLE_KEY),
+        transaction.objectStore(HANDLE_STORE_NAME).get(asTrimmedString(connectionKey) || LOCAL_FOLDER_HANDLE_KEY),
         'Teacher Screen could not restore the selected resources folder.',
         'handle-restore-failed'
     );
@@ -643,6 +643,7 @@ export class LocalFolderResourceProvider {
     constructor(options = {}) {
         this.provider = 'local';
         this.pickerId = asTrimmedString(options.pickerId) || 'teacher-screen-resources';
+        this.connectionKey = asTrimmedString(options.connectionKey) || LOCAL_FOLDER_HANDLE_KEY;
         this.startIn = asTrimmedString(options.startIn) || 'documents';
         this.directoryHandle = null;
         this.rootId = '';
@@ -779,7 +780,7 @@ export class LocalFolderResourceProvider {
 
         this._setStatus('restoring', 'Checking for your saved resources folder.');
         try {
-            const storedConnection = await loadDirectoryHandle();
+            const storedConnection = await loadDirectoryHandle(this.connectionKey);
             const handle = storedConnection?.handle?.kind === 'directory'
                 ? storedConnection.handle
                 : storedConnection;
@@ -795,7 +796,7 @@ export class LocalFolderResourceProvider {
             this.rootId = asTrimmedString(storedConnection?.rootId) || createLocalRootId();
             if (!storedConnection?.rootId) {
                 try {
-                    await saveDirectoryHandle(handle, this.rootId);
+                    await saveDirectoryHandle(handle, this.rootId, this.connectionKey);
                 } catch (error) {
                     this.persistenceWarning = error;
                 }
@@ -893,7 +894,7 @@ export class LocalFolderResourceProvider {
         }
 
         try {
-            await saveDirectoryHandle(handle, this.rootId);
+            await saveDirectoryHandle(handle, this.rootId, this.connectionKey);
         } catch (error) {
             // The live folder remains usable even when the browser cannot persist the handle.
             this.persistenceWarning = error;
