@@ -124,6 +124,18 @@
         return getRecord(PDF_STORE_NAME, id, 'Unable to restore the PDF.');
     }
 
+    async function saveDocument(record) {
+        if (!record || !record.id) {
+            throw createStorageError('A document storage id is required.');
+        }
+        return putRecord(PDF_STORE_NAME, record, 'Unable to save the document.');
+    }
+
+    async function loadDocument(id) {
+        if (!id) return null;
+        return getRecord(PDF_STORE_NAME, id, 'Unable to restore the document.');
+    }
+
     async function saveSlideDeck({ deck, assets = [] } = {}) {
         if (!deck || !deck.id) {
             throw createStorageError('A slide deck storage id is required.');
@@ -226,7 +238,9 @@
         databaseName: DATABASE_NAME,
         databaseVersion: DATABASE_VERSION,
         ensureStorageCapacity,
+        loadDocument,
         loadPdf,
+        saveDocument,
         savePdf,
         deleteSlideDeck,
         loadSlideAssets,

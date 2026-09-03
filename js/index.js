@@ -3,7 +3,7 @@ import './utils/app-bus.js';
 import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
-const LOCAL_ASSET_VERSION = '57';
+const LOCAL_ASSET_VERSION = '58';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
@@ -129,6 +129,7 @@ const TEACHER_DEPENDENCIES = [
     { src: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js', required: false },
     { src: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js', required: false },
+    { src: 'https://cdn.jsdelivr.net/npm/mammoth@1.12.2/mammoth.browser.min.js', required: false },
     { src: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', required: false },
     { src: './js/utils/local-document-store.js', required: true },
     { src: './js/utils/layout-manager.js', required: true },

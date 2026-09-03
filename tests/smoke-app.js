@@ -1117,6 +1117,17 @@ async function installPdfStub(context) {
     });
 }
 
+async function installDocxStub(context) {
+    await context.addInitScript(() => {
+        window.mammoth = {
+            convertToHtml: async () => ({
+                value: '<h1>Year 8 Health</h1><p><strong>Learning intention:</strong> Read the class brief.</p><script>window.__docxScriptRan = true</script><a href="javascript:alert(1)">Unsafe link</a>',
+                messages: []
+            })
+        };
+    });
+}
+
 async function installResourceFolderMock(context) {
     await context.addInitScript(() => {
         const fixedLastModified = Date.UTC(2026, 7, 11, 9, 30, 0);
@@ -1263,7 +1274,8 @@ async function runResourceLibraryFlowChecks(page) {
     assert(await page.locator('.resource-card', { hasText: 'Lesson slides.pptx' }).textContent().then((text) => text.includes('PowerPoint')), 'PowerPoint files should be recognised as supported Presentation resources');
     const wordCard = page.locator('.resource-card', { hasText: 'Unit outline.docx' });
     assert(await wordCard.textContent().then((text) => text.includes('Word document')), 'Word files should be identified clearly');
-    assert(await wordCard.locator('[data-resource-action="open"]').textContent().then((text) => text.trim() === 'Download copy'), 'Word files should explain that the browser must download a copy');
+    assert(await wordCard.locator('[data-resource-action="open"]').textContent().then((text) => text.trim() === 'View in deck'), 'DOCX files should offer the in-app viewer instead of downloading a copy');
+    assert(await wordCard.locator('[data-resource-action="add"]').count() === 0, 'DOCX files should have one clear viewer action instead of duplicate deck actions');
     assert(await page.locator('.resource-card', { hasText: 'Lesson slides.pptx' }).locator('[data-resource-action="open"]').textContent().then((text) => text.trim() === 'Download copy'), 'PowerPoint originals should distinguish downloading from presenting');
     assert(await page.locator('.resource-card', { hasText: 'Classroom diagram.png' }).textContent().then((text) => text.includes('Image')), 'Image files should be recognised as supported deck resources');
 
@@ -1313,10 +1325,18 @@ async function runResourceLibraryFlowChecks(page) {
     assert(await page.locator('.resource-card', { hasText: 'Year 8 HPE' }).locator('[data-resource-action="folder"]').isVisible(), 'New folder should create a real browsable folder in the connected resource location');
     assert(await page.evaluate(() => window.__resourceDirectoryPermissionRequest?.mode === 'readwrite'), 'Creating a resource folder should request write permission only when New folder is used');
 
+    await page.locator('.resource-card', { hasText: 'Unit outline.docx' }).locator('[data-resource-action="open"]').click();
+    await page.waitForSelector('#classroom-view:not([hidden]) .document-viewer-docx', { timeout: 15000 });
+    assert(await page.locator('.document-viewer-docx h1').textContent().then((text) => text.trim() === 'Year 8 Health'), 'Opening a DOCX resource should show it inside the current deck without downloading');
+    await page.locator('#add-widget-btn').click();
+    await page.locator('#widget-picker-resources-btn').click();
+    await page.waitForSelector('#dashboard-view:not([hidden]) .dashboard-resources-panel', { timeout: 10000 });
+    await waitForResourceNames(page, rootResourceNamesAfterCreate);
+
     await page.locator('.resource-card', { hasText: 'Lesson handout.pdf' }).locator('[data-resource-action="add"]').click();
     await page.waitForSelector('#classroom-view:not([hidden])', { timeout: 10000 });
     await page.waitForSelector('.widget.document-viewer-widget canvas', { timeout: 15000 });
-    assert(await page.locator('.widget.document-viewer-widget .document-viewer-page-counter').textContent().then((text) => text.trim() === 'Page 1 of 2'), 'Adding a PDF resource should create a ready Document Viewer');
+    assert(await page.locator('.widget.document-viewer-widget:has(canvas) .document-viewer-page-counter').textContent().then((text) => text.trim() === 'Page 1 of 2'), 'Adding a PDF resource should create a ready Document Viewer');
     await page.waitForFunction(() => {
         const state = JSON.parse(localStorage.getItem('teacherScreenResourceLibraryState') || '{}');
         return state.recents?.some((resource) => resource?.name === 'Lesson handout.pdf');
@@ -1333,7 +1353,7 @@ async function runResourceLibraryFlowChecks(page) {
     await page.locator('[data-dashboard-mode="resources"]').click();
     await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
     await page.locator('[data-resource-view="recent"]').click();
-    await waitForResourceNames(page, ['Lesson handout.pdf']);
+    await waitForResourceNames(page, ['Lesson handout.pdf', 'Unit outline.docx']);
     assert(await page.locator('[data-resource-view="recent"]').getAttribute('aria-pressed') === 'true', 'Recent resource view should restore the PDF added to the current deck');
 
     await page.locator('[data-resource-source="google-drive"]').click();
@@ -1469,6 +1489,7 @@ async function runFocusedResourceLibraryChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
     await installPdfStub(context);
+    await installDocxStub(context);
     await installResourceFolderMock(context);
     const pageErrors = [];
     const consoleErrors = [];
@@ -1839,6 +1860,7 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await makeExternalAssetsDeterministic(context);
     await installPdfStub(context);
+    await installDocxStub(context);
     const pageErrors = [];
     const consoleErrors = [];
 
@@ -1966,6 +1988,43 @@ async function runDocumentViewerPdfChecks(browser, baseUrl) {
         await page.waitForSelector('.document-viewer-message', { timeout: 10000 });
         assert((await page.locator('.document-viewer-message').textContent()).includes('PDF support could not load'), 'Document Viewer should explain when PDF support is unavailable');
         assert(await page.locator('.widget.document-viewer-widget .present-button').isDisabled(), 'Document Viewer should not present an unavailable PDF');
+
+        await page.locator('.widget.document-viewer-widget .document-viewer-file-input').setInputFiles({
+            name: 'health-unit-outline.docx',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            buffer: Buffer.from('Mock DOCX fixture handled by the browser conversion stub')
+        });
+        await page.waitForFunction(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const documentState = state.layout?.widgets?.find((widget) => widget.type === 'DocumentViewerWidget')?.data;
+            return document.querySelector('.document-viewer-docx h1')?.textContent === 'Year 8 Health'
+                && typeof documentState?.localDocx?.id === 'string'
+                && documentState.localDocx.id.length > 0
+                && documentState.localDocx.requiresReupload === false;
+        }, { timeout: 15000 });
+        assert(await page.locator('.document-viewer-docx').textContent().then((text) => text.includes('Learning intention')), 'DOCX should open read-only inside Document Viewer');
+        assert(await page.locator('.document-viewer-docx script').count() === 0
+            && await page.locator('.document-viewer-docx a').getAttribute('href') === null
+            && await page.evaluate(() => window.__docxScriptRan !== true), 'DOCX viewer should remove unsafe document markup');
+        assert(!(await documentWidget.locator('.present-button').isDisabled()), 'A loaded DOCX should be available in presentation mode');
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('.widget.document-viewer-widget .document-viewer-docx', { timeout: 15000 });
+        assert(await page.locator('.document-viewer-docx h1').textContent().then((text) => text.trim() === 'Year 8 Health'), 'DOCX should survive a full Teacher Screen reload');
+
+        await page.evaluate(() => {
+            delete window.mammoth;
+        });
+        await page.locator('.widget.document-viewer-widget .document-viewer-file-input').setInputFiles({
+            name: 'missing-engine.docx',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            buffer: Buffer.from('Missing DOCX engine fixture')
+        });
+        await page.waitForSelector('.document-viewer-message', { timeout: 10000 });
+        assert((await page.locator('.document-viewer-message').textContent()).includes('Word document support could not load'), 'Document Viewer should explain when DOCX support is unavailable');
+        assert(await page.locator('.widget.document-viewer-widget .present-button').isDisabled(), 'Document Viewer should not present an unavailable DOCX');
         assert(pageErrors.length === 0, `Document Viewer PDF checks should not raise page errors (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Document Viewer PDF checks should not raise console errors (${consoleErrors.join('; ')})`);
     } finally {
@@ -4281,6 +4340,7 @@ async function runSmoke() {
         const context = await browser.newContext();
         await makeExternalAssetsDeterministic(context);
         await installPdfStub(context);
+        await installDocxStub(context);
         await installResourceFolderMock(context);
         const pageErrors = [];
         const consoleErrors = [];

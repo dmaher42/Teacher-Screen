@@ -7102,6 +7102,9 @@ class ClassroomScreenApp {
 
     getResourceTypeMeta(resource = {}) {
         const type = resource.type || (resource.kind === 'folder' ? 'folder' : 'other');
+        const isDocx = this.isDocxResource(resource);
+        const isGoogleDoc = resource.provider === 'google-drive'
+            && resource.mimeType === 'application/vnd.google-apps.document';
         const isLegacyPowerPoint = type === 'presentation'
             && /\.ppt$/i.test(resource.name || '')
             && !/\.pptx$/i.test(resource.name || '');
@@ -7110,14 +7113,26 @@ class ClassroomScreenApp {
             pdf: { label: 'PDF', icon: 'fa-file-pdf', supported: true },
             presentation: { label: 'PowerPoint', icon: 'fa-file-powerpoint', supported: true },
             'google-slides': { label: 'Google Slides', icon: 'fa-file-powerpoint', supported: true },
-            document: { label: 'Word document', icon: 'fa-file-word', supported: false },
+            document: { label: 'Word document', icon: 'fa-file-word', supported: isDocx },
             image: { label: 'Image', icon: 'fa-file-image', supported: true },
             other: { label: 'File', icon: 'fa-file', supported: false }
         };
         if (isLegacyPowerPoint) {
             return { label: 'Legacy PowerPoint', icon: 'fa-file-powerpoint', supported: false };
         }
+        if (isGoogleDoc) {
+            return { label: 'Google Doc', icon: 'fa-file-word', supported: false };
+        }
+        if (type === 'document' && !isDocx) {
+            return { label: 'Legacy Word document', icon: 'fa-file-word', supported: false };
+        }
         return options[type] || options.other;
+    }
+
+    isDocxResource(resource = {}) {
+        return resource.type === 'document'
+            && (resource.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                || /\.docx$/i.test(resource.name || ''));
     }
 
     formatResourceSize(value) {
@@ -7228,13 +7243,16 @@ class ClassroomScreenApp {
                 const detailParts = [meta.label, sizeLabel, dateLabel].filter(Boolean);
                 const canAdd = !isFolder && meta.supported;
                 const canPresentPdf = resource.type === 'pdf';
+                const canViewDocx = this.isDocxResource(resource);
                 const isNativeGoogleFile = resource.provider === 'google-drive'
                     && /^application\/vnd\.google-apps\./i.test(resource.mimeType || '');
                 const opensInBrowser = resource.type === 'pdf'
                     || resource.type === 'image'
                     || resource.type === 'google-slides'
                     || isNativeGoogleFile;
-                const openActionLabel = opensInBrowser ? 'Open' : 'Download copy';
+                const openActionLabel = canViewDocx
+                    ? 'View in deck'
+                    : (opensInBrowser ? 'Open' : 'Download copy');
 
                 return `
                     <article class="resource-card${isFolder ? ' is-folder' : ''}" data-resource-key="${escapeHtml(key)}">
@@ -7252,7 +7270,7 @@ class ClassroomScreenApp {
                             ${isFolder
                                 ? '<button class="control-button control-button--primary" type="button" data-resource-action="folder">Open folder</button>'
                                 : `<button class="control-button" type="button" data-resource-action="open" aria-label="${openActionLabel} ${escapeHtml(resource.name || 'resource')}">${openActionLabel}</button>`}
-                            ${canAdd
+                            ${canAdd && !canViewDocx
                                 ? `<button class="control-button control-button--primary" type="button" data-resource-action="add" aria-label="Add ${escapeHtml(resource.name || 'resource')} to ${escapeHtml(currentDeckName)}">Add to ${escapeHtml(currentDeckName)}</button>`
                                 : ''}
                             ${canPresentPdf
@@ -7279,8 +7297,8 @@ class ClassroomScreenApp {
                         <p class="dashboard-toolbar__label">Resource Library</p>
                         <h2>${escapeHtml(className ? `${className} resources` : 'Teaching resources')}</h2>
                         <p>${escapeHtml(className
-                            ? `This folder is shared by every deck in ${className}. Open browser-ready files, download Word copies, or add supported content to the current deck.`
-                            : 'Open browser-ready lesson files, download Word copies, or add supported content to the current deck.')}</p>
+                            ? `This folder is shared by every deck in ${className}. View PDFs and DOCX files, present slides, or add supported content to the current deck.`
+                            : 'View PDFs and DOCX files, present slides, or add supported content to the current deck.')}</p>
                         <p class="resource-current-deck"><strong>Adding to:</strong> ${escapeHtml(currentDeckName)}</p>
                     </div>
                     <div class="resource-library__header-actions">
@@ -7656,6 +7674,15 @@ class ClassroomScreenApp {
                     throw new Error('Document Viewer is unavailable.');
                 }
                 added = (await widget.renderPdf(file)) === true;
+            } else if (type === 'document' && this.isDocxResource(resource)) {
+                const widget = this.addWidget('document-viewer', {
+                    notification: `Opening ${resource.name} in Document Viewer…`
+                });
+                createdWidget = widget;
+                if (!widget || typeof widget.renderDocx !== 'function') {
+                    throw new Error('Word document viewing is unavailable.');
+                }
+                added = (await widget.renderDocx(file)) === true;
             } else if (type === 'presentation' || (type === 'pdf' && presentPdf)) {
                 const widget = this.addWidget('reveal-manager', {
                     notification: `Adding ${resource.name} to Presentation…`
@@ -7752,7 +7779,11 @@ class ClassroomScreenApp {
                 return;
             }
             if (action === 'open') {
-                await this.openResourceFile(resource);
+                if (this.isDocxResource(resource)) {
+                    await this.addResourceToCurrentDeck(resource);
+                } else {
+                    await this.openResourceFile(resource);
+                }
                 return;
             }
             if (action === 'add') {

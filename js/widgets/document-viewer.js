@@ -1,4 +1,6 @@
 const DOCUMENT_VIEWER_MAX_PDF_BYTES = 50 * 1024 * 1024;
+const DOCUMENT_VIEWER_MAX_DOCX_BYTES = 25 * 1024 * 1024;
+const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 async function saveDocumentViewerPdf(record) {
     const store = window.TeacherScreenDocumentStore;
@@ -16,6 +18,24 @@ async function loadDocumentViewerPdf(id) {
     return store.loadPdf(id);
 }
 
+async function saveDocumentViewerDocument(record) {
+    const store = window.TeacherScreenDocumentStore;
+    const save = store?.saveDocument || store?.savePdf;
+    if (typeof save !== 'function') {
+        throw new Error('Browser document storage is unavailable.');
+    }
+    return save.call(store, record);
+}
+
+async function loadDocumentViewerDocument(id) {
+    const store = window.TeacherScreenDocumentStore;
+    const load = store?.loadDocument || store?.loadPdf;
+    if (typeof load !== 'function') {
+        throw new Error('Browser document storage is unavailable.');
+    }
+    return load.call(store, id);
+}
+
 class DocumentViewerWidget {
     static presentingInstance = null;
     static activeInstance = null;
@@ -31,6 +51,10 @@ class DocumentViewerWidget {
         this.localPdfSize = 0;
         this.storedPdfId = '';
         this.pdfRequiresReupload = false;
+        this.localDocxName = '';
+        this.localDocxSize = 0;
+        this.storedDocxId = '';
+        this.docxRequiresReupload = false;
         this.pendingRestoreNotice = '';
         this.persistenceNotice = '';
         this.loadGeneration = 0;
@@ -40,9 +64,9 @@ class DocumentViewerWidget {
 
         this.element.innerHTML = `
             <div class="document-viewer-controls">
-                <input type="file" class="document-viewer-file-input" accept=".pdf,application/pdf" style="display: none;">
+                <input type="file" class="document-viewer-file-input" accept=".pdf,.docx,application/pdf,${DOCX_MIME_TYPE}" style="display: none;">
                 <input type="text" class="document-viewer-url-input" placeholder="Enter URL to embed" aria-label="Document URL">
-                <button class="control-button upload-button" type="button">Upload PDF</button>
+                <button class="control-button upload-button" type="button">Upload PDF or DOCX</button>
                 <button class="control-button embed-button" type="button">Embed</button>
 
                 <div class="document-viewer-pdf-controls">
@@ -131,7 +155,7 @@ class DocumentViewerWidget {
 
         this.element.tabIndex = 0;
         this.element.setAttribute('aria-label', 'Document viewer');
-        this.showContentMessage('Upload a PDF or paste a document URL to begin.');
+        this.showContentMessage('Upload a PDF or DOCX, or paste a document URL to begin.');
     }
 
     handleRootClick(event) {
@@ -197,10 +221,13 @@ class DocumentViewerWidget {
         const file = event.target.files[0];
         if (file) {
             const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-            if (!isPdf) {
+            const isDocx = file.type === DOCX_MIME_TYPE || /\.docx$/i.test(file.name || '');
+            if (isDocx) {
+                void this.renderDocx(file);
+            } else if (!isPdf) {
                 this.loadGeneration += 1;
                 this.resetPdfState();
-                this.showContentMessage('File type not supported. Please upload a PDF file.');
+                this.showContentMessage('File type not supported. Please upload a PDF or DOCX file.');
                 this.notifyChanged('document-cleared');
             } else if (file.size > DOCUMENT_VIEWER_MAX_PDF_BYTES) {
                 this.loadGeneration += 1;
@@ -265,7 +292,7 @@ class DocumentViewerWidget {
         const uploadButton = document.createElement('button');
         uploadButton.type = 'button';
         uploadButton.className = 'control-button';
-        uploadButton.textContent = 'Upload PDF';
+        uploadButton.textContent = 'Upload PDF or DOCX';
 
         const embedButton = document.createElement('button');
         embedButton.type = 'button';
@@ -316,17 +343,20 @@ class DocumentViewerWidget {
             const iframe = this.contentArea.querySelector('iframe');
             const embeddedUrl = iframe ? iframe.src : '';
             const hasPdf = !!this.pdfDoc;
+            const hasDocx = !!this.contentArea.querySelector('.document-viewer-docx');
 
             sourceInput.value = this.urlInput.value || embeddedUrl || '';
             prevButton.disabled = !hasPdf || this.currentPage <= 1;
             nextButton.disabled = !hasPdf || this.currentPage >= this.totalPages;
-            presentButton.disabled = !hasPdf && !embeddedUrl;
+            presentButton.disabled = !hasPdf && !hasDocx && !embeddedUrl;
             presentButton.textContent = this.element.classList.contains('presentation-mode')
                 ? 'Exit Presentation Mode'
                 : 'Enter Presentation Mode';
 
             if (hasPdf) {
                 statusText.textContent = `PDF loaded. Page ${this.currentPage} of ${this.totalPages}.${this.persistenceNotice ? ` ${this.persistenceNotice}` : ''}`;
+            } else if (hasDocx) {
+                statusText.textContent = `Word document loaded.${this.persistenceNotice ? ` ${this.persistenceNotice}` : ''}`;
             } else if (this.pendingRestoreNotice) {
                 statusText.textContent = this.pendingRestoreNotice;
             } else if (embeddedUrl) {
@@ -392,6 +422,10 @@ class DocumentViewerWidget {
             this.localPdfSize = 0;
             this.storedPdfId = '';
             this.pdfRequiresReupload = false;
+            this.localDocxName = '';
+            this.localDocxSize = 0;
+            this.storedDocxId = '';
+            this.docxRequiresReupload = false;
             this.pendingRestoreNotice = '';
             this.persistenceNotice = '';
         }
@@ -428,6 +462,222 @@ class DocumentViewerWidget {
             return `pdf-${window.crypto.randomUUID()}`;
         }
         return `pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    createStoredDocxId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return `docx-${window.crypto.randomUUID()}`;
+        }
+        return `docx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    getDocxLibrary() {
+        return window.mammoth && typeof window.mammoth.convertToHtml === 'function'
+            ? window.mammoth
+            : null;
+    }
+
+    sanitizeDocxHtml(value = '') {
+        const template = document.createElement('template');
+        template.innerHTML = String(value || '');
+        const allowedTags = new Set([
+            'A', 'BLOCKQUOTE', 'BR', 'CAPTION', 'CODE', 'DEL', 'DIV', 'EM',
+            'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR', 'IMG', 'LI', 'OL',
+            'P', 'PRE', 'S', 'SMALL', 'SPAN', 'STRONG', 'SUB', 'SUP', 'TABLE',
+            'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'U', 'UL'
+        ]);
+        const blockedTags = new Set(['BASE', 'EMBED', 'FORM', 'IFRAME', 'LINK', 'META', 'OBJECT', 'SCRIPT', 'STYLE']);
+        const allowedAttributes = new Set(['alt', 'colspan', 'rowspan', 'src', 'title']);
+
+        Array.from(template.content.querySelectorAll('*')).forEach((element) => {
+            if (!allowedTags.has(element.tagName)) {
+                if (blockedTags.has(element.tagName)) {
+                    element.remove();
+                } else {
+                    element.replaceWith(...element.childNodes);
+                }
+                return;
+            }
+            Array.from(element.attributes).forEach((attribute) => {
+                const name = attribute.name.toLowerCase();
+                if (element.tagName === 'A' && name === 'href') {
+                    try {
+                        const parsed = new URL(attribute.value, window.location.href);
+                        if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+                            element.removeAttribute(attribute.name);
+                        }
+                    } catch (error) {
+                        element.removeAttribute(attribute.name);
+                    }
+                    return;
+                }
+                if (element.tagName === 'IMG' && name === 'src') {
+                    if (!/^data:image\/(?:avif|bmp|gif|jpeg|jpg|png|webp);base64,/i.test(attribute.value)) {
+                        element.removeAttribute(attribute.name);
+                    }
+                    return;
+                }
+                if (!allowedAttributes.has(name)) {
+                    element.removeAttribute(attribute.name);
+                }
+            });
+            if (element.tagName === 'A' && element.hasAttribute('href')) {
+                element.target = '_blank';
+                element.rel = 'noopener noreferrer';
+            }
+        });
+        return template.innerHTML.trim();
+    }
+
+    async loadDocxBytes(arrayBuffer, generation) {
+        const docxLibrary = this.getDocxLibrary();
+        if (!docxLibrary) {
+            const error = new Error('DOCX support is unavailable.');
+            error.code = 'DOCX_ENGINE_UNAVAILABLE';
+            throw error;
+        }
+        const options = docxLibrary.images?.dataUri
+            ? { convertImage: docxLibrary.images.dataUri }
+            : {};
+        const result = await docxLibrary.convertToHtml({ arrayBuffer: arrayBuffer.slice(0) }, options);
+        if (generation !== this.loadGeneration) return false;
+        const safeHtml = this.sanitizeDocxHtml(result?.value || '');
+        if (!safeHtml) {
+            throw new Error('The Word document did not contain readable content.');
+        }
+        const documentSurface = document.createElement('article');
+        documentSurface.className = 'document-viewer-docx';
+        documentSurface.setAttribute('aria-label', this.localDocxName || 'Word document');
+        documentSurface.innerHTML = safeHtml;
+        this.contentArea.replaceChildren(documentSurface);
+        this.element.classList.remove('is-loading');
+        this.updateNavControls();
+        return true;
+    }
+
+    async renderDocx(file) {
+        const isDocx = file
+            && (file.type === DOCX_MIME_TYPE || /\.docx$/i.test(file.name || ''));
+        if (!isDocx || typeof file.arrayBuffer !== 'function') {
+            this.loadGeneration += 1;
+            this.exitPresentationMode();
+            this.resetPdfState();
+            this.showContentMessage('File type not supported. Please choose a DOCX file.');
+            this.notifyChanged('document-cleared');
+            return false;
+        }
+        if (Number(file.size) > DOCUMENT_VIEWER_MAX_DOCX_BYTES) {
+            this.loadGeneration += 1;
+            this.exitPresentationMode();
+            this.resetPdfState();
+            this.showContentMessage('This Word document is larger than 25 MB. Choose a smaller file.');
+            this.notifyChanged('document-cleared');
+            return false;
+        }
+
+        const generation = ++this.loadGeneration;
+        this.exitPresentationMode();
+        this.resetPdfState();
+        this.sourceMode = 'docx-upload';
+        this.localDocxName = file.name || 'document.docx';
+        this.localDocxSize = Number(file.size) || 0;
+        this.docxRequiresReupload = true;
+        this.element.classList.add('is-loading');
+        this.showContentMessage('Loading Word document…');
+        this.element.classList.add('is-loading');
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            if (generation !== this.loadGeneration) return false;
+            const loaded = await this.loadDocxBytes(arrayBuffer, generation);
+            if (!loaded || generation !== this.loadGeneration) return false;
+            try {
+                const storedDocxId = this.createStoredDocxId();
+                await saveDocumentViewerDocument({
+                    id: storedDocxId,
+                    name: this.localDocxName,
+                    size: this.localDocxSize,
+                    type: DOCX_MIME_TYPE,
+                    blob: file.slice(0, file.size, DOCX_MIME_TYPE),
+                    updatedAt: Date.now()
+                });
+                if (generation !== this.loadGeneration) return false;
+                this.storedDocxId = storedDocxId;
+                this.docxRequiresReupload = false;
+                this.sourceMode = 'docx-storage';
+                this.persistenceNotice = 'Saved on this device for reload and projector use.';
+            } catch (storageError) {
+                console.warn('Word document storage unavailable:', storageError);
+                this.persistenceNotice = 'This Word document is available for this session only.';
+            }
+            this.updateNavControls();
+            this.notifyChanged('docx-loaded');
+            return true;
+        } catch (error) {
+            if (generation !== this.loadGeneration) return false;
+            const isMissingEngine = error?.code === 'DOCX_ENGINE_UNAVAILABLE';
+            if (!isMissingEngine) {
+                console.error('DOCX load error:', error);
+            }
+            this.resetPdfState();
+            this.showContentMessage(isMissingEngine
+                ? 'Word document support could not load. Check your connection and try again.'
+                : 'Unable to read this Word document. Try a different DOCX file.');
+            this.notifyChanged('document-cleared');
+            return false;
+        }
+    }
+
+    showLocalDocxRestoreNotice(fileName = '') {
+        this.resetPdfState();
+        const label = fileName ? `"${fileName}"` : 'This Word document';
+        this.pendingRestoreNotice = `${label} needs to be uploaded again on this device.`;
+        this.sourceMode = 'docx-upload-missing';
+        this.localDocxName = fileName || '';
+        this.docxRequiresReupload = true;
+        this.showContentMessage(this.pendingRestoreNotice);
+    }
+
+    async restoreStoredDocx(localDocx = {}) {
+        const generation = ++this.loadGeneration;
+        this.exitPresentationMode();
+        this.resetPdfState();
+        this.sourceMode = 'docx-storage-loading';
+        this.localDocxName = localDocx.name || 'document.docx';
+        this.localDocxSize = Number(localDocx.size) || 0;
+        this.storedDocxId = localDocx.id || '';
+        this.docxRequiresReupload = false;
+        this.element.classList.add('is-loading');
+        this.showContentMessage(`Restoring "${this.localDocxName}"…`);
+        this.element.classList.add('is-loading');
+
+        try {
+            const storedDocx = await loadDocumentViewerDocument(this.storedDocxId);
+            if (generation !== this.loadGeneration) return;
+            if (!storedDocx?.blob || typeof storedDocx.blob.arrayBuffer !== 'function') {
+                this.showLocalDocxRestoreNotice(this.localDocxName);
+                return;
+            }
+            this.localDocxName = storedDocx.name || this.localDocxName;
+            this.localDocxSize = Number(storedDocx.size) || this.localDocxSize;
+            const arrayBuffer = await storedDocx.blob.arrayBuffer();
+            if (generation !== this.loadGeneration) return;
+            const loaded = await this.loadDocxBytes(arrayBuffer, generation);
+            if (!loaded || generation !== this.loadGeneration) return;
+            this.sourceMode = 'docx-storage';
+            this.persistenceNotice = 'Saved on this device for reload and projector use.';
+            this.updateNavControls();
+        } catch (error) {
+            if (generation !== this.loadGeneration) return;
+            this.element.classList.remove('is-loading');
+            if (error?.code === 'DOCX_ENGINE_UNAVAILABLE') {
+                this.sourceMode = 'docx-storage-unavailable';
+                this.showContentMessage('This Word document is saved, but Word support could not load. Check your connection and reload.');
+                return;
+            }
+            console.warn('Word document restore unavailable:', error);
+            this.showLocalDocxRestoreNotice(this.localDocxName);
+        }
     }
 
     ensureCanvas() {
@@ -651,7 +901,9 @@ class DocumentViewerWidget {
 
     updateNavControls() {
         const hasPdf = !!this.pdfDoc;
-        const hasDocument = hasPdf || !!this.contentArea?.querySelector('iframe');
+        const hasDocument = hasPdf
+            || !!this.contentArea?.querySelector('iframe')
+            || !!this.contentArea?.querySelector('.document-viewer-docx');
 
         this.prevBtn.disabled = !hasPdf || this.currentPage <= 1;
         this.nextBtn.disabled = !hasPdf || this.currentPage >= this.totalPages;
@@ -736,6 +988,7 @@ class DocumentViewerWidget {
     serialize() {
         const iframe = this.contentArea.querySelector('iframe');
         const hasPdfSource = this.sourceMode.startsWith('pdf-') && !!this.localPdfName;
+        const hasDocxSource = this.sourceMode.startsWith('docx-') && !!this.localDocxName;
         return {
             type: 'DocumentViewerWidget',
             url: iframe ? iframe.src : null,
@@ -745,6 +998,14 @@ class DocumentViewerWidget {
                     name: this.localPdfName || '',
                     size: this.localPdfSize || 0,
                     requiresReupload: this.pdfRequiresReupload || !this.storedPdfId
+                }
+                : null,
+            localDocx: hasDocxSource
+                ? {
+                    id: this.storedDocxId || null,
+                    name: this.localDocxName || '',
+                    size: this.localDocxSize || 0,
+                    requiresReupload: this.docxRequiresReupload || !this.storedDocxId
                 }
                 : null
         };
@@ -764,6 +1025,16 @@ class DocumentViewerWidget {
 
         if (data.localPdf?.requiresReupload) {
             this.showLocalPdfRestoreNotice(data.localPdf.name || '');
+            return;
+        }
+
+        if (data.localDocx?.id && data.localDocx.requiresReupload !== true) {
+            void this.restoreStoredDocx(data.localDocx);
+            return;
+        }
+
+        if (data.localDocx?.requiresReupload) {
+            this.showLocalDocxRestoreNotice(data.localDocx.name || '');
         }
     }
 

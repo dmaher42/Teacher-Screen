@@ -7444,6 +7444,56 @@ body.projector-view .pomodoro-settings-controls {
     background: #fff;
 }
 
+.document-viewer-content:has(.document-viewer-docx) {
+    overflow: auto;
+    background: #dfe5eb;
+}
+
+.document-viewer-docx {
+    box-sizing: border-box;
+    width: min(100%, 52rem);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: clamp(24px, 5vw, 64px);
+    background: #fff;
+    color: #172433;
+    font-family: Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.document-viewer-docx > :first-child {
+    margin-top: 0;
+}
+
+.document-viewer-docx > :last-child {
+    margin-bottom: 0;
+}
+
+.document-viewer-docx img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.document-viewer-docx table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.document-viewer-docx th,
+.document-viewer-docx td {
+    padding: 0.45rem 0.55rem;
+    border: 1px solid #cbd5e1;
+    vertical-align: top;
+}
+
+.document-viewer-docx a {
+    color: #1769c2;
+    text-decoration: underline;
+}
+
 .document-viewer-widget-content.presentation-mode {
     position: fixed;
     inset: 0;
@@ -7530,6 +7580,11 @@ body.projector-view .document-viewer-widget-content.presentation-mode .widget-co
         flex: 1 1 100%;
         justify-content: flex-start;
         margin-left: 0;
+    }
+
+    .document-viewer-docx {
+        padding: 22px 18px;
+        font-size: 0.94rem;
     }
 }
 
