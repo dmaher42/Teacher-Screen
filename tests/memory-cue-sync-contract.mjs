@@ -41,7 +41,7 @@ const {
     ClassReminderService
 } = classReminderModule;
 
-test('installed-app sign-in reuses an authenticated Firebase session before reopening a popup', () => {
+test('installed-app sign-in reuses an authenticated session and otherwise uses a full-page redirect', () => {
     assert.match(
         serviceSource,
         /const currentUser = normalizeUser\(firebase\.auth\.currentUser\);\s*if \(currentUser\) return currentUser;/,
@@ -49,8 +49,13 @@ test('installed-app sign-in reuses an authenticated Firebase session before reop
     );
     assert.match(
         serviceSource,
-        /authenticatedUser[\s\S]*popup-closed[\s\S]*return authenticatedUser;/,
-        'A completed Firebase sign-in must survive a popup-closed result from an installed app window.'
+        /await firebase\.authModule\.signInWithRedirect\(firebase\.auth, provider\);\s*return \{ redirecting: true \};/,
+        'A new installed-app sign-in should use the redirect path so its Firebase callback cannot be stranded in a popup.'
+    );
+    assert.doesNotMatch(
+        serviceSource,
+        /signInWithPopup/,
+        'The Memory Cue connection must not reopen the unreliable Chromium popup flow.'
     );
 });
 
