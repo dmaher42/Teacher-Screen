@@ -13434,6 +13434,7 @@ body.is-dashboard-active .dashboard-deck-more__actions .control-button {
 }
 
 .resource-current-deck {
+    box-sizing: border-box;
     width: max-content;
     max-width: 100%;
     margin: 0.65rem 0 0;

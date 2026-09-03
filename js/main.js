@@ -7008,18 +7008,22 @@ class ClassroomScreenApp {
         return classId ? `class:${classId}` : 'global';
     }
 
+    getLocalResourcePickerId(contextKey) {
+        let hash = 2166136261;
+        for (let index = 0; index < contextKey.length; index += 1) {
+            hash ^= contextKey.charCodeAt(index);
+            hash = Math.imul(hash, 16777619);
+        }
+        return `teacher-screen-${(hash >>> 0).toString(36)}`;
+    }
+
     getLocalResourceProvider() {
         const contextKey = this.getLocalResourceContextKey();
         let provider = this.localResourceProviders.get(contextKey);
         if (provider) return provider;
-        const pickerSuffix = contextKey
-            .toLowerCase()
-            .replace(/[^a-z0-9_-]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .slice(0, 64) || 'class';
         provider = new LocalFolderResourceProvider({
             connectionKey: `resources-folder:${contextKey}`,
-            pickerId: `teacher-screen-resources-${pickerSuffix}`
+            pickerId: this.getLocalResourcePickerId(contextKey)
         });
         this.localResourceProviders.set(contextKey, provider);
         return provider;

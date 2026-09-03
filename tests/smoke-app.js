@@ -1210,6 +1210,10 @@ async function installResourceFolderMock(context) {
         };
         window.showDirectoryPicker = async (options = {}) => {
             window.__resourceDirectoryPickerOptions = options;
+            if (typeof options.id === 'string'
+                && (options.id.length > 32 || !/^[A-Za-z0-9_-]+$/.test(options.id))) {
+                throw new TypeError('The mock folder picker received an invalid path id.');
+            }
             return window.__resourceDirectoryChoices[window.__resourceDirectoryChoice] || rootFolder;
         };
     });
@@ -1355,6 +1359,8 @@ async function runResourceLibraryFlowChecks(page) {
     });
     await page.locator('#resource-connect-btn').click();
     await waitForResourceNames(page, ['English class brief.pdf']);
+    const classPickerId = await page.evaluate(() => window.__resourceDirectoryPickerOptions?.id || '');
+    assert(/^[A-Za-z0-9_-]{1,32}$/.test(classPickerId), 'Class folder chooser should use a browser-safe saved picker ID');
     assert(await page.locator('.resource-connection-card__copy strong').textContent().then((text) => text.trim() === 'Year 7 English Resources'), 'The selected class should show its own connected folder');
 
     await page.locator('#resource-back-to-class-btn').click();
@@ -1416,7 +1422,23 @@ async function runMobileResourceLibraryChecks(page) {
             panelFits: panel.scrollWidth <= panel.clientWidth + 1
                 && panelRect.left >= -1
                 && panelRect.right <= window.innerWidth + 1,
-            actionsFit
+            actionsFit,
+            mainWidth: main ? { client: main.clientWidth, scroll: main.scrollWidth } : null,
+            panelWidth: { client: panel.clientWidth, scroll: panel.scrollWidth },
+            overflowingElements: Array.from(panel.querySelectorAll('*'))
+                .map((element) => {
+                    const rect = element.getBoundingClientRect();
+                    return {
+                        tag: element.tagName,
+                        className: typeof element.className === 'string' ? element.className : '',
+                        client: element.clientWidth,
+                        scroll: element.scrollWidth,
+                        left: Math.round(rect.left),
+                        right: Math.round(rect.right)
+                    };
+                })
+                .filter((entry) => entry.scroll > entry.client + 1 || entry.right > panelRect.right + 1)
+                .slice(0, 8)
         };
     });
     assert(
