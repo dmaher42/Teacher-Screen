@@ -366,6 +366,32 @@ test('a completed redirect resumes the pending installed-app connection', async 
     assert.equal(storage.getItem('teacherScreenMemoryCueSync:v1:pendingConnection'), null);
 });
 
+test('a delayed restored account completes an installed-app connection that was left pending', async (t) => {
+    const storage = new MemoryStorage({
+        'teacherScreenMemoryCueSync:v1:pendingConnection': JSON.stringify({ active: true, startedAt: 1_800_000_000_000 })
+    });
+    const auth = new FakeAuthAdapter({ currentUser: null, nextUser: USER_A });
+    auth.finishRedirect = async () => null;
+    const harness = createHarness({ storage, auth });
+    t.after(() => harness.sync.dispose());
+
+    await harness.sync.init();
+
+    assert.equal(harness.sync.getState().status, MEMORY_CUE_SYNC_STATES.LOCAL_ONLY);
+    assert.notEqual(storage.getItem('teacherScreenMemoryCueSync:v1:pendingConnection'), null);
+
+    auth.emit(USER_A);
+    await settleUntil(
+        () => harness.sync.getState().status === MEMORY_CUE_SYNC_STATES.CONNECTED,
+        'A delayed persisted Firebase account should finish the pending connection automatically.'
+    );
+
+    assert.equal(harness.confirmations.length, 1);
+    assert.equal(harness.confirmations[0].user.email, USER_A.email);
+    assert.equal(readBinding(storage)?.active, true);
+    assert.equal(storage.getItem('teacherScreenMemoryCueSync:v1:pendingConnection'), null);
+});
+
 async function settleUntil(predicate, message, attempts = 100) {
     for (let index = 0; index < attempts; index += 1) {
         if (predicate()) return;

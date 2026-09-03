@@ -442,6 +442,7 @@ export class MemoryCueReminderSync {
         this.authUnsubscribe = null;
         this.remoteUnsubscribe = null;
         this.authStartPromise = null;
+        this.pendingConnectionPromise = null;
         this.flushPromise = null;
         this.currentUser = null;
         this.sessionGeneration = 0;
@@ -577,41 +578,20 @@ export class MemoryCueReminderSync {
             try {
                 await this.ensureAuthObserver();
                 const user = normalizeUser(await this.authAdapter.finishRedirect());
-                if (!user) {
-                    this.clearPendingConnection();
-                    this.setState({
-                        status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
-                        connected: false,
-                        error: ''
-                    });
+                if (user) {
+                    await this.completePendingConnection(user);
                     return;
                 }
-                const previousBinding = this.readBinding();
-                const reminders = this.getLocalReminders();
-                const approved = await Promise.resolve(this.confirmConnection({
-                    user,
-                    previousBinding,
-                    reminderCount: Array.isArray(reminders) ? reminders.length : 0
-                }));
-                if (!approved) {
-                    this.clearPendingConnection();
-                    await this.authAdapter.signOut();
-                    this.setState({
-                        status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
-                        connected: false,
-                        email: previousBinding.email,
-                        error: ''
-                    });
-                    return;
-                }
-                this.writeBinding({
-                    uid: user.uid,
-                    email: user.email,
-                    active: true,
-                    connectedAt: this.now()
+
+                // Firebase can restore a persisted account shortly after the
+                // redirect result has been checked. Keep the pending marker so
+                // handleObservedUser can finish the same connection when that
+                // delayed auth notification arrives.
+                this.setState({
+                    status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
+                    connected: false,
+                    error: ''
                 });
-                this.clearPendingConnection();
-                await this.activateBoundUser(user);
                 return;
             } catch (error) {
                 this.clearPendingConnection();
@@ -656,6 +636,56 @@ export class MemoryCueReminderSync {
         return this.authStartPromise;
     }
 
+    async completePendingConnection(user) {
+        const normalizedUser = normalizeUser(user);
+        if (!normalizedUser || !this.readPendingConnection().active) return false;
+        if (this.pendingConnectionPromise) return this.pendingConnectionPromise;
+
+        this.connecting = true;
+        this.pendingConnectionPromise = (async () => {
+            const previousBinding = this.readBinding();
+            const reminders = this.getLocalReminders();
+            const approved = await Promise.resolve(this.confirmConnection({
+                user: normalizedUser,
+                previousBinding,
+                reminderCount: Array.isArray(reminders) ? reminders.length : 0
+            }));
+            if (!approved) {
+                this.clearPendingConnection();
+                await this.authAdapter.signOut();
+                this.setState({
+                    status: MEMORY_CUE_SYNC_STATES.LOCAL_ONLY,
+                    connected: false,
+                    email: previousBinding.email,
+                    error: ''
+                });
+                return false;
+            }
+
+            this.writeBinding({
+                uid: normalizedUser.uid,
+                email: normalizedUser.email,
+                active: true,
+                connectedAt: this.now()
+            });
+            this.clearPendingConnection();
+            return this.activateBoundUser(normalizedUser);
+        })().catch((error) => {
+            this.clearPendingConnection();
+            this.setState({
+                status: isOfflineError(error) ? MEMORY_CUE_SYNC_STATES.OFFLINE : MEMORY_CUE_SYNC_STATES.ERROR,
+                connected: false,
+                error: normalizeText(error?.message || 'Memory Cue sign-in could not be completed.', 300)
+            });
+            return false;
+        }).finally(() => {
+            this.connecting = false;
+            this.pendingConnectionPromise = null;
+        });
+
+        return this.pendingConnectionPromise;
+    }
+
     async handleObservedUser(user) {
         const normalizedUser = normalizeUser(user);
         if (!normalizedUser) {
@@ -672,6 +702,11 @@ export class MemoryCueReminderSync {
                 email: binding.email,
                 queuedCount: binding.uid ? Object.keys(this.readQueue(binding.uid).operations).length : 0
             });
+            return;
+        }
+
+        if (this.readPendingConnection().active && !this.connecting) {
+            await this.completePendingConnection(normalizedUser);
             return;
         }
 

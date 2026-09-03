@@ -28,7 +28,7 @@ import {
 import {
     createMemoryCueReminderSync,
     MEMORY_CUE_SYNC_STATES
-} from './services/memory-cue-reminder-sync.js?v=5';
+} from './services/memory-cue-reminder-sync.js?v=6';
 import {
     THEME_OPTIONS,
     applyTheme,
