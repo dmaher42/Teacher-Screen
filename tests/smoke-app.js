@@ -1189,6 +1189,11 @@ async function installResourceFolderMock(context) {
                 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                 'Mock PPTX-labelled teaching resource'
             )],
+            ['Unit outline.docx', createFileHandle(
+                'Unit outline.docx',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Mock Word teaching resource'
+            )],
             ['Classroom diagram.png', createFileHandle(
                 'Classroom diagram.png',
                 'image/png',
@@ -1233,6 +1238,7 @@ async function runResourceLibraryFlowChecks(page) {
         'Unit Plans',
         'Lesson handout.pdf',
         'Lesson slides.pptx',
+        'Unit outline.docx',
         'Classroom diagram.png'
     ];
 
@@ -1255,6 +1261,10 @@ async function runResourceLibraryFlowChecks(page) {
     assert(pickerAccess.mode === 'read' && pickerAccess.queriedMode === 'read', 'Resources should request read-only access to the chosen local folder');
     assert(await page.locator('.resource-status-badge').textContent().then((text) => text.trim() === 'Local folder connected'), 'Chosen local resource folder should show a connected status');
     assert(await page.locator('.resource-card', { hasText: 'Lesson slides.pptx' }).textContent().then((text) => text.includes('PowerPoint')), 'PowerPoint files should be recognised as supported Presentation resources');
+    const wordCard = page.locator('.resource-card', { hasText: 'Unit outline.docx' });
+    assert(await wordCard.textContent().then((text) => text.includes('Word document')), 'Word files should be identified clearly');
+    assert(await wordCard.locator('[data-resource-action="open"]').textContent().then((text) => text.trim() === 'Download copy'), 'Word files should explain that the browser must download a copy');
+    assert(await page.locator('.resource-card', { hasText: 'Lesson slides.pptx' }).locator('[data-resource-action="open"]').textContent().then((text) => text.trim() === 'Download copy'), 'PowerPoint originals should distinguish downloading from presenting');
     assert(await page.locator('.resource-card', { hasText: 'Classroom diagram.png' }).textContent().then((text) => text.includes('Image')), 'Image files should be recognised as supported deck resources');
 
     const unitPlansCard = page.locator('.resource-card', { hasText: 'Unit Plans' });
@@ -1390,6 +1400,7 @@ async function runMobileResourceLibraryChecks(page) {
         'Unit Plans',
         'Lesson handout.pdf',
         'Lesson slides.pptx',
+        'Unit outline.docx',
         'Classroom diagram.png'
     ];
 

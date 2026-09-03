@@ -17,6 +17,11 @@ const POWERPOINT_MIME_TYPES = new Set([
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 ]);
+const WORD_MIME_TYPES = new Set([
+    'application/msword',
+    'application/rtf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]);
 const IMAGE_EXTENSIONS = new Set([
     'avif',
     'bmp',
@@ -37,6 +42,7 @@ export const RESOURCE_TYPES = Object.freeze({
     PDF: 'pdf',
     PRESENTATION: 'presentation',
     GOOGLE_SLIDES: 'google-slides',
+    DOCUMENT: 'document',
     IMAGE: 'image',
     OTHER: 'other'
 });
@@ -135,6 +141,14 @@ export function classifyResource(resource = {}) {
         || extension === 'ppt'
         || extension === 'pptx') {
         return RESOURCE_TYPES.PRESENTATION;
+    }
+
+    if (declaredType === RESOURCE_TYPES.DOCUMENT
+        || WORD_MIME_TYPES.has(mimeType)
+        || extension === 'doc'
+        || extension === 'docx'
+        || extension === 'rtf') {
+        return RESOURCE_TYPES.DOCUMENT;
     }
 
     if (declaredType === RESOURCE_TYPES.IMAGE

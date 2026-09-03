@@ -4,6 +4,7 @@ const GOOGLE_API_SCRIPT_URL = 'https://apis.google.com/js/api.js';
 const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 const GOOGLE_SLIDES_MIME_TYPE = 'application/vnd.google-apps.presentation';
+const GOOGLE_DOCS_MIME_TYPE = 'application/vnd.google-apps.document';
 const GOOGLE_NATIVE_MIME_PREFIX = 'application/vnd.google-apps.';
 const DEFAULT_FOLDER_NAME = 'Teacher Screen Resources';
 const ROOT_FOLDER_TAG_KEY = 'teacherScreenResourceRoot';
@@ -112,6 +113,17 @@ function getResourceType(mimeType, name = '') {
         || normalizedName.endsWith('.pptx')
     ) {
         return 'presentation';
+    }
+    if (
+        normalizedMimeType === GOOGLE_DOCS_MIME_TYPE
+        || normalizedMimeType === 'application/msword'
+        || normalizedMimeType === 'application/rtf'
+        || normalizedMimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        || normalizedName.endsWith('.doc')
+        || normalizedName.endsWith('.docx')
+        || normalizedName.endsWith('.rtf')
+    ) {
+        return 'document';
     }
     if (normalizedMimeType.startsWith('image/')) {
         return 'image';

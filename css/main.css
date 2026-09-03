@@ -13447,6 +13447,12 @@ body.is-dashboard-active .dashboard-deck-more__actions .control-button {
     overflow-wrap: anywhere;
 }
 
+@media (max-width: 420px) {
+    body.is-dashboard-active .resource-current-deck {
+        width: 100%;
+    }
+}
+
 .nav-tab__status {
     margin-left: 0.25rem;
     font-size: 0.65em;

@@ -17,7 +17,7 @@ import {
     LocalFolderResourceProvider,
     ResourceLibraryState,
     createResourceKey
-} from './services/resource-library-service.js?v=2';
+} from './services/resource-library-service.js?v=3';
 import { GoogleDriveResourceProvider } from './services/google-drive-provider.js';
 import {
     CLASS_REMINDER_STORE_VERSION,
@@ -7110,6 +7110,7 @@ class ClassroomScreenApp {
             pdf: { label: 'PDF', icon: 'fa-file-pdf', supported: true },
             presentation: { label: 'PowerPoint', icon: 'fa-file-powerpoint', supported: true },
             'google-slides': { label: 'Google Slides', icon: 'fa-file-powerpoint', supported: true },
+            document: { label: 'Word document', icon: 'fa-file-word', supported: false },
             image: { label: 'Image', icon: 'fa-file-image', supported: true },
             other: { label: 'File', icon: 'fa-file', supported: false }
         };
@@ -7227,6 +7228,13 @@ class ClassroomScreenApp {
                 const detailParts = [meta.label, sizeLabel, dateLabel].filter(Boolean);
                 const canAdd = !isFolder && meta.supported;
                 const canPresentPdf = resource.type === 'pdf';
+                const isNativeGoogleFile = resource.provider === 'google-drive'
+                    && /^application\/vnd\.google-apps\./i.test(resource.mimeType || '');
+                const opensInBrowser = resource.type === 'pdf'
+                    || resource.type === 'image'
+                    || resource.type === 'google-slides'
+                    || isNativeGoogleFile;
+                const openActionLabel = opensInBrowser ? 'Open' : 'Download copy';
 
                 return `
                     <article class="resource-card${isFolder ? ' is-folder' : ''}" data-resource-key="${escapeHtml(key)}">
@@ -7243,7 +7251,7 @@ class ClassroomScreenApp {
                         <div class="resource-card__actions">
                             ${isFolder
                                 ? '<button class="control-button control-button--primary" type="button" data-resource-action="folder">Open folder</button>'
-                                : `<button class="control-button" type="button" data-resource-action="open" aria-label="Open ${escapeHtml(resource.name || 'resource')}">Open</button>`}
+                                : `<button class="control-button" type="button" data-resource-action="open" aria-label="${openActionLabel} ${escapeHtml(resource.name || 'resource')}">${openActionLabel}</button>`}
                             ${canAdd
                                 ? `<button class="control-button control-button--primary" type="button" data-resource-action="add" aria-label="Add ${escapeHtml(resource.name || 'resource')} to ${escapeHtml(currentDeckName)}">Add to ${escapeHtml(currentDeckName)}</button>`
                                 : ''}
@@ -7271,8 +7279,8 @@ class ClassroomScreenApp {
                         <p class="dashboard-toolbar__label">Resource Library</p>
                         <h2>${escapeHtml(className ? `${className} resources` : 'Teaching resources')}</h2>
                         <p>${escapeHtml(className
-                            ? `This folder is shared by every deck in ${className}. Open a file here to add it to the current deck.`
-                            : 'Open lesson files from your computer folder or Google Drive, then add supported material to the current deck.')}</p>
+                            ? `This folder is shared by every deck in ${className}. Open browser-ready files, download Word copies, or add supported content to the current deck.`
+                            : 'Open browser-ready lesson files, download Word copies, or add supported content to the current deck.')}</p>
                         <p class="resource-current-deck"><strong>Adding to:</strong> ${escapeHtml(currentDeckName)}</p>
                     </div>
                     <div class="resource-library__header-actions">
@@ -7588,11 +7596,15 @@ class ClassroomScreenApp {
         const file = await this.getResourceFile(resource);
         if (!file) throw new Error('That resource file could not be read.');
         const url = URL.createObjectURL(file);
+        const opensInBrowser = resource.type === 'pdf' || resource.type === 'image';
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.target = '_blank';
-        anchor.rel = 'noopener noreferrer';
-        anchor.download = resource.type === 'presentation' || resource.type === 'other' ? (file.name || resource.name || '') : '';
+        if (opensInBrowser) {
+            anchor.target = '_blank';
+            anchor.rel = 'noopener noreferrer';
+        } else {
+            anchor.download = file.name || resource.name || 'resource';
+        }
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
