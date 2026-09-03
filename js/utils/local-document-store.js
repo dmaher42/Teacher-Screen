@@ -146,7 +146,8 @@
             : [];
         const contentBytes = new Blob([String(deck.content || '')], { type: 'text/html' }).size;
         const assetBytes = normalizedAssets.reduce((total, asset) => total + (Number(asset.blob.size) || 0), 0);
-        await ensureStorageCapacity(contentBytes + assetBytes);
+        const sourceBytes = deck.sourceBlob instanceof Blob ? deck.sourceBlob.size : 0;
+        await ensureStorageCapacity(contentBytes + assetBytes + sourceBytes);
 
         const database = await openDatabase();
         const transaction = database.transaction([SLIDE_DECK_STORE_NAME, SLIDE_ASSET_STORE_NAME], 'readwrite');
@@ -165,7 +166,7 @@
             deckStore.put({
                 ...deck,
                 assetCount: normalizedAssets.length,
-                storedBytes: contentBytes + assetBytes,
+                storedBytes: contentBytes + assetBytes + sourceBytes,
                 updatedAt: Number(deck.updatedAt) || Date.now()
             });
             normalizedAssets.forEach((asset) => {

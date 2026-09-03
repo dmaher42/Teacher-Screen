@@ -35,6 +35,8 @@ class RevealManagerWidget {
         this.restoreGeneration = 0;
         this.isDiscarded = false;
         this.runtimeObjectUrls = new Set();
+        this.pptxFrame = null;
+        this.pptxFrameMessageHandler = null;
 
         const appModeUtils = window.TeacherScreenAppMode || {};
         this.appMode = appModeUtils.APP_MODE || 'teacher';
@@ -50,6 +52,7 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-launch-btn" title="Close presentation" hidden>Close</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" title="Previous slide" hidden>Previous</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide" hidden>Next</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-edit-pptx-btn" title="Edit this PowerPoint in Teacher Screen" hidden>Edit PowerPoint</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-projector-btn" title="Show this presentation on the projector" hidden>Show on projector</button>
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
@@ -127,9 +130,11 @@ class RevealManagerWidget {
             </div>
         `;
 
+        this.topbar = this.element.querySelector('.reveal-manager__topbar');
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.prevButton = this.element.querySelector('.reveal-prev-btn');
         this.nextButton = this.element.querySelector('.reveal-next-btn');
+        this.editPptxButton = this.element.querySelector('.reveal-edit-pptx-btn');
         this.projectorButton = this.element.querySelector('.reveal-projector-btn');
         this.deckIndicator = this.element.querySelector('.reveal-deck-indicator');
         this.statusLabel = this.element.querySelector('.reveal-presenter-status');
@@ -160,6 +165,7 @@ class RevealManagerWidget {
         this.handleOpenHtml = this.handleOpenHtml.bind(this);
         this.handlePrevClick = this.handlePrevClick.bind(this);
         this.handleNextClick = this.handleNextClick.bind(this);
+        this.handleEditPptxClick = this.handleEditPptxClick.bind(this);
         this.handleProjectorClick = this.handleProjectorClick.bind(this);
         this.handleSaveDeck = this.handleSaveDeck.bind(this);
         this.handleConvertButtonClick = this.handleConvertButtonClick.bind(this);
@@ -181,6 +187,7 @@ class RevealManagerWidget {
         this.openHtmlButton.addEventListener('click', this.handleOpenHtml);
         this.prevButton.addEventListener('click', this.handlePrevClick);
         this.nextButton.addEventListener('click', this.handleNextClick);
+        this.editPptxButton.addEventListener('click', this.handleEditPptxClick);
         this.projectorButton.addEventListener('click', this.handleProjectorClick);
         this.saveButton.addEventListener('click', this.handleSaveDeck);
         this.convertButton.addEventListener('click', this.handleConvertButtonClick);
@@ -688,7 +695,9 @@ class RevealManagerWidget {
         }
 
         const deckName = (this.activeDeck.name || 'Untitled presentation').trim();
-        const sourceLabel = this.getSourceTypeLabel(this.activeDeck.type);
+        const sourceLabel = this.isStoredImportDeck(this.activeDeck)
+            ? (this.activeDeck.sourceFormat === 'pptx' ? 'PowerPoint' : 'PDF')
+            : this.getSourceTypeLabel(this.activeDeck.type);
         this.deckIndicator.textContent = deckName === sourceLabel ? sourceLabel : `${deckName} - ${sourceLabel}`;
         this.deckIndicator.hidden = false;
     }
@@ -696,12 +705,21 @@ class RevealManagerWidget {
     updateControls() {
         const hasDeck = !!this.activeDeck;
         const isLiveRevealDeck = hasDeck && this.activeDeck.type === 'html';
+        const isEditablePptx = hasDeck && this.isEditablePptxDeck(this.activeDeck);
         this.launchButton.textContent = 'Close';
         this.launchButton.hidden = !hasDeck;
         this.prevButton.disabled = !isLiveRevealDeck;
         this.prevButton.hidden = !isLiveRevealDeck;
         this.nextButton.disabled = !isLiveRevealDeck;
         this.nextButton.hidden = !isLiveRevealDeck;
+        if (isEditablePptx) {
+            if (!this.editPptxButton.isConnected) {
+                this.topbar?.insertBefore(this.editPptxButton, this.projectorButton);
+            }
+            this.editPptxButton.hidden = false;
+        } else {
+            this.editPptxButton.remove();
+        }
         this.projectorButton.hidden = !hasDeck;
         this.projectorButton.textContent = isLiveRevealDeck ? 'Show on projector' : 'Open presentation window';
         this.projectorButton.title = isLiveRevealDeck
@@ -1103,6 +1121,12 @@ class RevealManagerWidget {
         return !!(deck && typeof deck.storageId === 'string' && deck.storageId.trim());
     }
 
+    isEditablePptxDeck(deck = null) {
+        return this.isStoredImportDeck(deck)
+            && deck.sourceFormat === 'pptx'
+            && deck.sourceBlobAvailable === true;
+    }
+
     getPersistentDeckReference(deck = null) {
         const normalized = this.normalizeStoredDeck(deck);
         if (!normalized) {
@@ -1219,11 +1243,12 @@ class RevealManagerWidget {
             sourceFormat: deck.sourceFormat || storedDeck.sourceFormat || 'pdf',
             sourceName: deck.sourceName || storedDeck.sourceName || '',
             sourceSize: Number(deck.sourceSize) || Number(storedDeck.sourceSize) || 0,
-            slideCount: Number(deck.slideCount) || Number(storedDeck.slideCount) || 0
+            slideCount: Number(deck.slideCount) || Number(storedDeck.slideCount) || 0,
+            sourceBlobAvailable: storedDeck.sourceBlob instanceof Blob
         };
     }
 
-    async persistImportedDeck(deck, assets = []) {
+    async persistImportedDeck(deck, assets = [], sourceBlob = null) {
         const normalized = this.normalizeStoredDeck(deck);
         if (!normalized || !this.isStoredImportDeck(normalized) || !normalized.content.trim()) {
             throw new Error('The imported slide deck could not be prepared for storage.');
@@ -1240,6 +1265,7 @@ class RevealManagerWidget {
                 sourceSize: normalized.sourceSize,
                 slideCount: normalized.slideCount,
                 content: normalized.content,
+                sourceBlob: sourceBlob instanceof Blob ? sourceBlob : undefined,
                 updatedAt: Date.now()
             },
             assets
@@ -1612,7 +1638,9 @@ class RevealManagerWidget {
         const fileName = file.name || 'Imported Deck';
         const baseName = this.getImportedDeckBaseName(fileName);
         const lowerName = fileName.toLowerCase();
-        const importedDeckName = `${baseName} Reveal`;
+        const importedDeckName = lowerName.endsWith('.pptx')
+            ? baseName
+            : `${baseName} Reveal`;
         const deckId = Date.now();
         const storageId = this.createImportedDeckStorageId(deckId);
 
@@ -1642,7 +1670,7 @@ class RevealManagerWidget {
 
         let deck = null;
         try {
-            deck = await this.persistImportedDeck(imported.deck, imported.assets);
+            deck = await this.persistImportedDeck(imported.deck, imported.assets, imported.sourceBlob);
         } catch (error) {
             console.warn('Unable to store imported slide deck:', error);
             const quotaExceeded = error?.name === 'QuotaExceededError';
@@ -1834,7 +1862,10 @@ class RevealManagerWidget {
                 sourceName: file.name || '',
                 sourceSize: file.size || 0
             }),
-            assets
+            assets,
+            sourceBlob: file instanceof Blob
+                ? file.slice(0, file.size, 'application/vnd.openxmlformats-officedocument.presentationml.presentation')
+                : new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
         };
     }
 
@@ -2355,6 +2386,11 @@ class RevealManagerWidget {
     ensureDeckVisible({ layoutExisting = true } = {}) {
         if (!this.activeDeck || this.isDiscarded || this.restorePromise || document.visibilityState !== 'visible') return;
 
+        if (this.isEditablePptxDeck(this.activeDeck) && this.pptxFrame?.isConnected) {
+            this.postPptxFrameCommand('slide', { slide: this.currentIndices.h || 0 });
+            return;
+        }
+
         if (this.renderPromise) {
             return;
         }
@@ -2421,6 +2457,14 @@ class RevealManagerWidget {
         let renderTask = null;
         renderTask = (async () => {
             try {
+                if (this.isEditablePptxDeck(activeDeck)) {
+                    const targetIndices = preserveIndices
+                        ? { ...this.currentIndices }
+                        : { h: 0, v: 0 };
+                    this.currentIndices = targetIndices;
+                    return this.renderPptxDeckScaffold(activeDeck, targetIndices.h || 0);
+                }
+
                 const {
                     activateReveal,
                     destroyReveal,
@@ -2483,6 +2527,102 @@ class RevealManagerWidget {
 
         this.renderPromise = renderTask;
         return renderTask;
+    }
+
+    destroyPptxFrame() {
+        if (this.pptxFrameMessageHandler) {
+            window.removeEventListener('message', this.pptxFrameMessageHandler);
+        }
+        this.pptxFrameMessageHandler = null;
+        this.pptxFrame = null;
+    }
+
+    postPptxFrameCommand(command, detail = {}) {
+        const frameWindow = this.pptxFrame?.contentWindow;
+        if (!frameWindow) return;
+        frameWindow.postMessage({
+            type: 'teacher-screen-pptx-command',
+            storageId: this.activeDeck?.storageId || '',
+            command,
+            ...detail
+        }, window.location.origin);
+    }
+
+    renderPptxDeckScaffold(deck, initialSlide = 0) {
+        if (!this.inlineDeckContainer || !deck?.storageId) return null;
+
+        this.destroyPptxFrame();
+        this.inlineDeckContainer.innerHTML = '';
+        this.inlineDeckContainer.__teacherScreenRevealDeck = null;
+
+        const shell = document.createElement('div');
+        shell.className = 'reveal-pptx-frame-shell';
+        const iframe = document.createElement('iframe');
+        iframe.className = 'reveal-pptx-frame';
+        iframe.title = `${deck.name || 'PowerPoint'} presentation`;
+        iframe.setAttribute('allow', 'fullscreen');
+
+        const editorUrl = new URL('presentation-editor.html', window.location.href);
+        editorUrl.searchParams.set('storageId', deck.storageId);
+        editorUrl.searchParams.set('mode', 'viewer');
+        editorUrl.searchParams.set('slide', String(Math.max(0, Number(initialSlide) || 0)));
+        iframe.src = editorUrl.toString();
+        shell.appendChild(iframe);
+        this.inlineDeckContainer.appendChild(shell);
+        this.pptxFrame = iframe;
+
+        const listeners = new Map();
+        let ready = false;
+        const emit = (name, detail = {}) => {
+            const callbacks = listeners.get(name);
+            callbacks?.forEach((callback) => callback(detail));
+        };
+        const adapter = {
+            on: (name, callback) => {
+                if (!listeners.has(name)) listeners.set(name, new Set());
+                listeners.get(name).add(callback);
+                if (name === 'ready' && ready) window.setTimeout(() => callback({ indexh: this.currentIndices.h || 0, indexv: 0 }), 0);
+            },
+            off: (name, callback) => listeners.get(name)?.delete(callback),
+            isReady: () => ready,
+            getIndices: () => ({ h: this.currentIndices.h || 0, v: 0 }),
+            slide: (h = 0) => this.postPptxFrameCommand('slide', { slide: Math.max(0, Number(h) || 0) }),
+            next: () => this.postPptxFrameCommand('next'),
+            prev: () => this.postPptxFrameCommand('prev'),
+            up: () => this.postPptxFrameCommand('prev'),
+            down: () => this.postPptxFrameCommand('next'),
+            destroy: () => {
+                listeners.clear();
+                this.destroyPptxFrame();
+            }
+        };
+
+        this.pptxFrameMessageHandler = (event) => {
+            if (event.origin !== window.location.origin || event.source !== iframe.contentWindow) return;
+            const message = event.data || {};
+            if (message.storageId !== deck.storageId) return;
+            if (message.type === 'teacher-screen-pptx-ready') {
+                ready = true;
+                this.currentIndices = { h: Math.max(0, Number(message.slide) || 0), v: 0 };
+                this.setStatus('');
+                emit('ready', { indexh: this.currentIndices.h, indexv: 0 });
+                return;
+            }
+            if (message.type === 'teacher-screen-pptx-slide-change') {
+                this.currentIndices = { h: Math.max(0, Number(message.slide) || 0), v: 0 };
+                emit('slidechanged', { indexh: this.currentIndices.h, indexv: 0 });
+                return;
+            }
+            if (message.type === 'teacher-screen-pptx-error') {
+                this.setStatus(message.message || 'The PowerPoint preview could not be opened.');
+            }
+        };
+        window.addEventListener('message', this.pptxFrameMessageHandler);
+
+        this.revealDeck = adapter;
+        this.inlineDeckContainer.__teacherScreenRevealDeck = adapter;
+        this.attachDeckListeners(adapter);
+        return adapter;
     }
 
     renderExternalDeckScaffold(deck) {
@@ -2643,6 +2783,7 @@ class RevealManagerWidget {
         this.renderVersion += 1;
         this.renderPromise = null;
         this.detachDeckListeners();
+        this.destroyPptxFrame();
 
         try {
             const { destroyReveal } = await import('../utils/reveal-manager.js');
@@ -2739,6 +2880,26 @@ class RevealManagerWidget {
     handleNextClick(event) {
         event.stopPropagation();
         this.navigate('next');
+    }
+
+    handleEditPptxClick(event) {
+        event?.stopPropagation();
+        if (!this.isEditablePptxDeck(this.activeDeck)) {
+            this.setStatus('Choose an imported PowerPoint before opening the editor.');
+            return false;
+        }
+
+        const editorUrl = new URL('presentation-editor.html', window.location.href);
+        editorUrl.searchParams.set('storageId', this.activeDeck.storageId);
+        editorUrl.searchParams.set('slide', String(this.currentIndices.h || 0));
+        const editorWindow = window.open(editorUrl.toString(), 'teacher-screen-presentation-editor');
+        if (!editorWindow) {
+            this.setStatus('The PowerPoint editor popup was blocked. Allow popups for Teacher Screen and try again.');
+            return false;
+        }
+        editorWindow.focus();
+        this.setStatus('PowerPoint editor opened. Save there to refresh this preview.');
+        return true;
     }
 
     handleProjectorClick(event) {
@@ -3173,6 +3334,7 @@ class RevealManagerWidget {
         this.openFromSetupButton.removeEventListener('click', this.handleOpenFromSetup);
         this.prevButton.removeEventListener('click', this.handlePrevClick);
         this.nextButton.removeEventListener('click', this.handleNextClick);
+        this.editPptxButton.removeEventListener('click', this.handleEditPptxClick);
         this.projectorButton.removeEventListener('click', this.handleProjectorClick);
         this.saveButton.removeEventListener('click', this.handleSaveDeck);
         this.launchSavedButton.removeEventListener('click', this.handleLaunchSaved);

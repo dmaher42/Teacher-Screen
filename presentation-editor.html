@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111827">
+    <title>PowerPoint Editor - Teacher Screen</title>
+    <link rel="icon" type="image/svg+xml" href="assets/app-icons/teacher-screen.svg">
+    <link rel="stylesheet" href="js/vendor/presentation-editor.css?v=1">
+</head>
+<body>
+    <header class="teacher-screen-pptx-header">
+        <button id="back-button" type="button" class="teacher-screen-pptx-button teacher-screen-pptx-button--quiet">Back to Teacher Screen</button>
+        <div class="teacher-screen-pptx-heading">
+            <strong id="presentation-name">PowerPoint editor</strong>
+            <span id="editor-status" role="status" aria-live="polite">Opening presentation...</span>
+        </div>
+        <div class="teacher-screen-pptx-actions">
+            <button id="choose-file-button" type="button" class="teacher-screen-pptx-button" hidden>Choose PowerPoint</button>
+            <button id="save-button" type="button" class="teacher-screen-pptx-button" disabled>Save in Teacher Screen</button>
+            <button id="download-button" type="button" class="teacher-screen-pptx-button teacher-screen-pptx-button--primary" disabled>Download edited copy</button>
+        </div>
+    </header>
+    <main id="presentation-editor-host" aria-label="PowerPoint editor"></main>
+    <input id="presentation-file-input" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+    <script src="js/utils/local-document-store.js?v=3"></script>
+    <script src="js/vendor/presentation-editor.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+:root {
+    color-scheme: dark;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #111827;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    background: #111827;
+}
+
+.teacher-screen-pptx-header {
+    z-index: 300;
+    display: flex;
+    min-height: 58px;
+    align-items: center;
+    gap: 14px;
+    padding: 9px 14px;
+    border-bottom: 1px solid #334155;
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+.teacher-screen-pptx-heading {
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    gap: 2px;
+}
+
+.teacher-screen-pptx-heading strong,
+.teacher-screen-pptx-heading span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.teacher-screen-pptx-heading span {
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+.teacher-screen-pptx-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.teacher-screen-pptx-button {
+    min-height: 38px;
+    padding: 7px 13px;
+    border: 1px solid #64748b;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #f8fafc;
+    font: 600 13px/1.2 inherit;
+    cursor: pointer;
+}
+
+.teacher-screen-pptx-button:hover:not(:disabled) {
+    background: #334155;
+}
+
+.teacher-screen-pptx-button--primary {
+    border-color: #38bdf8;
+    background: #0369a1;
+}
+
+.teacher-screen-pptx-button--quiet {
+    background: transparent;
+}
+
+.teacher-screen-pptx-button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+#presentation-editor-host {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+}
+
+body[data-editor-mode="viewer"] {
+    display: block;
+}
+
+body[data-editor-mode="viewer"] .teacher-screen-pptx-header {
+    display: none;
+}
+
+body[data-editor-mode="viewer"] #presentation-editor-host {
+    width: 100vw;
+    height: 100vh;
+}
+
+/* The package marks File backstage as hidden, but its own important display
+   rule otherwise overrides the browser's hidden attribute. */
+.pptxv-backstage[hidden] {
+    display: none !important;
+}
+
+.pptxv-protected-view,
+.pptxv-readonly-banner,
+body[data-editor-mode="viewer"] .pptxv-compat-toasts,
+body[data-editor-mode="viewer"] .pptxv-statusbar,
+body[data-editor-mode="viewer"] .pptxv-notes {
+    display: none !important;
+}
+
+/* Some Google-authored PPTX placeholders keep their intended white text in
+   the layout/master. The viewer can resolve them as the dark theme colour.
+   This render-only fix restores readable contrast without changing the PPTX. */
+.teacher-screen-pptx-contrast-fix,
+.teacher-screen-pptx-contrast-fix * {
+    color: var(--teacher-screen-pptx-contrast-color, #fff) !important;
+}
+
+@media (max-width: 900px) {
+    .teacher-screen-pptx-header {
+        flex-wrap: wrap;
+    }
+
+    .teacher-screen-pptx-heading {
+        order: -1;
+        width: 100%;
+        flex-basis: 100%;
+    }
+}

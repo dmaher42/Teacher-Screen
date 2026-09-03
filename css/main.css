@@ -9782,6 +9782,24 @@ body.projector-view .noise-meter-status-dot {
 /* ==========================
    Reveal Manager Widget Styles
    ========================== */
+.reveal-pptx-frame-shell,
+.reveal-pptx-frame {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.reveal-pptx-frame-shell {
+    overflow: hidden;
+    background: #111827;
+}
+
+.reveal-pptx-frame {
+    display: block;
+    border: 0;
+    background: #111827;
+}
+
 .reveal-manager-widget-content {
     width: 100%;
     height: 100%;

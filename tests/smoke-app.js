@@ -5619,17 +5619,17 @@ async function runSmoke() {
                 storageId: deckReference.storageId,
                 storedAssetCount: storedAssets.length,
                 storedAssetIsBlob: storedAssets[0]?.blob instanceof Blob,
+                sourceBlobIsBlob: storedRecord?.sourceBlob instanceof Blob,
                 manifestHasText: storedRecord?.content?.includes('Stored PowerPoint') === true,
                 manifestUsesAssetReference: storedRecord?.content?.includes('data-slide-asset-id') === true,
-                runtimeHasText: widget.inlineDeckContainer.textContent.includes('Stored PowerPoint'),
-                runtimeImageCount: widget.inlineDeckContainer.querySelectorAll('img[src^="blob:"]').length,
+                usesAccuratePptxFrame: widget.inlineDeckContainer.querySelector('iframe.reveal-pptx-frame') instanceof HTMLIFrameElement,
                 serializedContent: widget.serialize().activeDeck?.content || ''
             };
         });
-        assert(importedPptxDeck.storedAssetCount === 1 && importedPptxDeck.storedAssetIsBlob && importedPptxDeck.manifestHasText && importedPptxDeck.manifestUsesAssetReference, 'PowerPoint import should store extracted text and image files without base64 content');
+        assert(importedPptxDeck.storedAssetCount === 1 && importedPptxDeck.storedAssetIsBlob && importedPptxDeck.sourceBlobIsBlob && importedPptxDeck.manifestHasText && importedPptxDeck.manifestUsesAssetReference, 'PowerPoint import should retain the editable source and extracted fallback assets without base64 content');
         assert(
-            importedPptxDeck.runtimeHasText && importedPptxDeck.runtimeImageCount === 1 && !importedPptxDeck.serializedContent,
-            `PowerPoint import should render from its stored manifest while classroom state remains lightweight (${JSON.stringify(importedPptxDeck)})`
+            importedPptxDeck.usesAccuratePptxFrame && !importedPptxDeck.serializedContent,
+            `PowerPoint import should render through its accurate PPTX frame while classroom state remains lightweight (${JSON.stringify(importedPptxDeck)})`
         );
 
         await addWidget(page, 'url-viewer', '.widget.url-viewer-widget', 'Web Page');
