@@ -698,8 +698,6 @@ class LayoutManager {
     widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
     widgetElement.style.left = `${widgetInfo.x}px`;
     widgetElement.style.top = `${widgetInfo.y}px`;
-    this.resolveWidgetPlacementConflict(widgetInfo);
-
     if (this.editable && layoutManagerIsTeacherMode()) {
       this.setSelectedWidgetElement(widgetElement);
     }
@@ -723,40 +721,15 @@ class LayoutManager {
     this.widgets.forEach((widgetInfo) => {
       this.clampWidgetToContainer(widgetInfo);
     });
-    this.ensureTeacherWidgetSpacing();
     this.widgets.forEach((widgetInfo) => {
       this.mountWidgetElement(widgetInfo);
-    });
-    this.widgets.forEach((widgetInfo) => {
-      this.resolveWidgetPlacementConflict(widgetInfo);
     });
   }
 
   ensureTeacherWidgetSpacing() {
-    if (!layoutManagerIsTeacherMode() || this.widgets.length < 2) return;
-
-    const canvas = this.getCanvasMetrics();
-    const maxRight = canvas.minX + canvas.width;
-    const minWidth = GRID_SIZE * 4;
-    const ordered = [...this.widgets].sort((a, b) => a.x - b.x);
-
-    for (let index = 1; index < ordered.length; index += 1) {
-      const previous = ordered[index - 1];
-      const current = ordered[index];
-      const verticallyAligned = previous.y < current.y + current.height + TEACHER_WIDGET_GAP
-        && previous.y + previous.height + TEACHER_WIDGET_GAP > current.y;
-      if (!verticallyAligned) continue;
-
-      const shortfall = previous.x + previous.width + TEACHER_WIDGET_GAP - current.x;
-      if (shortfall <= 0) continue;
-
-      const snappedShortfall = Math.ceil(shortfall / GRID_SIZE) * GRID_SIZE;
-      if (current.x + current.width + snappedShortfall <= maxRight) {
-        current.x += snappedShortfall;
-      } else if (previous.width - snappedShortfall >= minWidth) {
-        previous.width -= snappedShortfall;
-      }
-    }
+    // Overlap is intentional: teachers can layer widgets to make better use of
+    // the canvas. The widget stack order decides which one appears on top.
+    return false;
   }
 
   moveWidgetByDelta(widgetElement, dx, dy) {
@@ -786,7 +759,6 @@ class LayoutManager {
       info.element.style.left = `${newX}px`;
       info.element.style.top = `${newY}px`;
 
-      this.resolveWidgetPlacementConflict(info);
       this.emitWidgetUpdate(info);
       this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
       this.saveLayout({ emitFull: false });
@@ -1462,7 +1434,6 @@ class LayoutManager {
           info.expandedHeight = finalHeight;
           info.x = finalLeft;
           info.y = finalTop;
-          this.resolveWidgetPlacementConflict(info);
         }
 
         pendingResize = null;
@@ -1588,7 +1559,6 @@ class LayoutManager {
         if (info) {
           info.x = snappedLeft;
           info.y = snappedTop;
-          this.resolveWidgetPlacementConflict(info);
         }
 
         pendingPosition = null;
@@ -1875,7 +1845,6 @@ class LayoutManager {
     this.widgets.forEach((widgetInfo) => {
       this.mountWidgetElement(widgetInfo);
       this.observeWidgetLayout(widgetInfo);
-      this.resolveWidgetPlacementConflict(widgetInfo);
     });
   }
 

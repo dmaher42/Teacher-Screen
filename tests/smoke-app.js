@@ -923,6 +923,59 @@ async function runBottomWidgetContainmentChecks(browser, baseUrl) {
             tallSideWidgetAfterReload.y + tallSideWidgetAfterReload.height > toolbarAfterTallReload.y + 20,
             'A reloaded tall side widget should remain beside, not above, the lesson toolbar'
         );
+
+        const timerBeforeOverlap = await getElementBox(page, '.widget.pomodoro-widget');
+        const namePickerBeforeOverlap = await getElementBox(page, '.widget.name-picker-widget');
+        await selectWidgetForEditing(page, '.widget.name-picker-widget');
+        await dragElementBy(
+            page,
+            '.widget.name-picker-widget .widget-header-title',
+            (timerBeforeOverlap.x + Math.min(80, timerBeforeOverlap.width / 3)) - namePickerBeforeOverlap.x,
+            (timerBeforeOverlap.y + Math.min(40, timerBeforeOverlap.height / 3)) - namePickerBeforeOverlap.y
+        );
+
+        const overlappingWidgets = await page.evaluate(() => {
+            const timer = document.querySelector('.widget.pomodoro-widget');
+            const namePicker = document.querySelector('.widget.name-picker-widget');
+            const timerRect = timer?.getBoundingClientRect();
+            const namePickerRect = namePicker?.getBoundingClientRect();
+            if (!timerRect || !namePickerRect) return null;
+
+            const intersection = {
+                left: Math.max(timerRect.left, namePickerRect.left),
+                top: Math.max(timerRect.top, namePickerRect.top),
+                right: Math.min(timerRect.right, namePickerRect.right),
+                bottom: Math.min(timerRect.bottom, namePickerRect.bottom)
+            };
+            const sampleX = intersection.left + Math.max(1, (intersection.right - intersection.left) / 2);
+            const sampleY = intersection.top + Math.max(1, (intersection.bottom - intersection.top) / 2);
+            return {
+                overlapWidth: intersection.right - intersection.left,
+                overlapHeight: intersection.bottom - intersection.top,
+                topWidgetIsNamePicker: document.elementFromPoint(sampleX, sampleY)?.closest('.widget') === namePicker
+            };
+        });
+        assert(
+            overlappingWidgets?.overlapWidth > 20 && overlappingWidgets?.overlapHeight > 20,
+            `Dragging should allow one widget to overlap another (${JSON.stringify(overlappingWidgets)})`
+        );
+        assert(overlappingWidgets.topWidgetIsNamePicker, 'The widget moved most recently should appear on top of the stack');
+
+        await page.waitForTimeout(700);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForSelector('.widget.name-picker-widget', { timeout: 10000 });
+        const overlapAfterReload = await page.evaluate(() => {
+            const timerRect = document.querySelector('.widget.pomodoro-widget')?.getBoundingClientRect();
+            const namePickerRect = document.querySelector('.widget.name-picker-widget')?.getBoundingClientRect();
+            return !!timerRect && !!namePickerRect
+                && timerRect.left < namePickerRect.right
+                && timerRect.right > namePickerRect.left
+                && timerRect.top < namePickerRect.bottom
+                && timerRect.bottom > namePickerRect.top;
+        });
+        assert(overlapAfterReload, 'Stacked widget positions should survive reload');
     } finally {
         await desktopContext.close();
     }

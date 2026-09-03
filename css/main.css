@@ -5237,11 +5237,6 @@ body.widget-resize-active {
     position: absolute;
 }
 
-.layout-stage-main .widget.mask-widget,
-.layout-stage-main .widget.notes-widget {
-    z-index: 50;
-}
-
 .notes-widget-content {
       display: flex;
       flex-direction: column;
