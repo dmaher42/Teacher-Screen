@@ -333,10 +333,27 @@ function createFirebaseAdapters(config = MEMORY_CUE_FIREBASE_CONFIG) {
             },
             async signIn() {
                 const firebase = await getFirebase();
+                // Installed PWAs can complete Google authentication even when the
+                // popup reports that it was closed. Reuse that authenticated
+                // Firebase session and let Teacher Screen's own confirmation
+                // show the exact account before any reminder data is synced.
+                const currentUser = normalizeUser(firebase.auth.currentUser);
+                if (currentUser) return currentUser;
                 const provider = new firebase.authModule.GoogleAuthProvider();
                 provider.setCustomParameters({ prompt: 'select_account' });
-                const result = await firebase.authModule.signInWithPopup(firebase.auth, provider);
-                return normalizeUser(result?.user);
+                try {
+                    const result = await firebase.authModule.signInWithPopup(firebase.auth, provider);
+                    return normalizeUser(result?.user);
+                } catch (error) {
+                    const authenticatedUser = normalizeUser(firebase.auth.currentUser);
+                    if (
+                        authenticatedUser
+                        && /popup-closed|popup-cancelled|cancelled-popup|user-cancel/i.test(`${error?.code || ''} ${error?.message || ''}`)
+                    ) {
+                        return authenticatedUser;
+                    }
+                    throw error;
+                }
             },
             async signOut() {
                 const firebase = await getFirebase();

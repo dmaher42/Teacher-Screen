@@ -4,17 +4,17 @@ import test from 'node:test';
 
 const SERVICE_PATH = new URL('../js/services/memory-cue-reminder-sync.js', import.meta.url);
 const CLASS_REMINDER_SERVICE_PATH = new URL('../js/services/class-reminder-service.js', import.meta.url);
+const serviceSource = await readFile(SERVICE_PATH, 'utf8');
 
 async function loadSyncModule() {
-    const source = await readFile(SERVICE_PATH, 'utf8');
-    const isolatedSource = source.replace(
+    const isolatedSource = serviceSource.replace(
         /^import\s+\{\s*MEMORY_CUE_FIREBASE_CONFIG\s*\}\s+from\s+['"]\.\.\/config\/memory-cue-config\.js['"];?\s*/,
         'const MEMORY_CUE_FIREBASE_CONFIG = Object.freeze({});\n'
     );
 
     assert.notEqual(
         isolatedSource,
-        source,
+        serviceSource,
         'The test loader must replace the Firebase config import before evaluating the service.'
     );
 
@@ -40,6 +40,19 @@ const {
     CLASS_REMINDER_STORE_VERSION,
     ClassReminderService
 } = classReminderModule;
+
+test('installed-app sign-in reuses an authenticated Firebase session before reopening a popup', () => {
+    assert.match(
+        serviceSource,
+        /const currentUser = normalizeUser\(firebase\.auth\.currentUser\);\s*if \(currentUser\) return currentUser;/,
+        'An account already authenticated by the installed app should proceed to Teacher Screen confirmation.'
+    );
+    assert.match(
+        serviceSource,
+        /authenticatedUser[\s\S]*popup-closed[\s\S]*return authenticatedUser;/,
+        'A completed Firebase sign-in must survive a popup-closed result from an installed app window.'
+    );
+});
 
 const USER_A = Object.freeze({ uid: 'teacher-account-a', email: 'teacher.a@example.test' });
 const USER_B = Object.freeze({ uid: 'teacher-account-b', email: 'teacher.b@example.test' });
