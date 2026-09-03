@@ -32,7 +32,8 @@ const {
     MemoryCueReminderSync,
     buildMemoryCueReminderCreateDefaults,
     buildMemoryCueReminderPayload,
-    getMemoryCueRemoteReminderId
+    getMemoryCueRemoteReminderId,
+    parseMemoryCueReminderDocument
 } = syncModule;
 const {
     CLASS_REMINDER_STORAGE_KEY,
@@ -148,6 +149,7 @@ class FakeRemoteAdapter {
         this.documents = new Map();
         this.offline = false;
         this.nextUpsertDelay = null;
+        this.subscribers = new Map();
     }
 
     accountDocuments(uid) {
@@ -227,6 +229,27 @@ class FakeRemoteAdapter {
         this.accountDocuments(uid).delete(remoteId);
         this.operations.push({ type: 'delete', uid, remoteId });
     }
+
+    async subscribe(uid, onSnapshot, onError) {
+        const subscriber = { onSnapshot, onError };
+        const subscribers = this.subscribers.get(uid) || new Set();
+        subscribers.add(subscriber);
+        this.subscribers.set(uid, subscribers);
+        onSnapshot({
+            documents: [...this.accountDocuments(uid).values()].map(clone),
+            removedDocuments: [],
+            initial: true
+        });
+        return () => subscribers.delete(subscriber);
+    }
+
+    emitSnapshot(uid, { removedDocuments = [] } = {}) {
+        this.subscribers.get(uid)?.forEach(({ onSnapshot }) => onSnapshot({
+            documents: [...this.accountDocuments(uid).values()].map(clone),
+            removedDocuments: removedDocuments.map(clone),
+            initial: false
+        }));
+    }
 }
 
 function makeReminder(overrides = {}) {
@@ -262,7 +285,8 @@ function createHarness(options = {}) {
         remoteAdapter: remote,
         storage,
         eventTarget: options.eventTarget || new FakeEventTarget(),
-        getLocalReminders: () => clone(reminders),
+        getLocalReminders: options.getLocalReminders || (() => clone(reminders)),
+        applyRemoteReminders: options.applyRemoteReminders,
         resolveContext: (reminder) => ({
             className: reminder.classId ? 'Year 7 English' : '',
             deckName: reminder.deckId ? 'Persuasion Weeks 2 and 3' : ''
@@ -391,6 +415,129 @@ test('hostile reminder IDs and text map deterministically without leaking classr
         [due.getFullYear(), due.getMonth() + 1, due.getDate(), due.getHours()],
         [2026, 8, 17, 12]
     );
+});
+
+test('only integration-owned Memory Cue documents map back to Teacher Screen', () => {
+    const source = makeReminder({
+        dueDate: '2026-09-04',
+        completed: true,
+        updatedAt: 1_800_000_000_000
+    });
+    const document = {
+        ...buildMemoryCueReminderCreateDefaults(source),
+        ...buildMemoryCueReminderPayload(source, { className: 'Year 7 English' }, USER_A.uid)
+    };
+
+    const parsed = parseMemoryCueReminderDocument(document);
+    assert.equal(parsed.id, source.id);
+    assert.equal(parsed.scope, 'class');
+    assert.equal(parsed.classId, source.classId);
+    assert.equal(parsed.deckId, '');
+    assert.equal(parsed.text, source.text);
+    assert.equal(parsed.completed, true);
+    assert.equal(parsed.dueDate, '2026-09-04');
+    assert.equal(parseMemoryCueReminderDocument({
+        id: 'personal-reminder',
+        title: 'Buy milk',
+        metadata: { source: 'memory-cue' }
+    }), null);
+});
+
+test('connecting restores Teacher Screen reminders and follows Memory Cue edits and deletes', async (t) => {
+    const remote = new FakeRemoteAdapter();
+    const storage = new MemoryStorage();
+    const classReminders = new ClassReminderService({
+        storage,
+        eventTarget: null,
+        now: () => 1_900_000_000_000
+    });
+    const source = makeReminder({ text: 'Restored from Memory Cue' });
+    const remoteId = getMemoryCueRemoteReminderId(source.id);
+    const remoteDocument = {
+        ...buildMemoryCueReminderCreateDefaults(source),
+        ...buildMemoryCueReminderPayload(source, { className: 'Year 7 English' }, USER_A.uid)
+    };
+    remote.accountDocuments(USER_A.uid).set(remoteId, clone(remoteDocument));
+    remote.accountDocuments(USER_A.uid).set('personal-reminder', {
+        id: 'personal-reminder',
+        title: 'Personal reminder with no classroom destination',
+        metadata: { source: 'memory-cue' }
+    });
+
+    const harness = createHarness({
+        remote,
+        storage,
+        getLocalReminders: () => classReminders.list(),
+        applyRemoteReminders: (snapshot) => classReminders.syncFromMemoryCue(snapshot)
+    });
+    t.after(() => {
+        harness.sync.dispose();
+        classReminders.dispose();
+    });
+
+    assert.equal(await harness.sync.connect(), true);
+    assert.deepEqual(classReminders.list().map((reminder) => reminder.text), ['Restored from Memory Cue']);
+    assert.equal(remote.operations.length, 0, 'Restoring an unchanged cloud reminder must not echo a write.');
+
+    const editedDocument = remote.accountDocuments(USER_A.uid).get(remoteId);
+    editedDocument.text = 'Edited inside Memory Cue';
+    editedDocument.title = editedDocument.text;
+    editedDocument.updatedAt += 10;
+    remote.emitSnapshot(USER_A.uid);
+    assert.equal(classReminders.get(source.id).text, 'Edited inside Memory Cue');
+    assert.equal(remote.operations.length, 0);
+
+    remote.accountDocuments(USER_A.uid).delete(remoteId);
+    remote.emitSnapshot(USER_A.uid, { removedDocuments: [editedDocument] });
+    assert.equal(classReminders.get(source.id), null);
+    assert.equal(remote.operations.length, 0);
+});
+
+test('ordinary Memory Cue reminders feed the teacher-only due note and can be completed', async (t) => {
+    const remote = new FakeRemoteAdapter();
+    remote.accountDocuments(USER_A.uid).set('personal-school-reminder', {
+        id: 'personal-school-reminder',
+        text: 'Email the year level leader',
+        due: '2026-09-03T08:30:00.000Z',
+        completed: false,
+        createdAt: 1_700_000_000_000,
+        updatedAt: 1_700_000_000_000,
+        category: 'School',
+        metadata: { source: 'memory-cue' }
+    });
+    const harness = createHarness({ remote, now: 1_800_000_000_000 });
+    t.after(() => harness.sync.dispose());
+
+    const feedUpdates = [];
+    const unsubscribe = harness.sync.subscribeRemoteReminders((reminders) => {
+        feedUpdates.push(reminders);
+    });
+    t.after(unsubscribe);
+
+    assert.equal(await harness.sync.connect(), true);
+    assert.deepEqual(harness.sync.listRemoteReminders().map((reminder) => ({
+        id: reminder.id,
+        text: reminder.text,
+        dueDate: reminder.dueDate,
+        completed: reminder.completed
+    })), [{
+        id: 'memory-cue:personal-school-reminder',
+        text: 'Email the year level leader',
+        dueDate: '2026-09-03T08:30:00.000Z',
+        completed: false
+    }]);
+    assert.ok(feedUpdates.length > 0);
+
+    assert.equal(await harness.sync.setRemoteReminderCompleted('memory-cue:personal-school-reminder', true), true);
+    assert.equal(remote.operations.at(-1).remoteId, 'personal-school-reminder');
+    assert.deepEqual(remote.operations.at(-1).payload, {
+        completed: true,
+        done: true,
+        status: 'done',
+        completedAt: 1_800_000_000_000,
+        updatedAt: 1_800_000_000_000
+    });
+    assert.equal(harness.sync.listRemoteReminders()[0].completed, true);
 });
 
 test('local-only mode performs zero cloud writes', async (t) => {

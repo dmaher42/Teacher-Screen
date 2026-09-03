@@ -167,6 +167,77 @@ export function buildMemoryCueReminderCreateDefaults(reminder = {}) {
     };
 }
 
+export function parseMemoryCueReminderDocument(document = {}) {
+    const metadata = document?.metadata;
+    const teacherScreen = metadata?.teacherScreen;
+    if (
+        metadata?.integration !== 'teacher-screen'
+        || !teacherScreen
+        || typeof teacherScreen !== 'object'
+    ) {
+        return null;
+    }
+
+    const id = normalizeText(teacherScreen.reminderId, 1000);
+    const scope = teacherScreen.scope === 'class' ? 'class' : (teacherScreen.scope === 'deck' ? 'deck' : '');
+    const classId = scope === 'class' ? normalizeText(teacherScreen.classId, 240) : '';
+    const deckId = scope === 'deck' ? normalizeText(teacherScreen.deckId, 240) : '';
+    const text = normalizeText(document.text || document.title, 2000);
+    if (!id || !scope || !(classId || deckId) || !text) return null;
+
+    const dueValue = document.dueDate || document.due || document.dueAt;
+    const due = Number.isFinite(Number(dueValue)) && Number(dueValue) > 0
+        ? { due: new Date(Number(dueValue)).toISOString() }
+        : (dueValue ? normalizeDueDate(dueValue) : { due: null });
+    let dueDate = due.due;
+    if (dueDate && metadata.isAllDay === true) {
+        const localDate = new Date(dueDate);
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        dueDate = `${year}-${month}-${day}`;
+    }
+    const completed = document.completed === true || document.done === true || document.status === 'done';
+    const createdAt = normalizeTimestamp(document.createdAt);
+    const updatedAt = Math.max(createdAt, normalizeTimestamp(document.updatedAt, createdAt));
+
+    return {
+        id,
+        scope,
+        classId,
+        deckId,
+        text,
+        dueDate,
+        completed,
+        createdAt,
+        updatedAt
+    };
+}
+
+function parseMemoryCueReminderFeedDocument(document = {}) {
+    const integratedReminder = parseMemoryCueReminderDocument(document);
+    const remoteId = normalizeText(document.id, 1000);
+    const text = normalizeText(document.text || document.title, 2000);
+    if (!remoteId || !text) return null;
+
+    const dueValue = document.dueDate || document.due || document.dueAt;
+    const due = Number.isFinite(Number(dueValue)) && Number(dueValue) > 0
+        ? { due: new Date(Number(dueValue)).toISOString() }
+        : (dueValue ? normalizeDueDate(dueValue) : { due: null });
+    const completed = document.completed === true || document.done === true || document.status === 'done';
+
+    return {
+        id: integratedReminder?.id || `memory-cue:${remoteId}`,
+        memoryCueRemoteId: remoteId,
+        text,
+        dueDate: integratedReminder?.dueDate || due.due,
+        completed,
+        orderIndex: Number.isFinite(Number(document.orderIndex)) ? Number(document.orderIndex) : 0,
+        createdAt: normalizeTimestamp(document.createdAt),
+        updatedAt: normalizeTimestamp(document.updatedAt)
+    };
+}
+
 const getPayloadFingerprint = (payload) => JSON.stringify(payload);
 
 const getExplicitRemovedIds = (change = {}) => {
@@ -299,6 +370,21 @@ function createFirebaseAdapters(config = MEMORY_CUE_FIREBASE_CONFIG) {
                 const firebase = await getFirebase();
                 const target = firebase.firestoreModule.doc(firebase.db, 'users', uid, 'reminders', remoteId);
                 await firebase.firestoreModule.deleteDoc(target);
+            },
+            async subscribe(uid, onSnapshot, onError) {
+                const firebase = await getFirebase();
+                const target = firebase.firestoreModule.collection(firebase.db, 'users', uid, 'reminders');
+                let initial = true;
+                return firebase.firestoreModule.onSnapshot(target, (snapshot) => {
+                    const documents = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+                    const removedDocuments = initial
+                        ? []
+                        : snapshot.docChanges()
+                            .filter((change) => change.type === 'removed')
+                            .map((change) => ({ id: change.doc.id, ...change.doc.data() }));
+                    onSnapshot({ documents, removedDocuments, initial });
+                    initial = false;
+                }, onError);
             }
         }
     };
@@ -325,9 +411,15 @@ export class MemoryCueReminderSync {
         this.confirmConnection = typeof options.confirmConnection === 'function'
             ? options.confirmConnection
             : () => true;
+        this.applyRemoteReminders = typeof options.applyRemoteReminders === 'function'
+            ? options.applyRemoteReminders
+            : () => ({ changed: false });
         this.now = typeof options.now === 'function' ? options.now : () => Date.now();
         this.listeners = new Set();
+        this.remoteReminderListeners = new Set();
+        this.remoteReminders = [];
         this.authUnsubscribe = null;
+        this.remoteUnsubscribe = null;
         this.authStartPromise = null;
         this.flushPromise = null;
         this.currentUser = null;
@@ -420,6 +512,23 @@ export class MemoryCueReminderSync {
         return () => this.listeners.delete(listener);
     }
 
+    listRemoteReminders() {
+        return cloneValue(this.remoteReminders);
+    }
+
+    subscribeRemoteReminders(listener, options = {}) {
+        if (typeof listener !== 'function') return () => {};
+        this.remoteReminderListeners.add(listener);
+        if (options.emitCurrent === true) listener(this.listRemoteReminders());
+        return () => this.remoteReminderListeners.delete(listener);
+    }
+
+    setRemoteReminders(reminders = []) {
+        this.remoteReminders = Array.isArray(reminders) ? cloneValue(reminders) : [];
+        const snapshot = this.listRemoteReminders();
+        this.remoteReminderListeners.forEach((listener) => listener(snapshot));
+    }
+
     async init() {
         this.eventTarget?.addEventListener?.('online', this.handleOnline);
         const binding = this.readBinding();
@@ -460,6 +569,9 @@ export class MemoryCueReminderSync {
         if (!normalizedUser) {
             if (this.currentUser) this.sessionGeneration += 1;
             this.currentUser = null;
+            this.remoteUnsubscribe?.();
+            this.remoteUnsubscribe = null;
+            this.setRemoteReminders([]);
             if (this.connecting) return;
             const binding = this.readBinding();
             this.setState({
@@ -476,6 +588,9 @@ export class MemoryCueReminderSync {
         if (binding.uid !== normalizedUser.uid) {
             this.sessionGeneration += 1;
             this.currentUser = null;
+            this.remoteUnsubscribe?.();
+            this.remoteUnsubscribe = null;
+            this.setRemoteReminders([]);
             this.setState({
                 status: MEMORY_CUE_SYNC_STATES.ACCOUNT_MISMATCH,
                 connected: false,
@@ -580,8 +695,133 @@ export class MemoryCueReminderSync {
             queuedCount: Object.keys(queue.operations).length,
             error: ''
         });
+        await this.startRemoteSubscription(normalizedUser, sessionGeneration);
         await this.reconcile({ flush: true });
         return this.isSessionCurrent(normalizedUser, sessionGeneration);
+    }
+
+    async startRemoteSubscription(user, generation) {
+        this.remoteUnsubscribe?.();
+        this.remoteUnsubscribe = null;
+        if (typeof this.remoteAdapter.subscribe !== 'function') return true;
+
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            const finish = (callback, value) => {
+                if (settled) return;
+                settled = true;
+                callback(value);
+            };
+
+            Promise.resolve(this.remoteAdapter.subscribe(
+                user.uid,
+                (snapshot) => {
+                    if (!this.isSessionCurrent(user, generation)) return;
+                    try {
+                        this.applyRemoteSnapshot(user, snapshot);
+                        finish(resolve, true);
+                    } catch (error) {
+                        finish(reject, error);
+                    }
+                },
+                (error) => {
+                    if (!settled) {
+                        finish(reject, error);
+                        return;
+                    }
+                    if (!this.isSessionCurrent(user, generation)) return;
+                    this.setState({
+                        status: isOfflineError(error) ? MEMORY_CUE_SYNC_STATES.OFFLINE : MEMORY_CUE_SYNC_STATES.ERROR,
+                        connected: true,
+                        error: normalizeText(error?.message || 'Memory Cue could not load reminders.', 300)
+                    });
+                }
+            )).then((unsubscribe) => {
+                if (!this.isSessionCurrent(user, generation)) {
+                    unsubscribe?.();
+                    finish(resolve, false);
+                    return;
+                }
+                this.remoteUnsubscribe = typeof unsubscribe === 'function' ? unsubscribe : () => {};
+            }).catch((error) => finish(reject, error));
+        });
+    }
+
+    applyRemoteSnapshot(user, snapshot = {}) {
+        this.setRemoteReminders(
+            (Array.isArray(snapshot.documents) ? snapshot.documents : [])
+                .map(parseMemoryCueReminderFeedDocument)
+                .filter(Boolean)
+        );
+        const reminders = (Array.isArray(snapshot.documents) ? snapshot.documents : [])
+            .map(parseMemoryCueReminderDocument)
+            .filter(Boolean);
+        const removedIds = (Array.isArray(snapshot.removedDocuments) ? snapshot.removedDocuments : [])
+            .map(parseMemoryCueReminderDocument)
+            .filter(Boolean)
+            .map((reminder) => reminder.id);
+
+        this.applyRemoteReminders({
+            reminders,
+            removedIds,
+            initial: snapshot.initial === true
+        });
+
+        const manifest = this.readManifest(user.uid);
+        const localById = new Map(this.getLocalReminders().map((reminder) => [reminder.id, reminder]));
+        reminders.forEach((remoteReminder) => {
+            const local = localById.get(remoteReminder.id);
+            if (!local) return;
+            const payload = this.createPayload(local, user.uid);
+            manifest.items[local.id] = {
+                remoteId: payload.id,
+                fingerprint: getPayloadFingerprint(payload),
+                syncedAt: this.now(),
+                deletedAt: null,
+                lastAssertedAt: null
+            };
+        });
+        removedIds.forEach((localId) => {
+            manifest.items[localId] = {
+                remoteId: getMemoryCueRemoteReminderId(localId),
+                fingerprint: '',
+                deletedAt: this.now(),
+                lastAssertedAt: this.now()
+            };
+        });
+        this.writeManifest(user.uid, manifest);
+    }
+
+    async setRemoteReminderCompleted(id, completed = true) {
+        const user = this.currentUser;
+        const binding = this.readBinding();
+        const reminder = this.remoteReminders.find((item) => item.id === id);
+        if (!user || !binding.active || binding.uid !== user.uid || !reminder?.memoryCueRemoteId) return false;
+
+        const updatedAt = this.now();
+        const isCompleted = completed === true;
+        try {
+            await this.remoteAdapter.upsert(user.uid, reminder.memoryCueRemoteId, {
+                completed: isCompleted,
+                done: isCompleted,
+                status: isCompleted ? 'done' : 'open',
+                completedAt: isCompleted ? updatedAt : null,
+                updatedAt
+            });
+            this.setRemoteReminders(this.remoteReminders.map((item) => (
+                item.id === id
+                    ? { ...item, completed: isCompleted, updatedAt }
+                    : item
+            )));
+            return true;
+        } catch (error) {
+            this.setState({
+                status: isOfflineError(error) ? MEMORY_CUE_SYNC_STATES.OFFLINE : MEMORY_CUE_SYNC_STATES.ERROR,
+                connected: true,
+                error: normalizeText(error?.message || 'Memory Cue reminder could not be updated.', 300)
+            });
+            return false;
+        }
     }
 
     async disconnect() {
@@ -590,6 +830,9 @@ export class MemoryCueReminderSync {
         this.writeBinding({ ...binding, active: false });
         this.sessionGeneration += 1;
         this.currentUser = null;
+        this.remoteUnsubscribe?.();
+        this.remoteUnsubscribe = null;
+        this.setRemoteReminders([]);
         await this.flushPromise;
         try {
             await this.authAdapter.signOut();
@@ -838,7 +1081,10 @@ export class MemoryCueReminderSync {
         this.eventTarget?.removeEventListener?.('online', this.handleOnline);
         this.authUnsubscribe?.();
         this.authUnsubscribe = null;
+        this.remoteUnsubscribe?.();
+        this.remoteUnsubscribe = null;
         this.listeners.clear();
+        this.remoteReminderListeners.clear();
     }
 }
 

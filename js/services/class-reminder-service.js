@@ -520,6 +520,55 @@ export class ClassReminderService {
         };
     }
 
+    syncFromMemoryCue(snapshot = {}) {
+        const incoming = Array.isArray(snapshot.reminders) ? snapshot.reminders : [];
+        const removedIds = Array.isArray(snapshot.removedIds)
+            ? new Set(snapshot.removedIds.map(normalizeIdentifier).filter(Boolean))
+            : new Set();
+
+        this.reconcileStoredState();
+        const remindersById = new Map(this.state.reminders.map((reminder) => [reminder.id, reminder]));
+        let changed = false;
+
+        incoming.forEach((input) => {
+            const remote = normalizeReminderRecord(input, {
+                now: this.now(),
+                idFactory: this.idFactory
+            });
+            if (!remote?.id) return;
+
+            const local = remindersById.get(remote.id);
+            if (local && local.updatedAt > remote.updatedAt) return;
+
+            const merged = {
+                ...remote,
+                showOnClassroom: local?.showOnClassroom === true
+            };
+            if (!local || JSON.stringify(local) !== JSON.stringify(merged)) {
+                remindersById.set(remote.id, merged);
+                changed = true;
+            }
+        });
+
+        removedIds.forEach((id) => {
+            if (remindersById.delete(id)) changed = true;
+        });
+
+        if (changed) {
+            this.commit(Array.from(remindersById.values()), 'memory-cue-sync', {
+                importedCount: incoming.length,
+                removedCount: removedIds.size
+            });
+        }
+
+        return {
+            changed,
+            importedCount: incoming.length,
+            removedCount: removedIds.size,
+            totalCount: remindersById.size
+        };
+    }
+
     getPublicSnapshot(selector = {}) {
         const reminders = this.list({
             ...selector,

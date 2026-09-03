@@ -1,0 +1,154 @@
+.due-reminder-sticky {
+    position: fixed;
+    z-index: 1100;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    width: min(23rem, calc(100vw - 2rem));
+    max-height: min(34rem, calc(100vh - 2rem));
+    box-sizing: border-box;
+    padding: 1rem;
+    overflow: auto;
+    border: 1px solid rgba(148, 104, 20, 0.28);
+    border-radius: 4px 4px 16px 4px;
+    color: #47320b;
+    background:
+        linear-gradient(135deg, transparent 0 51%, rgba(153, 111, 27, 0.12) 51% 53%, transparent 53%) right bottom / 2.2rem 2.2rem no-repeat,
+        #fff2a8;
+    box-shadow: 0 18px 42px rgba(49, 35, 9, 0.28);
+    transform: rotate(-0.35deg);
+    animation: due-reminder-sticky-arrive 220ms ease-out;
+}
+
+.due-reminder-sticky__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.due-reminder-sticky__eyebrow,
+.due-reminder-sticky__header h2,
+.due-reminder-sticky__hint {
+    margin: 0;
+}
+
+.due-reminder-sticky__eyebrow {
+    color: #8a6417;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.due-reminder-sticky__header h2 {
+    margin-top: 0.12rem;
+    color: #3d2b08;
+    font-size: 1.15rem;
+    line-height: 1.25;
+}
+
+.due-reminder-sticky__close {
+    display: grid;
+    flex: 0 0 44px;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(87, 61, 10, 0.18);
+    border-radius: 50%;
+    color: #62450e;
+    background: rgba(255, 255, 255, 0.38);
+    cursor: pointer;
+}
+
+.due-reminder-sticky__close:hover,
+.due-reminder-sticky__close:focus-visible {
+    color: #261a05;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.due-reminder-sticky__close:focus-visible,
+.due-reminder-sticky__item input:focus-visible {
+    outline: 3px solid #246fb0;
+    outline-offset: 2px;
+}
+
+.due-reminder-sticky__list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.due-reminder-sticky__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.65rem;
+    padding: 0.68rem;
+    border: 1px solid rgba(112, 78, 12, 0.13);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.28);
+    cursor: pointer;
+}
+
+.due-reminder-sticky__item input {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0.15rem 0 0;
+    accent-color: #246fb0;
+}
+
+.due-reminder-sticky__item-content {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.due-reminder-sticky__item-content strong {
+    overflow-wrap: anywhere;
+    font-size: 0.92rem;
+    line-height: 1.38;
+}
+
+.due-reminder-sticky__status {
+    width: fit-content;
+    color: #73520f;
+    font-size: 0.7rem;
+    font-weight: 750;
+}
+
+.due-reminder-sticky__status.is-overdue {
+    color: #a1261b;
+}
+
+.due-reminder-sticky__hint {
+    margin-top: 0.72rem;
+    color: #765718;
+    font-size: 0.7rem;
+}
+
+@keyframes due-reminder-sticky-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(14px) rotate(-0.35deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) rotate(-0.35deg);
+    }
+}
+
+@media (max-width: 560px) {
+    .due-reminder-sticky {
+        right: 0.75rem;
+        bottom: 0.75rem;
+        width: calc(100vw - 1.5rem);
+        max-height: calc(100vh - 1.5rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .due-reminder-sticky {
+        animation: none;
+    }
+}

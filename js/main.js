@@ -12,6 +12,7 @@ import {
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { renderWidgetPicker } from './utils/widget-picker-renderer.js';
 import { TeachingAssistantController } from './utils/teaching-assistant-controller.js';
+import { DueReminderStickyController } from './utils/due-reminder-sticky.js?v=1';
 import {
     LocalFolderResourceProvider,
     ResourceLibraryState,
@@ -27,7 +28,7 @@ import {
 import {
     createMemoryCueReminderSync,
     MEMORY_CUE_SYNC_STATES
-} from './services/memory-cue-reminder-sync.js?v=1';
+} from './services/memory-cue-reminder-sync.js?v=2';
 import {
     THEME_OPTIONS,
     applyTheme,
@@ -403,8 +404,32 @@ class ClassroomScreenApp {
         });
         this.memoryCueReminderSync = createMemoryCueReminderSync({
             getLocalReminders: () => classReminderService.list(),
+            applyRemoteReminders: (snapshot) => classReminderService.syncFromMemoryCue(snapshot),
             resolveContext: (reminder) => this.getMemoryCueReminderContext(reminder),
             confirmConnection: (details) => this.confirmMemoryCueConnection(details)
+        });
+        this.dueReminderSticky = new DueReminderStickyController({
+            service: {
+                list: () => {
+                    const remindersById = new Map(
+                        this.memoryCueReminderSync.listRemoteReminders().map((reminder) => [reminder.id, reminder])
+                    );
+                    classReminderService.list().forEach((reminder) => remindersById.set(reminder.id, reminder));
+                    return Array.from(remindersById.values());
+                },
+                subscribe: (listener) => {
+                    const unsubscribeLocal = classReminderService.subscribe(listener);
+                    const unsubscribeRemote = this.memoryCueReminderSync.subscribeRemoteReminders(listener);
+                    return () => {
+                        unsubscribeLocal();
+                        unsubscribeRemote();
+                    };
+                },
+                toggle: (id, completed) => {
+                    if (classReminderService.get(id)) return classReminderService.toggle(id, completed);
+                    return this.memoryCueReminderSync.setRemoteReminderCompleted(id, completed);
+                }
+            }
         });
     }
 
@@ -463,6 +488,7 @@ class ClassroomScreenApp {
             { emitCurrent: true }
         );
         this.unsubscribeClassReminders = classReminderService.subscribe((change) => this.handleClassReminderChange(change));
+        this.dueReminderSticky.init();
         void this.memoryCueReminderSync.init();
         this.renderClassroomReminderDock();
         this.renderBackgroundSelector();
@@ -8127,8 +8153,8 @@ class ClassroomScreenApp {
         const accountLabel = String(user.email || '').trim() || 'the Google account you selected';
         const count = Number.isFinite(reminderCount) ? Math.max(0, reminderCount) : 0;
         const existingReminderMessage = count === 0
-            ? 'There are no existing reminders to copy. New reminders will sync after you connect.'
-            : `This will copy ${count} existing Teacher Screen reminder${count === 1 ? '' : 's'} to Memory Cue.`;
+            ? 'Teacher Screen will also restore any class or deck reminders it previously saved in Memory Cue.'
+            : `This will sync ${count} existing Teacher Screen reminder${count === 1 ? '' : 's'} with Memory Cue.`;
         const isReplacingAccount = Boolean(
             previousBinding?.uid
             && previousBinding.uid !== user.uid
@@ -8143,9 +8169,9 @@ class ClassroomScreenApp {
             `Connect ${accountLabel} to Memory Cue?\n\n`
             + existingReminderMessage
             + accountChangeMessage
-            + '\n\nTeacher Screen will send reminder text, dates, completion, and class/deck labels to Memory Cue. '
+            + '\n\nTeacher Screen will sync reminder text, dates, completion, and class/deck labels in both directions. '
             + 'The "Show to students" setting stays only in Teacher Screen and is never sent. '
-            + 'For this first release, changes made inside Memory Cue do not come back to Teacher Screen.'
+            + 'Personal Memory Cue reminders without a Teacher Screen class or deck stay only in Memory Cue.'
         );
     }
 
@@ -8164,7 +8190,7 @@ class ClassroomScreenApp {
                 };
             case MEMORY_CUE_SYNC_STATES.CONNECTED:
                 return {
-                    status: email ? `Sent to Memory Cue as ${email}` : 'Sent to Memory Cue',
+                    status: email ? `Synced with Memory Cue as ${email}` : 'Synced with Memory Cue',
                     action: 'disconnect',
                     actionLabel: 'Disconnect'
                 };
@@ -8289,7 +8315,7 @@ class ClassroomScreenApp {
 
         const connected = await this.memoryCueReminderSync.connect();
         if (connected) {
-            this.showNotification('Memory Cue connected. Teacher reminders are being sent.', 'success');
+            this.showNotification('Memory Cue connected. Class and deck reminders are now synced.', 'success');
         } else if (this.memoryCueReminderSync.getState().status === MEMORY_CUE_SYNC_STATES.ERROR) {
             this.showNotification('Memory Cue could not be connected. Try again.', 'error');
         }

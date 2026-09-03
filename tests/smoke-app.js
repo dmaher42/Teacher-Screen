@@ -3590,6 +3590,17 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
         const ATTEMPTS_KEY = '__memoryCueSmokeAttempts';
         const OFFLINE_KEY = '__memoryCueSmokeOffline';
         let authListener = null;
+        let remoteListener = null;
+        const remoteDocuments = [{
+            id: 'memory-cue-native-smoke',
+            text: 'Memory Cue overdue browser reminder',
+            due: new Date(Date.now() - 86_400_000).toISOString(),
+            completed: false,
+            createdAt: Date.now() - 172_800_000,
+            updatedAt: Date.now() - 172_800_000,
+            category: 'School',
+            metadata: { source: 'memory-cue' }
+        }];
 
         const clone = (value) => JSON.parse(JSON.stringify(value));
         const readList = (key) => {
@@ -3618,7 +3629,8 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
             user: USER,
             getOperations: () => readList(OPERATIONS_KEY),
             getAttempts: () => readList(ATTEMPTS_KEY),
-            setOffline: (offline) => localStorage.setItem(OFFLINE_KEY, offline ? '1' : '0')
+            setOffline: (offline) => localStorage.setItem(OFFLINE_KEY, offline ? '1' : '0'),
+            getRemoteDocuments: () => clone(remoteDocuments)
         };
         window.__TeacherScreenMemoryCueSyncTestAdapters = {
             authAdapter: {
@@ -3653,6 +3665,17 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
                     const operation = { type: 'delete', uid, remoteId };
                     failIfOffline(operation);
                     append(OPERATIONS_KEY, operation);
+                },
+                async subscribe(_uid, onSnapshot) {
+                    remoteListener = onSnapshot;
+                    onSnapshot({
+                        documents: clone(remoteDocuments),
+                        removedDocuments: [],
+                        initial: true
+                    });
+                    return () => {
+                        if (remoteListener === onSnapshot) remoteListener = null;
+                    };
                 }
             }
         };
@@ -3699,6 +3722,20 @@ async function runMemoryCueSyncUiChecks(browser, baseUrl) {
                 && (control.querySelector('[data-memory-cue-sync-status]')?.textContent || '').includes('teacher.sync@example.test');
         }, undefined, { timeout: 10000 });
         assert(true, 'Accepting the explicit confirmation should connect the selected Memory Cue email');
+
+        await page.waitForSelector('.due-reminder-sticky', { timeout: 10000 });
+        assert(
+            (await page.locator('.due-reminder-sticky').textContent()).includes('Memory Cue overdue browser reminder'),
+            'An overdue ordinary Memory Cue reminder should load into the teacher-only reminder note'
+        );
+        await page.locator('.due-reminder-sticky__item input').click();
+        await page.waitForSelector('.due-reminder-sticky', { state: 'detached', timeout: 10000 });
+        await page.waitForFunction(() => window.__memoryCueSmoke.getOperations().some((operation) => (
+            operation.type === 'upsert'
+                && operation.remoteId === 'memory-cue-native-smoke'
+                && operation.payload?.completed === true
+        )), undefined, { timeout: 10000 });
+        assert(true, 'Completing a loaded Memory Cue reminder should sync the completion back to Memory Cue');
 
         await page.locator('#dashboard-tab').dispatchEvent('click');
         await page.waitForSelector('#dashboard-view:not([hidden])', { timeout: 10000 });
