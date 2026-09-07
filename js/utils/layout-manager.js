@@ -1087,6 +1087,10 @@ class LayoutManager {
     title.setAttribute('role', 'button');
     title.setAttribute('aria-label', `Move ${readableName}`);
     title.title = `Drag to move ${readableName}`;
+    if (typeof widget.updateHeaderTitle === 'function') {
+      widget.headerTitleElement = title;
+      widget.updateHeaderTitle();
+    }
     title.addEventListener('mousedown', () => title.focus({ preventScroll: true }));
     title.addEventListener('keydown', (event) => this.handleWidgetMoveKeydown(event, widgetElement));
     header.appendChild(title);

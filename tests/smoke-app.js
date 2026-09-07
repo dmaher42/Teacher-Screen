@@ -4923,7 +4923,8 @@ async function runSmoke() {
         assert(await page.locator('.widget.rich-text-widget:not(.is-editing-selected) .widget-header-menu > summary').isVisible(), 'The faint three-dot button should remain available after deselection');
         await selectWidgetForEditing(page, '.widget.rich-text-widget');
         assert(await page.locator('.widget.rich-text-widget .widget-header').isVisible(), 'Selecting the Text Board should restore its drag handle and options');
-        assert(await page.locator('.widget.rich-text-widget .widget-header-title').getAttribute('aria-label') === 'Move Text Board', 'The title-free drag handle should retain its accessible Text Board label');
+        const textBoardName = await page.locator('.widget.rich-text-widget .widget-header-title span').textContent();
+        assert(await page.locator('.widget.rich-text-widget .widget-header-title').getAttribute('aria-label') === `Move Text Board: ${textBoardName}`, 'The drag handle should identify the Text Board and its current name');
         await page.locator('.widget.rich-text-widget .widget-header-menu > summary').click();
         const richTextMenu = page.locator('.widget.rich-text-widget .widget-header-menu__popover');
         assert(

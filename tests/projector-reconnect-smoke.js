@@ -177,6 +177,58 @@ async function run() {
         await projectorPage.waitForFunction(() => window.__TeacherScreenProjectorApp?.hasTeacherSync === true);
         console.log('PASS: An open projector automatically reconnects after the teacher screen refreshes');
 
+        const namedBoardId = await teacherPage.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.handleNavClick('classroom');
+            const widget = app.addWidget('rich-text', { initialData: { content: '<p>Lesson</p><p>instructions for today</p>' } });
+            const info = app.layoutManager.widgets.find(item => item.widget === widget);
+            app.layoutManager.setWidgetMinimized(info, true);
+            info.element.dataset.testNamedBoard = 'true';
+            return info.id;
+        });
+        const namedBoard = teacherPage.locator('[data-test-named-board="true"]');
+        if (!await namedBoard.locator('.widget-header-title span').isVisible()) {
+            throw new Error('Minimised Text Board name must be visible');
+        }
+        if (await namedBoard.locator('.widget-header-title span').textContent() !== 'Lesson instructions') {
+            throw new Error('Minimised Text Board must use its first two words across paragraphs');
+        }
+        await namedBoard.locator('.widget-header-menu__toggle').click();
+        teacherPage.once('dialog', dialog => dialog.accept('Monday warm-up'));
+        await namedBoard.locator('.rich-text-rename-menu-item').click();
+        await teacherPage.waitForFunction((id) => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            return state.layout?.widgets?.find(item => item.id === id)?.data?.customTitle === 'Monday warm-up';
+        }, namedBoardId);
+        await teacherPage.reload({ waitUntil: 'domcontentloaded' });
+        await teacherPage.waitForFunction(() => Boolean(window.__TeacherScreenApp));
+        await teacherPage.evaluate(() => window.__TeacherScreenApp.handleNavClick('classroom'));
+        await teacherPage.evaluate((id) => {
+            window.__TeacherScreenApp.layoutManager.widgets.find(item => item.id === id).element.dataset.testNamedBoard = 'true';
+        }, namedBoardId);
+        await namedBoard.waitFor();
+        if (await namedBoard.locator('.widget-header-title span').textContent() !== 'Monday warm-up') {
+            throw new Error('Custom Text Board name must survive a teacher refresh');
+        }
+        await teacherPage.evaluate((id) => {
+            const widget = window.__TeacherScreenApp.layoutManager.widgets.find(item => item.id === id).widget;
+            widget.deserialize({ ...widget.serialize(), content: '<p>New lesson content</p>' });
+            if (widget.getHeaderTitle() !== 'Monday warm-up') throw new Error('Content edits must preserve custom names');
+        }, namedBoardId);
+        await namedBoard.locator('.widget-header-menu__toggle').click();
+        await namedBoard.locator('.rich-text-auto-name-menu-item').click();
+        if (await namedBoard.locator('.widget-header-title span').textContent() !== 'New lesson') {
+            throw new Error('Automatic name action must return to current content');
+        }
+        await teacherPage.evaluate((id) => {
+            const app = window.__TeacherScreenApp;
+            const widget = app.layoutManager.widgets.find(item => item.id === id).widget;
+            widget.deserialize({ content: '<p><br></p>' });
+            if (widget.getHeaderTitle() !== 'Text Board') throw new Error('Empty boards need a fallback name');
+            app.layoutManager.removeWidget(widget);
+        }, namedBoardId);
+        console.log('PASS: Minimised Text Boards support automatic names, menu renaming, saved names, and returning to automatic names');
+
         const projectorLaunch = await teacherPage.evaluate(() => {
             const originalOpen = window.open;
             let call = null;

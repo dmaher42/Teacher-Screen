@@ -23,6 +23,7 @@ if (window.Quill && !window.Quill.imports['formats/lineSpacing']) {
 class RichTextWidget {
   constructor() {
     this.pendingContent = '';
+    this.customTitle = '';
     this.isDisplayMode = false;
     this.presentationMode = 'normal';
     this.isApplyingSmartFormatting = false;
@@ -354,12 +355,49 @@ class RichTextWidget {
     return this.controlsOverlay;
   }
 
+  getHeaderTitle() {
+    if (this.customTitle) return this.customTitle;
+    const content = document.createElement('div');
+    content.innerHTML = this.quill ? this.quill.root.innerHTML : this.pendingContent;
+    content.querySelectorAll('script, style').forEach(node => node.remove());
+    content.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, br, tr').forEach(node => node.append(' '));
+    return (content.textContent || '').trim().split(/\s+/u).filter(Boolean).slice(0, 2).join(' ').slice(0, 80) || 'Text Board';
+  }
+
+  updateHeaderTitle() {
+    const title = this.headerTitleElement;
+    if (!title) return;
+    const name = this.getHeaderTitle();
+    title.querySelector('span').textContent = name;
+    title.setAttribute('aria-label', `Move Text Board: ${name}`);
+    title.title = `Drag to move Text Board: ${name}`;
+  }
+
+  setCustomTitle(name) {
+    this.customTitle = String(name || '').trim().replace(/\s+/gu, ' ').slice(0, 80);
+    this.updateHeaderTitle();
+    window.TeacherScreenWidgetState.notifyChanged(this, 'title-updated');
+  }
+
   getHeaderMenuActions() {
     if (this.isProjectorMode()) {
       return [];
     }
 
     return [{
+      className: 'rich-text-rename-menu-item',
+      iconClass: 'fas fa-pen',
+      label: 'Rename board',
+      onSelect: () => {
+        const name = window.prompt('Name this Text Board (leave blank for an automatic name):', this.customTitle || this.getHeaderTitle());
+        if (name !== null) this.setCustomTitle(name);
+      }
+    }, {
+      className: 'rich-text-auto-name-menu-item',
+      iconClass: 'fas fa-font',
+      label: 'Use automatic name',
+      onSelect: () => this.setCustomTitle('')
+    }, {
       className: 'rich-text-present-menu-item',
       iconClass: 'fas fa-expand',
       label: 'Present',
@@ -778,6 +816,7 @@ class RichTextWidget {
   loadTemplateHtml(html) {
     if (!this.quill) {
       this.pendingContent = html;
+      this.updateHeaderTitle();
       return;
     }
 
@@ -785,6 +824,7 @@ class RichTextWidget {
     this.quill.clipboard.dangerouslyPasteHTML(0, html);
     this.quill.setSelection(this.quill.getLength(), 0, 'silent');
     this.pendingContent = this.quill.root.innerHTML;
+    this.updateHeaderTitle();
     window.TeacherScreenWidgetState.notifyChanged(this, 'template-loaded');
   }
 
@@ -975,6 +1015,7 @@ class RichTextWidget {
 
     this.maybeApplySmartFormatting(delta, source);
     this.pendingContent = this.quill.root.innerHTML;
+    this.updateHeaderTitle();
     this.syncToolbarState();
     window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
   }
@@ -1096,6 +1137,7 @@ class RichTextWidget {
 
   serialize() {
     return {
+      customTitle: this.customTitle,
       content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
       displayMode: this.isDisplayMode,
       presentationMode: this.presentationMode
@@ -1103,6 +1145,7 @@ class RichTextWidget {
   }
 
   deserialize(data) {
+    this.customTitle = typeof data?.customTitle === 'string' ? data.customTitle.trim().replace(/\s+/gu, ' ').slice(0, 80) : '';
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
     this.presentationMode = data?.presentationMode || 'normal';
@@ -1116,6 +1159,7 @@ class RichTextWidget {
     } else {
       this.editorSurface.innerHTML = this.pendingContent;
     }
+    this.updateHeaderTitle();
   }
 
   onWidgetLayout() {
