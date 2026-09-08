@@ -1104,6 +1104,36 @@ async function run() {
             throw new Error('Projector rebuilt the Text Board while recovering missed geometry');
         }
         console.log('PASS: Full teacher sync repairs missed Text Board resizing without rebuilding content');
+        await projectorPage.setViewportSize({ width: 779, height: 617 });
+        const projectorEdge = await projectorPage.evaluate((widgetId) => {
+            const manager = window.__TeacherScreenProjectorApp.layoutManager;
+            manager.applyLayoutDelta({ type: 'widget-update', id: widgetId, x: 10000, y: 40, w: 330, h: 220 });
+            const info = manager.widgets.find((widget) => widget.id === widgetId);
+            const rect = info.element.getBoundingClientRect();
+            const canvas = manager.container.getBoundingClientRect();
+            return { right: rect.right, canvasRight: canvas.right };
+        }, textBoard.id);
+        if (projectorEdge.right > projectorEdge.canvasRight + 0.1) {
+            throw new Error(`Projector update clipped the right edge: ${JSON.stringify(projectorEdge)}`);
+        }
+        console.log('PASS: Projector geometry updates stay inside a non-grid-aligned screen edge');
+        const stageEdge = await projectorPage.evaluate((widgetId) => {
+            const app = window.__TeacherScreenProjectorApp;
+            const manager = app.layoutManager;
+            const layout = manager.serialize();
+            layout.mode = 'stage';
+            layout.widgets.push({ id: 'edge-test-document', type: 'DocumentViewerWidget', layoutType: 'stage',
+                x: 0, y: 0, width: 300, height: 220, data: {} });
+            manager.deserialize(layout, (data) => app.createProjectorWidget(data));
+            manager.applyLayoutDelta({ type: 'widget-update', id: widgetId, x: 10000, w: 330 });
+            const info = manager.widgets.find((widget) => widget.id === widgetId);
+            return { right: info.element.getBoundingClientRect().right,
+                visibleRight: info.element.parentElement.getBoundingClientRect().right };
+        }, textBoard.id);
+        if (stageEdge.right > stageEdge.visibleRight + 0.1) {
+            throw new Error(`Projector stage clipped its overlay: ${JSON.stringify(stageEdge)}`);
+        }
+        console.log('PASS: Projector overlays fit their actual surface when a document occupies the sidebar');
     } finally {
         await context.close();
         await browser.close();

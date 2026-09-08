@@ -5215,17 +5215,30 @@ body.widget-resize-active {
 
 .layout-stage-container {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(320px, 35%));
     height: 100%;
     gap: 12px;
 }
 
+/* Teacher overlays share the main canvas; an unused sidebar must not crop it. */
+.layout-stage-container:has(> .layout-stage-sidebar:empty) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}
+
+.layout-stage-sidebar:empty {
+    display: none;
+}
+
 .layout-stage-main {
     position: relative;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
 }
 
 .layout-stage-sidebar {
+    min-width: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -10321,7 +10334,13 @@ body.is-classroom-active:not(.projector-view) .lesson-quick-actions {
 }
 
 body.is-classroom-active:not(.projector-view) .layout-stage-container {
-    height: calc(100% - 90px);
+    height: 100%;
+}
+
+/* Reserve toolbar clearance for the full-stage viewer, not for its overlays. */
+body.is-classroom-active:not(.projector-view) .layout-stage-main > .widget.document-viewer-widget,
+body.is-classroom-active:not(.projector-view) .layout-stage-main > .widget.url-viewer-widget {
+    max-height: calc(100% - 90px);
 }
 
 body.is-classroom-active:not(.projector-view) .lesson-quick-action {

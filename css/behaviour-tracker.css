@@ -1,3 +1,104 @@
+.behaviour-quick-shell {
+    display: grid;
+    align-content: center;
+    gap: 8px;
+    min-height: 100%;
+    padding: 28px 10px 10px;
+}
+
+.behaviour-quick-shell .behaviour-timer-panel {
+    grid-template-columns: minmax(0, 1fr) 110px;
+    text-align: left;
+    column-gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.behaviour-quick-shell .behaviour-timer-value {
+    font-size: clamp(1.65rem, 10cqw, 2.5rem);
+    letter-spacing: -0.04em;
+}
+
+.behaviour-quick-shell .behaviour-timer-toggle {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    width: 100%;
+    min-height: 48px !important;
+    margin: 0;
+    padding: 8px;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    box-shadow: none;
+}
+
+.behaviour-quick-shell .behaviour-eyebrow {
+    font-size: 0.6rem;
+    letter-spacing: 0;
+}
+
+.behaviour-quick-shell .behaviour-timer-helper {
+    display: none;
+}
+
+.behaviour-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+}
+
+.behaviour-quick-shell .behaviour-quick-actions button {
+    min-height: 34px !important;
+    padding: 5px 7px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+}
+
+.behaviour-compact-controls {
+    display: none;
+}
+
+body:not(.projector-view) .widget-minimize-dock > .widget.behaviour-tracker-widget.is-minimized {
+    flex-basis: 20rem;
+    width: 20rem !important;
+    max-width: min(20rem, 100%);
+}
+
+.behaviour-tracker-widget.is-minimized .behaviour-compact-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    color: #0c5d4a;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    font-weight: 750;
+}
+
+.behaviour-compact-controls button {
+    min-height: 34px;
+    border: 0;
+    border-radius: 6px;
+    padding: 4px 9px;
+    background: #167b64;
+    color: white;
+    font: inherit;
+    cursor: pointer;
+}
+
+.behaviour-compact-controls[data-running="true"] {
+    color: #974a05;
+}
+
+.behaviour-compact-controls[data-running="true"] button {
+    background: #a8590c;
+}
+
+.behaviour-compact-controls button:focus-visible {
+    outline: 3px solid #2b83ff;
+    outline-offset: 2px;
+}
+
 .behaviour-tracker-widget .widget-content {
     padding: 0;
     overflow: hidden;
@@ -541,6 +642,34 @@
     .behaviour-tracker-footer {
         align-items: flex-start;
         flex-direction: column;
+    }
+}
+
+@container (max-width: 600px) {
+    .behaviour-public-shell {
+        padding: 10px;
+        gap: 3px;
+    }
+    .behaviour-public-shell h2 {
+        font-size: 0.95rem;
+    }
+    .behaviour-public-kicker,
+    .behaviour-public-message,
+    .behaviour-public-privacy,
+    .behaviour-public-observations {
+        display: none;
+    }
+    .behaviour-public-timer {
+        padding: 8px;
+        margin-top: 3px;
+        border-radius: 12px;
+        box-shadow: none;
+    }
+    .behaviour-public-timer .behaviour-eyebrow {
+        font-size: 0.7rem;
+    }
+    .behaviour-public-timer .behaviour-timer-value {
+        font-size: clamp(2rem, 12cqw, 4rem);
     }
 }
 

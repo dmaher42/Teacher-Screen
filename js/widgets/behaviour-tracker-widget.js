@@ -123,18 +123,23 @@ class BehaviourTrackerWidget {
     }
 
     notifyChange(message = '') {
+        const focusedAction = document.hasFocus() && this.element.contains(document.activeElement)
+            ? document.activeElement?.dataset?.action
+            : null;
         if (message) {
             this.lastAnnouncement = message;
         }
 
         this.render();
         this.renderControlWindow();
+        this.updateCompactControls();
+        if (focusedAction) this.element.querySelector(`[data-action="${focusedAction}"]`)?.focus({ preventScroll: true });
         window.TeacherScreenWidgetState.notifyChanged(this, 'learning-time-updated');
     }
 
     focusShortcuts() {
         window.requestAnimationFrame(() => {
-            if (this.controlWindow && !this.controlWindow.closed && this.controlRoot) {
+            if (this.controlWindow && !this.controlWindow.closed && this.controlRoot && this.controlWindow.document.hasFocus()) {
                 this.controlRoot.focus({ preventScroll: true });
             }
         });
@@ -167,13 +172,13 @@ class BehaviourTrackerWidget {
         popupDocument.head.replaceChildren();
 
         const title = popupDocument.createElement('title');
-        title.textContent = 'Private behaviour controls';
+        title.textContent = 'Private observations';
         const meta = popupDocument.createElement('meta');
         meta.name = 'viewport';
         meta.content = 'width=device-width, initial-scale=1';
         const stylesheet = popupDocument.createElement('link');
         stylesheet.rel = 'stylesheet';
-        stylesheet.href = new URL('css/behaviour-tracker.css?v=4', document.baseURI).href;
+        stylesheet.href = new URL('css/behaviour-tracker.css?v=6', document.baseURI).href;
         const windowStyles = popupDocument.createElement('style');
         windowStyles.textContent = `
             html, body { min-height: 100%; margin: 0; background: #fbfdfc; }
@@ -308,6 +313,22 @@ class BehaviourTrackerWidget {
         this.focusShortcuts();
     }
 
+    resetTime() {
+        if (this.projectorMode || (!Number.isFinite(this.runningSince) && this.elapsedMs === 0)) return;
+        this.pushUndo('Reset time');
+        this.elapsedMs = 0;
+        this.runningSince = null;
+        this.notifyChange('Timer reset.');
+    }
+
+    clearObservations() {
+        if (this.projectorMode || this.events.length === 0) return;
+        this.pushUndo('Clear observations');
+        this.events = [];
+        this.notifyChange('Observations cleared. The timer and roster were kept.');
+        this.focusShortcuts();
+    }
+
     onKeyDown(event) {
         const target = event.target;
         if (target?.matches?.('input, textarea, select, [contenteditable="true"]')
@@ -361,8 +382,9 @@ class BehaviourTrackerWidget {
             timer.setAttribute('aria-label', `${formatted} lost learning time`);
         };
 
-        updateTimerInRoot(this.element, !Number.isFinite(this.runningSince));
+        updateTimerInRoot(this.element, !this.projectorMode || !Number.isFinite(this.runningSince));
         updateTimerInRoot(this.controlRoot, true);
+        this.updateCompactControls();
     }
 
     createButton(label, className, onClick) {
@@ -386,7 +408,7 @@ class BehaviourTrackerWidget {
         eyebrow.className = 'behaviour-eyebrow';
         eyebrow.textContent = publicView
             ? (running ? 'Learning is paused' : 'Learning is in progress')
-            : 'Lost learning time';
+            : (running ? 'Recording lost time' : 'Lost learning time');
 
         const time = document.createElement('p');
         time.className = 'behaviour-timer-value';
@@ -407,14 +429,15 @@ class BehaviourTrackerWidget {
         }
 
         const toggle = this.createButton(
-            running ? 'Resume learning' : 'Pause learning',
+            running ? 'Stop timer' : 'Start lost-time timer',
             `behaviour-timer-toggle${running ? ' is-running' : ''}`,
             () => this.toggleTimer()
         );
+        toggle.dataset.action = 'toggle-timer';
         toggle.setAttribute('aria-pressed', running ? 'true' : 'false');
         toggle.setAttribute('aria-label', running
-            ? 'Resume learning and stop the lost learning-time timer'
-            : 'Pause learning and start the lost learning-time timer');
+            ? 'Stop timer and resume learning'
+            : 'Start lost-time timer');
 
         const helper = document.createElement('p');
         helper.className = 'behaviour-timer-helper';
@@ -578,9 +601,9 @@ class BehaviourTrackerWidget {
         footer.className = 'behaviour-tracker-footer';
         const shortcut = document.createElement('span');
         shortcut.textContent = 'Space: timer | Ctrl+Z: undo';
-        const clear = this.createButton('Clear lesson', 'behaviour-clear-button', () => this.clearLesson());
-        clear.disabled = this.events.length === 0 && this.getCurrentElapsed() === 0;
-        clear.dataset.action = 'clear-lesson';
+        const clear = this.createButton('Clear observations', 'behaviour-clear-button', () => this.clearObservations());
+        clear.disabled = this.events.length === 0;
+        clear.dataset.action = 'clear-observations';
         footer.append(shortcut, clear);
         shell.appendChild(footer);
 
@@ -633,7 +656,38 @@ class BehaviourTrackerWidget {
     render() {
         this.element.replaceChildren(this.projectorMode
             ? this.renderPublicView()
-            : this.renderPublicView({ includeTeacherControls: true }));
+            : this.renderQuickControls());
+    }
+
+    renderQuickControls() {
+        const shell = document.createElement('div');
+        shell.className = 'behaviour-quick-shell';
+        shell.appendChild(this.renderTimerPanel());
+        const actions = document.createElement('div');
+        actions.className = 'behaviour-quick-actions';
+        const reset = this.createButton('Reset time', 'behaviour-clear-button', () => this.resetTime());
+        reset.dataset.action = 'reset-time';
+        reset.disabled = !Number.isFinite(this.runningSince) && this.elapsedMs === 0;
+        const undo = this.createButton('Undo', 'behaviour-undo-button', () => this.undoLastAction());
+        undo.dataset.action = 'undo';
+        undo.disabled = this.undoStack.length === 0;
+        const observations = this.createButton('Private observations', 'behaviour-secondary-button', () => this.openControlWindow());
+        observations.dataset.action = 'open-controls';
+        actions.append(reset, undo, observations);
+        shell.appendChild(actions);
+        return shell;
+    }
+
+    updateCompactControls() {
+        if (!this.compactControls) return;
+        const running = Number.isFinite(this.runningSince);
+        this.compactControls.dataset.running = String(running);
+        this.compactControls.querySelector('output').textContent = behaviourTrackerFormatTime(this.getCurrentElapsed());
+        const button = this.compactControls.querySelector('button');
+        button.textContent = running ? 'Stop' : 'Start';
+        button.setAttribute('aria-label', running ? 'Stop lost-time timer' : 'Start lost-time timer');
+        button.setAttribute('aria-pressed', String(running));
+        this.compactControls.title = running ? 'Recording lost time' : 'Lost learning time';
     }
 
     sanitizeStudents(students) {
@@ -672,6 +726,7 @@ class BehaviourTrackerWidget {
     serialize() {
         return {
             type: 'BehaviourTrackerWidget',
+            compactLayoutVersion: 1,
             schemaVersion: this.schemaVersion,
             elapsedMs: this.getCurrentElapsed(),
             runningSince: null,
@@ -738,6 +793,20 @@ class BehaviourTrackerWidget {
     }
 
     onWidgetLayout() {
+        const header = this.widgetInfo?.element?.querySelector(':scope > .widget-header');
+        if (!this.projectorMode && header && !this.compactControls) {
+            this.compactControls = document.createElement('div');
+            this.compactControls.className = 'behaviour-compact-controls';
+            const time = document.createElement('output');
+            time.setAttribute('aria-label', 'Lost learning time');
+            time.setAttribute('aria-live', 'off');
+            const toggle = this.createButton('Start', '', () => this.toggleTimer());
+            this.compactControls.append(time, toggle);
+            for (const type of ['pointerdown', 'mousedown', 'touchstart', 'click', 'dblclick', 'keydown']) {
+                this.compactControls.addEventListener(type, (event) => event.stopPropagation());
+            }
+            header.insertBefore(this.compactControls, header.querySelector('.widget-header-menu'));
+        }
         this.updateLiveTimer();
     }
 

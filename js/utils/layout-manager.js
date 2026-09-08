@@ -51,7 +51,7 @@ function isValidLayout(layout) {
 const WIDGET_SIZE_RULES = {
   PomodoroWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
   TimerWidget: { minW: 2, minH: 0.75, minWidthPx: 160, minHeightPx: 80, defaultW: 2, defaultH: 0.75, maxW: 12, maxH: 5 },
-  BehaviourTrackerWidget: { minW: 4, minH: 4, defaultW: 5, defaultH: 5 },
+  BehaviourTrackerWidget: { minWidthPx: 280, minHeightPx: 180, defaultWidthPx: 300, defaultHeightPx: 180 },
   NoiseMeterWidget: { minW: 2.5, minH: 1.25, defaultW: 3, defaultH: 1.5 },
   QRCodeWidget: { minW: 4, minH: 4, defaultW: 4, defaultH: 5 },
   DrawingToolWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 },
@@ -131,6 +131,7 @@ class LayoutManager {
     this.applyGridStyles();
     this.bindWidgetSelectionListeners();
     window.addEventListener('resize', () => {
+      if (!this.container.clientWidth || !this.container.clientHeight) return;
       this.clampAllWidgetsToContainer();
       this.saveLayout({ emitFull: false });
     });
@@ -144,6 +145,8 @@ class LayoutManager {
           width: Math.round(entry.contentRect.width),
           height: Math.round(entry.contentRect.height)
         };
+        // A hidden tab is not a smaller canvas. Keep its last usable dimensions.
+        if (nextSize.width <= 0 || nextSize.height <= 0) return;
         if (this.lastContainerSize
           && this.lastContainerSize.width === nextSize.width
           && this.lastContainerSize.height === nextSize.height) {
@@ -176,13 +179,14 @@ class LayoutManager {
   }
 
   getCanvasMetrics() {
-    const rawWidth = this.container.clientWidth || 1024;
-    const rawHeight = this.container.clientHeight || 768;
+    const surface = this.mode === 'stage' && this.stageMain?.clientWidth > 0 ? this.stageMain : this.container;
+    const rawWidth = surface.clientWidth || this.lastContainerSize?.width || 1024;
+    const rawHeight = surface.clientHeight || this.lastContainerSize?.height || 768;
     const isTeacherCanvas = layoutManagerIsTeacherMode();
-    const margin = isTeacherCanvas ? TEACHER_CANVAS_MARGIN : 0;
+    const margin = isTeacherCanvas ? Math.min(TEACHER_CANVAS_MARGIN, rawWidth / 4, rawHeight / 4) : 0;
     const bottomInset = isTeacherCanvas ? TEACHER_CANVAS_BOTTOM_INSET : 0;
-    const width = Math.max(GRID_SIZE * 4, rawWidth - (margin * 2));
-    const height = Math.max(GRID_SIZE * 4, rawHeight - (margin * 2) - bottomInset);
+    const width = Math.max(1, rawWidth - (margin * 2));
+    const height = Math.max(1, rawHeight - (margin * 2) - bottomInset);
 
     return {
       rawWidth,
@@ -290,8 +294,9 @@ class LayoutManager {
       const expandedHeight = isMinimized && Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
         : widgetInfo.height;
-      const scaledWidth = widgetInfo.width * widthScale;
-      const scaledHeight = expandedHeight * heightScale;
+      const keepTimerSize = isTeacherCanvas && widgetInfo.widget.constructor.name === 'BehaviourTrackerWidget';
+      const scaledWidth = widgetInfo.width * (keepTimerSize ? 1 : widthScale);
+      const scaledHeight = expandedHeight * (keepTimerSize ? 1 : heightScale);
       const constrained = this.getConstrainedSize(widgetInfo.widget, scaledWidth, scaledHeight);
       widgetInfo.x = margin + ((widgetInfo.x - margin) * positionWidthScale);
       widgetInfo.y = margin + ((widgetInfo.y - margin) * heightScale);
@@ -656,6 +661,14 @@ class LayoutManager {
     return this.normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar: false });
   }
 
+  snapWidgetBounds(x, y, width, height, { snapSize = false, ...options } = {}) {
+    const snap = (value) => Number.isFinite(value) ? Math.round(value / GRID_SIZE) * GRID_SIZE : value;
+    // Containment must be the LAST operation. Screen edges need not align with
+    // the grid, and rounding a bounded coordinate can put it outside again.
+    return this.normalizeWidgetBounds(snap(x), snap(y),
+      snapSize ? snap(width) : width, snapSize ? snap(height) : height, options);
+  }
+
   updateWidgetChrome(widgetInfo) {
     const header = widgetInfo?.element?.querySelector(':scope > .widget-header');
     if (!header) return;
@@ -688,14 +701,15 @@ class LayoutManager {
     if (!widgetInfo) return;
     this.bringWidgetToFront(widgetInfo);
 
-    const bounded = this.normalizeWidgetDragBounds(
+    const bounded = this.snapWidgetBounds(
       widgetInfo.x + movement[0],
       widgetInfo.y + movement[1],
       widgetInfo.width,
-      widgetInfo.height
+      widgetInfo.height,
+      { avoidTeacherToolbar: false }
     );
-    widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-    widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+    widgetInfo.x = bounded.x;
+    widgetInfo.y = bounded.y;
     widgetElement.style.left = `${widgetInfo.x}px`;
     widgetElement.style.top = `${widgetInfo.y}px`;
     if (this.editable && layoutManagerIsTeacherMode()) {
@@ -707,17 +721,19 @@ class LayoutManager {
 
   clampWidgetToContainer(widgetInfo) {
     if (!widgetInfo) return;
-    const bounded = this.normalizeWidgetDragBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height);
-    widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-    widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
-    widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
-    widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+    const bounded = this.snapWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height,
+      { avoidTeacherToolbar: widgetInfo.widget?.constructor.name === 'BehaviourTrackerWidget' });
+    widgetInfo.x = bounded.x;
+    widgetInfo.y = bounded.y;
+    widgetInfo.width = bounded.width;
+    widgetInfo.height = bounded.height;
     if (!this.isWidgetMinimized(widgetInfo)) {
       widgetInfo.expandedHeight = widgetInfo.height;
     }
   }
 
   clampAllWidgetsToContainer() {
+    if (!this.container.clientWidth || !this.container.clientHeight) return;
     this.widgets.forEach((widgetInfo) => {
       this.clampWidgetToContainer(widgetInfo);
     });
@@ -744,13 +760,9 @@ class LayoutManager {
     let newY = info.y + deltaY;
 
     // Constraints
-    const bounded = this.normalizeWidgetDragBounds(newX, newY, info.width, info.height);
+    const bounded = this.snapWidgetBounds(newX, newY, info.width, info.height, { avoidTeacherToolbar: false });
     newX = bounded.x;
     newY = bounded.y;
-
-    // Snap
-    newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
-    newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
 
     if (newX !== info.x || newY !== info.y) {
       info.x = newX;
@@ -805,9 +817,9 @@ class LayoutManager {
     }
 
     const tryCandidate = (candidateX, candidateY) => {
-      const bounded = this.normalizeWidgetBounds(candidateX, candidateY, currentWidth, currentHeight);
-      const snappedX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-      const snappedY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+      const bounded = this.snapWidgetBounds(candidateX, candidateY, currentWidth, currentHeight);
+      const snappedX = bounded.x;
+      const snappedY = bounded.y;
       const key = `${snappedX}:${snappedY}`;
 
       if (visited.has(key)) {
@@ -881,8 +893,8 @@ class LayoutManager {
      const maxCols = Math.max(1, Math.floor((containerW + GRID_SIZE) / Math.max((colW * defaultW) + GRID_SIZE, GRID_SIZE)));
 
      // Default size uses widget-specific grid unit defaults when not provided.
-     let finalW = width !== null ? width : colW * defaultW;
-     let finalH = height !== null ? height : rowH * defaultH;
+     let finalW = width !== null ? width : (rules.defaultWidthPx || colW * defaultW);
+     let finalH = height !== null ? height : (rules.defaultHeightPx || rowH * defaultH);
 
      // Heuristic: if width is small (<= 12), assume grid units and convert.
      if (finalW <= 12) finalW = finalW * colW;
@@ -899,23 +911,21 @@ class LayoutManager {
         const staggerOffset = Math.min((count % 10) * (GRID_SIZE * 2), 200);
         finalX = GRID_SIZE * 2 + staggerOffset;
         finalY = GRID_SIZE * 2 + staggerOffset;
+        if (widget.constructor.name === 'BehaviourTrackerWidget') {
+          finalX = GRID_SIZE;
+          finalY = Math.max(GRID_SIZE, containerH - finalH - GRID_SIZE);
+        }
      } else {
          // Heuristic: if x is small (<= 12), assume grid units
          if (finalX <= 12 && finalX < containerW / 20) finalX = finalX * colW;
          if (finalY <= 12 && finalY < containerH / 20) finalY = finalY * rowH;
      }
 
-     // Snap to grid initially
-     finalX = Math.round(finalX / GRID_SIZE) * GRID_SIZE;
-     finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
-     finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
-     finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
-
-     const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH);
-     finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-     finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
-     finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
-     finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+     const bounded = this.snapWidgetBounds(finalX, finalY, finalW, finalH, { snapSize: true });
+     finalX = bounded.x;
+     finalY = bounded.y;
+     finalW = bounded.width;
+     finalH = bounded.height;
 
     // Create widget container
     const widgetElement = document.createElement('div');
@@ -965,6 +975,7 @@ class LayoutManager {
     });
 
     this.resolveWidgetPlacementConflict(widgetInfo);
+    if (this.mode === 'stage') this.clampAllWidgetsToContainer();
 
     if (this.editable && layoutManagerIsTeacherMode()) {
       this.setSelectedWidgetElement(widgetElement);
@@ -1025,11 +1036,11 @@ class LayoutManager {
       const restoreHeight = Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
         : GRID_SIZE * 4;
-      const bounded = this.normalizeWidgetDragBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight);
-      widgetInfo.x = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-      widgetInfo.y = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
-      widgetInfo.width = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
-      widgetInfo.height = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+      const bounded = this.snapWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight, { avoidTeacherToolbar: false });
+      widgetInfo.x = bounded.x;
+      widgetInfo.y = bounded.y;
+      widgetInfo.width = bounded.width;
+      widgetInfo.height = bounded.height;
       widgetInfo.expandedHeight = widgetInfo.height;
     }
 
@@ -1382,10 +1393,10 @@ class LayoutManager {
         newTop = bounded.y;
 
         pendingResize = {
-          width: Math.round(newWidth),
-          height: Math.round(newHeight),
-          left: Math.round(newLeft),
-          top: Math.round(newTop)
+          width: newWidth,
+          height: newHeight,
+          left: newLeft,
+          top: newTop
         };
 
         if (!resizeFrame) {
@@ -1416,16 +1427,11 @@ class LayoutManager {
         let finalLeft = parseInt(element.style.left, 10) || startLeft;
         let finalTop = parseInt(element.style.top, 10) || startTop;
 
-        finalWidth = Math.round(finalWidth / GRID_SIZE) * GRID_SIZE;
-        finalHeight = Math.round(finalHeight / GRID_SIZE) * GRID_SIZE;
-        finalLeft = Math.round(finalLeft / GRID_SIZE) * GRID_SIZE;
-        finalTop = Math.round(finalTop / GRID_SIZE) * GRID_SIZE;
-
-        const bounded = this.normalizeWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight);
-        finalWidth = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
-        finalHeight = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
-        finalLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-        finalTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+        const bounded = this.snapWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight, { snapSize: true });
+        finalWidth = bounded.width;
+        finalHeight = bounded.height;
+        finalLeft = bounded.x;
+        finalTop = bounded.y;
 
         element.style.width = `${finalWidth}px`;
         element.style.height = `${finalHeight}px`;
@@ -1524,8 +1530,8 @@ class LayoutManager {
       const bounded = this.normalizeWidgetDragBounds(left, top, info?.width, info?.height);
 
       pendingPosition = {
-        x: Math.round(bounded.x),
-        y: Math.round(bounded.y)
+        x: bounded.x,
+        y: bounded.y
       };
 
       if (!dragFrame) {
@@ -1553,9 +1559,9 @@ class LayoutManager {
         const finalTop = parseInt(widgetElement.style.top, 10) || 0;
 
         const info = this.widgets.find(w => w.element === widgetElement);
-        const bounded = this.normalizeWidgetDragBounds(finalLeft, finalTop, info?.width, info?.height);
-        const snappedLeft = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-        const snappedTop = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
+        const bounded = this.snapWidgetBounds(finalLeft, finalTop, info?.width, info?.height, { avoidTeacherToolbar: false });
+        const snappedLeft = bounded.x;
+        const snappedTop = bounded.y;
 
         widgetElement.style.left = `${snappedLeft}px`;
         widgetElement.style.top = `${snappedTop}px`;
@@ -1626,8 +1632,8 @@ class LayoutManager {
       mode: this.mode,
       widgets,
       viewport: {
-        width: this.container.clientWidth || null,
-        height: this.container.clientHeight || null
+        width: this.container.clientWidth || this.lastContainerSize?.width || null,
+        height: this.container.clientHeight || this.lastContainerSize?.height || null
       }
     };
   }
@@ -1674,6 +1680,9 @@ class LayoutManager {
     // are not scaled against the legacy 1024 x 768 fallback before the view opens.
     const containerW = this.container.clientWidth || storedViewportW || 1024;
     const containerH = this.container.clientHeight || storedViewportH || 768;
+    if (!this.container.clientWidth || !this.container.clientHeight) {
+      this.lastContainerSize = { width: containerW, height: containerH };
+    }
     const sourceViewportW = storedViewportW || containerW;
     const sourceViewportH = storedViewportH || containerH;
     const widthScale = containerW / sourceViewportW;
@@ -1726,10 +1735,20 @@ class LayoutManager {
       // (e.g. projector screen resolution differs from teacher view).
       finalX *= widthScale;
       finalY *= heightScale;
-      finalW *= widthScale;
-      finalH *= heightScale;
+      if (!(layoutManagerIsTeacherMode() && widget.constructor.name === 'BehaviourTrackerWidget')) {
+        finalW *= widthScale;
+        finalH *= heightScale;
+      }
 
       const rules = WIDGET_SIZE_RULES[widget.constructor.name] || {};
+      // Migrate the previous large tracker once; subsequent user sizing stays intact.
+      if (widget.constructor.name === 'BehaviourTrackerWidget'
+        && layoutManagerIsTeacherMode() && widgetData.data?.compactLayoutVersion !== 1) {
+        finalW = rules.defaultWidthPx;
+        finalH = rules.defaultHeightPx;
+        finalX = GRID_SIZE;
+        finalY = Math.max(GRID_SIZE, containerH - finalH - GRID_SIZE);
+      }
       if (widget.constructor.name === 'PomodoroWidget') {
         const preferredW = rules.defaultW ? rules.defaultW * colW : finalW;
         const preferredH = rules.defaultH ? rules.defaultH * rowH : finalH;
@@ -1784,16 +1803,11 @@ class LayoutManager {
       finalH = constrained.height;
 
       // Snap
-      finalX = Math.round(finalX / GRID_SIZE) * GRID_SIZE;
-      finalY = Math.round(finalY / GRID_SIZE) * GRID_SIZE;
-      finalW = Math.round(finalW / GRID_SIZE) * GRID_SIZE;
-      finalH = Math.round(finalH / GRID_SIZE) * GRID_SIZE;
-
-      const bounded = this.normalizeWidgetDragBounds(finalX, finalY, finalW, finalH);
-      finalX = Math.round(bounded.x / GRID_SIZE) * GRID_SIZE;
-      finalY = Math.round(bounded.y / GRID_SIZE) * GRID_SIZE;
-      finalW = Math.round(bounded.width / GRID_SIZE) * GRID_SIZE;
-      finalH = Math.round(bounded.height / GRID_SIZE) * GRID_SIZE;
+      const bounded = this.snapWidgetBounds(finalX, finalY, finalW, finalH, { avoidTeacherToolbar: false });
+      finalX = bounded.x;
+      finalY = bounded.y;
+      finalW = bounded.width;
+      finalH = bounded.height;
 
       const widgetElement = document.createElement('div');
       const widgetType = widget.constructor.name.replace(/Widget$/, '').replace(/([A-Z])/g, '-$1').toLowerCase().substring(1);
@@ -1850,6 +1864,9 @@ class LayoutManager {
       this.mountWidgetElement(widgetInfo);
       this.observeWidgetLayout(widgetInfo);
     });
+    // Stage children determine whether a sidebar exists. Reconcile against the
+    // finished surface after mounting, not the temporarily empty stage.
+    if (this.mode === 'stage') this.clampAllWidgetsToContainer();
   }
 
   applyLayoutDelta(delta) {

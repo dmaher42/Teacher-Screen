@@ -4204,10 +4204,32 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
             };
         });
         assert(
-            learningTimeStartupSize.widthRatio <= 0.55 && learningTimeStartupSize.heightRatio <= 0.75,
-            `Learning-Time Tracker should open at a useful dashboard size instead of taking over the classroom (${JSON.stringify(learningTimeStartupSize)})`
+            learningTimeStartupSize.widthRatio <= 0.25 && learningTimeStartupSize.heightRatio <= 0.28,
+            `Learning-Time Tracker should open as a compact corner card (${JSON.stringify(learningTimeStartupSize)})`
         );
         const learningTimeWidget = page.locator('.widget.behaviour-tracker-widget');
+        await learningTimeWidget.locator('[data-action="toggle-timer"]').click();
+        await page.waitForFunction(() => document.querySelector('.behaviour-timer-value')?.textContent !== '00:00');
+        assert(await learningTimeWidget.locator('.behaviour-timer-value').textContent() !== '00:00', 'The teacher canvas should show lost time counting without a popup');
+        assert(await learningTimeWidget.locator('.behaviour-eyebrow').textContent() === 'Recording lost time', 'The timer should clearly announce its running state');
+        await learningTimeWidget.locator('[data-action="toggle-timer"]').press('Space');
+        assert(await learningTimeWidget.locator('[data-action="toggle-timer"]').textContent() === 'Start lost-time timer', 'The focused timer button should stop the timer with Space');
+        const stoppedLostTime = await learningTimeWidget.locator('.behaviour-timer-value').textContent();
+        await learningTimeWidget.locator('[data-action="reset-time"]').click();
+        assert(await learningTimeWidget.locator('.behaviour-timer-value').textContent() === '00:00', 'Reset time should clear the timer');
+        await learningTimeWidget.locator('[data-action="undo"]').click();
+        assert(await learningTimeWidget.locator('.behaviour-timer-value').textContent() === stoppedLostTime, 'Undo should restore a reset timer');
+        await learningTimeWidget.locator('[data-action="toggle-timer"]').click();
+        await selectWidgetForEditing(page, '.widget.behaviour-tracker-widget');
+        await learningTimeWidget.locator('.widget-header-menu > summary').click();
+        await learningTimeWidget.locator('.widget-minimize-btn').click();
+        const compactLostTime = learningTimeWidget.locator('.behaviour-compact-controls');
+        assert(await compactLostTime.isVisible(), 'Minimising the timer should retain the running total and controls');
+        await compactLostTime.getByRole('button', { name: 'Stop lost-time timer', exact: true }).click();
+        assert(await learningTimeWidget.getAttribute('class').then((value) => value.includes('is-minimized')), 'Stopping the compact timer should keep it minimised');
+        assert(await compactLostTime.getByRole('button').textContent() === 'Start', 'The compact Stop button should stop recording');
+        await learningTimeWidget.locator('.widget-header-menu > summary').click();
+        await learningTimeWidget.locator('.widget-minimize-btn').click();
         await selectWidgetForEditing(page, '.widget.behaviour-tracker-widget');
         await learningTimeWidget.locator('.widget-header-menu > summary').click();
         await learningTimeWidget.locator('.widget-remove-btn').click();
@@ -4278,6 +4300,42 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
             `Closing Teacher Controls should always return widgets to the full screen width (${JSON.stringify(reconciledClosedPanel)})`
         );
 
+        await page.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
+        const mobileTimer = page.locator('.widget.behaviour-tracker-widget');
+        await selectWidgetForEditing(page, '.widget.behaviour-tracker-widget');
+        await mobileTimer.locator('.widget-header-menu > summary').click();
+        await mobileTimer.locator('.widget-minimize-btn').click();
+        await page.setViewportSize({ width: 360, height: 800 });
+        await mobileTimer.locator('.widget-header-menu > summary').click();
+        await mobileTimer.locator('.widget-minimize-btn').click();
+        const restoredTimerWidth = await mobileTimer.evaluate((element) => element.getBoundingClientRect().width);
+        assert(restoredTimerWidth >= 280 && restoredTimerWidth <= 360, 'Restoring the timer on a narrow screen should retain readable controls');
+        await mobileTimer.locator('[data-action="toggle-timer"]').click();
+        await mobileTimer.locator('[data-action="toggle-timer"]').click();
+        await page.setViewportSize({ width: 1280, height: 720 });
+        const widerTimer = await mobileTimer.boundingBox();
+        assert(widerTimer.width <= 320 && widerTimer.height <= 200, 'Widening the window should keep the corner timer compact');
+        const migration = await page.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            const layout = manager.serialize();
+            const saved = layout.widgets.find((entry) => entry.type === 'BehaviourTrackerWidget');
+            saved.width = 520;
+            saved.height = 440;
+            saved.data.elapsedMs = 65000;
+            delete saved.data.compactLayoutVersion;
+            manager.deserialize(layout);
+            const compact = manager.serialize();
+            const timer = compact.widgets.find((entry) => entry.type === 'BehaviourTrackerWidget');
+            const migrated = timer.width === 300 && timer.height === 180 && timer.data.elapsedMs === 65000;
+            timer.width = 340;
+            timer.height = 200;
+            manager.deserialize(compact);
+            const resized = manager.serialize().widgets.find((entry) => entry.type === 'BehaviourTrackerWidget');
+            return { migrated, customSizePreserved: resized.width === 340 && resized.height === 200 };
+        });
+        assert(migration.migrated, 'Existing large timers should become compact without losing their time');
+        assert(migration.customSizePreserved, 'Later manual resizing should survive restoration');
+
         assert(pageErrors.length === 0, `Widget startup layout checks should not raise page errors (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Widget startup layout checks should not raise console errors (${consoleErrors.join('; ')})`);
     } finally {
@@ -4339,6 +4397,90 @@ async function runBackgroundControlsChecks(browser, baseUrl) {
     }
 }
 
+async function runRightEdgeChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 779, height: 617 } });
+    await makeExternalAssetsDeterministic(context);
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
+        await page.waitForSelector('.widget.rich-text-widget');
+        const edgeCases = [];
+        for (const width of [779, 359, 379, 781, 1023, 1365, 1535]) {
+            await page.setViewportSize({ width, height: 617 });
+            await page.waitForFunction(() => {
+                const manager = window.__TeacherScreenApp.layoutManager;
+                return manager.lastContainerSize?.width === manager.container.clientWidth;
+            });
+            edgeCases.push(await page.evaluate(() => {
+                const manager = window.__TeacherScreenApp.layoutManager;
+                const info = manager.widgets.find((entry) => entry.widget.constructor.name === 'RichTextWidget');
+                Object.assign(info, { x: 10000, y: 40, width: 330, height: 220 });
+                manager.clampWidgetToContainer(info);
+                manager.mountWidgetElement(info);
+                const rect = info.element.getBoundingClientRect();
+                const canvas = manager.container.getBoundingClientRect();
+                return { viewport: window.innerWidth, right: rect.right, safeRight: canvas.right - 16, width: rect.width };
+            }));
+        }
+        assert(edgeCases.every((entry) => entry.right <= entry.safeRight + 0.1), `Grid snapping must never cross the right boundary (${JSON.stringify(edgeCases)})`);
+
+        await page.setViewportSize({ width: 779, height: 617 });
+        await page.waitForFunction(() => window.__TeacherScreenApp.layoutManager.lastContainerSize?.width === 779);
+        await page.locator('.widget.rich-text-widget').click({ position: { x: 3, y: 50 } });
+        await page.waitForSelector('.widget.rich-text-widget.is-editing-selected');
+        await dragElementBy(page, '.widget.rich-text-widget .resize-handle.right', 1000, 0);
+        const resized = await page.evaluate(() => {
+            const widget = document.querySelector('.widget.rich-text-widget').getBoundingClientRect();
+            const canvas = document.getElementById('widgets-container').getBoundingClientRect();
+            return widget.right <= canvas.right - 16 + 0.1;
+        });
+        assert(resized, 'Releasing a right-edge resize must leave the whole widget inside the canvas');
+        await dragElementBy(page, '.widget.rich-text-widget .widget-header-title', 1000, 0);
+        await page.locator('.widget.rich-text-widget .widget-header-title').press('ArrowRight');
+        const movementSafe = await page.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            const info = manager.widgets[0];
+            manager.moveWidgetByDelta(info.element, 10, 0);
+            manager.setWidgetMinimized(info, true);
+            manager.setWidgetMinimized(info, false);
+            const bounds = info.element.getBoundingClientRect();
+            return bounds.right <= manager.container.getBoundingClientRect().right - 16 + 0.1;
+        });
+        assert(movementSafe, 'Dragging, keyboard movement and minimise/restore must keep the right edge visible');
+
+        const hiddenRestore = await page.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            manager.widgets[0].width = 333;
+            const layout = manager.serialize();
+            manager.container.style.display = 'none';
+            window.dispatchEvent(new Event('resize'));
+            manager.deserialize(layout);
+            const restored = manager.serialize();
+            manager.container.style.display = 'block';
+            return { before: layout.viewport, after: restored.viewport, widths: [layout.widgets[0].width, restored.widgets[0].width] };
+        });
+        assert(hiddenRestore.before.width === hiddenRestore.after.width && Math.abs(hiddenRestore.widths[0] - hiddenRestore.widths[1]) <= 0.1,
+            `Restoring a hidden classroom must preserve its real canvas measurements (${JSON.stringify(hiddenRestore)})`);
+        const documentStage = await page.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            manager.addWidget(manager.createWidgetFromType('DocumentViewerWidget'));
+            const info = manager.widgets.find((entry) => entry.widget.constructor.name === 'RichTextWidget');
+            Object.assign(info, { x: 10000, y: 40, width: 330, height: 220 });
+            manager.clampWidgetToContainer(info);
+            manager.mountWidgetElement(info);
+            const rect = info.element.getBoundingClientRect();
+            const parent = info.element.parentElement.getBoundingClientRect();
+            return { right: rect.right, visibleRight: parent.right, sidebarEmpty: manager.stageSidebar.children.length === 0 };
+        });
+        assert(documentStage.right <= documentStage.visibleRight - 16 + 0.1,
+            `Opening a document must not clip widgets in an invisible sidebar (${JSON.stringify(documentStage)})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -4346,6 +4488,11 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        if (process.argv.includes('--right-edge-only')) {
+            await runRightEdgeChecks(browser, baseUrl);
+            console.log('Right-edge boundary browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--menu-safety-only')) {
             await runMenuSafetyChecks(browser, baseUrl);
             console.log('Menu safety browser checks passed.');
@@ -4368,6 +4515,7 @@ async function runSmoke() {
             return;
         }
         if (process.argv.includes('--widget-containment-only')) {
+            await runRightEdgeChecks(browser, baseUrl);
             await runBottomWidgetContainmentChecks(browser, baseUrl);
             await runTallWidgetVerticalMovementChecks(browser, baseUrl);
             console.log('Widget containment browser checks passed.');
@@ -4406,6 +4554,7 @@ async function runSmoke() {
             return;
         }
         if (!process.argv.includes('--main-ui-only')) {
+            await runRightEdgeChecks(browser, baseUrl);
             await runMenuSafetyChecks(browser, baseUrl);
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
@@ -5148,6 +5297,15 @@ async function runSmoke() {
         assert(storedRunningStateIsSafe, 'Saved tracker state should not keep counting after the app closes');
         await behaviourControls.locator('.behaviour-timer-toggle').click();
         assert(await behaviourControls.locator('.behaviour-timer-value').textContent().then((text) => text.trim() !== '00:00'), 'Tracker should measure actual paused learning time');
+        await behaviourTracker.locator('[data-action="reset-time"]').click();
+        assert(await behaviourControls.locator('.behaviour-timer-value').textContent() === '00:00', 'Direct reset should update the private timer');
+        assert(await behaviourControls.locator('.behaviour-student-mark', { hasText: 'Alex' }).locator('.behaviour-student-count').textContent() === '1', 'Reset time must preserve private observations');
+        await behaviourTracker.locator('[data-action="undo"]').click();
+        await behaviourControls.locator('[data-action="clear-observations"]').click();
+        assert(await behaviourControls.locator('.behaviour-recent-list').count() === 0, 'Clear observations should clear only the records');
+        assert(await behaviourTracker.locator('.behaviour-timer-value').textContent() !== '00:00', 'Clearing observations must preserve lost time');
+        assert(await behaviourControls.locator('.behaviour-student-mark').count() === 2, 'Clearing observations must preserve the roster');
+        await behaviourControls.locator('[data-action="undo"]').click();
         await page.waitForFunction(() => window.__behaviourBroadcasts.some((message) => {
             const tracker = message.state?.layout?.widgets?.find((widget) => widget.type === 'BehaviourTrackerWidget');
             return tracker && tracker.data?.observationCount >= 2;
