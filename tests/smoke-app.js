@@ -4481,6 +4481,64 @@ async function runRightEdgeChecks(browser, baseUrl) {
     }
 }
 
+async function runDirectMovementChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await makeExternalAssetsDeterministic(context);
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.locator('#dashboard-open-classroom-btn').click();
+        await page.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
+        const widget = page.locator('.widget.behaviour-tracker-widget');
+        await page.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            const info = manager.widgets[0];
+            Object.assign(info, { x: 100, y: 100 });
+            manager.mountWidgetElement(info);
+            manager.setSelectedWidgetElement(null);
+        });
+        const before = await widget.boundingBox();
+        // Start directly on the timer readout, without selecting or locating a tool.
+        const time = await widget.locator('.behaviour-timer-value').boundingBox();
+        await page.mouse.move(time.x + 10, time.y + 10);
+        await page.mouse.down();
+        await page.mouse.move(time.x + 87, time.y + 63, { steps: 8 });
+        await page.mouse.up();
+        const after = await widget.boundingBox();
+        assert(Math.abs(after.x - before.x - 77) < 1 && Math.abs(after.y - before.y - 53) < 1,
+            'Dragging an unselected timer readout should move it directly, without grid jumping');
+        await widget.locator('[data-action="toggle-timer"]').click();
+        const afterButton = await widget.boundingBox();
+        assert(afterButton.x === after.x && afterButton.y === after.y, 'Using a timer button must not move its widget');
+        await widget.locator('[data-action="toggle-timer"]').click();
+        await page.waitForFunction(({x, y}) => {
+            const widget = JSON.parse(localStorage.getItem('classroomScreenState') || '{}').layout?.widgets?.[0];
+            return widget?.x === x && widget?.y === y;
+        }, {x: after.x, y: after.y});
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(() => Boolean(window.__TeacherScreenApp?.layoutManager));
+        if (await page.locator('#dashboard-open-classroom-btn').isVisible()) await page.locator('#dashboard-open-classroom-btn').click();
+        await widget.waitFor();
+        const restored = await widget.boundingBox();
+        assert(Math.abs(restored.x - after.x) < 1 && Math.abs(restored.y - after.y) < 1,
+            `Reload should preserve the exact freely chosen position (${JSON.stringify({after, restored})})`);
+        await page.locator('#lesson-quick-actions [data-quick-widget="rich-text"]').click();
+        const board = page.locator('.widget.rich-text-widget');
+        await page.mouse.click(1200, 100);
+        const boardBox = await board.boundingBox();
+        await page.mouse.move(boardBox.x + 15, boardBox.y + 15);
+        await page.waitForTimeout(180);
+        assert(await board.locator('.widget-header-title').isVisible(), 'Hover should reveal the move handle without selecting first');
+        const textArea = await board.locator('.ql-editor').boundingBox();
+        await page.mouse.move(textArea.x + 20, textArea.y + 20);
+        await page.mouse.down();
+        await page.mouse.move(textArea.x + 90, textArea.y + 35, { steps: 6 });
+        await page.mouse.up();
+        const edited = await board.boundingBox();
+        assert(edited.x === boardBox.x && edited.y === boardBox.y, 'Selecting text must not move the Text Board');
+    } finally { await context.close(); }
+}
+
 async function runSmoke() {
     const server = createStaticServer();
     const baseUrl = await listen(server);
@@ -4488,6 +4546,11 @@ async function runSmoke() {
 
     try {
         browser = await launchBrowser();
+        if (process.argv.includes('--direct-movement-only')) {
+            await runDirectMovementChecks(browser, baseUrl);
+            console.log('Direct movement browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--right-edge-only')) {
             await runRightEdgeChecks(browser, baseUrl);
             console.log('Right-edge boundary browser checks passed.');
@@ -4554,6 +4617,7 @@ async function runSmoke() {
             return;
         }
         if (!process.argv.includes('--main-ui-only')) {
+            await runDirectMovementChecks(browser, baseUrl);
             await runRightEdgeChecks(browser, baseUrl);
             await runMenuSafetyChecks(browser, baseUrl);
             await runDeckLibraryRedesignChecks(browser, baseUrl);

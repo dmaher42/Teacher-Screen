@@ -14660,3 +14660,23 @@ body.is-classroom-active:not(.projector-view) #widgets-container.layout-edit-mod
     opacity: 1;
     pointer-events: auto;
 }
+
+/* Direct movement: reveal existing handles before selecting the widget. */
+@media (hover: hover) {
+    body.is-classroom-active:not(.projector-view) #widgets-container.layout-edit-mode .widget:not(.is-minimized):hover > .widget-header,
+    body.is-classroom-active:not(.projector-view) #widgets-container.layout-edit-mode .widget:not(.is-minimized):hover > .widget-header .widget-header-title {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        transition-delay: 0s;
+    }
+}
+body.is-classroom-active:not(.projector-view) #widgets-container.layout-edit-mode .widget > .widget-header .widget-header-title,
+body.is-classroom-active:not(.projector-view) .widget-body-drag-handle {
+    touch-action: none;
+    cursor: grab;
+}
+body.widget-drag-active, body.widget-drag-active * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}

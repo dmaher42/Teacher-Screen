@@ -676,6 +676,7 @@ class LayoutManager {
     const editingChromeAvailable = this.editable && (
       this.isWidgetMinimized(widgetInfo)
       || widgetInfo.element === this.selectedWidgetElement
+      || widgetInfo.element.matches(':hover')
     );
     header.setAttribute('aria-hidden', this.editable ? 'false' : 'true');
     header.toggleAttribute('inert', !this.editable);
@@ -721,7 +722,7 @@ class LayoutManager {
 
   clampWidgetToContainer(widgetInfo) {
     if (!widgetInfo) return;
-    const bounded = this.snapWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height,
+    const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height,
       { avoidTeacherToolbar: widgetInfo.widget?.constructor.name === 'BehaviourTrackerWidget' });
     widgetInfo.x = bounded.x;
     widgetInfo.y = bounded.y;
@@ -1036,7 +1037,7 @@ class LayoutManager {
       const restoreHeight = Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
         : GRID_SIZE * 4;
-      const bounded = this.snapWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight, { avoidTeacherToolbar: false });
+      const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight, { avoidTeacherToolbar: false });
       widgetInfo.x = bounded.x;
       widgetInfo.y = bounded.y;
       widgetInfo.width = bounded.width;
@@ -1490,96 +1491,74 @@ class LayoutManager {
       bodyDragHandle.addEventListener('keydown', (event) => this.handleWidgetMoveKeydown(event, widgetElement));
     }
 
-    widgetElement.addEventListener('mousedown', (e) => {
-      if (!this.editable || e.button !== 0) return;
+    // Hover exposes the existing handle without a preliminary selection click.
+    widgetElement.addEventListener('pointerenter', () => this.updateWidgetChrome(
+      this.widgets.find((info) => info.element === widgetElement)));
+    widgetElement.addEventListener('pointerleave', () => this.updateWidgetChrome(
+      this.widgets.find((info) => info.element === widgetElement)));
 
-      const interactiveTarget = e.target.closest('button, summary, a, input, select, textarea, [contenteditable="true"]');
-      if (interactiveTarget && widgetElement.contains(interactiveTarget)) return;
-
-      const timerBodyHandle = widgetElement.classList.contains('pomodoro-widget')
-        ? e.target.closest('.widget-body-drag-handle')
-        : null;
-      const dragHandle = timerBodyHandle || e.target.closest('.widget-header-title');
-      if (!dragHandle || !widgetElement.contains(dragHandle)) return;
-
-      const widgetInfo = this.widgets.find((info) => info.element === widgetElement);
-      this.bringWidgetToFront(widgetInfo);
-
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-
-      initialLeft = parseInt(widgetElement.style.left, 10) || 0;
-      initialTop = parseInt(widgetElement.style.top, 10) || 0;
+    let pointerId = null;
+    const protectedContent = 'button, summary, a, input, select, textarea, label, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], canvas, iframe, video, audio, .resize-handle, .ql-editor, .reveal, .document-viewer-content';
+    widgetElement.addEventListener('pointerdown', (event) => {
+      if (!this.editable || event.button !== 0 || pointerId !== null
+        || widgetElement.classList.contains('is-minimized')) return;
+      if (!event.target.closest('.widget-header-title') && event.target.closest(protectedContent)) return;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      initialLeft = parseFloat(widgetElement.style.left) || 0;
+      initialTop = parseFloat(widgetElement.style.top) || 0;
       pendingPosition = { x: initialLeft, y: initialTop };
-      widgetElement.classList.add('is-dragging');
-      document.body.classList.add('widget-drag-active');
-
-      e.preventDefault();
     });
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-
-      const info = this.widgets.find(w => w.element === widgetElement);
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-
-      let left = initialLeft + deltaX;
-      let top = initialTop + deltaY;
-      const bounded = this.normalizeWidgetDragBounds(left, top, info?.width, info?.height);
-
-      pendingPosition = {
-        x: bounded.x,
-        y: bounded.y
-      };
-
-      if (!dragFrame) {
-        dragFrame = requestAnimationFrame(applyDragPosition);
+    widgetElement.addEventListener('dragstart', (event) => {
+      if (pointerId !== null) event.preventDefault();
+    });
+    const move = (event) => {
+      if (event.pointerId !== pointerId) return;
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      if (!isDragging && Math.hypot(deltaX, deltaY) < 5) return;
+      const info = this.widgets.find((entry) => entry.element === widgetElement);
+      if (!info) return;
+      if (!isDragging) {
+        isDragging = true;
+        widgetElement.setPointerCapture(pointerId);
+        this.bringWidgetToFront(info);
+        widgetElement.classList.add('is-dragging');
+        document.body.classList.add('widget-drag-active');
       }
-    });
-
-    document.addEventListener('mouseup', (e) => {
-      if (isDragging) {
-        isDragging = false;
-        widgetElement.classList.remove('is-dragging');
-        document.body.classList.remove('widget-drag-active');
-
-        if (dragFrame) {
-          cancelAnimationFrame(dragFrame);
-          dragFrame = null;
-        }
-
-        if (pendingPosition) {
-          widgetElement.style.left = `${pendingPosition.x}px`;
-          widgetElement.style.top = `${pendingPosition.y}px`;
-        }
-
-        const finalLeft = parseInt(widgetElement.style.left, 10) || 0;
-        const finalTop = parseInt(widgetElement.style.top, 10) || 0;
-
-        const info = this.widgets.find(w => w.element === widgetElement);
-        const bounded = this.snapWidgetBounds(finalLeft, finalTop, info?.width, info?.height, { avoidTeacherToolbar: false });
-        const snappedLeft = bounded.x;
-        const snappedTop = bounded.y;
-
-        widgetElement.style.left = `${snappedLeft}px`;
-        widgetElement.style.top = `${snappedTop}px`;
-
-        if (info) {
-          info.x = snappedLeft;
-          info.y = snappedTop;
-        }
-
-        pendingPosition = null;
-
+      const bounded = this.normalizeWidgetDragBounds(initialLeft + deltaX, initialTop + deltaY, info.width, info.height);
+      pendingPosition = { x: bounded.x, y: bounded.y };
+      if (!dragFrame) dragFrame = requestAnimationFrame(applyDragPosition);
+      event.preventDefault();
+    };
+    const finish = (event) => {
+      if (event.pointerId !== pointerId) return;
+      if (event.type === 'pointerup' && isDragging) move(event);
+      const capturedId = pointerId;
+      pointerId = null;
+      if (widgetElement.hasPointerCapture(capturedId)) widgetElement.releasePointerCapture(capturedId);
+      if (!isDragging) { pendingPosition = null; return; }
+      isDragging = false;
+      widgetElement.classList.remove('is-dragging');
+      document.body.classList.remove('widget-drag-active');
+      if (dragFrame) cancelAnimationFrame(dragFrame);
+      applyDragPosition();
+      const info = this.widgets.find((entry) => entry.element === widgetElement);
+      if (info && pendingPosition) {
+        info.x = pendingPosition.x;
+        info.y = pendingPosition.y;
         this.emitWidgetUpdate(info);
-        if (info) {
-          this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
-        }
+        this.emitBusEvent('widget:moved', { id: info.id, x: info.x, y: info.y, width: info.width, height: info.height });
         this.saveLayout({ emitFull: false });
       }
-    });
+      pendingPosition = null;
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', finish);
+    document.addEventListener('pointercancel', finish);
+    widgetElement.addEventListener('lostpointercapture', finish);
   }
   
   saveLayout(options = {}) {
@@ -1803,7 +1782,7 @@ class LayoutManager {
       finalH = constrained.height;
 
       // Snap
-      const bounded = this.snapWidgetBounds(finalX, finalY, finalW, finalH, { avoidTeacherToolbar: false });
+      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH, { avoidTeacherToolbar: false });
       finalX = bounded.x;
       finalY = bounded.y;
       finalW = bounded.width;
