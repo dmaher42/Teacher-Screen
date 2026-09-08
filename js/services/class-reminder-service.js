@@ -454,6 +454,29 @@ export class ClassReminderService {
         return removedCount;
     }
 
+    removeItemsForOwners({ deckIds = [], classIds = [] } = {}) {
+        const normalizedDeckIds = new Set(deckIds.map(normalizeIdentifier).filter(Boolean));
+        const normalizedClassIds = new Set(classIds.map(normalizeIdentifier).filter(Boolean));
+        if (normalizedDeckIds.size === 0 && normalizedClassIds.size === 0) return 0;
+
+        this.reconcileStoredState();
+        const removedItemIds = [];
+        const nextReminders = this.state.reminders.filter((reminder) => {
+            const shouldRemove = (reminder.scope === REMINDER_SCOPES.DECK && normalizedDeckIds.has(reminder.deckId))
+                || (reminder.scope === REMINDER_SCOPES.CLASS && normalizedClassIds.has(reminder.classId));
+            if (shouldRemove) removedItemIds.push(reminder.id);
+            return !shouldRemove;
+        });
+        const removedCount = removedItemIds.length;
+        if (removedCount > 0) {
+            this.commit(nextReminders, 'remove-owner-items', {
+                removedCount,
+                removedItemIds
+            });
+        }
+        return removedCount;
+    }
+
     list(selector = {}) {
         const deckId = normalizeIdentifier(selector.deckId);
         const classId = normalizeIdentifier(selector.classId);

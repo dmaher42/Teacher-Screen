@@ -24,7 +24,7 @@ import {
     ClassReminderService,
     classReminderService,
     REMINDER_SCOPES
-} from './services/class-reminder-service.js?v=2';
+} from './services/class-reminder-service.js?v=3';
 import {
     createMemoryCueReminderSync,
     MEMORY_CUE_SYNC_STATES
@@ -8076,6 +8076,83 @@ class ClassroomScreenApp {
         return starterDeck;
     }
 
+    deleteClassFromDashboard(className = '') {
+        const requestedClassName = String(className || '').trim();
+        const classKey = requestedClassName.toLowerCase();
+        if (!classKey) return false;
+
+        const classDecks = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter((preset) => preset && preset.className.trim().toLowerCase() === classKey);
+        if (classDecks.length === 0) {
+            this.showNotification('Class not found.', 'warning');
+            return false;
+        }
+
+        const deckIds = new Set(classDecks.map((preset) => preset.id));
+        const remainingPresets = this.presets.filter((preset) => !deckIds.has(preset.id));
+        const remainingClassIds = new Set(remainingPresets
+            .map((preset) => this.normalizePresetRecord(preset)?.classId)
+            .filter(Boolean));
+        const classIds = new Set([getStableClassId(requestedClassName), ...classDecks.map((preset) => preset.classId)]
+            .filter((id) => id && !remainingClassIds.has(id)));
+        const reminderCount = classReminderService.list().filter((reminder) => (
+            reminder.scope === REMINDER_SCOPES.DECK
+                ? deckIds.has(reminder.deckId)
+                : classIds.has(reminder.classId)
+        )).length;
+        const deckLabel = `${classDecks.length} ${classDecks.length === 1 ? 'deck' : 'decks'}`;
+        const reminderNotice = reminderCount > 0
+            ? ` This also deletes ${reminderCount} class or deck reminder${reminderCount === 1 ? '' : 's'}.`
+            : '';
+        const emptyLibraryNotice = remainingPresets.length === 0
+            ? ' A new blank deck will be created.'
+            : '';
+        if (!window.confirm(`Delete class "${requestedClassName}" and all ${deckLabel}? All pages in these decks will be deleted.${reminderNotice}${emptyLibraryNotice} This cannot be undone.`)) {
+            return false;
+        }
+
+        classDecks.forEach((preset) => {
+            if (preset.seededLessonId) this.dismissSeededLesson(preset.seededLessonId);
+        });
+        const deletingCurrentDeck = deckIds.has(this.getCurrentDeckId());
+        this.presets = remainingPresets;
+
+        if (deletingCurrentDeck || this.presets.length === 0) {
+            const nextPreset = [...this.presets]
+                .map((preset) => this.normalizePresetRecord(preset))
+                .filter(Boolean)
+                .sort((a, b) => Number(b.lastUsedAt || b.updatedAt || 0) - Number(a.lastUsedAt || a.updatedAt || 0))[0];
+            if (nextPreset) {
+                this.loadPreset(nextPreset.id);
+            } else {
+                this.createNewProject('New deck');
+                if (this.presetNameInput) this.presetNameInput.value = 'New deck';
+                if (this.presetClassInput) this.presetClassInput.value = '';
+                if (this.presetPeriodInput) this.presetPeriodInput.value = '';
+                if (this.presetFolderSelect) this.presetFolderSelect.value = '';
+            }
+        }
+
+        this.dashboardNavigationMode = 'library';
+        this.dashboardSelectedClassName = '';
+        this.dashboardSelectedFolderId = '';
+        this.dashboardSearchQuery = '';
+        this.dashboardExpandedDeckId = '';
+        this.dashboardExpandedReminderDeckId = '';
+        if (this.classProfileSelect) this.classProfileSelect.value = '';
+        if (this.presetClassFilterInput) this.presetClassFilterInput.value = '';
+        this.savePresets();
+        classReminderService.removeItemsForOwners({ deckIds: [...deckIds], classIds: [...classIds] });
+        this.renderPresetList();
+        this.renderDashboard();
+        this.renderClassroomReminderDock();
+        this.saveStateImmediately();
+        window.requestAnimationFrame(() => this.dashboardRoot?.querySelector('#dashboard-add-class-btn')?.focus({ preventScroll: true }));
+        this.showNotification(`Deleted class "${requestedClassName}" and ${deckLabel}.`);
+        return true;
+    }
+
     setActiveReminderContext(source = {}) {
         const className = String(source.className || '').trim();
         const nextContext = {
@@ -9018,6 +9095,8 @@ class ClassroomScreenApp {
             }
 
             classItems.forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'dashboard-class-row';
                 const button = document.createElement('button');
                 button.type = 'button';
                 const isSelectedClass = item.className === selectedClassName;
@@ -9042,7 +9121,16 @@ class ClassroomScreenApp {
                             ?.focus({ preventScroll: true });
                     });
                 });
-                classList.appendChild(button);
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.className = 'dashboard-class-delete';
+                deleteButton.dataset.className = item.className;
+                deleteButton.setAttribute('aria-label', `Delete class ${item.label}`);
+                deleteButton.title = `Delete class ${item.label} and all its decks`;
+                deleteButton.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i>';
+                deleteButton.addEventListener('click', () => this.deleteClassFromDashboard(item.className));
+                row.append(button, deleteButton);
+                classList.appendChild(row);
             });
         }
 

@@ -3203,6 +3203,237 @@ async function runDeckLibraryStartupSafetyChecks(browser, baseUrl) {
     }
 }
 
+async function runClassDeletionChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
+    await makeExternalAssetsDeterministic(context);
+    const artClassName = 'Year 9 Art - Investigation and Reflection Portfolio';
+    await context.addInitScript(({ artClassName }) => {
+        if (!window.location.pathname.toLowerCase().endsWith('/index.html')
+            || localStorage.getItem('__teacherScreenClassDeletionFixture') === 'ready') return;
+
+        const timestamp = 1700000000000;
+        const makeDeck = (id, name, className, classId, color) => {
+            const snapshot = {
+                theme: 'theme-ocean',
+                background: { type: 'solid', value: color },
+                layout: { widgets: [] },
+                timerStates: {},
+                lessonPlan: [{ insert: `${name} lesson content\n` }]
+            };
+            const projectState = {
+                schemaVersion: 1,
+                currentDeckId: id,
+                projectName: name,
+                activeDeckId: id,
+                activeClassId: classId,
+                activeClassName: className,
+                activePageId: `${id}-page`,
+                pages: [{ id: `${id}-page`, name: `${name} page`, snapshot }],
+                ...snapshot
+            };
+            return {
+                id, name, className, classId,
+                period: 'Period 1',
+                folderId: '',
+                isFavorite: false,
+                projectState,
+                ...snapshot,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+                lastUsedAt: timestamp,
+                usageCount: 1
+            };
+        };
+        const decks = [
+            makeDeck('class-delete-history', 'History sources', 'Year 7 History', 'class-delete-history-class', '#123247'),
+            makeDeck('class-delete-science-a', 'Science investigation', 'Year 8 Science', 'class-delete-science-class', '#19324a'),
+            makeDeck('class-delete-science-b', 'Science reflection', 'year 8 science', 'class-delete-science-class', '#20394f'),
+            makeDeck('class-delete-art', 'Art portfolio', artClassName, 'class-delete-art-class', '#26405a')
+        ];
+        const reminders = [
+            ['science-class', 'class', 'class-delete-science-class'],
+            ['science-a', 'deck', 'class-delete-science-a'],
+            ['science-b', 'deck', 'class-delete-science-b'],
+            ['history-class', 'class', 'class-delete-history-class'],
+            ['history-deck', 'deck', 'class-delete-history'],
+            ['art-class', 'class', 'class-delete-art-class'],
+            ['art-deck', 'deck', 'class-delete-art']
+        ].map(([id, scope, ownerId], index) => ({
+            id,
+            scope,
+            deckId: scope === 'deck' ? ownerId : '',
+            classId: scope === 'class' ? ownerId : '',
+            text: `Keep track of ${id}`,
+            dueDate: null,
+            orderIndex: index,
+            completed: id === 'art-class',
+            showOnClassroom: scope === 'class',
+            createdAt: timestamp,
+            updatedAt: timestamp
+        }));
+        localStorage.setItem('classroomLayoutPresets', JSON.stringify(decks));
+        localStorage.setItem('classroomScreenState', JSON.stringify(decks[0].projectState));
+        localStorage.setItem('teacherScreenClassReminders', JSON.stringify({ version: 1, reminders }));
+        localStorage.setItem('__teacherScreenClassDeletionFixture', 'ready');
+    }, { artClassName });
+    const pageErrors = [];
+    const consoleErrors = [];
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) {
+                consoleErrors.push(message.text());
+            }
+        });
+    });
+
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('.dashboard-class-delete[data-class-name="Year 8 Science"]', { timeout: 15000 });
+        const readState = () => page.evaluate(() => {
+            const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
+            const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            const reminders = JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}').reminders;
+            return {
+                currentDeckId: state.currentDeckId,
+                activeDeckId: state.activeDeckId,
+                activeClassId: state.activeClassId || '',
+                activeClassName: state.activeClassName || '',
+                projectName: state.projectName,
+                activePageId: state.activePageId,
+                pages: state.pages,
+                presets,
+                reminders
+            };
+        });
+        const chooseDelete = async (className, accept, input = 'Enter') => {
+            const button = page.getByRole('button', { name: `Delete class ${className}`, exact: true });
+            await button.focus();
+            const dialogPromise = page.waitForEvent('dialog');
+            const actionPromise = input === 'tap' ? button.tap() : button.press(input);
+            const dialog = await dialogPromise;
+            const message = dialog.message();
+            const dialogType = dialog.type();
+            if (accept) await dialog.accept();
+            else await dialog.dismiss();
+            await actionPromise;
+            assert(dialogType === 'confirm', 'Deleting a class should require a native confirmation');
+            return message;
+        };
+        const waitForDecksRemoved = async (ids) => {
+            await page.waitForFunction((removedIds) => {
+                const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+                return !presets.some((preset) => removedIds.includes(preset.id));
+            }, ids, { timeout: 10000 });
+        };
+
+        const deleteButton = page.getByRole('button', { name: 'Delete class Year 8 Science', exact: true });
+        assert(await deleteButton.isVisible(), 'Every named class should expose an accessible Delete class button');
+        assert(await deleteButton.evaluate((button) => button.tagName === 'BUTTON' && button.type === 'button'), 'Delete class should use a native keyboard-operable button');
+        await page.locator('.dashboard-filter[data-class-name="Year 8 Science"]').click();
+        await openScreenDeckTools(page);
+        await page.locator('#class-profile-select').selectOption('Year 8 Science');
+        await page.locator('#screen-deck-manager-dialog .modal-close').click();
+        const beforeCancel = await readState();
+        const confirmation = await chooseDelete('Year 8 Science', false);
+        assert(confirmation.includes('Year 8 Science') && /2\s+(?:saved\s+)?decks/i.test(confirmation)
+            && /reminders/i.test(confirmation) && /cannot be undone|cannot undo|can.t be undone/i.test(confirmation), 'Class deletion confirmation should name the class, count both case variants, and explain reminder deletion and permanence');
+        assert(JSON.stringify(await readState()) === JSON.stringify(beforeCancel), 'Cancelling class deletion should preserve decks, active content and every reminder');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"].is-active').count() === 1, 'Cancelling should keep the selected class filter');
+
+        await chooseDelete('Year 8 Science', true, 'Space');
+        await waitForDecksRemoved(['class-delete-science-a', 'class-delete-science-b']);
+        const afterScience = await readState();
+        assert(afterScience.currentDeckId === beforeCancel.currentDeckId
+            && afterScience.activeDeckId === beforeCancel.activeDeckId
+            && JSON.stringify(afterScience.pages) === JSON.stringify(beforeCancel.pages), 'Deleting an inactive class with Space should preserve the current deck and page content');
+        const survivingBefore = beforeCancel.presets.filter((preset) => !['class-delete-science-a', 'class-delete-science-b'].includes(preset.id));
+        assert(JSON.stringify(afterScience.presets) === JSON.stringify(survivingBefore), 'Deleting a class should preserve unrelated saved decks');
+        assert(JSON.stringify(afterScience.reminders) === JSON.stringify(beforeCancel.reminders.filter((reminder) => !reminder.id.startsWith('science'))), 'Deleting a class should remove its class and deck reminders while preserving unrelated reminders exactly');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"], .dashboard-filter[data-class-name="year 8 science"]').count() === 0, 'Deleting a class should remove every case variant from Your Classes');
+        assert(await page.locator('.dashboard-filter.is-active').count() === 0
+            && await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'All lesson decks'), 'Deleting the selected class should clear the dashboard filter and show remaining decks');
+        const clearedClassFilters = await page.locator('#class-profile-select').evaluate((select) => {
+            const legacyFilter = document.querySelector('#preset-class-filter');
+            return select.value === ''
+                && !Array.from(select.options).some((option) => option.value.toLowerCase() === 'year 8 science')
+                && (!legacyFilter || legacyFilter.value === '');
+        });
+        assert(clearedClassFilters, 'Class deletion should clear stale Deck details class filters and remove the deleted class option');
+        await openScreenDeckTools(page);
+        assert(await page.locator('#class-profile-select').evaluate((select) => !Array.from(select.options)
+            .some((option) => option.value.toLowerCase() === 'year 8 science')), 'Reopening Deck details should not restore a deleted class option');
+        await page.locator('#screen-deck-manager-dialog .modal-close').click();
+
+        const seededDecks = afterScience.presets.filter((preset) => preset.seededLessonId);
+        assert(seededDecks.length > 0 && seededDecks.every((preset) => preset.className === 'Year 7 English'), 'Class deletion fixture should include the real built-in English lessons');
+        await chooseDelete('Year 7 English', true);
+        await waitForDecksRemoved(seededDecks.map((preset) => preset.id));
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const afterReload = await readState();
+        assert(afterReload.presets.length === 2
+            && afterReload.presets.every((preset) => ['class-delete-history', 'class-delete-art'].includes(preset.id)), 'Reload should not resurrect deleted classes, decks or built-in lessons');
+        assert(JSON.stringify(afterReload.reminders) === JSON.stringify(afterScience.reminders), 'Removed class and deck reminders should stay removed after reload');
+        assert(await page.evaluate((ids) => {
+            const dismissed = JSON.parse(localStorage.getItem('teacherScreenDismissedSeededLessons') || '[]');
+            return ids.every((id) => dismissed.includes(id));
+        }, seededDecks.map((preset) => preset.seededLessonId)), 'Deleting a built-in class should remember that its starter lessons were deleted');
+
+        await page.locator('.dashboard-filter[data-class-name="Year 7 History"]').click();
+        await chooseDelete('Year 7 History', true);
+        await page.waitForFunction(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}').currentDeckId === 'class-delete-art', null, { timeout: 10000 });
+        const afterCurrentDeletion = await readState();
+        assert(afterCurrentDeletion.presets.length === 1 && afterCurrentDeletion.activeDeckId === 'class-delete-art'
+            && afterCurrentDeletion.activeClassName === artClassName && afterCurrentDeletion.activePageId === 'class-delete-art-page', 'Deleting the current class should load the remaining deck with its own page and reminder identity');
+        assert(afterCurrentDeletion.reminders.length === 2 && afterCurrentDeletion.reminders.every((reminder) => reminder.id.startsWith('art')), 'Deleting the current class should remove its reminders and retain the remaining class reminders');
+        assert(await page.locator('#dashboard-view').isVisible() && await page.locator('#classroom-view').isHidden(), 'Deleting the current class should keep the teacher on the Dashboard');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const currentAfterReload = await readState();
+        assert(currentAfterReload.currentDeckId === 'class-delete-art' && currentAfterReload.presets.length === 1, 'Reload should retain the replacement active deck without recreating the deleted class');
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        const mobileDelete = page.getByRole('button', { name: `Delete class ${artClassName}`, exact: true });
+        await mobileDelete.scrollIntoViewIfNeeded();
+        const mobileLayout = await mobileDelete.evaluate((button) => {
+            const rect = button.getBoundingClientRect();
+            const classList = document.querySelector('#dashboard-class-list');
+            return {
+                targetFits: rect.width >= 44 && rect.height >= 44,
+                buttonFits: rect.left >= -1 && rect.right <= innerWidth + 1,
+                listFits: classList.scrollWidth <= classList.clientWidth + 1,
+                pageFits: document.documentElement.scrollWidth <= innerWidth + 1
+            };
+        });
+        assert(mobileLayout.targetFits, 'Delete class should retain a 44px touch target at 390px');
+        assert(mobileLayout.buttonFits && mobileLayout.listFits && mobileLayout.pageFits, 'A long class name and Delete class button should fit without horizontal overflow at 390px');
+        await chooseDelete(artClassName, true, 'tap');
+        await waitForDecksRemoved(['class-delete-art']);
+        const finalState = await readState();
+        const newDeck = finalState.presets[0];
+        assert(finalState.presets.length === 1 && newDeck?.name === 'New deck'
+            && !newDeck.className && !newDeck.classId && finalState.currentDeckId === newDeck.id
+            && finalState.activeDeckId === newDeck.id && !finalState.activeClassId && !finalState.activeClassName, 'Touch-deleting the final class should create and activate one unclassified New deck');
+        assert(finalState.pages.length === 1 && finalState.pages[0].id !== 'class-delete-art-page'
+            && finalState.pages[0].snapshot.layout.widgets.length === 0
+            && !JSON.stringify(finalState.pages).includes('Art portfolio lesson content'), 'The last-class replacement should contain a fresh blank page without deleted lesson content');
+        assert(finalState.reminders.length === 0 && await page.locator('.dashboard-class-delete, .dashboard-filter[data-class-name]').count() === 0, 'Deleting the final class should remove its remaining reminders and class controls');
+        assert(await page.locator('#dashboard-view').isVisible() && await page.locator('#classroom-view').isHidden(), 'Deleting the final class by touch should remain on the Dashboard');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const finalReload = await readState();
+        assert(finalReload.presets.length === 1 && finalReload.currentDeckId === newDeck.id
+            && finalReload.presets[0].name === 'New deck' && !finalReload.presets[0].className
+            && finalReload.reminders.length === 0, 'Reload should preserve the blank fallback deck without resurrecting any deleted class');
+        assert(pageErrors.length === 0, `Class deletion should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Class deletion should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runReminderSystemChecks(browser, baseUrl) {
     const context = await browser.newContext();
     await makeExternalAssetsDeterministic(context);
@@ -4561,9 +4792,15 @@ async function runSmoke() {
             console.log('Menu safety browser checks passed.');
             return;
         }
+        if (process.argv.includes('--class-deletion-only')) {
+            await runClassDeletionChecks(browser, baseUrl);
+            console.log('Class deletion browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--deck-library-only')) {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
+            await runClassDeletionChecks(browser, baseUrl);
             console.log('Deck Library browser checks passed.');
             return;
         }
@@ -4622,6 +4859,7 @@ async function runSmoke() {
             await runMenuSafetyChecks(browser, baseUrl);
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
+            await runClassDeletionChecks(browser, baseUrl);
             await runDeckOrganisationChecks(browser, baseUrl);
             await runReminderSystemChecks(browser, baseUrl);
             await runWholeClassAssignmentChecks(browser, baseUrl);
