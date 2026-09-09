@@ -690,6 +690,10 @@ class ClassroomScreenApp {
             this.sectionsMenuCloseButton.addEventListener('click', () => this.closeSectionsMenu({ restoreFocus: true }));
         }
         document.addEventListener('click', (event) => {
+            const classMenu = this.dashboardRoot?.querySelector('#dashboard-class-menu[open]');
+            if (classMenu && !classMenu.contains(event.target)) {
+                classMenu.open = false;
+            }
             if (!this.sectionsMenu || this.sectionsMenu.hidden) return;
 
             const clickedInsideMenu = this.sectionsMenu.contains(event.target);
@@ -720,6 +724,13 @@ class ClassroomScreenApp {
                 if (this.isTeacherPanelOpen) {
                     event.preventDefault();
                     this.toggleTeacherPanel(false, { restoreFocus: true });
+                    return;
+                }
+                const classMenu = this.dashboardRoot?.querySelector('#dashboard-class-menu[open]');
+                if (classMenu) {
+                    event.preventDefault();
+                    classMenu.open = false;
+                    classMenu.querySelector('summary')?.focus({ preventScroll: true });
                     return;
                 }
                 if (this.sectionsMenu && !this.sectionsMenu.hidden) {
@@ -9055,7 +9066,22 @@ class ClassroomScreenApp {
                         <div class="dashboard-toolbar">
                             <div class="dashboard-toolbar__heading">
                                 <p class="dashboard-toolbar__label">Deck Library</p>
-                                <h1>${escapeHtml(currentLabel)}</h1>
+                                <div class="dashboard-class-heading">
+                                    <h1>${escapeHtml(currentLabel)}</h1>
+                                    ${navigationMode === 'library' && classItems.some((item) => item.className === selectedClassName) ? `
+                                        <details id="dashboard-class-menu" class="dashboard-class-menu">
+                                            <summary aria-label="Class options for ${escapeHtml(selectedClassName)}" title="Class options">
+                                                <span aria-hidden="true">⋯</span>
+                                            </summary>
+                                            <div class="dashboard-class-menu__actions">
+                                                <button type="button" class="dashboard-class-delete" data-class-name="${escapeHtml(selectedClassName)}" aria-label="Delete class ${escapeHtml(selectedClassName)}">
+                                                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                                                    <span>Delete class</span>
+                                                </button>
+                                            </div>
+                                        </details>
+                                    ` : ''}
+                                </div>
                                 <p>Choose a deck to reveal its classroom, arranging, presenting, and management options.</p>
                             </div>
                             <div class="dashboard-toolbar__side">
@@ -9095,8 +9121,6 @@ class ClassroomScreenApp {
             }
 
             classItems.forEach((item) => {
-                const row = document.createElement('div');
-                row.className = 'dashboard-class-row';
                 const button = document.createElement('button');
                 button.type = 'button';
                 const isSelectedClass = item.className === selectedClassName;
@@ -9121,18 +9145,22 @@ class ClassroomScreenApp {
                             ?.focus({ preventScroll: true });
                     });
                 });
-                const deleteButton = document.createElement('button');
-                deleteButton.type = 'button';
-                deleteButton.className = 'dashboard-class-delete';
-                deleteButton.dataset.className = item.className;
-                deleteButton.setAttribute('aria-label', `Delete class ${item.label}`);
-                deleteButton.title = `Delete class ${item.label} and all its decks`;
-                deleteButton.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i>';
-                deleteButton.addEventListener('click', () => this.deleteClassFromDashboard(item.className));
-                row.append(button, deleteButton);
-                classList.appendChild(row);
+                classList.appendChild(button);
             });
         }
+
+        const classMenu = this.dashboardRoot.querySelector('#dashboard-class-menu');
+        classMenu?.addEventListener('toggle', () => {
+            if (!classMenu.open) return;
+            this.dashboardRoot.querySelectorAll('.dashboard-deck-more[open], #dashboard-utility-menu[open]')
+                .forEach((details) => { details.open = false; });
+        });
+        classMenu?.querySelector('.dashboard-class-delete')?.addEventListener('click', () => {
+            classMenu.open = false;
+            if (!this.deleteClassFromDashboard(selectedClassName)) {
+                classMenu.querySelector('summary')?.focus({ preventScroll: true });
+            }
+        });
 
         const screenGrid = this.dashboardRoot.querySelector('#dashboard-screen-grid');
         if (screenGrid) {
@@ -9684,7 +9712,7 @@ class ClassroomScreenApp {
 
     closeDashboardTransientMenus() {
         this.dashboardRoot
-            ?.querySelectorAll('.dashboard-deck-more[open]')
+            ?.querySelectorAll('.dashboard-deck-more[open], #dashboard-class-menu[open]')
             .forEach((details) => {
                 details.open = false;
             });

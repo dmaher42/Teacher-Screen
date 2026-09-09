@@ -3290,7 +3290,7 @@ async function runClassDeletionChecks(browser, baseUrl) {
     try {
         const page = await context.newPage();
         await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('.dashboard-class-delete[data-class-name="Year 8 Science"]', { timeout: 15000 });
+        await page.waitForSelector('.dashboard-filter[data-class-name="Year 8 Science"]', { timeout: 15000 });
         const readState = () => page.evaluate(() => {
             const state = JSON.parse(localStorage.getItem('classroomScreenState') || '{}');
             const presets = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
@@ -3307,7 +3307,32 @@ async function runClassDeletionChecks(browser, baseUrl) {
                 reminders
             };
         });
+        const selectClass = async (className, input = 'Enter') => {
+            const filter = page.locator(`.dashboard-filter[data-class-name="${className}"]`);
+            if (await filter.getAttribute('aria-pressed') !== 'true'
+                || await page.locator('#dashboard-class-menu').count() === 0) {
+                if (input === 'tap') await filter.tap();
+                else await filter.click();
+            }
+            const summary = page.locator('#dashboard-class-menu > summary');
+            await summary.waitFor({ state: 'visible' });
+            assert(await summary.getAttribute('aria-label') === `Class options for ${className}`, 'The heading menu should identify the selected class');
+            return summary;
+        };
+        const openClassMenu = async (className, input = 'Enter') => {
+            const summary = await selectClass(className, input);
+            if (await page.locator('#dashboard-class-menu').getAttribute('open') === null) {
+                if (input === 'tap') await summary.tap();
+                else {
+                    await summary.focus();
+                    await summary.press(input);
+                }
+            }
+            await page.getByRole('button', { name: `Delete class ${className}`, exact: true }).waitFor({ state: 'visible' });
+            return summary;
+        };
         const chooseDelete = async (className, accept, input = 'Enter') => {
+            await openClassMenu(className, input);
             const button = page.getByRole('button', { name: `Delete class ${className}`, exact: true });
             await button.focus();
             const dialogPromise = page.waitForEvent('dialog');
@@ -3319,6 +3344,11 @@ async function runClassDeletionChecks(browser, baseUrl) {
             else await dialog.dismiss();
             await actionPromise;
             assert(dialogType === 'confirm', 'Deleting a class should require a native confirmation');
+            if (!accept) {
+                assert(await page.locator('#dashboard-class-menu').getAttribute('open') === null, 'Cancelling deletion should leave the class menu closed');
+                await page.waitForFunction((label) => document.activeElement?.getAttribute('aria-label') === label,
+                    `Class options for ${className}`, { timeout: 10000 });
+            }
             return message;
         };
         const waitForDecksRemoved = async (ids) => {
@@ -3328,10 +3358,34 @@ async function runClassDeletionChecks(browser, baseUrl) {
             }, ids, { timeout: 10000 });
         };
 
+        assert(await page.locator('#dashboard-class-list .dashboard-class-delete, .dashboard-class-row').count() === 0, 'The class sidebar should show class filters without separate delete buttons');
+        assert(await page.locator('#dashboard-class-menu').count() === 0, 'All lesson decks should not expose a class deletion menu');
+        const beforeNavigation = await readState();
+        const scienceSummary = await selectClass('Year 8 Science');
         const deleteButton = page.getByRole('button', { name: 'Delete class Year 8 Science', exact: true });
-        assert(await deleteButton.isVisible(), 'Every named class should expose an accessible Delete class button');
+        assert(await page.locator('#dashboard-class-menu').getAttribute('open') === null && await deleteButton.isHidden(), 'Selecting a class should keep Delete class inside its closed heading menu');
+        assert(await scienceSummary.evaluate((summary) => summary.closest('.dashboard-toolbar__heading')?.querySelector('h1')?.textContent === 'Year 8 Science'), 'Class options should sit beside the selected class heading');
+        await openClassMenu('Year 8 Science');
         assert(await deleteButton.evaluate((button) => button.tagName === 'BUTTON' && button.type === 'button'), 'Delete class should use a native keyboard-operable button');
-        await page.locator('.dashboard-filter[data-class-name="Year 8 Science"]').click();
+        await deleteButton.focus();
+        await page.keyboard.press('Escape');
+        assert(await page.locator('#dashboard-class-menu').getAttribute('open') === null, 'Escape should close the class menu');
+        assert(await scienceSummary.evaluate((summary) => document.activeElement === summary), 'Escape should restore focus to Class options');
+        await openClassMenu('Year 8 Science', 'Space');
+        await page.locator('.dashboard-library-panel h1').click();
+        assert(await page.locator('#dashboard-class-menu').getAttribute('open') === null, 'Clicking outside Class options should close it');
+        await selectClass('Year 7 History');
+        assert(await page.locator('.dashboard-class-delete').count() === 1
+            && await page.locator('.dashboard-class-delete').getAttribute('data-class-name') === 'Year 7 History', 'Changing classes should replace the single heading deletion target');
+        for (const mode of ['favorites', 'recent', 'resources', 'library']) {
+            await page.locator(`[data-dashboard-mode="${mode}"]`).click();
+            assert(await page.locator('#dashboard-class-menu').count() === 0, `${mode} navigation should not expose class deletion`);
+        }
+        await selectClass('Year 8 Science');
+        await page.locator('[data-class-resources="Year 8 Science"]').click();
+        assert(await page.locator('#dashboard-class-menu').count() === 0, 'Class Resources should not expose the class deletion menu');
+        await page.locator('#resource-back-to-class-btn').click();
+        assert(JSON.stringify(await readState()) === JSON.stringify(beforeNavigation), 'Class selection, menu controls and dashboard navigation should preserve decks, active content and reminders');
         await openScreenDeckTools(page);
         await page.locator('#class-profile-select').selectOption('Year 8 Science');
         await page.locator('#screen-deck-manager-dialog .modal-close').click();
@@ -3395,20 +3449,26 @@ async function runClassDeletionChecks(browser, baseUrl) {
         assert(currentAfterReload.currentDeckId === 'class-delete-art' && currentAfterReload.presets.length === 1, 'Reload should retain the replacement active deck without recreating the deleted class');
 
         await page.setViewportSize({ width: 390, height: 844 });
+        await openClassMenu(artClassName, 'tap');
         const mobileDelete = page.getByRole('button', { name: `Delete class ${artClassName}`, exact: true });
         await mobileDelete.scrollIntoViewIfNeeded();
         const mobileLayout = await mobileDelete.evaluate((button) => {
             const rect = button.getBoundingClientRect();
+            const summaryRect = document.querySelector('#dashboard-class-menu > summary').getBoundingClientRect();
+            const headingRect = document.querySelector('.dashboard-library-panel h1').getBoundingClientRect();
             const classList = document.querySelector('#dashboard-class-list');
             return {
                 targetFits: rect.width >= 44 && rect.height >= 44,
+                summaryTargetFits: summaryRect.width >= 44 && summaryRect.height >= 44,
                 buttonFits: rect.left >= -1 && rect.right <= innerWidth + 1,
+                headingFits: headingRect.left >= -1 && headingRect.right <= innerWidth + 1,
+                summaryFits: summaryRect.left >= -1 && summaryRect.right <= innerWidth + 1,
                 listFits: classList.scrollWidth <= classList.clientWidth + 1,
                 pageFits: document.documentElement.scrollWidth <= innerWidth + 1
             };
         });
-        assert(mobileLayout.targetFits, 'Delete class should retain a 44px touch target at 390px');
-        assert(mobileLayout.buttonFits && mobileLayout.listFits && mobileLayout.pageFits, 'A long class name and Delete class button should fit without horizontal overflow at 390px');
+        assert(mobileLayout.targetFits && mobileLayout.summaryTargetFits, 'Class options and Delete class should retain 44px touch targets at 390px');
+        assert(mobileLayout.buttonFits && mobileLayout.headingFits && mobileLayout.summaryFits && mobileLayout.listFits && mobileLayout.pageFits, 'A long class heading and its open deletion menu should fit without horizontal overflow at 390px');
         await chooseDelete(artClassName, true, 'tap');
         await waitForDecksRemoved(['class-delete-art']);
         const finalState = await readState();
