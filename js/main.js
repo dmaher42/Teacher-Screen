@@ -263,6 +263,7 @@ class ClassroomScreenApp {
         this.sectionsMenuCloseButton = document.getElementById('sections-menu-close');
         this.manageScreensButton = document.getElementById('manage-screens-btn');
         this.screenDeckManagerDialog = document.getElementById('screen-deck-manager-dialog');
+        this.screenDeckManagerDeckId = '';
         this.moveDeckDialog = document.getElementById('move-deck-dialog');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
@@ -5033,8 +5034,8 @@ class ClassroomScreenApp {
     }
 
     saveCurrentDeckDetails() {
-        const currentDeckId = this.getCurrentDeckId();
-        const presetIndex = currentDeckId ? this.getPresetIndex(currentDeckId) : -1;
+        const targetDeckId = this.screenDeckManagerDeckId || this.getCurrentDeckId();
+        const presetIndex = targetDeckId ? this.getPresetIndex(targetDeckId) : -1;
         const existingPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
         if (!existingPreset) {
             this.showNotification('Current deck not found.', 'error');
@@ -5048,6 +5049,33 @@ class ClassroomScreenApp {
         if (duplicate) {
             this.showNotification(`Deck "${requestedName}" already exists.`, 'warning');
             return false;
+        }
+
+        if (existingPreset.id !== this.getCurrentDeckId()) {
+            const updatedClassPreset = this.setDeckClass(existingPreset.id, this.presetClassInput?.value.trim() || '');
+            if (!updatedClassPreset) return false;
+            if (updatedClassPreset.seededLessonId) {
+                this.dismissSeededLesson(updatedClassPreset.seededLessonId);
+            }
+            const updatedPreset = {
+                ...updatedClassPreset,
+                name: requestedName,
+                period: this.presetPeriodInput?.value.trim() || '',
+                projectState: cloneSerializableData({
+                    ...updatedClassPreset.projectState,
+                    currentDeckId: updatedClassPreset.id,
+                    projectName: requestedName
+                }),
+                updatedAt: Date.now()
+            };
+            delete updatedPreset.seededLessonId;
+            this.presets[presetIndex] = updatedPreset;
+            this.savePresets();
+            this.renderPresetList();
+            this.renderDashboard();
+            this.populateScreenDeckDetails(updatedPreset);
+            this.showNotification(`Saved details for "${requestedName}".`);
+            return true;
         }
 
         if (requestedName !== existingPreset.name) {
@@ -5754,6 +5782,7 @@ class ClassroomScreenApp {
             this.renderClassroomReminderDock();
             this.renderDashboard();
             this.closeDialog(this.importDialog);
+            this.closeDialog(this.screenDeckManagerDialog);
             this.resetImportPreview();
             this.showNotification(prepared.mode === 'replace'
                 ? 'Screen decks replaced successfully. A JSON backup was downloaded first.'
@@ -9001,12 +9030,12 @@ class ClassroomScreenApp {
 
         const shownPresets = visiblePresets;
         const currentLabel = navigationMode === 'library'
-            ? (selectedClassName || 'All lesson decks')
+            ? (selectedClassName || 'Lesson Decks')
             : navigationMode === 'favorites'
                     ? 'Pinned lesson decks'
                     : navigationMode === 'recent'
                         ? 'Recently opened'
-                        : 'All lesson decks';
+                        : 'Lesson Decks';
 
         if (this.dashboardExpandedDeckId === null) {
             this.dashboardExpandedDeckId = shownPresets.find((preset) => preset.id === currentDeckId)?.id || '';
@@ -9092,7 +9121,6 @@ class ClassroomScreenApp {
                     ${isResourceLibrary ? this.renderResourceLibraryMarkup() : `<section class="dashboard-library-panel" aria-label="Deck library">
                         <div class="dashboard-toolbar">
                             <div class="dashboard-toolbar__heading">
-                                <p class="dashboard-toolbar__label">Deck Library</p>
                                 <div class="dashboard-class-heading">
                                     <h1>${escapeHtml(currentLabel)}</h1>
                                     ${navigationMode === 'library' && classItems.some((item) => item.className === selectedClassName) ? `
@@ -9109,27 +9137,15 @@ class ClassroomScreenApp {
                                         </details>
                                     ` : ''}
                                 </div>
-                                <p>Choose a deck to reveal its classroom, arranging, presenting, and management options.</p>
                             </div>
-                            <div class="dashboard-toolbar__side">
-                                <div class="dashboard-toolbar__actions">
-                                    <button id="dashboard-deck-tools-btn" class="dashboard-deck-tools-btn" type="button">
-                                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                                        <span>Deck details</span>
-                                    </button>
-                                    <button id="dashboard-create-btn" class="dashboard-new-deck-btn" type="button">
-                                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                                        <span>New Deck</span>
-                                    </button>
-                                </div>
-                                <div class="dashboard-toolbar__meta" aria-label="Deck library summary">
-                                    <span class="dashboard-chip">${shownPresets.length} ${shownPresets.length === 1 ? 'deck' : 'decks'}</span>
-                                    <span class="dashboard-chip">${classProfiles.length} ${classProfiles.length === 1 ? 'class' : 'classes'}</span>
-                                </div>
-                            </div>
+                            <button id="dashboard-create-btn" class="dashboard-new-deck-btn" type="button">
+                                <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                <span>New Deck</span>
+                            </button>
                         </div>
                         <div class="dashboard-search-row">
-                            <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search saved decks" placeholder="Search decks or classes" value="${escapeHtml(this.dashboardSearchQuery)}">
+                            <i class="fa-solid fa-magnifying-glass dashboard-search-icon" aria-hidden="true"></i>
+                            <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search decks" placeholder="Search decks…" value="${escapeHtml(this.dashboardSearchQuery)}">
                         </div>
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
                     </section>`}
@@ -9283,6 +9299,7 @@ class ClassroomScreenApp {
                                 <details class="dashboard-deck-more">
                                     <summary>More</summary>
                                     <div class="dashboard-deck-more__actions">
+                                        <button class="control-button" type="button" data-deck-action="details" data-deck-id="${escapeHtml(preset.id)}">Deck details</button>
                                         <button class="control-button" type="button" data-deck-action="rename" data-deck-id="${escapeHtml(preset.id)}">Rename</button>
                                         <button class="control-button" type="button" data-deck-action="move" data-deck-id="${escapeHtml(preset.id)}">Move to class…</button>
                                         <button class="control-button" type="button" data-deck-action="duplicate" data-deck-id="${escapeHtml(preset.id)}">Duplicate</button>
@@ -9338,6 +9355,7 @@ class ClassroomScreenApp {
                 if (action === 'open') this.loadPresetFromDashboard(deckId);
                 if (action === 'arrange') this.arrangePresetFromDashboard(deckId);
                 if (action === 'present') this.presentPresetFromDashboard(deckId);
+                if (action === 'details') this.openScreenDeckManager(deckId);
                 if (action === 'rename') this.renamePreset(deckId);
                 if (action === 'move') this.openMoveDeckDialog(deckId);
                 if (action === 'duplicate') this.clonePreset(deckId);
@@ -9477,11 +9495,6 @@ class ClassroomScreenApp {
                     });
                 }
             });
-        }
-
-        const deckToolsButton = this.dashboardRoot.querySelector('#dashboard-deck-tools-btn');
-        if (deckToolsButton) {
-            deckToolsButton.addEventListener('click', () => this.openScreenDeckManager());
         }
 
         const searchInput = this.dashboardRoot.querySelector('#dashboard-search-input');
@@ -9689,6 +9702,23 @@ class ClassroomScreenApp {
                 (target || this.dashboardRoot?.querySelector('#dashboard-search-input'))?.focus({ preventScroll: true });
             });
         });
+        this.screenDeckManagerDialog?.addEventListener('close', () => {
+            const deckId = this.screenDeckManagerDeckId;
+            this.screenDeckManagerDeckId = '';
+            this.populateScreenDeckDetails(this.getPresetRecord(this.getCurrentDeckId()));
+            if (!deckId) return;
+            window.requestAnimationFrame(() => {
+                const card = this.dashboardRoot?.querySelector(`.dashboard-screen-card[data-deck-id="${CSS.escape(deckId)}"]`);
+                const detailsButton = card?.querySelector('[data-deck-action="details"]');
+                const target = detailsButton?.closest('details')?.open && detailsButton.getClientRects().length
+                    ? detailsButton
+                    : card?.querySelector('[data-deck-action="toggle"]');
+                const fallback = this.dashboardRoot?.querySelector('#dashboard-search-input');
+                if (target?.getClientRects().length || fallback?.getClientRects().length) {
+                    (target?.getClientRects().length ? target : fallback)?.focus({ preventScroll: true });
+                }
+            });
+        });
     }
 
     openDialog(dialog) {
@@ -9778,9 +9808,27 @@ class ClassroomScreenApp {
         });
     }
 
-    openScreenDeckManager() {
+    populateScreenDeckDetails(preset) {
+        const isInactiveDeck = Boolean(preset && preset.id !== this.getCurrentDeckId());
+        const dialog = this.screenDeckManagerDialog;
+        const eyebrow = dialog?.querySelector('.sections-menu__eyebrow');
+        const currentSummary = dialog?.querySelector('.screen-manager-card--current');
+        const organiseTitle = dialog?.querySelector('#screen-manager-organise-title');
+        if (eyebrow) eyebrow.textContent = isInactiveDeck ? preset.name : 'Current deck';
+        if (currentSummary) currentSummary.hidden = isInactiveDeck;
+        if (organiseTitle) organiseTitle.textContent = isInactiveDeck ? 'Organise this deck' : 'Organise the current deck';
+        if (this.saveSnapshotButton) this.saveSnapshotButton.hidden = isInactiveDeck;
+        if (this.presetNameInput) this.presetNameInput.value = preset?.name || this.projectState.projectName || '';
+        if (this.presetClassInput) this.presetClassInput.value = preset?.className || '';
+        if (this.presetPeriodInput) this.presetPeriodInput.value = preset?.period || '';
+        if (this.presetFolderSelect) this.presetFolderSelect.value = preset?.folderId || '';
+    }
+
+    openScreenDeckManager(deckId = '') {
         const currentState = this.normalizeProjectState(this.projectState);
-        const currentPreset = this.getPresetRecord(currentState.currentDeckId);
+        const selectedPreset = this.getPresetRecord(deckId || currentState.currentDeckId);
+        if (deckId && !selectedPreset) return;
+        this.screenDeckManagerDeckId = deckId ? selectedPreset.id : '';
         const advanced = this.screenDeckManagerDialog?.querySelector('.screen-manager-advanced');
 
         this.closeSectionsMenu();
@@ -9800,18 +9848,7 @@ class ClassroomScreenApp {
         if (this.layoutPresetSelect) {
             this.layoutPresetSelect.value = '';
         }
-        if (this.presetNameInput) {
-            this.presetNameInput.value = currentPreset?.name || currentState.projectName || '';
-        }
-        if (this.presetClassInput) {
-            this.presetClassInput.value = currentPreset?.className || '';
-        }
-        if (this.presetPeriodInput) {
-            this.presetPeriodInput.value = currentPreset?.period || '';
-        }
-        if (this.presetFolderSelect) {
-            this.presetFolderSelect.value = currentPreset?.folderId || '';
-        }
+        this.populateScreenDeckDetails(selectedPreset);
         this.renderLayoutPresetOptions();
         if (advanced) {
             advanced.open = false;

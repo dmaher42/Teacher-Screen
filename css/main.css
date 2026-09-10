@@ -3458,6 +3458,10 @@ dialog {
                 opacity calc(240ms * (1 - var(--reduce-motion, 0))) ease;
 }
 
+#screen-deck-manager-dialog [hidden] {
+    display: none;
+}
+
 dialog::backdrop {
     background: var(--modal-backdrop, rgba(0, 0, 0, 0.35));
 }
@@ -13127,14 +13131,15 @@ body.is-dashboard-active .dashboard-library-panel {
 }
 
 body.is-dashboard-active .dashboard-toolbar {
-    align-items: flex-start;
+    align-items: center;
+    justify-content: space-between;
     flex-wrap: nowrap;
+    flex-direction: row;
     gap: 18px;
 }
 
 body.is-dashboard-active .dashboard-toolbar__heading {
-    display: grid;
-    gap: 3px;
+    flex: 1 1 auto;
     min-width: 0;
 }
 
@@ -13233,36 +13238,14 @@ body.is-dashboard-active .dashboard-toolbar__heading h1 {
     letter-spacing: -0.025em;
 }
 
-body.is-dashboard-active .dashboard-toolbar__heading > p:last-child {
-    max-width: 66ch;
-    margin: 3px 0 0;
-    color: var(--dashboard-muted, #617b8a);
-    font-size: 0.82rem;
-    line-height: 1.42;
-}
-
-body.is-dashboard-active .dashboard-toolbar__side {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    flex: 0 0 auto;
-}
-
-body.is-dashboard-active .dashboard-toolbar__actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
 body.is-dashboard-active .dashboard-new-deck-btn {
     appearance: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 42px;
+    flex: 0 0 auto;
+    min-height: 44px;
     padding: 0.62rem 0.9rem;
     border: 1px solid transparent;
     border-radius: 12px;
@@ -13281,34 +13264,22 @@ body.is-dashboard-active .dashboard-new-deck-btn:hover {
     box-shadow: 0 13px 26px rgba(27, 113, 203, 0.28);
 }
 
-body.is-dashboard-active .dashboard-deck-tools-btn {
-    appearance: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 0.62rem 0.9rem;
-    border: 1px solid rgba(47, 143, 244, 0.2);
-    border-radius: 12px;
-    background: #eaf3f9;
-    color: #244b62;
-    box-shadow: none;
-    font: inherit;
-    font-size: 0.8rem;
-    font-weight: 800;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-body.is-dashboard-active .dashboard-deck-tools-btn:hover {
-    border-color: rgba(47, 143, 244, 0.38);
-    background: #dcecf5;
-    color: #173f56;
-}
-
 body.is-dashboard-active .dashboard-search-row {
+    position: relative;
     flex-wrap: nowrap;
+}
+
+body.is-dashboard-active .dashboard-search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--dashboard-muted, #617b8a);
+    pointer-events: none;
+}
+
+body.is-dashboard-active .dashboard-search {
+    padding-left: 42px;
 }
 
 body.is-dashboard-active .dashboard-screen-grid {
@@ -13739,14 +13710,6 @@ body.is-dashboard-active .dashboard-deck-more__actions .dashboard-deck-delete:fo
         overflow: visible;
     }
 
-    body.is-dashboard-active .dashboard-toolbar {
-        flex-wrap: wrap;
-    }
-
-    body.is-dashboard-active .dashboard-toolbar__side {
-        margin-left: auto;
-    }
-
     body.is-dashboard-active .dashboard-screen-grid {
         overflow: visible;
     }
@@ -13826,30 +13789,9 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
         border-radius: 18px;
     }
 
-    body.is-dashboard-active .dashboard-toolbar,
-    body.is-dashboard-active .dashboard-toolbar__side {
-        align-items: stretch;
-        flex-direction: column;
+    body.is-dashboard-active .dashboard-toolbar {
+        gap: 12px;
         width: 100%;
-    }
-
-    body.is-dashboard-active .dashboard-toolbar__side {
-        margin-left: 0;
-    }
-
-    body.is-dashboard-active .dashboard-toolbar__actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: 100%;
-    }
-
-    body.is-dashboard-active .dashboard-new-deck-btn,
-    body.is-dashboard-active .dashboard-deck-tools-btn {
-        width: 100%;
-    }
-
-    body.is-dashboard-active .dashboard-toolbar__meta {
-        justify-content: flex-start;
     }
 
     body.is-dashboard-active .dashboard-deck-row {

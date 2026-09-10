@@ -329,8 +329,23 @@ function getMenuSafetyImportPayload() {
     });
 }
 
-async function openScreenDeckTools(page) {
-    await page.locator('#dashboard-deck-tools-btn').click();
+async function openScreenDeckTools(page, requestedDeckId = '', input = 'click') {
+    const deckId = requestedDeckId || await page.evaluate(() => {
+        const currentCard = document.querySelector('.dashboard-screen-card.is-current');
+        return currentCard?.dataset.deckId || JSON.parse(localStorage.getItem('classroomScreenState') || '{}').currentDeckId || '';
+    });
+    const card = page.locator(`.dashboard-screen-card[data-deck-id="${deckId}"]`);
+    if (await card.count() === 0) await page.locator('[data-dashboard-mode="library"]').click();
+    const activate = async (control) => {
+        if (input === 'tap') await control.tap();
+        else if (input === 'Enter') { await control.focus(); await control.press('Enter'); }
+        else await control.click();
+    };
+    const toggle = card.locator('[data-deck-action="toggle"]');
+    if (await toggle.getAttribute('aria-expanded') !== 'true') await activate(toggle);
+    const menu = card.locator('.dashboard-deck-more');
+    if (await menu.getAttribute('open') === null) await activate(menu.locator('summary'));
+    await activate(card.locator('[data-deck-action="details"]'));
     await page.waitForSelector('#screen-deck-manager-dialog[open]', { timeout: 10000 });
 }
 
@@ -709,6 +724,7 @@ async function runMenuSafetyChecks(browser, baseUrl) {
         await page.locator('#confirm-import').click();
         const backupDownload = await backupDownloadPromise;
         await page.waitForSelector('#import-dialog[open]', { state: 'detached', timeout: 10000 });
+        assert(await page.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Successful Replace import should close the underlying deck details so it cannot edit a stale target');
         const backupFailure = await backupDownload.failure();
         const backupPath = await backupDownload.path();
         const backupPayload = backupPath
@@ -2469,7 +2485,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         const navigationLabels = await page.locator('.dashboard-nav-item').allTextContents();
         assert(navigationLabels.map((label) => label.trim()).join('|') === 'Deck Library|Resources|Favourite decks|Recent decks|More', 'Dashboard navigation should lead with the canonical Deck Library and identify deck filters clearly');
         assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Deck Library should be the active destination on startup');
-        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'All lesson decks'), 'Deck Library should open to all lesson decks');
+        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deck Library should open to all lesson decks');
 
         const currentCard = page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"]`);
         const currentToggle = currentCard.locator('[data-deck-action="toggle"]');
@@ -2487,7 +2503,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await currentMore.locator('summary').isVisible(), 'Expanded deck should expose a More menu');
         assert(await currentMore.locator('[data-deck-action="rename"]').isHidden(), 'Advanced deck actions should stay collapsed initially');
         await currentMore.locator('summary').click();
-        for (const action of ['rename', 'move', 'duplicate', 'delete']) {
+        for (const action of ['details', 'rename', 'move', 'duplicate', 'delete']) {
             assert(await currentMore.locator(`[data-deck-action="${action}"]`).isVisible(), `More should reveal the ${action} action`);
         }
         await page.keyboard.press('Escape');
@@ -3003,7 +3019,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         await mobilePage.locator('#manage-screens-btn').click();
         await mobilePage.waitForSelector('#sections-menu', { state: 'hidden', timeout: 10000 });
         assert(await mobilePage.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Choosing Deck Library should not open Deck details on mobile');
-        await mobilePage.locator('#dashboard-deck-tools-btn').click();
+        await openScreenDeckTools(mobilePage);
         await mobilePage.waitForSelector('#screen-deck-manager-dialog[open]', { timeout: 10000 });
         assert(await mobilePage.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), '390px Dashboard Deck details should open in the dedicated dialog');
         assert(await mobilePage.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, '390px Deck details should keep Clear current page out of the dialog');
@@ -3203,6 +3219,170 @@ async function runDeckLibraryStartupSafetyChecks(browser, baseUrl) {
     }
 }
 
+async function runDeckHeaderChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
+    await makeExternalAssetsDeterministic(context);
+    await context.addInitScript(() => {
+        if (!window.location.pathname.toLowerCase().endsWith('/index.html')
+            || localStorage.getItem('__teacherScreenDeckHeaderFixture') === 'ready') return;
+        const timestamp = 1700000000000;
+        const makeDeck = (id, name, className, classId, color) => {
+            const snapshot = {
+                theme: 'theme-ocean', background: { type: 'solid', value: color },
+                layout: { widgets: [] }, timerStates: {}, lessonPlan: [{ insert: `${name} lesson content\n` }]
+            };
+            return {
+                id, name, className, classId, period: 'Period 3', folderId: '', isFavorite: true,
+                projectState: {
+                    schemaVersion: 1, currentDeckId: id, projectName: name,
+                    activeDeckId: id, activeClassId: classId, activeClassName: className,
+                    activePageId: `${id}-reflection`,
+                    pages: [
+                        { id: `${id}-page`, name: `${name} page`, snapshot },
+                        { id: `${id}-reflection`, name: 'Reflection', snapshot: { ...snapshot, lessonPlan: [{ insert: 'Keep this reflection\n' }] } }
+                    ],
+                    ...snapshot
+                },
+                ...snapshot, createdAt: timestamp, updatedAt: timestamp, lastUsedAt: timestamp, usageCount: 7
+            };
+        };
+        const decks = [
+            makeDeck('deck-header-active', 'History sources', 'Year 7 History', 'header-history-class', '#123247'),
+            makeDeck('deck-header-inactive', 'Science investigation', 'Year 8 Science', 'header-science-class', '#19324a')
+        ];
+        const reminders = [
+            ['history-class', 'class', 'header-history-class'], ['history-deck', 'deck', 'deck-header-active'],
+            ['science-class', 'class', 'header-science-class'], ['science-deck', 'deck', 'deck-header-inactive']
+        ].map(([id, scope, ownerId], orderIndex) => ({
+            id, scope, deckId: scope === 'deck' ? ownerId : '', classId: scope === 'class' ? ownerId : '',
+            text: `Keep ${id}`, dueDate: null, orderIndex, completed: false,
+            showOnClassroom: scope === 'class', createdAt: timestamp, updatedAt: timestamp
+        }));
+        localStorage.setItem('classroomLayoutPresets', JSON.stringify(decks));
+        localStorage.setItem('classroomScreenState', JSON.stringify(decks[0].projectState));
+        localStorage.setItem('teacherScreenClassReminders', JSON.stringify({ version: 1, reminders }));
+        localStorage.setItem('__teacherScreenDeckHeaderFixture', 'ready');
+    });
+    const pageErrors = [];
+    const consoleErrors = [];
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) consoleErrors.push(message.text());
+        });
+    });
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const readState = () => page.evaluate(() => ({
+            state: JSON.parse(localStorage.getItem('classroomScreenState') || '{}'),
+            presets: JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]'),
+            reminders: JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}')
+        }));
+        const assertHeader = async (width) => {
+            assert((await page.locator('.dashboard-library-panel h1').textContent()).trim() === 'Lesson Decks', `${width}px all-deck view should be titled Lesson Decks`);
+            assert(await page.locator('.dashboard-toolbar__label, .dashboard-toolbar__meta, #dashboard-deck-tools-btn').count() === 0, `${width}px deck header should omit the eyebrow, counters and global Deck details button`);
+            const toolbar = page.locator('.dashboard-toolbar');
+            assert(await toolbar.locator('p').count() === 0
+                && !/Choose a deck to reveal|\d+\s+(?:decks|classes)/i.test(await toolbar.textContent()), `${width}px header should omit instructions and totals`);
+            assert(await toolbar.locator('button:visible').count() === 1
+                && await toolbar.locator('#dashboard-create-btn').isVisible(), `${width}px all-deck header should have New Deck as its only button`);
+            assert(await page.getByRole('searchbox', { name: 'Search decks', exact: true }).isVisible()
+                && await page.locator('#dashboard-search-input').getAttribute('placeholder') === 'Search decks…', `${width}px search should have the concise visible hint and accessible name`);
+            const geometry = await page.evaluate(() => {
+                const title = document.querySelector('.dashboard-library-panel h1').getBoundingClientRect();
+                const action = document.querySelector('#dashboard-create-btn').getBoundingClientRect();
+                const toolbar = document.querySelector('.dashboard-toolbar').getBoundingClientRect();
+                const search = document.querySelector('#dashboard-search-input').getBoundingClientRect();
+                return {
+                    sameRow: Math.min(title.bottom, action.bottom) > Math.max(title.top, action.top) && title.right <= action.left + 1,
+                    searchBelow: search.top >= toolbar.bottom - 1 && search.top - toolbar.bottom <= 26,
+                    fits: action.right <= innerWidth + 1 && search.right <= innerWidth + 1
+                        && document.documentElement.scrollWidth <= innerWidth + 1,
+                    actionHeight: action.height,
+                    searchHeight: search.height,
+                    touchSize: action.height >= 44 && search.height >= 42
+                };
+            });
+            assert(geometry.sameRow && geometry.searchBelow && geometry.fits && geometry.touchSize,
+                `${width}px title and New Deck should share one row with search directly below and usable controls (${JSON.stringify(geometry)})`);
+        };
+        await assertHeader(1280);
+        const initial = await readState();
+        await page.locator('#dashboard-search-input').fill('Science investigation');
+        assert(await page.locator('.dashboard-screen-card').count() === 1
+            && await page.locator('.dashboard-screen-card').getAttribute('data-deck-id') === 'deck-header-inactive', 'Header search should still find the requested deck');
+        await page.locator('#dashboard-search-input').fill('');
+        await page.locator('.dashboard-filter[data-class-name="Year 8 Science"]').click();
+        assert((await page.locator('.dashboard-library-panel h1').textContent()).trim() === 'Year 8 Science'
+            && await page.locator('#dashboard-class-menu > summary').getAttribute('aria-label') === 'Class options for Year 8 Science', 'Selecting a class should retain its contextual heading and adjacent options disclosure');
+        await page.locator('[data-dashboard-mode="library"]').click();
+        await openScreenDeckTools(page, 'deck-header-inactive', 'Enter');
+        assert(await page.locator('#preset-name').inputValue() === 'Science investigation'
+            && await page.locator('#preset-class-name').inputValue() === 'Year 8 Science'
+            && await page.locator('#preset-period').inputValue() === 'Period 3', 'Keyboard Deck details should display the chosen inactive deck metadata');
+        assert(JSON.stringify(await readState()) === JSON.stringify(initial), 'Viewing inactive deck details should preserve all saved decks, current content and reminders');
+        await page.locator('#preset-name').fill('Cancelled rename');
+        await page.locator('#preset-class-name').fill('Cancelled class');
+        await page.keyboard.press('Escape');
+        await page.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
+        assert(JSON.stringify(await readState()) === JSON.stringify(initial), 'Cancelling inactive details should discard edits without opening or changing any deck');
+        await page.waitForFunction(() => document.activeElement?.dataset.deckAction === 'details'
+            && document.activeElement?.dataset.deckId === 'deck-header-inactive', null, { timeout: 10000 });
+        assert(await page.locator('.dashboard-screen-card[data-deck-id="deck-header-inactive"] [data-deck-action="details"]').isVisible(), 'Cancelling details should restore keyboard focus to its visible deck action');
+        await openScreenDeckTools(page, 'deck-header-inactive');
+        await page.locator('#preset-name').fill('Science fieldwork');
+        await page.locator('#preset-class-name').fill('Year 7 History');
+        await page.locator('#preset-period').fill('Period 5');
+        await page.locator('#save-preset').click();
+        await page.waitForFunction(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]')
+            .some((deck) => deck.id === 'deck-header-inactive' && deck.name === 'Science fieldwork' && deck.className === 'Year 7 History' && deck.period === 'Period 5'), null, { timeout: 10000 });
+        const afterSave = await readState();
+        const beforeTarget = initial.presets.find((deck) => deck.id === 'deck-header-inactive');
+        const afterTarget = afterSave.presets.find((deck) => deck.id === 'deck-header-inactive');
+        assert(afterSave.presets.length === initial.presets.length
+            && JSON.stringify(afterSave.presets.filter((deck) => deck.id !== 'deck-header-inactive')) === JSON.stringify(initial.presets.filter((deck) => deck.id !== 'deck-header-inactive')), 'Saving inactive details should update only the chosen saved deck without making a copy');
+        assert(JSON.stringify(afterSave.state) === JSON.stringify(initial.state)
+            && JSON.stringify(afterSave.reminders) === JSON.stringify(initial.reminders), 'Saving inactive details should leave the current classroom and every reminder unchanged');
+        assert(afterTarget.classId === 'header-history-class'
+            && afterTarget.projectState.currentDeckId === 'deck-header-inactive'
+            && afterTarget.projectState.projectName === 'Science fieldwork', 'Saved metadata should use the destination class identity and retain the chosen deck identity and name');
+        assert(JSON.stringify(afterTarget.projectState.pages) === JSON.stringify(beforeTarget.projectState.pages)
+            && afterTarget.projectState.activePageId === beforeTarget.projectState.activePageId
+            && JSON.stringify(afterTarget.layout) === JSON.stringify(beforeTarget.layout)
+            && JSON.stringify(afterTarget.lessonPlan) === JSON.stringify(beforeTarget.lessonPlan)
+            && afterTarget.usageCount === beforeTarget.usageCount && afterTarget.lastUsedAt === beforeTarget.lastUsedAt
+            && afterTarget.isFavorite === beforeTarget.isFavorite, 'Editing inactive metadata should preserve its pages, content, selected page, favourite and usage history');
+        await page.keyboard.press('Escape');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const afterReload = await readState();
+        assert(afterReload.state.currentDeckId === 'deck-header-active'
+            && JSON.stringify(afterReload.state.pages) === JSON.stringify(initial.state.pages)
+            && JSON.stringify(afterReload.reminders) === JSON.stringify(initial.reminders), 'Reload after editing inactive details should keep the current deck, its pages and reminders');
+        await page.setViewportSize({ width: 390, height: 844 });
+        await assertHeader(390);
+        await openScreenDeckTools(page, 'deck-header-inactive', 'tap');
+        assert(await page.locator('#preset-name').inputValue() === 'Science fieldwork'
+            && await page.locator('#preset-class-name').inputValue() === 'Year 7 History'
+            && await page.locator('#preset-period').inputValue() === 'Period 5', 'Touch Deck details should reopen the chosen deck with persisted metadata');
+        const mobileDialog = await page.locator('#screen-deck-manager-dialog').evaluate((dialog) => {
+            const box = dialog.getBoundingClientRect();
+            return box.left >= -1 && box.right <= innerWidth + 1 && dialog.scrollWidth <= dialog.clientWidth + 1
+                && Array.from(dialog.querySelectorAll('#preset-name, #preset-class-name, #preset-period, #save-preset'))
+                    .every((control) => control.getBoundingClientRect().height >= 44);
+        });
+        assert(mobileDialog, 'Inactive Deck details should fit 390px with usable metadata inputs and Save changes');
+        await page.locator('#screen-deck-manager-dialog .modal-close').tap();
+        assert(JSON.stringify(await readState()) === JSON.stringify(afterReload), 'Closing inactive details on mobile should preserve all saved data');
+        assert(pageErrors.length === 0, `Deck header and scoped details should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Deck header and scoped details should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runDeckMoveChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
     await makeExternalAssetsDeterministic(context);
@@ -3315,7 +3495,7 @@ async function runDeckMoveChecks(browser, baseUrl) {
                 const decks = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
                 return decks.find((deck) => deck.id === deckId)?.className === className;
             }, { deckId, className }, { timeout: 10000 });
-            assert((await page.locator('.dashboard-library-panel h1').textContent()).trim() === (className || 'All lesson decks'), 'A moved deck should be shown in its destination view');
+            assert((await page.locator('.dashboard-library-panel h1').textContent()).trim() === (className || 'Lesson Decks'), 'A moved deck should be shown in its destination view');
             assert(await cardFor(deckId).locator('[data-deck-action="toggle"]').getAttribute('aria-expanded') === 'true', 'A moved deck should remain visible and expanded');
             await page.waitForFunction((id) => document.activeElement?.dataset.deckAction === 'toggle'
                 && document.activeElement?.dataset.deckId === id, deckId, { timeout: 10000 });
@@ -3640,7 +3820,7 @@ async function runClassDeletionChecks(browser, baseUrl) {
         assert(JSON.stringify(afterScience.reminders) === JSON.stringify(beforeCancel.reminders.filter((reminder) => !reminder.id.startsWith('science'))), 'Deleting a class should remove its class and deck reminders while preserving unrelated reminders exactly');
         assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"], .dashboard-filter[data-class-name="year 8 science"]').count() === 0, 'Deleting a class should remove every case variant from Your Classes');
         assert(await page.locator('.dashboard-filter.is-active').count() === 0
-            && await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'All lesson decks'), 'Deleting the selected class should clear the dashboard filter and show remaining decks');
+            && await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deleting the selected class should clear the dashboard filter and show remaining decks');
         const clearedClassFilters = await page.locator('#class-profile-select').evaluate((select) => {
             const legacyFilter = document.querySelector('#preset-class-filter');
             return select.value === ''
@@ -5095,9 +5275,15 @@ async function runSmoke() {
             console.log('Deck moving browser checks passed.');
             return;
         }
+        if (process.argv.includes('--deck-header-only')) {
+            await runDeckHeaderChecks(browser, baseUrl);
+            console.log('Deck header browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--deck-library-only')) {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
+            await runDeckHeaderChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
             await runDeckMoveChecks(browser, baseUrl);
             console.log('Deck Library browser checks passed.');
@@ -5158,6 +5344,7 @@ async function runSmoke() {
             await runMenuSafetyChecks(browser, baseUrl);
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
+            await runDeckHeaderChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
             await runDeckMoveChecks(browser, baseUrl);
             await runDeckOrganisationChecks(browser, baseUrl);
@@ -5299,7 +5486,7 @@ async function runSmoke() {
         assert(await page.locator('#classroom-view:not([hidden])').count() === 0, 'Deck Library should not enter Classroom');
         assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Deck Library should not open a lesson deck');
         assert(await page.locator('#screen-deck-manager-dialog[open]').count() === 0, 'Deck Library should not open the separate Deck details dialog');
-        assert(await page.locator('#dashboard-deck-tools-btn').isVisible(), 'Deck details should remain discoverable from the Dashboard');
+        assert(await page.locator('.dashboard-screen-card [data-deck-action="details"]').count() > 0, 'Each deck should keep Deck details available inside its More menu');
         await openScreenDeckTools(page);
         assert(await page.locator('#screen-deck-manager-title').textContent().then((text) => text.trim() === 'Deck details & backup'), 'Dashboard Deck details should open the dedicated dialog');
         assert(await page.locator('#screen-deck-manager-dialog .screen-manager-body').isVisible(), 'The dedicated Deck details dialog should contain the deck actions');
@@ -5343,7 +5530,7 @@ async function runSmoke() {
 
         await page.locator('[data-dashboard-mode="library"]').click();
         assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Deck Library should become the only active navigation destination');
-        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'All lesson decks'), 'Deck Library should display all lesson decks');
+        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deck Library should display all lesson decks');
         const storedDeckCount = await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').length);
         assert(await page.locator('.dashboard-screen-card').count() === storedDeckCount, 'Deck Library should include every saved and seeded lesson deck');
 
@@ -5365,7 +5552,7 @@ async function runSmoke() {
         assert(await page.locator('.dashboard-screen-card').count() === 2, 'Class filters should show only decks saved for that teaching class');
         await page.locator('[data-dashboard-mode="library"]').click();
         assert(await page.locator('.dashboard-filter.is-active').count() === 0, 'Opening Library should clear the class filter');
-        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'All lesson decks'), 'Deck Library should return to all lesson decks after filtering by class');
+        assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deck Library should return to all lesson decks after filtering by class');
 
         await page.locator('[data-dashboard-mode="recent"]').click();
         assert(await page.locator('.dashboard-empty').textContent().then((text) => text.includes('No recently opened decks')), 'Recent should explain when no lesson deck has been opened yet');
