@@ -382,7 +382,7 @@ class BehaviourTrackerWidget {
             timer.setAttribute('aria-label', `${formatted} lost learning time`);
         };
 
-        updateTimerInRoot(this.element, !this.projectorMode || !Number.isFinite(this.runningSince));
+        updateTimerInRoot(this.element, true);
         updateTimerInRoot(this.controlRoot, true);
         this.updateCompactControls();
     }
@@ -400,7 +400,7 @@ class BehaviourTrackerWidget {
         const panel = document.createElement('div');
         panel.className = publicView ? 'behaviour-public-timer' : 'behaviour-timer-panel';
         const running = Number.isFinite(this.runningSince);
-        const displayedElapsed = publicView && running ? this.elapsedMs : this.getCurrentElapsed();
+        const displayedElapsed = this.getCurrentElapsed();
         const formattedElapsed = behaviourTrackerFormatTime(displayedElapsed);
         panel.dataset.running = running ? 'true' : 'false';
 
@@ -422,7 +422,7 @@ class BehaviourTrackerWidget {
             const message = document.createElement('p');
             message.className = 'behaviour-public-message';
             message.textContent = running
-                ? 'The completed total will update when learning resumes.'
+                ? 'Lost learning time is counting.'
                 : 'This total changes only when learning has actually stopped.';
             panel.appendChild(message);
             return panel;

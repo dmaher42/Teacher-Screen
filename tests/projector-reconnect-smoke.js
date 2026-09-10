@@ -177,6 +177,49 @@ async function run() {
         await projectorPage.waitForFunction(() => window.__TeacherScreenProjectorApp?.hasTeacherSync === true);
         console.log('PASS: An open projector automatically reconnects after the teacher screen refreshes');
 
+        await teacherPage.evaluate(() => window.__TeacherScreenApp.handleNavClick('classroom'));
+        await teacherPage.locator('#lesson-quick-actions [data-quick-widget="behaviour-tracker"]').click();
+        const trackerSelector = '.widget.behaviour-tracker-widget';
+        const teacherTracker = teacherPage.locator(trackerSelector);
+        const publicTracker = projectorPage.locator(trackerSelector);
+        await teacherTracker.locator('[data-action="toggle-timer"]').click();
+        await projectorPage.waitForFunction(() => Number.isFinite(window.__TeacherScreenProjectorApp.layoutManager.widgets
+            .find(info => info.widget.constructor.name === 'BehaviourTrackerWidget')?.widget.runningSince));
+        await projectorPage.waitForFunction(() => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent !== '00:00', null, { timeout: 4000 });
+        const runningTotal = await publicTracker.locator('.behaviour-timer-value').textContent();
+        await projectorPage.waitForFunction((previous) => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent !== previous,
+            runningTotal, { timeout: 4000 });
+        console.log('PASS: Learning-lost projector total counts up continuously while running');
+        await teacherTracker.locator('[data-action="toggle-timer"]').click();
+        const stoppedTotal = await teacherTracker.locator('.behaviour-timer-value').textContent();
+        await projectorPage.waitForFunction((expected) => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent === expected, stoppedTotal);
+        await projectorPage.waitForTimeout(1100);
+        if (await publicTracker.locator('.behaviour-timer-value').textContent() !== stoppedTotal) throw new Error('Stopped projector timer kept counting');
+        await teacherTracker.locator('[data-action="reset-time"]').click();
+        await projectorPage.waitForFunction(() => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent === '00:00');
+        await teacherTracker.locator('[data-action="undo"]').click();
+        await projectorPage.waitForFunction((expected) => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent === expected, stoppedTotal);
+        console.log('PASS: Learning-lost stop, reset and undo synchronise to the projector');
+        await teacherTracker.locator('[data-action="toggle-timer"]').click();
+        await teacherPage.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            manager.setWidgetMinimized(manager.widgets.find(info => info.widget.constructor.name === 'BehaviourTrackerWidget'), true);
+        });
+        await projectorPage.reload({ waitUntil: 'domcontentloaded' });
+        await projectorPage.waitForFunction(() => Number.isFinite(window.__TeacherScreenProjectorApp?.layoutManager.widgets
+            .find(info => info.widget.constructor.name === 'BehaviourTrackerWidget')?.widget.runningSince));
+        const reconnectedTotal = await publicTracker.locator('.behaviour-timer-value').textContent();
+        await projectorPage.waitForFunction((previous) => document.querySelector('.behaviour-public-timer .behaviour-timer-value')?.textContent !== previous,
+            reconnectedTotal, { timeout: 4000 });
+        if (await publicTracker.locator('.behaviour-tracker-widget-content button, .behaviour-student-name, .behaviour-recent-list').count()) throw new Error('Projector exposed private timer controls');
+        console.log('PASS: Minimized teacher timer keeps projector counting after reconnect without private controls');
+        await teacherPage.evaluate(() => {
+            const manager = window.__TeacherScreenApp.layoutManager;
+            const info = manager.widgets.find(info => info.widget.constructor.name === 'BehaviourTrackerWidget');
+            manager.removeWidget(info.widget);
+        });
+        if (process.argv.includes('--learning-timer-only')) return;
+
         const namedBoardId = await teacherPage.evaluate(() => {
             const app = window.__TeacherScreenApp;
             app.handleNavClick('classroom');
