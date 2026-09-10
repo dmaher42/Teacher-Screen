@@ -2487,7 +2487,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await currentMore.locator('summary').isVisible(), 'Expanded deck should expose a More menu');
         assert(await currentMore.locator('[data-deck-action="rename"]').isHidden(), 'Advanced deck actions should stay collapsed initially');
         await currentMore.locator('summary').click();
-        for (const action of ['rename', 'duplicate', 'delete']) {
+        for (const action of ['rename', 'move', 'duplicate', 'delete']) {
             assert(await currentMore.locator(`[data-deck-action="${action}"]`).isVisible(), `More should reveal the ${action} action`);
         }
         await page.keyboard.press('Escape');
@@ -3198,6 +3198,239 @@ async function runDeckLibraryStartupSafetyChecks(browser, baseUrl) {
         assert(await page.evaluate((name) => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').some((preset) => preset?.name === name), suggestedName), 'Accepting the New Deck suggestion should immediately create its saved deck record');
         assert(await page.evaluate(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}').currentDeckId === 'deck-existing-weekly-project'), 'Dashboard New Deck should leave the existing classroom deck active');
         assert(await page.locator('#dashboard-view').isVisible(), 'Dashboard New Deck should remain on the dashboard');
+    } finally {
+        await context.close();
+    }
+}
+
+async function runDeckMoveChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
+    await makeExternalAssetsDeterministic(context);
+    const longClassName = 'Year 9 Art - Investigation  and Reflection Portfolio';
+    await context.addInitScript(({ longClassName }) => {
+        if (!window.location.pathname.toLowerCase().endsWith('/index.html')
+            || localStorage.getItem('__teacherScreenDeckMoveFixture') === 'ready') return;
+        const timestamp = 1700000000000;
+        const makeDeck = (id, name, className, classId, color) => {
+            const snapshot = {
+                theme: 'theme-ocean',
+                background: { type: 'solid', value: color },
+                layout: { widgets: [] },
+                timerStates: {},
+                lessonPlan: [{ insert: `${name} lesson content\n` }]
+            };
+            return {
+                id, name, className, classId,
+                period: 'Period 3', folderId: 'deck-move-folder', isFavorite: true,
+                projectState: {
+                    schemaVersion: 1, currentDeckId: id, projectName: name,
+                    activeDeckId: id, activeClassId: classId, activeClassName: className,
+                    activePageId: `${id}-page`,
+                    pages: [
+                        { id: `${id}-page`, name: `${name} page`, snapshot },
+                        { id: `${id}-reflection`, name: 'Reflection', snapshot: { ...snapshot, lessonPlan: [{ insert: 'Keep this reflection\n' }] } }
+                    ],
+                    ...snapshot
+                },
+                ...snapshot,
+                createdAt: timestamp, updatedAt: timestamp, lastUsedAt: timestamp, usageCount: 7
+            };
+        };
+        const decks = [
+            makeDeck('deck-move-active', 'History sources', 'Year 7 History', 'custom-history-class', '#123247'),
+            makeDeck('deck-move-inactive', 'Science investigation', 'Year 8 Science', 'custom-science-class', '#19324a'),
+            makeDeck('deck-move-destination', 'Art portfolio', longClassName, 'custom-art-class', '#26405a')
+        ];
+        const reminders = [
+            ['history-class', 'class', 'custom-history-class'],
+            ['history-deck', 'deck', 'deck-move-active'],
+            ['science-class', 'class', 'custom-science-class'],
+            ['science-deck', 'deck', 'deck-move-inactive'],
+            ['art-class', 'class', 'custom-art-class']
+        ].map(([id, scope, ownerId], orderIndex) => ({
+            id, scope, deckId: scope === 'deck' ? ownerId : '', classId: scope === 'class' ? ownerId : '',
+            text: `Keep track of ${id}`, dueDate: null, orderIndex, completed: id === 'art-class',
+            showOnClassroom: scope === 'class', createdAt: timestamp, updatedAt: timestamp
+        }));
+        localStorage.setItem('classroomLayoutPresets', JSON.stringify(decks));
+        localStorage.setItem('classroomLayoutFolders', JSON.stringify([{ id: 'deck-move-folder', name: 'Existing shelf', createdAt: timestamp, updatedAt: timestamp }]));
+        localStorage.setItem('classroomScreenState', JSON.stringify(decks[0].projectState));
+        localStorage.setItem('teacherScreenClassReminders', JSON.stringify({ version: 1, reminders }));
+        localStorage.setItem('__teacherScreenDeckMoveFixture', 'ready');
+    }, { longClassName });
+    const pageErrors = [];
+    const consoleErrors = [];
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) consoleErrors.push(message.text());
+        });
+    });
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const readState = () => page.evaluate(() => ({
+            state: JSON.parse(localStorage.getItem('classroomScreenState') || '{}'),
+            presets: JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]'),
+            reminders: JSON.parse(localStorage.getItem('teacherScreenClassReminders') || '{"reminders":[]}')
+        }));
+        const cardFor = (deckId) => page.locator(`.dashboard-screen-card[data-deck-id="${deckId}"]`);
+        const openMove = async (deckId, input = 'click') => {
+            if (await cardFor(deckId).count() === 0) await page.locator('[data-dashboard-mode="library"]').click();
+            const toggle = cardFor(deckId).locator('[data-deck-action="toggle"]');
+            if (await toggle.getAttribute('aria-expanded') !== 'true') {
+                if (input === 'tap') await toggle.tap();
+                else await toggle.click();
+            }
+            const menu = cardFor(deckId).locator('.dashboard-deck-more');
+            if (await menu.getAttribute('open') === null) {
+                if (input === 'tap') await menu.locator('summary').tap();
+                else await menu.locator('summary').click();
+            }
+            const move = cardFor(deckId).locator('[data-deck-action="move"]');
+            assert((await move.textContent()).trim().startsWith('Move to class'), 'Each deck More menu should offer Move to class');
+            if (input === 'tap') await move.tap();
+            else if (input === 'Enter') { await move.focus(); await move.press('Enter'); }
+            else await move.click();
+            await page.locator('#move-deck-dialog').waitFor({ state: 'visible', timeout: 10000 }).catch((error) => {
+                throw new Error(`${error.message}\nPage errors: ${pageErrors.join('; ')}\nConsole errors: ${consoleErrors.join('; ')}`);
+            });
+            assert(await page.getByRole('dialog', { name: 'Move to class', exact: true }).isVisible(), 'Moving should open a clearly named native dialog');
+            return move;
+        };
+        const assertCancelled = async (before, deckId) => {
+            await page.locator('#move-deck-dialog').waitFor({ state: 'hidden' });
+            assert(JSON.stringify(await readState()) === JSON.stringify(before), 'Cancelling a move should leave all saved decks, active content and reminders unchanged');
+            await page.waitForFunction((id) => document.activeElement?.dataset.deckAction === 'move'
+                && document.activeElement?.dataset.deckId === id, deckId, { timeout: 10000 });
+            assert(await cardFor(deckId).locator('[data-deck-action="move"]').isVisible(), 'Cancelled moves should restore focus to a visible initiating action');
+        };
+        const submitMove = async (deckId, className, input = 'click') => {
+            assert(await page.locator('#move-deck-confirm').isEnabled(), 'A valid destination change should enable Move deck');
+            if (input === 'tap') await page.locator('#move-deck-confirm').tap();
+            else await page.locator('#move-deck-confirm').click();
+            await page.locator('#move-deck-dialog').waitFor({ state: 'hidden' });
+            await page.waitForFunction(({ deckId, className }) => {
+                const decks = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+                return decks.find((deck) => deck.id === deckId)?.className === className;
+            }, { deckId, className }, { timeout: 10000 });
+            assert((await page.locator('.dashboard-library-panel h1').textContent()).trim() === (className || 'All lesson decks'), 'A moved deck should be shown in its destination view');
+            assert(await cardFor(deckId).locator('[data-deck-action="toggle"]').getAttribute('aria-expanded') === 'true', 'A moved deck should remain visible and expanded');
+            await page.waitForFunction((id) => document.activeElement?.dataset.deckAction === 'toggle'
+                && document.activeElement?.dataset.deckId === id, deckId, { timeout: 10000 });
+        };
+        const assertMovePreserved = (before, after, deckId) => {
+            const original = before.presets.find((deck) => deck.id === deckId);
+            const moved = after.presets.find((deck) => deck.id === deckId);
+            assert(after.presets.length === before.presets.length && new Set(after.presets.map((deck) => deck.id)).size === after.presets.length, 'Moving should preserve deck count and unique IDs without creating blank or duplicate decks');
+            for (const key of ['id', 'name', 'period', 'folderId', 'isFavorite', 'createdAt', 'lastUsedAt', 'usageCount', 'projectState', 'layout', 'lessonPlan']) {
+                assert(JSON.stringify(moved[key]) === JSON.stringify(original[key]), `Moving should preserve the deck's ${key}`);
+            }
+            assert(JSON.stringify(after.presets.filter((deck) => deck.id !== deckId)) === JSON.stringify(before.presets.filter((deck) => deck.id !== deckId)), 'Moving should preserve every unrelated saved deck');
+            assert(JSON.stringify(after.reminders) === JSON.stringify(before.reminders), 'Moving should preserve the entire reminder store, including deck reminders and both classes\' reminders');
+        };
+
+        const initial = await readState();
+        await openMove('deck-move-inactive', 'Enter');
+        assert(await page.locator('#move-deck-destination').inputValue() === 'class:Year 8 Science', 'The move dialog should initially select the source class');
+        assert(await page.locator('#move-deck-confirm').isDisabled(), 'An unchanged destination should not submit a move');
+        assert(await page.locator('#move-deck-new-class').isHidden(), 'New class input should remain hidden until requested');
+        const description = await page.locator('#move-deck-description').textContent();
+        assert(description.includes('Science investigation') && description.includes('Year 8 Science'), 'The dialog should identify the deck and its current class');
+        await page.locator('#move-deck-destination').selectOption('new');
+        assert(await page.locator('#move-deck-new-class').isVisible() && await page.locator('#move-deck-new-class').getAttribute('required') !== null, 'New class should reveal a required class name');
+        await page.locator('#move-deck-new-class').fill('   ');
+        assert(await page.locator('#move-deck-confirm').isDisabled(), 'Blank new class names should not enable moving');
+        await page.locator('#move-deck-new-class').fill(' year 8 science ');
+        assert(await page.locator('#move-deck-confirm').isDisabled(), 'Entering the current class with different case should remain an unchanged destination');
+        await page.locator('#move-deck-new-class').fill('New destination');
+        await page.keyboard.press('Escape');
+        await assertCancelled(initial, 'deck-move-inactive');
+        await openMove('deck-move-inactive');
+        await page.locator('#move-deck-destination').selectOption('class:Year 7 History');
+        await page.locator('#move-deck-dialog [data-close]').click();
+        await assertCancelled(initial, 'deck-move-inactive');
+        await openMove('deck-move-inactive');
+        await page.locator('#move-deck-dialog .modal-close').click();
+        await assertCancelled(initial, 'deck-move-inactive');
+        await openMove('deck-move-inactive');
+        await page.mouse.click(5, 5);
+        await assertCancelled(initial, 'deck-move-inactive');
+        await openMove('deck-move-inactive');
+        await page.locator('#move-deck-destination').selectOption('class:Year 7 History');
+        await submitMove('deck-move-inactive', 'Year 7 History');
+        const afterInactive = await readState();
+        assertMovePreserved(initial, afterInactive, 'deck-move-inactive');
+        assert(JSON.stringify(afterInactive.state) === JSON.stringify(initial.state), 'Moving an inactive deck should never open it or alter the current classroom state');
+        assert(afterInactive.presets.find((deck) => deck.id === 'deck-move-inactive').classId === 'custom-history-class', 'Moving to an existing class should reuse its custom class ID');
+
+        await openMove('deck-move-active', 'Enter');
+        await page.locator('#move-deck-destination').selectOption('new');
+        await page.locator('#move-deck-new-class').fill(`  ${longClassName.toUpperCase()}  `);
+        await submitMove('deck-move-active', longClassName);
+        const afterActive = await readState();
+        assertMovePreserved(afterInactive, afterActive, 'deck-move-active');
+        assert(afterActive.state.currentDeckId === 'deck-move-active' && afterActive.state.activeDeckId === 'deck-move-active'
+            && afterActive.state.activeClassId === 'custom-art-class' && afterActive.state.activeClassName === longClassName,
+        'Moving the active deck should update its class context and reuse an existing class identity case-insensitively');
+        assert(JSON.stringify(afterActive.state.pages) === JSON.stringify(afterInactive.state.pages)
+            && afterActive.state.activePageId === afterInactive.state.activePageId, 'Moving the active deck should retain its pages and selected page');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const afterActiveReload = await readState();
+        assert(afterActiveReload.state.currentDeckId === 'deck-move-active' && afterActiveReload.state.activeClassId === 'custom-art-class'
+            && afterActiveReload.state.activeClassName === longClassName, 'Reload should keep the moved active deck and its destination reminder identity');
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await openMove('deck-move-active', 'tap');
+        const mobileLayout = await page.locator('#move-deck-dialog').evaluate((dialog) => {
+            const box = dialog.getBoundingClientRect();
+            const controls = [dialog.querySelector('#move-deck-destination'), dialog.querySelector('#move-deck-confirm'), dialog.querySelector('[data-close]')];
+            return {
+                fits: box.left >= -1 && box.right <= innerWidth + 1 && dialog.scrollWidth <= dialog.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1,
+                controlsFit: controls.every((control) => { const rect = control.getBoundingClientRect(); return rect.height >= 44 && rect.left >= -1 && rect.right <= innerWidth + 1; })
+            };
+        });
+        assert(mobileLayout.fits && mobileLayout.controlsFit, 'Moving a deck from a long class name should fit 390px with usable touch controls');
+        await page.locator('#move-deck-destination').selectOption('none');
+        const beforeUnclassified = await readState();
+        await submitMove('deck-move-active', '', 'tap');
+        const afterUnclassified = await readState();
+        assertMovePreserved(beforeUnclassified, afterUnclassified, 'deck-move-active');
+        assert(!afterUnclassified.presets.find((deck) => deck.id === 'deck-move-active').classId
+            && !afterUnclassified.state.activeClassId && !afterUnclassified.state.activeClassName, 'No class should clear the deck class and active reminder context');
+        await openMove('deck-move-active', 'tap');
+        assert(await page.locator('#move-deck-destination').inputValue() === 'none', 'An unclassified deck should initially select No class');
+        await page.locator('#move-deck-destination').selectOption('new');
+        await page.locator('#move-deck-new-class').fill(' Year 10   Inquiry ');
+        const beforeNewClass = await readState();
+        await submitMove('deck-move-active', 'Year 10 Inquiry', 'tap');
+        const afterNewClass = await readState();
+        assertMovePreserved(beforeNewClass, afterNewClass, 'deck-move-active');
+        assert(Boolean(afterNewClass.presets.find((deck) => deck.id === 'deck-move-active').classId), 'A new class should get a persisted reminder identity');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 10 Inquiry"]').count() === 1, 'Moving to a new class should create one class entry without another deck');
+
+        await page.setViewportSize({ width: 1280, height: 900 });
+        const seededDeck = afterNewClass.presets.find((deck) => deck.seededLessonId);
+        assert(Boolean(seededDeck), 'The move fixture should include a real built-in lesson');
+        await openMove(seededDeck.id);
+        await page.locator('#move-deck-destination').selectOption('class:Year 10 Inquiry');
+        const beforeSeedMove = await readState();
+        await submitMove(seededDeck.id, 'Year 10 Inquiry');
+        const afterSeedMove = await readState();
+        assertMovePreserved(beforeSeedMove, afterSeedMove, seededDeck.id);
+        assert(JSON.stringify(afterSeedMove.state) === JSON.stringify(beforeSeedMove.state), 'Moving a built-in inactive lesson should leave the current lesson unchanged');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const afterSeedReload = await readState();
+        assert(afterSeedReload.presets.length === afterSeedMove.presets.length
+            && afterSeedReload.presets.filter((deck) => deck.id === seededDeck.id).length === 1
+            && afterSeedReload.presets.find((deck) => deck.id === seededDeck.id).className === 'Year 10 Inquiry',
+        'Reload should preserve a moved built-in deck without resetting its class or inserting a duplicate');
+        assert(JSON.stringify(afterSeedReload.reminders) === JSON.stringify(initial.reminders), 'All deck and class reminders should survive every move and reload unchanged');
+        assert(pageErrors.length === 0, `Deck moving should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Deck moving should not raise console errors (${consoleErrors.join('; ')})`);
     } finally {
         await context.close();
     }
@@ -4857,10 +5090,16 @@ async function runSmoke() {
             console.log('Class deletion browser checks passed.');
             return;
         }
+        if (process.argv.includes('--deck-move-only')) {
+            await runDeckMoveChecks(browser, baseUrl);
+            console.log('Deck moving browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--deck-library-only')) {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
+            await runDeckMoveChecks(browser, baseUrl);
             console.log('Deck Library browser checks passed.');
             return;
         }
@@ -4920,6 +5159,7 @@ async function runSmoke() {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
+            await runDeckMoveChecks(browser, baseUrl);
             await runDeckOrganisationChecks(browser, baseUrl);
             await runReminderSystemChecks(browser, baseUrl);
             await runWholeClassAssignmentChecks(browser, baseUrl);

@@ -263,6 +263,7 @@ class ClassroomScreenApp {
         this.sectionsMenuCloseButton = document.getElementById('sections-menu-close');
         this.manageScreensButton = document.getElementById('manage-screens-btn');
         this.screenDeckManagerDialog = document.getElementById('screen-deck-manager-dialog');
+        this.moveDeckDialog = document.getElementById('move-deck-dialog');
         this.panelBackdrop = document.querySelector('.panel-backdrop');
         this.importDialog = document.getElementById('import-dialog');
         this.importFileInput = document.getElementById('import-file-input');
@@ -8186,8 +8187,7 @@ class ClassroomScreenApp {
 
     assignClassToDeck(identifier = '') {
         const deckId = String(identifier || this.activeReminderContext?.deckId || this.getCurrentDeckId()).trim();
-        const presetIndex = this.getPresetIndex(deckId);
-        const currentPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        const currentPreset = this.getPresetRecord(deckId);
         if (!currentPreset) {
             this.showNotification('Save or load a deck before assigning a class.', 'warning');
             return null;
@@ -8204,13 +8204,44 @@ class ClassroomScreenApp {
             return null;
         }
 
-        const matchingClassPreset = this.presets
+        const updatedPreset = this.setDeckClass(currentPreset.id, requestedClassName);
+        if (updatedPreset && currentPreset.className.toLowerCase() !== updatedPreset.className.toLowerCase()) {
+            this.renderDashboard();
+            this.showNotification(`Assigned "${updatedPreset.name}" to ${updatedPreset.className}.`);
+        }
+        return updatedPreset;
+    }
+
+    setDeckClass(identifier = '', requestedClassName = '') {
+        if (typeof requestedClassName !== 'string') return null;
+
+        const deckId = String(identifier || this.getCurrentDeckId()).trim();
+        const presetIndex = this.getPresetIndex(deckId);
+        let currentPreset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
+        if (!currentPreset) return null;
+
+        const requestedName = requestedClassName.trim();
+        const normalizedRequestedName = requestedName.replace(/\s+/g, ' ');
+        const classPresets = this.presets
             .map((preset) => this.normalizePresetRecord(preset))
-            .find((preset) => preset
-                && preset.id !== currentPreset.id
-                && preset.className.toLowerCase() === requestedClassName.toLowerCase());
-        const className = matchingClassPreset?.className || requestedClassName;
-        const classId = matchingClassPreset?.classId || getStableClassId(className);
+            .filter(Boolean);
+        const matchingClassPreset = classPresets.find((preset) => (
+            preset.className.toLowerCase() === requestedName.toLowerCase()
+        )) || classPresets.find((preset) => (
+            preset.className.replace(/\s+/g, ' ').toLowerCase() === normalizedRequestedName.toLowerCase()
+        ));
+        const className = matchingClassPreset?.className || normalizedRequestedName;
+        const classId = className ? matchingClassPreset?.classId || getStableClassId(className) : '';
+        if (currentPreset.className.toLowerCase() === className.toLowerCase()) {
+            return currentPreset;
+        }
+
+        const isActiveDeck = this.getCurrentDeckId() === currentPreset.id;
+        if (isActiveDeck) {
+            // Capture pending page edits before changing only the deck's class metadata.
+            this.saveStateImmediately();
+            currentPreset = this.getPresetRecord(currentPreset.id);
+        }
         const now = Date.now();
 
         if (currentPreset.seededLessonId) {
@@ -8231,8 +8262,6 @@ class ClassroomScreenApp {
         delete updatedPreset.seededLessonId;
         this.presets[presetIndex] = updatedPreset;
 
-        const isActiveDeck = this.getCurrentDeckId() === currentPreset.id
-            || this.activeReminderContext?.deckId === currentPreset.id;
         if (isActiveDeck) {
             this.setActiveReminderContext(updatedPreset);
             this.projectState = {
@@ -8254,8 +8283,6 @@ class ClassroomScreenApp {
             this.renderClassroomReminderDock();
             this.syncClassroomRemindersToProjector();
         }
-        this.renderDashboard();
-        this.showNotification(`Assigned "${currentPreset.name}" to ${className}.`);
         return this.getPresetRecord(currentPreset.id);
     }
 
@@ -9257,6 +9284,7 @@ class ClassroomScreenApp {
                                     <summary>More</summary>
                                     <div class="dashboard-deck-more__actions">
                                         <button class="control-button" type="button" data-deck-action="rename" data-deck-id="${escapeHtml(preset.id)}">Rename</button>
+                                        <button class="control-button" type="button" data-deck-action="move" data-deck-id="${escapeHtml(preset.id)}">Move to class…</button>
                                         <button class="control-button" type="button" data-deck-action="duplicate" data-deck-id="${escapeHtml(preset.id)}">Duplicate</button>
                                         <button class="control-button dashboard-deck-delete" type="button" data-deck-action="delete" data-deck-id="${escapeHtml(preset.id)}">Delete</button>
                                     </div>
@@ -9311,6 +9339,7 @@ class ClassroomScreenApp {
                 if (action === 'arrange') this.arrangePresetFromDashboard(deckId);
                 if (action === 'present') this.presentPresetFromDashboard(deckId);
                 if (action === 'rename') this.renamePreset(deckId);
+                if (action === 'move') this.openMoveDeckDialog(deckId);
                 if (action === 'duplicate') this.clonePreset(deckId);
                 if (action === 'delete') this.deletePreset(deckId);
             });
@@ -9560,13 +9589,74 @@ class ClassroomScreenApp {
         }, 3000);
     }
 
+    openMoveDeckDialog(deckId) {
+        const preset = this.getPresetRecord(deckId);
+        if (!preset || !this.moveDeckDialog) return;
+
+        this.moveDeckId = preset.id;
+        const destination = this.moveDeckDialog.querySelector('#move-deck-destination');
+        const classNames = this.getPresetClassNames().map((profile) => profile.name).filter((name, index, names) => (
+            names.findIndex((candidate) => candidate.toLowerCase() === name.toLowerCase()) === index
+        ));
+        destination.replaceChildren(new Option('No class', 'none'));
+        classNames.forEach((name) => destination.add(new Option(name, `class:${name}`)));
+        destination.add(new Option('New class…', 'new'));
+        const currentClassName = classNames.find((name) => name.toLowerCase() === preset.className.toLowerCase());
+        destination.value = currentClassName ? `class:${currentClassName}` : 'none';
+        this.moveDeckDialog.querySelector('#move-deck-description').textContent = `“${preset.name}” is currently in ${preset.className || 'No class'}.`;
+        this.moveDeckDialog.querySelector('#move-deck-new-class').value = '';
+        this.updateDeckMoveDestination();
+        this.openDialog(this.moveDeckDialog);
+        destination.focus({ preventScroll: true });
+    }
+
+    getDeckMoveDestination() {
+        const value = this.moveDeckDialog?.querySelector('#move-deck-destination')?.value || '';
+        if (value === 'new') {
+            return this.moveDeckDialog.querySelector('#move-deck-new-class').value.trim().replace(/\s+/g, ' ');
+        }
+        return value.startsWith('class:') ? value.slice(6) : '';
+    }
+
+    updateDeckMoveDestination() {
+        if (!this.moveDeckDialog) return;
+        const isNewClass = this.moveDeckDialog.querySelector('#move-deck-destination').value === 'new';
+        this.moveDeckDialog.querySelector('#move-deck-new-class-field').hidden = !isNewClass;
+        this.moveDeckDialog.querySelector('#move-deck-new-class').required = isNewClass;
+        const className = this.getDeckMoveDestination();
+        const preset = this.getPresetRecord(this.moveDeckId);
+        const currentClassName = isNewClass ? preset?.className.replace(/\s+/g, ' ') : preset?.className;
+        this.moveDeckDialog.querySelector('#move-deck-confirm').disabled = !preset
+            || (isNewClass && !className)
+            || className.toLowerCase() === currentClassName.toLowerCase();
+    }
+
+    confirmDeckMove(event) {
+        event.preventDefault();
+        const form = this.moveDeckDialog?.querySelector('form');
+        if (!form?.reportValidity() || this.moveDeckDialog.querySelector('#move-deck-confirm').disabled) return;
+        const movedPreset = this.setDeckClass(this.moveDeckId, this.getDeckMoveDestination());
+        if (!movedPreset) return;
+
+        this.dashboardNavigationMode = 'library';
+        this.dashboardSelectedClassName = movedPreset.className;
+        this.dashboardSelectedFolderId = '';
+        this.dashboardSearchQuery = '';
+        this.dashboardExpandedDeckId = movedPreset.id;
+        this.dashboardExpandedReminderDeckId = '';
+        this.renderDashboard();
+        this.closeDialog(this.moveDeckDialog);
+        this.showNotification(`Moved “${movedPreset.name}” to ${movedPreset.className || 'No class'}.`);
+    }
+
     setupDialogControls() {
         const dialogs = [
             this.helpDialog,
             this.widgetModal,
             this.importDialog,
             this.nameEntryDialog,
-            this.screenDeckManagerDialog
+            this.screenDeckManagerDialog,
+            this.moveDeckDialog
         ].filter(Boolean);
         dialogs.forEach((dialog) => {
             dialog.addEventListener('click', (event) => {
@@ -9577,6 +9667,26 @@ class ClassroomScreenApp {
 
             dialog.querySelectorAll('[data-close], .modal-close').forEach((btn) => {
                 btn.addEventListener('click', () => this.closeDialog(dialog));
+            });
+        });
+        this.moveDeckDialog?.querySelector('form').addEventListener('submit', (event) => this.confirmDeckMove(event));
+        this.moveDeckDialog?.querySelector('#move-deck-destination').addEventListener('change', () => {
+            this.updateDeckMoveDestination();
+            if (this.moveDeckDialog.querySelector('#move-deck-destination').value === 'new') {
+                this.moveDeckDialog.querySelector('#move-deck-new-class').focus();
+            }
+        });
+        this.moveDeckDialog?.querySelector('#move-deck-new-class').addEventListener('input', () => this.updateDeckMoveDestination());
+        this.moveDeckDialog?.addEventListener('close', () => {
+            const deckId = this.moveDeckId;
+            this.moveDeckId = '';
+            window.requestAnimationFrame(() => {
+                const card = this.dashboardRoot?.querySelector(`.dashboard-screen-card[data-deck-id="${CSS.escape(deckId || '')}"]`);
+                const moveButton = card?.querySelector('[data-deck-action="move"]');
+                const target = moveButton?.closest('details')?.open && moveButton.getClientRects().length
+                    ? moveButton
+                    : card?.querySelector('[data-deck-action="toggle"]');
+                (target || this.dashboardRoot?.querySelector('#dashboard-search-input'))?.focus({ preventScroll: true });
             });
         });
     }
@@ -9734,7 +9844,7 @@ class ClassroomScreenApp {
     }
 
     closeAllDialogs() {
-        [this.helpDialog, this.widgetModal, this.screenDeckManagerDialog].forEach((dialog) => {
+        [this.helpDialog, this.widgetModal, this.screenDeckManagerDialog, this.moveDeckDialog].forEach((dialog) => {
             if (dialog && dialog.open) {
                 dialog.close();
             }

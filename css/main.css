@@ -3462,6 +3462,85 @@ dialog::backdrop {
     background: var(--modal-backdrop, rgba(0, 0, 0, 0.35));
 }
 
+#move-deck-dialog {
+    margin: auto;
+    width: min(480px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    background: #fafdff;
+    color: #102b3c;
+}
+
+#move-deck-dialog .modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+#move-deck-dialog .modal-body {
+    display: grid;
+    gap: 10px;
+    padding: 20px 24px;
+}
+
+#move-deck-dialog p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+#move-deck-description {
+    font-weight: 600;
+}
+
+#move-deck-dialog label {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#move-deck-dialog select,
+#move-deck-dialog input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #b9ccd9;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #102b3c;
+    font: inherit;
+}
+
+#move-deck-new-class-field:not([hidden]) {
+    display: grid;
+    gap: 10px;
+}
+
+#move-deck-dialog .move-deck-note {
+    color: #526b7a;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+#move-deck-dialog .control-button {
+    min-height: 44px;
+}
+
+#move-deck-dialog [data-close] {
+    border: 1px solid #b9ccd9;
+    background: #ffffff;
+    color: #315466;
+    box-shadow: none;
+}
+
+#move-deck-dialog .control-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#move-deck-dialog :is(button, select, input):focus-visible {
+    outline: 3px solid #1684c7;
+    outline-offset: 2px;
+}
+
 .modal-header {
     display: flex;
     align-items: center;
