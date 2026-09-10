@@ -13060,9 +13060,12 @@ body.is-dashboard-active .dashboard-toolbar__heading {
 }
 
 body.is-dashboard-active .dashboard-class-heading {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
+    width: fit-content;
+    max-width: 100%;
     min-width: 0;
 }
 
@@ -13072,9 +13075,7 @@ body.is-dashboard-active .dashboard-class-heading h1 {
 }
 
 body.is-dashboard-active .dashboard-class-menu {
-    position: relative;
     flex: 0 0 44px;
-    margin-left: auto;
 }
 
 body.is-dashboard-active .dashboard-class-menu > summary {
@@ -13107,7 +13108,7 @@ body.is-dashboard-active .dashboard-class-menu[open] > summary {
 body.is-dashboard-active .dashboard-class-menu__actions {
     position: absolute;
     top: calc(100% + 6px);
-    right: 0;
+    left: max(0px, calc(100% - 176px));
     z-index: 30;
     width: 176px;
     padding: 6px;
