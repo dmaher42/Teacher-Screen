@@ -9094,11 +9094,10 @@ class ClassroomScreenApp {
                     </nav>
                     <div class="dashboard-sidebar__section">
                         <div class="dashboard-sidebar__section-header">
-                            <h3>${isResourceLibrary && !isClassResourceLibrary ? 'Resource Views' : 'Your Classes'}</h3>
+                            <h3>${isResourceLibrary && !isClassResourceLibrary ? 'Resource Views' : 'Classes'}</h3>
                             ${isResourceLibrary ? '' : `
-                                <button id="dashboard-add-class-btn" class="dashboard-add-class" type="button" aria-label="Add class">
+                                <button id="dashboard-add-class-btn" class="dashboard-add-class" type="button" aria-label="Add class" title="Add class">
                                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                                    <span>Add class</span>
                                 </button>
                             `}
                         </div>

@@ -5422,7 +5422,7 @@ async function runSmoke() {
             };
         });
         assert(desktopDashboardScale.sidebarWidth >= 184 && desktopDashboardScale.sidebarWidth <= 196, 'Desktop dashboard navigation should keep a narrow readable footprint');
-        assert(desktopDashboardScale.organisationHeading === 'Your Classes', 'The dashboard should present Classes as the single deck organisation system');
+        assert(desktopDashboardScale.organisationHeading === 'Classes', 'The dashboard should present Classes as the single deck organisation system');
         assert(desktopDashboardScale.shelfControlCount === 0, 'Deck Shelf controls should no longer compete with Classes');
         assert(desktopDashboardScale.folderFieldCount === 0, 'The advanced deck manager should not expose a second folder system');
         assert(desktopDashboardScale.moveActionCount === 0, 'Deck actions should not offer movement into hidden shelves');

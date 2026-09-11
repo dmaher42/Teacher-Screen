@@ -10996,8 +10996,8 @@ body.is-dashboard-active .dashboard-utility-menu[open] > .dashboard-utility-menu
 }
 
 body.is-dashboard-active .dashboard-nav-item.is-active {
-    border-color: rgba(79, 178, 255, 0.46);
-    background: linear-gradient(135deg, rgba(59, 168, 243, 0.28), rgba(22, 111, 209, 0.18));
+    border-color: transparent;
+    background: #20485f;
     color: #ffffff;
     box-shadow: inset 3px 0 0 #54c5f5;
 }
@@ -11045,19 +11045,20 @@ body.is-dashboard-active .dashboard-sidebar__section-header h3 {
 }
 
 body.is-dashboard-active .dashboard-add-class {
-    min-width: max-content;
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 0.45rem 0.62rem;
+    padding: 0;
     border: 1px solid rgba(84, 197, 245, 0.34);
     border-radius: 10px;
     background: rgba(47, 143, 244, 0.12);
     color: #ffffff;
     font: inherit;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     font-weight: 800;
     cursor: pointer;
     transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
@@ -11133,6 +11134,14 @@ body.is-dashboard-active .dashboard-folder .dashboard-folder__count {
     padding: 0.12rem 0.38rem;
     border-radius: 7px;
     font-size: 0.65rem;
+}
+
+body.is-dashboard-active .dashboard-filter[data-class-name] .dashboard-folder__count {
+    flex-shrink: 0;
+    border-color: rgba(232, 248, 255, 0.18);
+    background: rgba(232, 248, 255, 0.15);
+    color: #d9e7ef;
+    font-size: 0.7rem;
 }
 
 body.is-dashboard-active .dashboard-filter.is-active .dashboard-folder__count {
