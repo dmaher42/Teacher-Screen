@@ -3616,6 +3616,255 @@ async function runDeckMoveChecks(browser, baseUrl) {
     }
 }
 
+async function runClassRenameChecks(browser, baseUrl) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
+    await makeExternalAssetsDeterministic(context);
+    await installResourceFolderMock(context);
+    await context.addInitScript(() => {
+        if (!window.location.pathname.toLowerCase().endsWith('/index.html')
+            || localStorage.getItem('__teacherScreenClassRenameFixture') === 'ready') return;
+        const timestamp = 1700000000000;
+        const makeDeck = (id, name, className, classId) => {
+            const snapshot = {
+                theme: 'theme-ocean', background: { type: 'solid', value: '#123247' },
+                layout: { widgets: [] }, timerStates: {}, lessonPlan: [{ insert: `${name} lesson content\n` }]
+            };
+            return {
+                id, name, className, classId, period: 'Period 3', folderId: '', isFavorite: true,
+                projectState: {
+                    currentDeckId: id, projectName: name, activeDeckId: id,
+                    activeClassId: classId, activeClassName: className, activePageId: `${id}-reflection`,
+                    pages: [
+                        { id: `${id}-page`, name: `${name} page`, snapshot },
+                        { id: `${id}-reflection`, name: 'Reflection', snapshot: { ...snapshot, lessonPlan: [{ insert: 'Keep the reflection\n' }] } }
+                    ],
+                    ...snapshot
+                },
+                ...snapshot, createdAt: timestamp, updatedAt: timestamp, lastUsedAt: timestamp, usageCount: 7
+            };
+        };
+        const decks = [
+            makeDeck('rename-history', 'History sources', 'Year 7 History', 'rename-history-class'),
+            makeDeck('rename-science-a', 'Science investigation', 'Year 8 Science', 'rename-science-class'),
+            makeDeck('rename-science-b', 'Science reflection', 'year 8 science', 'rename-science-legacy-class')
+        ];
+        const reminders = [
+            ['history-class', 'class', 'rename-history-class'], ['history-deck', 'deck', 'rename-history'],
+            ['science-class', 'class', 'rename-science-class'], ['science-legacy', 'class', 'rename-science-legacy-class'],
+            ['science-a', 'deck', 'rename-science-a'], ['science-b', 'deck', 'rename-science-b']
+        ].map(([id, scope, ownerId], orderIndex) => ({
+            id, scope, deckId: scope === 'deck' ? ownerId : '', classId: scope === 'class' ? ownerId : '',
+            text: `Keep ${id}`, dueDate: null, orderIndex, completed: false,
+            showOnClassroom: scope === 'class', createdAt: timestamp, updatedAt: timestamp
+        }));
+        localStorage.setItem('classroomLayoutPresets', JSON.stringify(decks));
+        localStorage.setItem('classroomScreenState', JSON.stringify(decks[0].projectState));
+        localStorage.setItem('teacherScreenClassReminders', JSON.stringify({ version: 1, reminders }));
+        localStorage.setItem('__teacherScreenClassRenameFixture', 'ready');
+    });
+    const pageErrors = [];
+    const consoleErrors = [];
+    context.on('page', (page) => {
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        page.on('console', (message) => {
+            if (message.type() === 'error' && !isExpectedBlockedExternalAssetMessage(message)) consoleErrors.push(message.text());
+        });
+    });
+    try {
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/index.html`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('.dashboard-filter[data-class-name="Year 8 Science"]', { timeout: 15000 });
+        const readState = () => page.evaluate(() => ({
+            state: JSON.parse(localStorage.getItem('classroomScreenState') || '{}'),
+            presets: JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]'),
+            reminders: localStorage.getItem('teacherScreenClassReminders'),
+            resources: localStorage.getItem('teacherScreenResourceLibraryState'),
+            dismissedSeeds: localStorage.getItem('teacherScreenDismissedSeededLessons')
+        }));
+        const selectClass = async (name, touch = false) => {
+            const filter = page.locator(`.dashboard-filter[data-class-name="${name}"]`);
+            if (await filter.getAttribute('aria-pressed') !== 'true'
+                || await page.locator('#dashboard-class-menu').count() === 0) {
+                if (touch) await filter.tap();
+                else await filter.click();
+            }
+            await page.locator('#dashboard-class-menu > summary').waitFor({ state: 'visible' });
+        };
+        const openRename = async (name, touch = false) => {
+            await selectClass(name, touch);
+            const summary = page.locator('#dashboard-class-menu > summary');
+            if (await page.locator('#dashboard-class-menu').getAttribute('open') === null) {
+                if (touch) await summary.tap();
+                else { await summary.focus(); await summary.press('Enter'); }
+            }
+            const button = page.locator('#dashboard-class-menu .dashboard-class-rename');
+            await button.waitFor({ state: 'visible' });
+            return button;
+        };
+        const renameClass = async (name, response, touch = false) => {
+            const button = await openRename(name, touch);
+            const dialogPromise = page.waitForEvent('dialog');
+            const actionPromise = touch ? button.tap() : button.press('Enter');
+            const dialog = await dialogPromise;
+            assert(dialog.type() === 'prompt' && dialog.defaultValue() === name,
+                'Rename class should open a native prompt with the current class name selected');
+            if (response === null) await dialog.dismiss();
+            else await dialog.accept(response);
+            await actionPromise;
+        };
+        const waitForClass = (deckIds, name) => page.waitForFunction(({ deckIds, name }) => {
+            const decks = JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]');
+            return deckIds.every((id) => decks.find((deck) => deck.id === id)?.className === name);
+        }, { deckIds, name }, { timeout: 10000 });
+        const assertSavedContent = (before, after, ids) => {
+            assert(after.presets.length === before.presets.length, 'Renaming a class should preserve the number of saved decks');
+            for (const id of ids) {
+                const oldDeck = before.presets.find((deck) => deck.id === id);
+                const newDeck = after.presets.find((deck) => deck.id === id);
+                const content = (deck) => ({
+                    id: deck.id, classId: deck.classId, name: deck.name, period: deck.period,
+                    folderId: deck.folderId, isFavorite: deck.isFavorite, createdAt: deck.createdAt,
+                    lastUsedAt: deck.lastUsedAt, usageCount: deck.usageCount, layout: deck.layout,
+                    lessonPlan: deck.lessonPlan, pages: deck.projectState.pages,
+                    activePageId: deck.projectState.activePageId
+                });
+                assert(JSON.stringify(content(newDeck)) === JSON.stringify(content(oldDeck)),
+                    `Class rename should preserve ${id}'s identity, content, page selection and metadata`);
+            }
+            assert(JSON.stringify(after.presets.filter((deck) => !ids.includes(deck.id)))
+                === JSON.stringify(before.presets.filter((deck) => !ids.includes(deck.id))),
+            'Class rename should leave every unrelated saved deck unchanged');
+            assert(after.reminders === before.reminders && after.resources === before.resources,
+                'Class rename should preserve reminder records and resource favourites without changing their owners');
+        };
+
+        assert(await page.locator('.dashboard-class-rename').count() === 0, 'All lesson decks should not show a class rename action');
+        await selectClass('Year 8 Science');
+        assert(await page.locator('.dashboard-class-rename').isHidden(), 'Rename class should stay inside the closed class options menu');
+        const renameButton = await openRename('Year 8 Science');
+        assert((await renameButton.textContent()).trim() === 'Rename class'
+            && await renameButton.evaluate((button) => button.tagName === 'BUTTON' && button.type === 'button'),
+        'The selected class should have a clearly labelled native Rename class button');
+        await page.keyboard.press('Escape');
+        await page.locator('[data-class-resources="Year 8 Science"]').click();
+        await page.waitForFunction(() => document.querySelector('.resource-status-badge')?.textContent?.trim() === 'No folder linked');
+        await page.evaluate(() => { window.__resourceDirectoryChoice = 'english'; });
+        await page.locator('#resource-connect-btn').click();
+        await waitForResourceNames(page, ['English class brief.pdf']);
+        await page.locator('.resource-card [data-resource-action="favorite"]').click();
+        const resourceContext = await page.evaluate(() => window.__TeacherScreenApp.getLocalResourceContextKey());
+        await page.locator('#resource-back-to-class-btn').click();
+        const initial = await readState();
+        for (const response of [null, '   ', '  year 7   HISTORY  ']) {
+            await renameClass('Year 8 Science', response);
+            assert(JSON.stringify(await readState()) === JSON.stringify(initial),
+                'Cancelling, blank names and duplicate classes should leave all persisted data unchanged');
+            assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"].is-active').count() === 1,
+                'A rejected class rename should keep the original class selected');
+        }
+        await renameClass('Year 8 Science', '  Year 8   Inquiry  ');
+        await waitForClass(['rename-science-a', 'rename-science-b'], 'Year 8 Inquiry');
+        const afterInactive = await readState();
+        assertSavedContent(initial, afterInactive, ['rename-science-a', 'rename-science-b']);
+        assert(JSON.stringify(afterInactive.state) === JSON.stringify(initial.state),
+            'Renaming an inactive class should not open a deck or alter the current classroom');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Inquiry"].is-active').count() === 1
+            && (await page.locator('.dashboard-library-panel h1').textContent()).trim() === 'Year 8 Inquiry'
+            && await page.locator('.dashboard-screen-card').count() === 2,
+        'Renaming should select the normalized new class name and keep both case-variant decks visible');
+        assert(await page.locator('.dashboard-filter[data-class-name="Year 8 Science"], .dashboard-filter[data-class-name="year 8 science"]').count() === 0,
+            'The old class names should disappear from the sidebar');
+        await page.locator('[data-class-resources="Year 8 Inquiry"]').click();
+        await waitForResourceNames(page, ['English class brief.pdf']);
+        assert(await page.evaluate(() => window.__TeacherScreenApp.getLocalResourceContextKey()) === resourceContext
+            && await page.locator('.resource-card [data-resource-action="favorite"]').getAttribute('aria-pressed') === 'true',
+        'The renamed class should retain its linked resource folder and favourite');
+        await page.locator('#resource-back-to-class-btn').click();
+        await renameClass('Year 8 Inquiry', 'YEAR 8 INQUIRY');
+        await waitForClass(['rename-science-a', 'rename-science-b'], 'YEAR 8 INQUIRY');
+        assertSavedContent(afterInactive, await readState(), ['rename-science-a', 'rename-science-b']);
+
+        await selectClass('Year 7 History');
+        const beforeActive = await readState();
+        await page.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            const activePage = app.projectState.pages.find((item) => item.id === app.projectState.activePageId);
+            activePage.name = 'Unsaved reflection title';
+        });
+        assert(!JSON.stringify((await readState()).state.pages).includes('Unsaved reflection title'),
+            'The active-class fixture should contain a pending page edit that has not reached storage');
+        await page.setViewportSize({ width: 390, height: 844 });
+        const mobileButton = await openRename('Year 7 History', true);
+        assert(await mobileButton.evaluate((button) => {
+            const box = button.getBoundingClientRect();
+            return box.height >= 44 && box.left >= -1 && box.right <= innerWidth + 1
+                && document.documentElement.scrollWidth <= innerWidth + 1;
+        }), 'Rename class should fit on a phone with a usable touch target');
+        await renameClass('Year 7 History', 'Year 7 Humanities', true);
+        await waitForClass(['rename-history'], 'Year 7 Humanities');
+        const afterActive = await readState();
+        assert(afterActive.state.currentDeckId === 'rename-history'
+            && afterActive.state.activeDeckId === 'rename-history'
+            && afterActive.state.activeClassId === 'rename-history-class'
+            && afterActive.state.activeClassName === 'Year 7 Humanities'
+            && afterActive.state.activePageId === beforeActive.state.activePageId,
+        'Renaming the active class should update its name while retaining the active deck, class identity and selected page');
+        assert(afterActive.state.pages.some((item) => item.id === afterActive.state.activePageId && item.name === 'Unsaved reflection title')
+            && afterActive.presets.find((deck) => deck.id === 'rename-history').projectState.pages.some((item) => item.name === 'Unsaved reflection title'),
+        'Renaming the active class should save its pending page edit instead of restoring stale deck content');
+        assert(afterActive.reminders === initial.reminders, 'Active-class rename should preserve every class and deck reminder');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const afterReload = await readState();
+        assert(afterReload.state.activeClassName === 'Year 7 Humanities'
+            && afterReload.state.currentDeckId === 'rename-history'
+            && afterReload.state.activeClassId === 'rename-history-class'
+            && JSON.stringify(afterReload.state.pages) === JSON.stringify(afterActive.state.pages)
+            && afterReload.reminders === initial.reminders,
+        'Reload should retain the renamed current class, unsaved edits and reminder ownership');
+
+        await page.setViewportSize({ width: 1280, height: 900 });
+        const seedDeck = afterReload.presets.find((deck) => deck.seededLessonId);
+        assert(Boolean(seedDeck), 'Class rename checks should include a real built-in lesson class');
+        const seedIds = afterReload.presets.filter((deck) => deck.className.toLowerCase() === seedDeck.className.toLowerCase()).map((deck) => deck.id);
+        await renameClass(seedDeck.className, 'Year 7 Literacy');
+        await waitForClass(seedIds, 'Year 7 Literacy');
+        const renamedSeeds = await readState();
+        assertSavedContent(afterReload, renamedSeeds, seedIds);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
+        const reloadedSeeds = await readState();
+        assert(reloadedSeeds.presets.length === renamedSeeds.presets.length
+            && seedIds.every((id) => reloadedSeeds.presets.filter((deck) => deck.id === id && deck.className === 'Year 7 Literacy').length === 1)
+            && !reloadedSeeds.presets.some((deck) => deck.className === seedDeck.className),
+        'Reload should preserve renamed built-in lessons without restoring their old class or duplicating decks');
+        await selectClass('Year 7 Humanities');
+        page.once('dialog', (dialog) => dialog.accept('Humanities new lesson'));
+        await page.locator('#dashboard-create-btn').click();
+        await page.waitForFunction(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').some((deck) => deck.name === 'Humanities new lesson'));
+        const newDeck = (await readState()).presets.find((deck) => deck.name === 'Humanities new lesson');
+        assert(newDeck.className === 'Year 7 Humanities' && newDeck.classId === 'rename-history-class',
+            'New Deck in a renamed class should inherit its existing stable class identity');
+
+        page.once('dialog', (dialog) => dialog.accept('Reusable class name'));
+        await page.locator('#dashboard-add-class-btn').click();
+        const oldClass = (await readState()).presets.find((deck) => deck.className === 'Reusable class name');
+        assert(Boolean(oldClass?.classId), 'A newly created class should receive a stable identity');
+        await renameClass('Reusable class name', 'Renamed reusable class');
+        page.once('dialog', (dialog) => dialog.accept('Reusable class name'));
+        await page.locator('#dashboard-add-class-btn').click();
+        const reused = await readState();
+        const recreatedClass = reused.presets.find((deck) => deck.className === 'Reusable class name');
+        assert(recreatedClass?.classId && recreatedClass.classId !== oldClass.classId
+            && reused.presets.find((deck) => deck.id === oldClass.id)?.classId === oldClass.classId,
+        'Reusing an old class name should create a distinct identity without inheriting the renamed class ownership');
+        assert(pageErrors.length === 0, `Class rename should not raise page errors (${pageErrors.join('; ')})`);
+        assert(consoleErrors.length === 0, `Class rename should not raise console errors (${consoleErrors.join('; ')})`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function runClassDeletionChecks(browser, baseUrl) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
     await makeExternalAssetsDeterministic(context);
@@ -5270,6 +5519,11 @@ async function runSmoke() {
             console.log('Class deletion browser checks passed.');
             return;
         }
+        if (process.argv.includes('--class-rename-only')) {
+            await runClassRenameChecks(browser, baseUrl);
+            console.log('Class rename browser checks passed.');
+            return;
+        }
         if (process.argv.includes('--deck-move-only')) {
             await runDeckMoveChecks(browser, baseUrl);
             console.log('Deck moving browser checks passed.');
@@ -5284,6 +5538,7 @@ async function runSmoke() {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
             await runDeckHeaderChecks(browser, baseUrl);
+            await runClassRenameChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
             await runDeckMoveChecks(browser, baseUrl);
             console.log('Deck Library browser checks passed.');
@@ -5345,6 +5600,7 @@ async function runSmoke() {
             await runDeckLibraryRedesignChecks(browser, baseUrl);
             await runDeckLibraryStartupSafetyChecks(browser, baseUrl);
             await runDeckHeaderChecks(browser, baseUrl);
+            await runClassRenameChecks(browser, baseUrl);
             await runClassDeletionChecks(browser, baseUrl);
             await runDeckMoveChecks(browser, baseUrl);
             await runDeckOrganisationChecks(browser, baseUrl);

@@ -2745,7 +2745,7 @@ class ClassroomScreenApp {
         }
 
         const normalizedClassName = String(className || '').trim().replace(/\s+/g, ' ');
-        const classId = normalizedClassName ? getStableClassId(normalizedClassName) : '';
+        const classId = this.getClassIdForName(normalizedClassName);
         const currentDeckId = this.createDeckId();
         const blankPage = this.createPageRecord({
             id: this.makeUniquePageId(),
@@ -4441,6 +4441,26 @@ class ClassroomScreenApp {
             });
     }
 
+    getClassIdForName(className = '') {
+        const classKey = String(className || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        if (!classKey) return '';
+
+        const presets = Array.isArray(this.presets) ? this.presets : [];
+        const matchingPreset = presets.find((preset) => (
+            String(preset?.className || '').trim().replace(/\s+/g, ' ').toLowerCase() === classKey
+            && typeof preset?.classId === 'string' && preset.classId.trim()
+        ));
+        if (matchingPreset) return matchingPreset.classId.trim();
+
+        // A renamed class keeps its ID; reusing its old name must create a separate class.
+        const baseId = getStableClassId(classKey);
+        const usedIds = new Set(presets.map((preset) => String(preset?.classId || '').trim()));
+        let classId = baseId;
+        let suffix = 2;
+        while (usedIds.has(classId)) classId = `${baseId}-${suffix++}`;
+        return classId;
+    }
+
     renderClassProfileOptions() {
         if (!this.classProfileSelect) {
             return;
@@ -4490,7 +4510,7 @@ class ClassroomScreenApp {
 
         const enteredClassName = this.presetClassInput?.value.trim() || '';
         const className = enteredClassName || normalizedSource.className || '';
-        const classId = getStableClassId(className);
+        const classId = this.getClassIdForName(className);
         const name = this.getUniquePresetName(`${this.generateSnapshotName(className || normalizedSource.name)} Backup`);
         const id = this.createDeckId();
         const now = Date.now();
@@ -4678,7 +4698,7 @@ class ClassroomScreenApp {
         const classId = className
             ? (typeof preset.classId === 'string' && preset.classId.trim()
                 ? preset.classId.trim()
-                : getStableClassId(className))
+                : this.getClassIdForName(className))
             : '';
         const projectState = {
             ...this.buildPresetProjectState({ ...preset, id }),
@@ -4988,7 +5008,7 @@ class ClassroomScreenApp {
         const now = Date.now();
         const id = this.createDeckId();
         const folderId = this.presetFolderSelect ? this.presetFolderSelect.value.trim() : '';
-        const classId = getStableClassId(className);
+        const classId = this.getClassIdForName(className);
         const currentState = this.normalizeProjectState(this.projectState);
         this.projectState = {
             currentDeckId: id,
@@ -5234,7 +5254,7 @@ class ClassroomScreenApp {
         const now = Date.now();
         const classNameUnchanged = String(existingPreset?.className || '').trim().toLowerCase() === className.toLowerCase();
         const classId = className
-            ? (classNameUnchanged ? existingPreset?.classId : getStableClassId(className))
+            ? (classNameUnchanged ? existingPreset?.classId : this.getClassIdForName(className))
             : '';
         const currentState = this.normalizeProjectState(this.projectState);
         this.projectState = {
@@ -7077,7 +7097,7 @@ class ClassroomScreenApp {
             .find((preset) => preset?.className === className);
         return {
             className,
-            classId: matchingPreset?.classId || getStableClassId(className)
+            classId: matchingPreset?.classId || this.getClassIdForName(className)
         };
     }
 
@@ -8063,7 +8083,7 @@ class ClassroomScreenApp {
         }
 
         const className = requestedClassName;
-        const classId = getStableClassId(className);
+        const classId = this.getClassIdForName(className);
         const deckId = this.createDeckId();
         const deckName = this.getUniquePresetName(`${className} - New deck`);
         const now = Date.now();
@@ -8115,6 +8135,81 @@ class ClassroomScreenApp {
         });
         this.showNotification(`Created ${className} with a blank starter deck.`);
         return starterDeck;
+    }
+
+    renameClassFromDashboard(className = '') {
+        const normalizeName = (name) => String(name || '').trim().replace(/\s+/g, ' ');
+        const requestedClassName = normalizeName(className);
+        const classKey = requestedClassName.toLowerCase();
+        if (!classKey) return false;
+
+        const classDecks = this.presets
+            .map((preset) => this.normalizePresetRecord(preset))
+            .filter((preset) => preset && normalizeName(preset.className).toLowerCase() === classKey);
+        if (!classDecks.length) {
+            this.showNotification('Class not found.', 'warning');
+            return false;
+        }
+
+        const response = window.prompt(`Rename class "${requestedClassName}"`, requestedClassName);
+        if (typeof response !== 'string') return false;
+        const nextName = normalizeName(response);
+        if (!nextName) {
+            this.showNotification('Enter a class name.', 'warning');
+            return false;
+        }
+        const nextKey = nextName.toLowerCase();
+        const duplicate = this.presets.some((preset) => {
+            const key = normalizeName(preset?.className).toLowerCase();
+            return key !== classKey && key === nextKey;
+        });
+        if (duplicate) {
+            this.showNotification(`Class "${nextName}" already exists. Choose a different name.`, 'warning');
+            return false;
+        }
+        if (classDecks.every((preset) => preset.className === nextName)) return false;
+
+        const deckIds = new Set(classDecks.map((preset) => preset.id));
+        const renamingActiveClass = deckIds.has(this.getCurrentDeckId());
+        const profileSelected = normalizeName(this.classProfileSelect?.value).toLowerCase() === classKey;
+        const filterSelected = normalizeName(this.presetClassFilterInput?.value).toLowerCase() === classKey;
+        const detailsSelected = normalizeName(this.presetClassInput?.value).toLowerCase() === classKey;
+        if (renamingActiveClass) {
+            // Capture pending page edits before changing the class label, without loading a deck.
+            this.saveStateImmediately();
+        }
+
+        const now = Date.now();
+        this.presets = this.presets.map((preset) => {
+            if (!deckIds.has(preset.id)) return preset;
+            if (preset.seededLessonId) this.dismissSeededLesson(preset.seededLessonId);
+            const renamedPreset = { ...preset, className: nextName, updatedAt: now };
+            delete renamedPreset.seededLessonId;
+            return renamedPreset;
+        });
+        if (renamingActiveClass) {
+            this.setActiveReminderContext(this.getPresetRecord(this.getCurrentDeckId()));
+        }
+
+        this.savePresets();
+        if (profileSelected) this.classProfileSelect.value = nextName;
+        if (filterSelected) this.presetClassFilterInput.value = nextName;
+        if (detailsSelected) this.presetClassInput.value = nextName;
+        this.dashboardNavigationMode = 'library';
+        this.dashboardSelectedClassName = nextName;
+        this.dashboardSearchQuery = '';
+        this.renderPresetList();
+        this.renderDashboard();
+        if (renamingActiveClass) {
+            this.saveStateImmediately();
+            this.renderClassroomReminderDock();
+            this.syncClassroomRemindersToProjector();
+        }
+        window.requestAnimationFrame(() => {
+            this.dashboardRoot?.querySelector('#dashboard-class-menu > summary')?.focus({ preventScroll: true });
+        });
+        this.showNotification(`Renamed class to "${nextName}".`);
+        return true;
     }
 
     deleteClassFromDashboard(className = '') {
@@ -8199,7 +8294,7 @@ class ClassroomScreenApp {
         const nextContext = {
             deckId: String(source.id || source.deckId || '').trim(),
             classId: className
-                ? String(source.classId || getStableClassId(className)).trim()
+                ? String(source.classId || this.getClassIdForName(className)).trim()
                 : '',
             className,
             deckName: String(source.name || source.deckName || this.projectState?.projectName || DEFAULT_PROJECT_NAME).trim()
@@ -8260,7 +8355,7 @@ class ClassroomScreenApp {
             preset.className.replace(/\s+/g, ' ').toLowerCase() === normalizedRequestedName.toLowerCase()
         ));
         const className = matchingClassPreset?.className || normalizedRequestedName;
-        const classId = className ? matchingClassPreset?.classId || getStableClassId(className) : '';
+        const classId = className ? matchingClassPreset?.classId || this.getClassIdForName(className) : '';
         if (currentPreset.className.toLowerCase() === className.toLowerCase()) {
             return currentPreset;
         }
@@ -9128,6 +9223,10 @@ class ClassroomScreenApp {
                                                 <span aria-hidden="true">⋯</span>
                                             </summary>
                                             <div class="dashboard-class-menu__actions">
+                                                <button type="button" class="dashboard-class-rename" aria-label="Rename class ${escapeHtml(selectedClassName)}">
+                                                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                                                    <span>Rename class</span>
+                                                </button>
                                                 <button type="button" class="dashboard-class-delete" data-class-name="${escapeHtml(selectedClassName)}" aria-label="Delete class ${escapeHtml(selectedClassName)}">
                                                     <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                                                     <span>Delete class</span>
@@ -9196,6 +9295,12 @@ class ClassroomScreenApp {
             if (!classMenu.open) return;
             this.dashboardRoot.querySelectorAll('.dashboard-deck-more[open], #dashboard-utility-menu[open]')
                 .forEach((details) => { details.open = false; });
+        });
+        classMenu?.querySelector('.dashboard-class-rename')?.addEventListener('click', () => {
+            classMenu.open = false;
+            if (!this.renameClassFromDashboard(selectedClassName)) {
+                classMenu.querySelector('summary')?.focus({ preventScroll: true });
+            }
         });
         classMenu?.querySelector('.dashboard-class-delete')?.addEventListener('click', () => {
             classMenu.open = false;

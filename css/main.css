@@ -13224,6 +13224,7 @@ body.is-dashboard-active .dashboard-class-menu__actions {
     box-shadow: 0 12px 28px rgba(16, 43, 60, 0.18);
 }
 
+body.is-dashboard-active .dashboard-class-rename,
 body.is-dashboard-active .dashboard-class-delete {
     display: flex;
     align-items: center;
@@ -13242,11 +13243,20 @@ body.is-dashboard-active .dashboard-class-delete {
     cursor: pointer;
 }
 
+body.is-dashboard-active .dashboard-class-rename {
+    color: #244b62;
+}
+
+body.is-dashboard-active .dashboard-class-rename:hover {
+    background: #edf7ff;
+}
+
 body.is-dashboard-active .dashboard-class-delete:hover {
     background: #fff0f0;
 }
 
 body.is-dashboard-active .dashboard-class-menu > summary:focus-visible,
+body.is-dashboard-active .dashboard-class-rename:focus-visible,
 body.is-dashboard-active .dashboard-class-delete:focus-visible {
     outline: 3px solid #1684c7;
     outline-offset: 2px;
