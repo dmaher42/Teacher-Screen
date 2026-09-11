@@ -178,7 +178,7 @@ class BehaviourTrackerWidget {
         meta.content = 'width=device-width, initial-scale=1';
         const stylesheet = popupDocument.createElement('link');
         stylesheet.rel = 'stylesheet';
-        stylesheet.href = new URL('css/behaviour-tracker.css?v=6', document.baseURI).href;
+        stylesheet.href = new URL('css/behaviour-tracker.css?v=7', document.baseURI).href;
         const windowStyles = popupDocument.createElement('style');
         windowStyles.textContent = `
             html, body { min-height: 100%; margin: 0; background: #fbfdfc; }
@@ -429,7 +429,7 @@ class BehaviourTrackerWidget {
         }
 
         const toggle = this.createButton(
-            running ? 'Stop timer' : 'Start lost-time timer',
+            running ? '■ Stop' : '▶ Start',
             `behaviour-timer-toggle${running ? ' is-running' : ''}`,
             () => this.toggleTimer()
         );
@@ -588,7 +588,7 @@ class BehaviourTrackerWidget {
         title.textContent = 'Learning-time tracker';
         titleWrap.append(kicker, title);
 
-        const undo = this.createButton('Undo', 'behaviour-undo-button', () => this.undoLastAction());
+        const undo = this.createButton('↶ Undo', 'behaviour-undo-button', () => this.undoLastAction());
         undo.disabled = this.undoStack.length === 0;
         undo.dataset.action = 'undo';
         undo.title = this.undoStack.length > 0
@@ -665,17 +665,29 @@ class BehaviourTrackerWidget {
         shell.appendChild(this.renderTimerPanel());
         const actions = document.createElement('div');
         actions.className = 'behaviour-quick-actions';
-        const reset = this.createButton('Reset time', 'behaviour-clear-button', () => this.resetTime());
+        const reset = this.createButton('↺ Reset', 'behaviour-clear-button', () => this.resetTime());
         reset.dataset.action = 'reset-time';
+        reset.title = 'Reset time';
+        reset.setAttribute('aria-label', 'Reset time');
         reset.disabled = !Number.isFinite(this.runningSince) && this.elapsedMs === 0;
-        const undo = this.createButton('Undo', 'behaviour-undo-button', () => this.undoLastAction());
+        const undo = this.createButton('↶ Undo', 'behaviour-undo-button', () => this.undoLastAction());
         undo.dataset.action = 'undo';
         undo.disabled = this.undoStack.length === 0;
-        const observations = this.createButton('Private observations', 'behaviour-secondary-button', () => this.openControlWindow());
-        observations.dataset.action = 'open-controls';
-        actions.append(reset, undo, observations);
+        undo.title = 'Undo last action';
+        undo.setAttribute('aria-label', 'Undo last action');
+        actions.append(reset, undo);
         shell.appendChild(actions);
         return shell;
+    }
+
+    getHeaderMenuActions() {
+        if (this.projectorMode) return [];
+        return [{
+            label: 'Private observations',
+            iconClass: 'fa-solid fa-lock',
+            className: 'behaviour-observations-menu-item',
+            onSelect: () => this.openControlWindow()
+        }];
     }
 
     updateCompactControls() {
@@ -684,7 +696,7 @@ class BehaviourTrackerWidget {
         this.compactControls.dataset.running = String(running);
         this.compactControls.querySelector('output').textContent = behaviourTrackerFormatTime(this.getCurrentElapsed());
         const button = this.compactControls.querySelector('button');
-        button.textContent = running ? 'Stop' : 'Start';
+        button.textContent = running ? '■ Stop' : '▶ Start';
         button.setAttribute('aria-label', running ? 'Stop lost-time timer' : 'Start lost-time timer');
         button.setAttribute('aria-pressed', String(running));
         this.compactControls.title = running ? 'Recording lost time' : 'Lost learning time';

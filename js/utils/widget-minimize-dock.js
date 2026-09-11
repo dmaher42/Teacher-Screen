@@ -113,6 +113,15 @@
         }
       };
       window.addEventListener('resize', layoutManager.__widgetMinimizeDockResizeHandler);
+      // The classroom and toolbar can become visible without a window resize.
+      // Re-measure their footprint after layout, including restoring a saved pill.
+      if (typeof ResizeObserver === 'function') {
+        layoutManager.__widgetMinimizeDockObserver = new ResizeObserver(layoutManager.__widgetMinimizeDockResizeHandler);
+        layoutManager.__widgetMinimizeDockObserver.observe(layoutManager.container);
+        const toolbar = document.getElementById('lesson-quick-actions');
+        if (toolbar) layoutManager.__widgetMinimizeDockObserver.observe(toolbar);
+      }
+
     }
 
     return dock;

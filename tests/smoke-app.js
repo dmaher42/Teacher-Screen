@@ -5166,7 +5166,7 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
         assert(await learningTimeWidget.locator('.behaviour-timer-value').textContent() !== '00:00', 'The teacher canvas should show lost time counting without a popup');
         assert(await learningTimeWidget.locator('.behaviour-eyebrow').textContent() === 'Recording lost time', 'The timer should clearly announce its running state');
         await learningTimeWidget.locator('[data-action="toggle-timer"]').press('Space');
-        assert(await learningTimeWidget.locator('[data-action="toggle-timer"]').textContent() === 'Start lost-time timer', 'The focused timer button should stop the timer with Space');
+        assert(await learningTimeWidget.locator('[data-action="toggle-timer"]').textContent() === '▶ Start', 'The focused timer button should stop the timer with Space');
         const stoppedLostTime = await learningTimeWidget.locator('.behaviour-timer-value').textContent();
         await learningTimeWidget.locator('[data-action="reset-time"]').click();
         assert(await learningTimeWidget.locator('.behaviour-timer-value').textContent() === '00:00', 'Reset time should clear the timer');
@@ -5180,7 +5180,7 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
         assert(await compactLostTime.isVisible(), 'Minimising the timer should retain the running total and controls');
         await compactLostTime.getByRole('button', { name: 'Stop lost-time timer', exact: true }).click();
         assert(await learningTimeWidget.getAttribute('class').then((value) => value.includes('is-minimized')), 'Stopping the compact timer should keep it minimised');
-        assert(await compactLostTime.getByRole('button').textContent() === 'Start', 'The compact Stop button should stop recording');
+        assert(await compactLostTime.getByRole('button').textContent() === '▶ Start', 'The compact Stop button should stop recording');
         await learningTimeWidget.locator('.widget-header-menu > summary').click();
         await learningTimeWidget.locator('.widget-minimize-btn').click();
         await selectWidgetForEditing(page, '.widget.behaviour-tracker-widget');
@@ -5288,6 +5288,23 @@ async function runWidgetStartupLayoutChecks(browser, baseUrl) {
         });
         assert(migration.migrated, 'Existing large timers should become compact without losing their time');
         assert(migration.customSizePreserved, 'Later manual resizing should survive restoration');
+        await page.setViewportSize({ width: 360, height: 800 });
+        await mobileTimer.locator('.widget-header-menu > summary').click();
+        await mobileTimer.locator('.widget-minimize-btn').click();
+        await page.waitForFunction(() => JSON.parse(localStorage.getItem('classroomScreenState') || '{}').layout?.widgets
+            ?.some(entry => entry.type === 'BehaviourTrackerWidget' && entry.minimized));
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(() => Boolean(window.__TeacherScreenApp));
+        if (await page.locator('#dashboard-open-classroom-btn').isVisible()) await page.locator('#dashboard-open-classroom-btn').click();
+        await page.waitForFunction(() => {
+            const pill = document.querySelector('.widget.behaviour-tracker-widget.is-minimized')?.getBoundingClientRect();
+            const toolbar = document.getElementById('lesson-quick-actions')?.getBoundingClientRect();
+            return pill && toolbar && pill.bottom <= toolbar.top && pill.right <= window.innerWidth && pill.width <= 200;
+        });
+        await mobileTimer.locator('.behaviour-compact-controls button').click();
+        await mobileTimer.locator('.behaviour-compact-controls button').click();
+        assert(true, 'The compact timer pill should stay above the toolbar and remain usable after a narrow-screen reload');
+
 
         assert(pageErrors.length === 0, `Widget startup layout checks should not raise page errors (${pageErrors.join('; ')})`);
         assert(consoleErrors.length === 0, `Widget startup layout checks should not raise console errors (${consoleErrors.join('; ')})`);
@@ -6315,7 +6332,8 @@ async function runSmoke() {
             };
         });
         const behaviourPopupPromise = page.waitForEvent('popup');
-        await behaviourTracker.locator('[data-action="open-controls"]').click();
+        await behaviourTracker.locator('.widget-header-menu > summary').click();
+        await behaviourTracker.locator('.behaviour-observations-menu-item').click();
         const behaviourControls = await behaviourPopupPromise;
         await behaviourControls.waitForSelector('.behaviour-tracker-widget-content[data-mode="private"]', { timeout: 10000 });
         await behaviourControls.locator('.behaviour-tracker-widget-content').press('2');
