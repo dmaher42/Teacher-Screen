@@ -3,7 +3,6 @@ import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 import './utils/widget-change-notifier.js';
-import { ProjectorPresentationMirror } from './services/presentation-mirror-service.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
@@ -11,7 +10,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '50';
+const PROJECTOR_LOCAL_ASSET_VERSION = '51';
 
 window.__ProjectorConnection = {
     window: window,
@@ -285,7 +284,7 @@ function getProjectorRevealWidgets() {
 }
 
 async function syncRevealWidgetsOnProjector(data = {}) {
-    const widgets = getProjectorRevealWidgets();
+    const widgets = getProjectorRevealWidgets().filter(widget => !data.widgetId || widget.widgetId === data.widgetId);
     if (!widgets.length) {
         return false;
     }
@@ -301,6 +300,8 @@ async function syncRevealWidgetsOnProjector(data = {}) {
         }
 
         widget.currentIndices = nextIndices;
+        widget.projectorFullscreen = data.projectorFullscreen === true;
+        widget.applyProjectorFullscreen?.();
 
         const deckReference = data.deck && typeof data.deck === 'object' ? data.deck : null;
         if (deckReference && typeof widget.launchDeck === 'function') {
@@ -446,6 +447,9 @@ const handleSlideSyncPayload = async (data = {}) => {
     if (syncedRevealWidgets) {
         return;
     }
+    // A scoped widget may be hidden from the projector or still mounting.
+    // Never turn its update into a standalone, full-window presentation.
+    if (data.widgetId) return;
 
     if (data.html) {
         loadPresentationHtml(data.html)
@@ -618,7 +622,6 @@ class ProjectorApp {
         // in case either window is still starting up and misses the first request.
         this.requestTeacherSync();
         this.scheduleTeacherSyncRetries();
-        this.presentationMirror = new ProjectorPresentationMirror(this.projectorSyncToken);
     }
 
     requestTeacherSync() {
@@ -799,7 +802,7 @@ class ProjectorApp {
 
             const nextData = JSON.stringify(nextWidget.data ?? null);
             const currentData = JSON.stringify(currentWidget.data ?? null);
-            if (nextData !== currentData) {
+            if (nextData !== currentData && nextWidget.type !== 'RevealManagerWidget') {
                 return true;
             }
         }
@@ -813,6 +816,11 @@ class ProjectorApp {
         }
 
         nextLayout.widgets.forEach((widget) => {
+            const current = this.layoutManager.widgets.find(info => info.id === widget.id)?.widget;
+            if (widget.type === 'RevealManagerWidget' && current
+                && JSON.stringify(current.serialize()) !== JSON.stringify(widget.data)) {
+                current.deserialize(widget.data || {});
+            }
             this.layoutManager.applyLayoutDelta({
                 type: 'widget-update',
                 id: widget.id,
@@ -942,7 +950,6 @@ class ProjectorApp {
     }
 
     destroy() {
-        this.presentationMirror?.destroy();
         this.clearTeacherSyncRetries();
         document.removeEventListener('visibilitychange', this.handleVisibilitySync);
         window.removeEventListener('focus', this.requestTeacherSync);

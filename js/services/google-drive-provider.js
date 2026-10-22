@@ -712,6 +712,16 @@ export class GoogleDriveResourceProvider {
         });
     }
 
+    async exportPresentationPdf(id) {
+        this.assertReadyForDriveRequest();
+        const metadata = await this.getFileMetadata(id);
+        if (metadata.mimeType !== GOOGLE_SLIDES_MIME_TYPE) {
+            throw new GoogleDriveProviderError('Choose a Google Slides presentation.', 'unsupported_presentation');
+        }
+        const blob = await this.requestBlob(`/files/${encodeURIComponent(id)}/export?mimeType=application%2Fpdf`);
+        return new File([blob], `${metadata.name || 'Google Slides'}.pdf`, { type: 'application/pdf' });
+    }
+
     async getFile(resource) {
         this.assertReadyForDriveRequest();
         const supplied = resource && typeof resource === 'object' ? resource : { id: resource };

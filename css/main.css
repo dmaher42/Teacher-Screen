@@ -14820,3 +14820,27 @@ body.widget-drag-active, body.widget-drag-active * {
     cursor: grabbing !important;
     user-select: none !important;
 }
+
+/* Keep the teacher's slide controls reachable at every widget width. */
+body:not(.projector-view) .reveal-manager__topbar {
+    flex-wrap: wrap;
+    overflow: visible;
+    border-radius: 12px;
+}
+.reveal-slide-select {
+    min-height: 34px;
+    max-width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border-soft-2);
+    border-radius: 10px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+}
+body:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status {
+    order: 10;
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

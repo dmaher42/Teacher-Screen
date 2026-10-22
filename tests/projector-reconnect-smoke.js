@@ -460,28 +460,27 @@ async function run() {
                 sourceUrl: widget.activeDeck?.sourceUrl || ''
             };
         });
-        await projectorPage.waitForFunction(({ widgetId, sourceUrl }) => {
-            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
-            return info?.widget?.activeDeck?.sourceUrl === sourceUrl
-                && info.widget.getExternalPresentationRuntime?.(info.widget.activeDeck)?.canMirrorInApp === true;
-        }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
-        const externalSyncGuidance = await teacherPage.evaluate((widgetId) => {
-            const info = window.__TeacherScreenApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
-            return info?.widget?.statusLabel?.textContent || '';
+        await projectorPage.waitForFunction(widgetId => {
+            const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find(widget => widget.id === widgetId);
+            return info && !info.widget.activeDeck;
         }, presentation.id);
-        if (!externalSyncGuidance.includes('do not sync slides') || !externalSyncGuidance.includes('PowerPoint or PDF')) {
-            throw new Error(`Web presentations should direct the teacher to the synced file route (${externalSyncGuidance})`);
+        const externalSyncGuidance = await teacherPage.evaluate(widgetId => {
+            const info = window.__TeacherScreenApp.layoutManager.widgets.find(widget => widget.id === widgetId);
+            return info.widget.statusLabel.textContent;
+        }, presentation.id);
+        if (!externalSyncGuidance.includes('current presentation has been kept')) {
+            throw new Error(`Unavailable web links should explain the file import route (${externalSyncGuidance})`);
         }
-        console.log('PASS: A web-link presentation is clearly identified as a separate, non-synced source');
+        console.log('PASS: Unavailable web links cannot create an independently controlled projector preview');
 
         const presentationReconnectPage = await context.newPage();
         try {
             await presentationReconnectPage.goto(`${baseUrl}/projector.html?syncToken=${syncToken}`, { waitUntil: 'domcontentloaded' });
-            await presentationReconnectPage.waitForFunction(({ widgetId, sourceUrl }) => {
-                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find((widget) => widget.id === widgetId);
-                return info?.widget?.activeDeck?.sourceUrl === sourceUrl;
-            }, { widgetId: presentation.id, sourceUrl: presentation.sourceUrl });
-            console.log('PASS: A reconnecting projector restores the web-link preview without claiming slide sync');
+            await presentationReconnectPage.waitForFunction(widgetId => {
+                const info = window.__TeacherScreenProjectorApp?.layoutManager.widgets.find(widget => widget.id === widgetId);
+                return info && !info.widget.activeDeck;
+            }, presentation.id);
+            console.log('PASS: Reconnecting projector does not restore an unsynchronised web-link preview');
         } finally {
             await presentationReconnectPage.close();
         }

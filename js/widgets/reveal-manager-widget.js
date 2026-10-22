@@ -52,8 +52,10 @@ class RevealManagerWidget {
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-launch-btn" title="Close presentation" hidden>Close</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" title="Previous slide" hidden>Previous</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide" hidden>Next</button>
+                    <select class="reveal-slide-select" aria-label="Select slide" hidden></select>
                     <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-edit-pptx-btn" title="Edit this PowerPoint in Teacher Screen" hidden>Edit PowerPoint</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-projector-btn" title="Show this presentation on the projector" hidden>Show on projector</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-fullscreen-btn" aria-pressed="false" hidden>Full screen on projector</button>
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-toggle-controls-btn" aria-label="Choose presentation" aria-expanded="false" title="Choose presentation">Choose presentation</button>
@@ -63,20 +65,20 @@ class RevealManagerWidget {
                     <section class="reveal-manager__section reveal-manager__open-section" aria-label="Load presentation">
                         <div class="reveal-manager__intro">
                             <h3 class="reveal-manager__section-title">Load presentation</h3>
-                            <p>Choose a PowerPoint or PDF file, or load a web link below and select Sync to projector.</p>
+                            <p>Choose a PowerPoint or PDF file. Previous, Next and slide selection automatically control the paired projector. Google Slides links require Drive access to import a PDF copy; animations and videos are not included in PDF copies.</p>
                         </div>
                         <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">
                             <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
                             Choose PowerPoint or PDF
                         </button>
-                        <div class="reveal-manager__divider" aria-hidden="true"><span>or control a linked presentation here</span></div>
+                        <div class="reveal-manager__divider" aria-hidden="true"><span>or import a presentation link</span></div>
                         <label class="reveal-field reveal-manager-row reveal-external-row">
-                            <span class="reveal-field-label">Google Slides link or PowerPoint embed link</span>
+                            <span class="reveal-field-label">Google Slides link or PowerPoint download link</span>
                             <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Google Slides or PowerPoint link" placeholder="Paste a presentation link">
                         </label>
                         <p class="reveal-external-validation" role="status" aria-live="polite" hidden></p>
                         <div class="reveal-manager-row reveal-manager-actions reveal-link-actions">
-                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-input-btn">Open web link</button>
+                            <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-open-input-btn">Import web link</button>
                             <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-save-btn">Save web link</button>
                         </div>
                         <details class="reveal-manager__advanced">
@@ -134,6 +136,18 @@ class RevealManagerWidget {
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.prevButton = this.element.querySelector('.reveal-prev-btn');
         this.nextButton = this.element.querySelector('.reveal-next-btn');
+        this.slideSelect = this.element.querySelector('.reveal-slide-select');
+        this.projectorFullscreenButton = this.element.querySelector('.reveal-projector-fullscreen-btn');
+        this.projectorFullscreen = false;
+        this.slideSelect.addEventListener('change', () => {
+            const [h, v] = this.slideSelect.value.split(':').map(Number);
+            this.revealDeck?.slide(h, v);
+        });
+        this.projectorFullscreenButton.addEventListener('click', () => {
+            this.projectorFullscreen = !this.projectorFullscreen;
+            this.updateControls();
+            this.broadcastSlideSync();
+        });
         this.editPptxButton = this.element.querySelector('.reveal-edit-pptx-btn');
         this.projectorButton = this.element.querySelector('.reveal-projector-btn');
         this.deckIndicator = this.element.querySelector('.reveal-deck-indicator');
@@ -293,7 +307,7 @@ class RevealManagerWidget {
             sourceType: activeDeck?.type || null,
             sourceLabel: activeDeck ? this.getSourceTypeLabel(activeDeck.type) : '',
             canNavigate: !!(activeDeck && activeDeck.type === 'html'),
-            isLiveSharing: window.TeacherScreenPresentationMirror?.isActive(this) === true,
+            isLiveSharing: false,
             currentIndices: {
                 h: Number.isFinite(this.currentIndices?.h) ? this.currentIndices.h : 0,
                 v: Number.isFinite(this.currentIndices?.v) ? this.currentIndices.v : 0
@@ -722,13 +736,55 @@ class RevealManagerWidget {
             this.editPptxButton.remove();
         }
         this.projectorButton.hidden = !hasDeck;
-        this.projectorButton.textContent = isLiveRevealDeck ? 'Show on projector'
-            : window.TeacherScreenPresentationMirror?.isActive(this) ? 'Stop syncing' : 'Sync to projector';
-        this.projectorButton.title = isLiveRevealDeck
-            ? 'Show this presentation on the paired projector screen'
-            : 'Sync the embedded presentation with the paired projector';
+        this.projectorButton.textContent = 'Open projector';
+        this.projectorButton.title = 'Open the paired projector; slides already sync automatically';
+        this.projectorFullscreenButton.hidden = !isLiveRevealDeck;
+        this.projectorFullscreenButton.textContent = this.projectorFullscreen ? 'Return projector to classroom' : 'Full screen on projector';
+        this.projectorFullscreenButton.setAttribute('aria-pressed', String(this.projectorFullscreen));
+        this.updateSlideSelector();
+        this.applyProjectorFullscreen();
         this.emptyState.hidden = true;
         this.toggleCompact(this.isCompact);
+    }
+
+    updateSlideSelector() {
+        if (!this.slideSelect) return;
+        const positions = [];
+        if (this.isEditablePptxDeck(this.activeDeck)) {
+            for (let h = 0; h < (this.activeDeck.slideCount || 0); h++) positions.push([h, 0]);
+        } else {
+            const slides = this.inlineDeckContainer?.querySelector('.slides');
+            Array.from(slides?.children || []).filter(node => node.tagName === 'SECTION').forEach((section, h) => {
+                const children = Array.from(section.children).filter(node => node.tagName === 'SECTION');
+                if (children.length) children.forEach((_, v) => positions.push([h, v]));
+                else positions.push([h, 0]);
+            });
+        }
+        const signature = JSON.stringify(positions);
+        if (this.slideSelect.dataset.positions !== signature) {
+            this.slideSelect.replaceChildren(...positions.map(([h, v], index) => {
+                const option = document.createElement('option');
+                option.value = `${h}:${v}`;
+                option.textContent = `Slide ${index + 1} of ${positions.length}`;
+                return option;
+            }));
+            this.slideSelect.dataset.positions = signature;
+        }
+        this.slideSelect.hidden = !positions.length;
+        this.slideSelect.value = `${this.currentIndices.h || 0}:${this.currentIndices.v || 0}`;
+    }
+
+    applyProjectorFullscreen() {
+        if (this.isTeacherMode()) return;
+        const wrapper = this.element.closest('.widget');
+        if (!wrapper) return;
+        if (this.projectorFullscreen && this.activeDeck) {
+            document.querySelectorAll('.projector-presentation-fullscreen').forEach(node => {
+                if (node !== wrapper) node.classList.remove('projector-presentation-fullscreen');
+            });
+            wrapper.classList.add('projector-presentation-fullscreen');
+        } else wrapper.classList.remove('projector-presentation-fullscreen');
+        window.requestAnimationFrame(() => this.revealDeck?.layout?.());
     }
 
     getControls() {
@@ -864,7 +920,7 @@ class RevealManagerWidget {
                 const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
                 statusText.textContent = this.activeDeck.type === 'html'
                     ? `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`
-                    : `${deckName} is linked. Choose Sync to projector, then use the controls inside the presentation.`;
+                    : `${deckName} is linked. Import a PDF or PPTX copy to use teacher slide controls.`;
             } else {
                 statusText.textContent = 'No presentation selected.';
             }
@@ -2184,22 +2240,58 @@ class RevealManagerWidget {
             return false;
         }
 
-        const deckName = (name || this.getSourceTypeLabel(sourceType)).trim();
-        this.sourceTypeSelect.value = sourceType;
-        this.deckNameInput.value = deckName;
-        this.externalUrlInput.value = validation.normalizedUrl;
-        this.htmlInput.value = '';
-        this.updateSourceFields();
+        const requestGeneration = this.restoreGeneration;
+        try {
+            this.setStatus('Importing a controllable copy of this presentation…');
+            let file;
+            const url = new URL(validation.normalizedUrl);
+            if (sourceType === 'google-slides') {
+                const id = url.pathname.match(/\/presentation\/d\/([^/]+)/)?.[1];
+                if (!id) throw new Error('Use a Google Slides document link, or upload its PDF copy.');
+                const provider = window.__TeacherScreenApp?.googleDriveResourceProvider;
+                if (provider?.hasValidAccessToken()) {
+                    file = await provider.exportPresentationPdf(id);
+                } else {
+                    file = await this.downloadPresentationFile(`https://docs.google.com/presentation/d/${encodeURIComponent(id)}/export/pdf`, `${name || 'Google Slides'}.pdf`);
+                }
+            } else {
+                const downloadUrl = url.searchParams.get('src') || url.toString();
+                const filename = new URL(downloadUrl).pathname.split('/').pop();
+                if (!/\.(pptx|pdf)$/i.test(filename || '')) {
+                    throw new Error('This Microsoft viewing link does not provide a downloadable file. Download its PPTX or PDF, then choose a file here.');
+                }
+                file = await this.downloadPresentationFile(downloadUrl, filename);
+            }
+            if (this.isDiscarded || requestGeneration !== this.restoreGeneration) return false;
+            const imported = await this.importDeckFile(file);
+            if (!imported) return false;
+            this.setStatus(sourceType === 'google-slides'
+                ? 'Google Slides PDF copy ready. Teacher controls sync automatically. Animations and videos are not included; import again after online edits.'
+                : 'Presentation copy ready. Teacher controls sync automatically. Import again after online edits.');
+            return true;
+        } catch (error) {
+            console.warn('[Presentation] linked import unavailable', error);
+            this.setStatus(`${error.message || 'The link could not be downloaded.'} For reliable teacher controls, download the presentation as PDF or PPTX and choose that file here. Your current presentation has been kept.`);
+            this.toggleCompact(false);
+            return false;
+        }
+    }
 
-        await this.launchDeck({
-            id: Date.now(),
-            name: deckName,
-            type: sourceType,
-            sourceUrl: validation.normalizedUrl,
-            content: ''
-        }, { preserveIndices: false });
-
-        return !!this.activeDeck;
+    async downloadPresentationFile(sourceUrl, filename) {
+        const url = new URL(sourceUrl);
+        if (url.protocol !== 'https:') throw new Error('Use a secure presentation download link.');
+        const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(30000) });
+        if (!response.ok) throw new Error('This presentation requires access or does not allow a direct download.');
+        if (Number(response.headers.get('content-length')) > SLIDE_IMPORT_MAX_SOURCE_BYTES) throw new Error('This file is larger than 50 MB.');
+        const blob = await response.blob();
+        if (blob.size > SLIDE_IMPORT_MAX_SOURCE_BYTES) throw new Error('This file is larger than 50 MB.');
+        const bytes = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+        const isPdf = String.fromCharCode(...bytes) === '%PDF-';
+        const isPptx = bytes[0] === 0x50 && bytes[1] === 0x4b;
+        if (!isPdf && !isPptx) throw new Error('The link returned a web page instead of a presentation file.');
+        return new File([blob], `${filename.replace(/\.(pdf|pptx)$/i, '')}.${isPdf ? 'pdf' : 'pptx'}`, {
+            type: isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        });
     }
 
     saveExternalSource({ type = 'google-slides', sourceUrl = '', name = '' } = {}) {
@@ -2274,6 +2366,7 @@ class RevealManagerWidget {
                 h: event.indexh,
                 v: typeof event.indexv === 'number' ? event.indexv : 0
             };
+            this.updateSlideSelector();
             return;
         }
 
@@ -2286,6 +2379,7 @@ class RevealManagerWidget {
             h: indices && typeof indices.h === 'number' ? indices.h : 0,
             v: indices && typeof indices.v === 'number' ? indices.v : 0
         };
+        this.updateSlideSelector();
     }
 
     detachDeckListeners() {
@@ -2450,9 +2544,7 @@ class RevealManagerWidget {
             this.inlineDeckContainer.__teacherScreenRevealDeck = null;
             this.revealDeck = null;
             const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
-            this.setStatus(externalRuntime?.canMirrorInApp
-                ? 'Choose Sync to projector, share this Teacher Screen tab, then use the controls inside the presentation.'
-                : 'This link cannot be embedded. Use an embed link or import a PDF to control slides from Teacher Screen.');
+            this.setStatus('Import a PDF or PPTX copy in Teacher Screen to control this presentation.');
             return null;
         }
 
@@ -2509,6 +2601,8 @@ class RevealManagerWidget {
                 activateReveal(this.inlineDeckContainer);
                 this.currentIndices = targetIndices;
                 await this.moveDeckToStoredSlide(deck);
+                this.updateSlideSelector();
+                this.applyProjectorFullscreen();
                 if (this.isDiscarded || renderVersion !== this.renderVersion || this.activeDeck !== activeDeck) {
                     return null;
                 }
@@ -2577,6 +2671,7 @@ class RevealManagerWidget {
 
         const listeners = new Map();
         let ready = false;
+        let requestedSlide = Math.max(0, Number(initialSlide) || 0);
         const emit = (name, detail = {}) => {
             const callbacks = listeners.get(name);
             callbacks?.forEach((callback) => callback(detail));
@@ -2590,7 +2685,11 @@ class RevealManagerWidget {
             off: (name, callback) => listeners.get(name)?.delete(callback),
             isReady: () => ready,
             getIndices: () => ({ h: this.currentIndices.h || 0, v: 0 }),
-            slide: (h = 0) => this.postPptxFrameCommand('slide', { slide: Math.max(0, Number(h) || 0) }),
+            slide: (h = 0) => {
+                requestedSlide = Math.max(0, Number(h) || 0);
+                this.currentIndices = { h: requestedSlide, v: 0 };
+                if (ready) this.postPptxFrameCommand('slide', { slide: requestedSlide });
+            },
             next: () => this.postPptxFrameCommand('next'),
             prev: () => this.postPptxFrameCommand('prev'),
             up: () => this.postPptxFrameCommand('prev'),
@@ -2607,12 +2706,16 @@ class RevealManagerWidget {
             if (message.storageId !== deck.storageId) return;
             if (message.type === 'teacher-screen-pptx-ready') {
                 ready = true;
-                this.currentIndices = { h: Math.max(0, Number(message.slide) || 0), v: 0 };
+                deck.slideCount = Math.max(0, Number(message.slideCount) || deck.slideCount || 0);
+                requestedSlide = this.currentIndices.h || 0;
+                this.currentIndices = { h: Math.min(requestedSlide, Math.max(0, deck.slideCount - 1)), v: 0 };
+                this.postPptxFrameCommand('slide', { slide: this.currentIndices.h });
                 this.setStatus('');
                 emit('ready', { indexh: this.currentIndices.h, indexv: 0 });
                 return;
             }
             if (message.type === 'teacher-screen-pptx-slide-change') {
+                if (!ready) return;
                 this.currentIndices = { h: Math.max(0, Number(message.slide) || 0), v: 0 };
                 emit('slidechanged', { indexh: this.currentIndices.h, indexv: 0 });
                 return;
@@ -2639,25 +2742,6 @@ class RevealManagerWidget {
         const sourceUrl = runtime.normalizedUrl || deck.sourceUrl || '';
         this.inlineDeckContainer.innerHTML = '';
 
-        if (runtime.canMirrorInApp && runtime.embedUrl && this.isTeacherMode()) {
-            const shell = document.createElement('div');
-            shell.className = 'reveal-external-embed-shell';
-            shell.style.isolation = 'isolate';
-            shell.style.transformStyle = 'flat';
-
-            const iframe = document.createElement('iframe');
-            iframe.className = 'reveal-external-embed-frame';
-            iframe.src = runtime.embedUrl;
-            iframe.title = `${deck.name || sourceLabel} presentation`;
-            iframe.loading = 'lazy';
-            iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-            iframe.setAttribute('allow', 'fullscreen');
-
-            shell.appendChild(iframe);
-            this.inlineDeckContainer.appendChild(shell);
-            return runtime;
-        }
-
         const card = document.createElement('div');
         card.className = 'reveal-external-source-card';
 
@@ -2672,8 +2756,8 @@ class RevealManagerWidget {
 
         const message = document.createElement('p');
         message.textContent = this.isTeacherMode()
-            ? 'Use an embed link to control this presentation here, or download it as a PDF and choose Import Slides.'
-            : 'Start Sync to projector in Teacher Screen. The presentation will appear here and follow the teacher’s controls.';
+            ? 'Import a PDF or PPTX copy to control this presentation from Teacher Screen.'
+            : 'Import this presentation as PDF or PPTX in Teacher Screen. Slides will then follow the teacher’s controls automatically.';
         card.appendChild(message);
         if (!this.isTeacherMode()) {
             this.inlineDeckContainer.appendChild(card);
@@ -2702,7 +2786,10 @@ class RevealManagerWidget {
             return Promise.resolve(false);
         }
 
-        window.TeacherScreenPresentationMirror?.stop(this);
+        if (this.isExternalSourceType(normalizedDeck.type) && this.isTeacherMode()) {
+            return this.loadExternalSource({ type: normalizedDeck.type, sourceUrl: normalizedDeck.sourceUrl, name: normalizedDeck.name });
+        }
+
         const generation = ++this.restoreGeneration;
         const launchPromise = this.launchDeckForGeneration(normalizedDeck, options, generation);
         const trackedPromise = launchPromise.finally(() => {
@@ -2792,7 +2879,6 @@ class RevealManagerWidget {
     }
 
     async stopDeck() {
-        window.TeacherScreenPresentationMirror?.stop(this);
         const generation = ++this.restoreGeneration;
         this.renderVersion += 1;
         this.renderPromise = null;
@@ -2818,6 +2904,7 @@ class RevealManagerWidget {
         this.clearRuntimeObjectUrls();
         this.revealDeck = null;
         this.activeDeck = null;
+        this.projectorFullscreen = false;
         this.currentIndices = { h: 0, v: 0 };
         this.savedSelect.value = '';
         this.setStatus('');
@@ -2838,6 +2925,8 @@ class RevealManagerWidget {
 
         const payload = {
             type: 'slideSync',
+            widgetId: this.widgetId,
+            projectorFullscreen: this.projectorFullscreen,
             h: this.currentIndices.h || 0,
             v: this.currentIndices.v || 0,
             deck: this.getPersistentDeckReference(this.activeDeck),
@@ -2925,10 +3014,6 @@ class RevealManagerWidget {
         event?.stopPropagation();
 
         this.updateExternalLinkFields();
-
-        if (this.activeDeck) {
-            await this.stopDeck();
-        }
 
         const deck = this.buildDeckFromInputs();
         if (!deck) return false;
@@ -3193,25 +3278,6 @@ class RevealManagerWidget {
             return false;
         }
 
-        const isLinkedDeck = this.activeDeck.type !== 'html';
-        const mirror = window.TeacherScreenPresentationMirror;
-        let captureTarget = null;
-        if (isLinkedDeck) {
-            if (mirror?.isActive(this)) {
-                mirror.stop(this);
-                return true;
-            }
-            captureTarget = this.inlineDeckContainer.querySelector('.reveal-external-embed-shell');
-            if (!captureTarget) {
-                this.setStatus('This link cannot be embedded. Use an embed link or import a PDF to control it from Teacher Screen.');
-                return false;
-            }
-            if (!mirror?.isSupported()) {
-                this.setStatus('Live projector sync needs a current Chrome or Edge browser. You can also import a PDF.');
-                return false;
-            }
-        }
-
         const projectorUrl = new URL('projector.html', window.location.href);
         try {
             const syncToken = sessionStorage.getItem('teacher-screen-projector-sync-token')
@@ -3224,8 +3290,6 @@ class RevealManagerWidget {
             console.warn('[RevealSync] unable to attach projector sync token', error);
         }
 
-        // Request sharing directly from the click before opening the popup.
-        if (isLinkedDeck) this.liveSyncPromise = mirror.start(this, captureTarget);
         this.projectorWindow = window.open(
             projectorUrl.toString(),
             'projector',
@@ -3233,12 +3297,11 @@ class RevealManagerWidget {
         );
 
         if (!this.projectorWindow) {
-            if (isLinkedDeck) mirror.stop(this);
             this.setStatus('Projector popup blocked.');
             return false;
         }
 
-        if (!isLinkedDeck) this.setStatus('Projector opening...');
+        this.setStatus('Projector opening. Move its window to the projector display; teacher controls sync automatically.');
 
         if (this.activeDeck.type === 'html') {
             window.setTimeout(() => this.broadcastSlideSync(), 500);
@@ -3251,13 +3314,15 @@ class RevealManagerWidget {
         return {
             type: 'RevealManagerWidget',
             activeDeck: this.getPersistentDeckReference(this.activeDeck),
-            currentIndices: this.currentIndices
+            currentIndices: this.currentIndices,
+            projectorFullscreen: this.projectorFullscreen
         };
     }
 
     deserialize(data = {}) {
         const deck = this.normalizeStoredDeck(data.activeDeck);
-        if (!deck) return;
+        this.projectorFullscreen = data.projectorFullscreen === true;
+        if (!deck) return this.activeDeck ? this.stopDeck() : undefined;
 
         this.currentIndices = data.currentIndices && typeof data.currentIndices === 'object'
             ? {
@@ -3265,6 +3330,14 @@ class RevealManagerWidget {
                 v: Number.isFinite(data.currentIndices.v) ? data.currentIndices.v : 0
             }
             : { h: 0, v: 0 };
+
+        const sameDeck = this.activeDeck && (deck.storageId
+            ? deck.storageId === this.activeDeck.storageId
+            : deck.id === this.activeDeck.id && deck.content === this.activeDeck.content && deck.sourceUrl === this.activeDeck.sourceUrl);
+        if (sameDeck && (this.revealDeck || this.restorePromise)) {
+            this.updateControls();
+            return Promise.resolve(this.restorePromise).then(() => this.moveDeckToStoredSlide(this.revealDeck));
+        }
 
         this.deckNameInput.value = deck.name;
         this.sourceTypeSelect.value = deck.type || 'html';
@@ -3277,7 +3350,6 @@ class RevealManagerWidget {
     setEditable() {}
 
     onLayoutDiscard() {
-        window.TeacherScreenPresentationMirror?.stop(this);
         if (this.isDiscarded) {
             return;
         }
