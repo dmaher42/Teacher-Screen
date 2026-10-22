@@ -471,7 +471,14 @@ class LayoutManager {
     const { element, layoutType } = widgetInfo;
     const appendTo = (target) => {
       if (!target) return;
-      if (options.preserveStacking === true && element.parentElement === target) return;
+      if (element.parentElement === target) {
+        if (options.preserveStacking === true || target.lastElementChild === element) return;
+        // Preserve embedded presentations when mounting or reordering widgets.
+        if (typeof target.moveBefore === 'function') {
+          target.moveBefore(element, null);
+          return;
+        }
+      }
       target.appendChild(element);
     };
     element.classList.toggle('is-minimized', this.isWidgetMinimized(widgetInfo));

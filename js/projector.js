@@ -3,6 +3,7 @@ import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
 import { createWidgetByType } from './widgets/widget-registry.js';
 import './utils/widget-change-notifier.js';
+import { ProjectorPresentationMirror } from './services/presentation-mirror-service.js';
 
 window.APP_MODE = 'projector';
 const PROJECTOR_APP_MODE = 'projector';
@@ -10,7 +11,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '49';
+const PROJECTOR_LOCAL_ASSET_VERSION = '50';
 
 window.__ProjectorConnection = {
     window: window,
@@ -617,6 +618,7 @@ class ProjectorApp {
         // in case either window is still starting up and misses the first request.
         this.requestTeacherSync();
         this.scheduleTeacherSyncRetries();
+        this.presentationMirror = new ProjectorPresentationMirror(this.projectorSyncToken);
     }
 
     requestTeacherSync() {
@@ -940,6 +942,7 @@ class ProjectorApp {
     }
 
     destroy() {
+        this.presentationMirror?.destroy();
         this.clearTeacherSyncRetries();
         document.removeEventListener('visibilitychange', this.handleVisibilitySync);
         window.removeEventListener('focus', this.requestTeacherSync);

@@ -6482,8 +6482,8 @@ class ClassroomScreenApp {
             ? 'Optional PowerPoint name'
             : 'Optional Google Slides name';
         const hintText = normalizedSourceType === 'powerpoint'
-            ? 'Paste a Microsoft 365 or PowerPoint embed-ready link here. Embeddable links can mirror in Teacher Screen and the projector.'
-            : 'Paste a Google Slides link here. Embeddable links can mirror in Teacher Screen and the projector.';
+            ? 'Paste a PowerPoint embed link. Choose Sync to projector and share this Teacher Screen tab, then control the presentation here. Sound is not shared.'
+            : 'Paste a Google Slides link. Choose Sync to projector and share this Teacher Screen tab, then control the presentation here. Sound is not shared.';
 
         if (this.presentationSourceTypeSelect && this.presentationSourceTypeSelect.value !== normalizedSourceType) {
             this.presentationSourceTypeSelect.value = normalizedSourceType;
@@ -6580,6 +6580,7 @@ class ClassroomScreenApp {
             deckName: activeDeck?.name || 'Slides',
             currentIndices,
             statusMessage: payload.statusMessage || widget.statusLabel?.textContent || '',
+            isLiveSharing: window.TeacherScreenPresentationMirror?.isActive(widget) === true,
             sourceUrl: payload.sourceUrl || activeDeck?.sourceUrl || ''
         };
     }
@@ -6592,6 +6593,7 @@ class ClassroomScreenApp {
         deckName = 'Slides',
         currentIndices = { h: 0, v: 0 },
         statusMessage = '',
+        isLiveSharing = false,
         sourceUrl = ''
     } = {}) {
         if (!this.presentationStatusBadge || !this.presentationStatusDisplay || !this.presentationStatusContext || !this.presentationStatusMeta) {
@@ -6622,7 +6624,7 @@ class ClassroomScreenApp {
             contextText = this.formatPresentationSourceContext(sourceType, currentIndices, sourceUrl);
             metaText = statusMessage || (isHtmlDeck
                 ? 'Previous and Next are available here and in Slides Controls.'
-                : 'Linked in Slides Controls.');
+                : 'Choose Sync to projector, then use the controls inside the presentation.');
         }
 
         if (hasDeck && (sourceType === 'google-slides' || sourceType === 'powerpoint')) {
@@ -6649,6 +6651,8 @@ class ClassroomScreenApp {
 
         if (this.presentationProjectorButton) {
             this.presentationProjectorButton.disabled = !hasDeck;
+            this.presentationProjectorButton.textContent = sourceType === 'html'
+                ? 'Show on projector' : isLiveSharing ? 'Stop syncing' : 'Sync to projector';
         }
 
         const canNavigate = hasDeck && sourceType === 'html';

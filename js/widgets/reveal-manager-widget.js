@@ -63,15 +63,15 @@ class RevealManagerWidget {
                     <section class="reveal-manager__section reveal-manager__open-section" aria-label="Load presentation">
                         <div class="reveal-manager__intro">
                             <h3 class="reveal-manager__section-title">Load presentation</h3>
-                            <p>For synced teacher and projector slides, choose a PowerPoint or PDF from this device.</p>
+                            <p>Choose a PowerPoint or PDF file, or load a web link below and select Sync to projector.</p>
                         </div>
                         <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-convert-btn">
                             <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
                             Choose PowerPoint or PDF
                         </button>
-                        <div class="reveal-manager__divider" aria-hidden="true"><span>or open a web link separately</span></div>
+                        <div class="reveal-manager__divider" aria-hidden="true"><span>or control a linked presentation here</span></div>
                         <label class="reveal-field reveal-manager-row reveal-external-row">
-                            <span class="reveal-field-label">Google Slides or PowerPoint web link (not synced)</span>
+                            <span class="reveal-field-label">Google Slides link or PowerPoint embed link</span>
                             <input type="url" inputmode="url" autocomplete="off" class="reveal-external-url" aria-label="Google Slides or PowerPoint link" placeholder="Paste a presentation link">
                         </label>
                         <p class="reveal-external-validation" role="status" aria-live="polite" hidden></p>
@@ -293,6 +293,7 @@ class RevealManagerWidget {
             sourceType: activeDeck?.type || null,
             sourceLabel: activeDeck ? this.getSourceTypeLabel(activeDeck.type) : '',
             canNavigate: !!(activeDeck && activeDeck.type === 'html'),
+            isLiveSharing: window.TeacherScreenPresentationMirror?.isActive(this) === true,
             currentIndices: {
                 h: Number.isFinite(this.currentIndices?.h) ? this.currentIndices.h : 0,
                 v: Number.isFinite(this.currentIndices?.v) ? this.currentIndices.v : 0
@@ -721,10 +722,11 @@ class RevealManagerWidget {
             this.editPptxButton.remove();
         }
         this.projectorButton.hidden = !hasDeck;
-        this.projectorButton.textContent = isLiveRevealDeck ? 'Show on projector' : 'Open presentation window';
+        this.projectorButton.textContent = isLiveRevealDeck ? 'Show on projector'
+            : window.TeacherScreenPresentationMirror?.isActive(this) ? 'Stop syncing' : 'Sync to projector';
         this.projectorButton.title = isLiveRevealDeck
             ? 'Show this presentation on the paired projector screen'
-            : 'Open the web presentation in its own presentation window';
+            : 'Sync the embedded presentation with the paired projector';
         this.emptyState.hidden = true;
         this.toggleCompact(this.isCompact);
     }
@@ -862,7 +864,7 @@ class RevealManagerWidget {
                 const deckName = (this.activeDeck.name || 'Untitled Deck').trim();
                 statusText.textContent = this.activeDeck.type === 'html'
                     ? `${deckName} live at slide ${this.currentIndices.h + 1}.${this.currentIndices.v + 1}.`
-                    : `${deckName} is ready. Use Show on projector when the class should see it.`;
+                    : `${deckName} is linked. Choose Sync to projector, then use the controls inside the presentation.`;
             } else {
                 statusText.textContent = 'No presentation selected.';
             }
@@ -2448,7 +2450,9 @@ class RevealManagerWidget {
             this.inlineDeckContainer.__teacherScreenRevealDeck = null;
             this.revealDeck = null;
             const externalRuntime = this.renderExternalDeckScaffold(this.activeDeck);
-            this.setStatus(`${externalRuntime?.sourceLabel || this.getSourceTypeLabel(this.activeDeck.type)} web links open separately and do not sync slides. Choose a PowerPoint or PDF file for synced controls.`);
+            this.setStatus(externalRuntime?.canMirrorInApp
+                ? 'Choose Sync to projector, share this Teacher Screen tab, then use the controls inside the presentation.'
+                : 'This link cannot be embedded. Use an embed link or import a PDF to control slides from Teacher Screen.');
             return null;
         }
 
@@ -2635,9 +2639,11 @@ class RevealManagerWidget {
         const sourceUrl = runtime.normalizedUrl || deck.sourceUrl || '';
         this.inlineDeckContainer.innerHTML = '';
 
-        if (runtime.canMirrorInApp && runtime.embedUrl) {
+        if (runtime.canMirrorInApp && runtime.embedUrl && this.isTeacherMode()) {
             const shell = document.createElement('div');
             shell.className = 'reveal-external-embed-shell';
+            shell.style.isolation = 'isolate';
+            shell.style.transformStyle = 'flat';
 
             const iframe = document.createElement('iframe');
             iframe.className = 'reveal-external-embed-frame';
@@ -2665,8 +2671,14 @@ class RevealManagerWidget {
         card.appendChild(heading);
 
         const message = document.createElement('p');
-        message.textContent = `${sourceLabel} web links open separately and do not sync slides. Choose the PowerPoint or PDF file when the teacher and projector need to advance together.`;
+        message.textContent = this.isTeacherMode()
+            ? 'Use an embed link to control this presentation here, or download it as a PDF and choose Import Slides.'
+            : 'Start Sync to projector in Teacher Screen. The presentation will appear here and follow the teacher’s controls.';
         card.appendChild(message);
+        if (!this.isTeacherMode()) {
+            this.inlineDeckContainer.appendChild(card);
+            return runtime;
+        }
 
         const link = document.createElement('a');
         link.className = 'reveal-external-source-card__link';
@@ -2690,6 +2702,7 @@ class RevealManagerWidget {
             return Promise.resolve(false);
         }
 
+        window.TeacherScreenPresentationMirror?.stop(this);
         const generation = ++this.restoreGeneration;
         const launchPromise = this.launchDeckForGeneration(normalizedDeck, options, generation);
         const trackedPromise = launchPromise.finally(() => {
@@ -2779,6 +2792,7 @@ class RevealManagerWidget {
     }
 
     async stopDeck() {
+        window.TeacherScreenPresentationMirror?.stop(this);
         const generation = ++this.restoreGeneration;
         this.renderVersion += 1;
         this.renderPromise = null;
@@ -3179,8 +3193,23 @@ class RevealManagerWidget {
             return false;
         }
 
-        if (this.activeDeck.type !== 'html') {
-            return this.openExternalSourceWindow(this.activeDeck);
+        const isLinkedDeck = this.activeDeck.type !== 'html';
+        const mirror = window.TeacherScreenPresentationMirror;
+        let captureTarget = null;
+        if (isLinkedDeck) {
+            if (mirror?.isActive(this)) {
+                mirror.stop(this);
+                return true;
+            }
+            captureTarget = this.inlineDeckContainer.querySelector('.reveal-external-embed-shell');
+            if (!captureTarget) {
+                this.setStatus('This link cannot be embedded. Use an embed link or import a PDF to control it from Teacher Screen.');
+                return false;
+            }
+            if (!mirror?.isSupported()) {
+                this.setStatus('Live projector sync needs a current Chrome or Edge browser. You can also import a PDF.');
+                return false;
+            }
         }
 
         const projectorUrl = new URL('projector.html', window.location.href);
@@ -3195,6 +3224,8 @@ class RevealManagerWidget {
             console.warn('[RevealSync] unable to attach projector sync token', error);
         }
 
+        // Request sharing directly from the click before opening the popup.
+        if (isLinkedDeck) this.liveSyncPromise = mirror.start(this, captureTarget);
         this.projectorWindow = window.open(
             projectorUrl.toString(),
             'projector',
@@ -3202,42 +3233,17 @@ class RevealManagerWidget {
         );
 
         if (!this.projectorWindow) {
+            if (isLinkedDeck) mirror.stop(this);
             this.setStatus('Projector popup blocked.');
             return false;
         }
 
-        this.setStatus(this.activeDeck.type === 'html'
-            ? 'Projector opening...'
-            : `${this.getSourceTypeLabel(this.activeDeck.type)} projector opening...`);
+        if (!isLinkedDeck) this.setStatus('Projector opening...');
 
         if (this.activeDeck.type === 'html') {
             window.setTimeout(() => this.broadcastSlideSync(), 500);
             window.setTimeout(() => this.broadcastSlideSync(), 1500);
-        } else {
-            window.setTimeout(() => this.persistActiveDeckState(), 300);
         }
-        return true;
-    }
-
-    openExternalSourceWindow(deck) {
-        const validation = this.validateExternalSourceUrl({
-            type: deck?.type || 'google-slides',
-            sourceUrl: deck?.sourceUrl || ''
-        });
-        if (!validation.canProceed) {
-            this.renderExternalValidationState(validation);
-            this.setStatus(validation.message || 'This external source does not have a usable URL yet.');
-            return false;
-        }
-
-        const externalWindow = window.open(validation.normalizedUrl, 'projector', 'fullscreen=yes');
-        if (!externalWindow) {
-            this.setStatus('Projector popup blocked.');
-            return false;
-        }
-
-        this.projectorWindow = externalWindow;
-        this.setStatus(`${this.getSourceTypeLabel(deck.type)} opening in a live projector window...`);
         return true;
     }
 
@@ -3271,6 +3277,7 @@ class RevealManagerWidget {
     setEditable() {}
 
     onLayoutDiscard() {
+        window.TeacherScreenPresentationMirror?.stop(this);
         if (this.isDiscarded) {
             return;
         }
