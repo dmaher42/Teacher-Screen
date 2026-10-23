@@ -50,6 +50,14 @@ classes. They do not open personal profiles or access student data.
   allowlisting, live width changes, legacy/embedded-video bounds at 1440×900
   and 1024×768, Replace import with the existing backup flow, Merge import
   planning, both fullscreen actions, show/hide, deck/class changes, old defaults.
+  It also encodes a short synthetic WebM in-browser and checks actual decoded
+  playback in the supported URL Viewer workflow on teacher and projector,
+  playback beside the rail in whole-layout fullscreen, native video-element
+  fullscreen via the browser Fullscreen API, rail restoration and continued
+  playback after exit, and clearing the movie and instructions on a deck change.
+  Embedded controls are activated with real keyboard input; no media state is
+  simulated. School-authenticated providers and physical classroom hardware
+  remain manual release checks.
 - `npm run check:projector-sync`: existing reconnect, timers, Text Board, slide
   navigation, privacy and geometry regressions with instructions hidden.
 - `npm run check:linked-presentation-sync`: synthetic Google Slides/PDF and
