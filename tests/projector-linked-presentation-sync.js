@@ -133,6 +133,17 @@ async function run() {
         assert.deepEqual(await teacher.locator('.reveal-manager-widget-content').boundingBox(), teacherBounds);
         const fullBounds = await projector.locator('.projector-presentation-fullscreen').boundingBox();
         assert.equal(fullBounds.x, 0); assert.equal(fullBounds.y, 0); assert.equal(fullBounds.height, 1000);
+        await teacher.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.projectState.instructions = { visible: true, today: 'Synthetic linked lesson', now: 'Watch and collect evidence', next: 'Compare examples', width: 30, fontSize: 28 };
+            app.renderProjectControls(); app.saveStateImmediately();
+        });
+        await projector.waitForFunction(() => document.querySelector('#instruction-rail') && !document.querySelector('#instruction-rail').hidden);
+        assert(await projector.evaluate(() => {
+            const rail = document.getElementById('instruction-rail').getBoundingClientRect();
+            const media = document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect();
+            return rail.width > 200 && media.width > 500 && media.right <= rail.left + 1 && Math.abs(media.width - innerWidth * .7) < 2;
+        }), 'Expanded slides must fill only the media region when instructions are shown');
         for (const page of [teacher, projector]) await page.waitForFunction(() => {
             const image = document.querySelector('.reveal-inline-deck section.present img').getBoundingClientRect();
             const stage = document.querySelector('.reveal-inline-deck').getBoundingClientRect();

@@ -1,3 +1,4 @@
+import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js';
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
 import {
@@ -453,6 +454,7 @@ class ClassroomScreenApp {
     }
 
     init() {
+        setupInstructionEditor(this);
         this.setupInternalEventBus();
         this.setupEventListeners();
         this.initLessonPlanner();
@@ -2474,6 +2476,7 @@ class ClassroomScreenApp {
             activeClassId: activeReminderContext.classId,
             activeClassName: activeReminderContext.className,
             activePageId: nextActivePageId,
+            instructions: normalizeInstructions(normalizedProjectState.instructions),
             pages: nextPages,
             theme: this.getCurrentThemeName(),
             background: this.backgroundManager.serialize(),
@@ -2493,6 +2496,7 @@ class ClassroomScreenApp {
             activeClassId: activeReminderContext.classId,
             activeClassName: activeReminderContext.className,
             activePageId: nextActivePageId,
+            instructions: normalizeInstructions(normalizedProjectState.instructions),
             pages: cloneSerializableData(nextPages)
         };
         return snapshot;
@@ -2500,6 +2504,7 @@ class ClassroomScreenApp {
 
     buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
         const projectorState = removePrivateBehaviourData(state);
+        projectorState.instructions = normalizeInstructions(state.instructions);
         projectorState.layout = this.layoutManager.serialize({ forProjector: true });
         projectorState.classReminders = this.getPublicReminderSnapshot();
         delete projectorState.pages;
@@ -2663,6 +2668,7 @@ class ClassroomScreenApp {
                 currentDeckId: normalizedState.currentDeckId || '',
                 projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
                 activePageId: blankPage.id,
+                instructions: normalizeInstructions(normalizedState.instructions),
                 pages: [blankPage]
             };
             return this.getActiveProjectState();
@@ -2684,6 +2690,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: activePage.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(nextPages)
         };
 
@@ -2721,6 +2728,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: movedPage.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(reorderedPages)
         };
 
@@ -2958,6 +2966,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: page.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(nextPages)
         };
 
@@ -2985,6 +2994,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: targetPage.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(pages)
         };
 
@@ -3014,6 +3024,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: duplicate.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(nextPages)
         };
 
@@ -3091,6 +3102,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: nextActivePage.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: cloneSerializableData(nextPages)
         };
 
@@ -3180,6 +3192,7 @@ class ClassroomScreenApp {
                     : normalized.currentDeckId || '',
                 projectName: normalized.projectName || projectName,
                 activePageId: normalized.activePageId || DEFAULT_PAGE_ID,
+                instructions: normalizeInstructions(normalized.instructions),
                 pages: cloneSerializableData(normalized.pages)
             };
         }
@@ -3210,6 +3223,7 @@ class ClassroomScreenApp {
             currentDeckId: typeof source.id === 'string' && source.id.trim() ? source.id.trim() : '',
             projectName: legacyState.projectName || projectName,
             activePageId: legacyState.activePageId || DEFAULT_PAGE_ID,
+            instructions: normalizeInstructions(legacyState.instructions),
             pages: cloneSerializableData(legacyState.pages)
         };
     }
@@ -3270,6 +3284,7 @@ class ClassroomScreenApp {
 
         return {
             ...sourceState,
+            instructions: normalizeInstructions(sourceState.instructions),
             currentDeckId,
             projectName,
             activePageId: activePage.id,
@@ -3283,6 +3298,7 @@ class ClassroomScreenApp {
     }
 
     renderProjectControls() {
+        refreshInstructionEditor(this.projectState?.instructions);
         const normalizedState = this.normalizeProjectState(this.projectState);
         const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
         const activePageId = normalizedState.activePageId || (pages[0] && pages[0].id) || DEFAULT_PAGE_ID;
@@ -3490,6 +3506,7 @@ class ClassroomScreenApp {
             currentDeckId: existing.id,
             projectName,
             activePageId: state.activePageId || DEFAULT_PAGE_ID,
+            instructions: normalizeInstructions(state.instructions),
             pages: cloneSerializableData(state.pages)
         };
         const nextContent = {
@@ -4042,6 +4059,7 @@ class ClassroomScreenApp {
                 currentDeckId: preset.id,
                 projectName: preset.name,
                 activePageId: state.activePageId,
+                instructions: normalizeInstructions(state.instructions),
                 pages: cloneSerializableData(state.pages)
             };
             this.savePresets();
@@ -4074,6 +4092,7 @@ class ClassroomScreenApp {
             currentDeckId,
             projectName,
             activePageId: state.activePageId,
+            instructions: normalizeInstructions(state.instructions),
             pages: cloneSerializableData(state.pages)
         };
         const projectState = this.buildStateSnapshot();
@@ -4518,6 +4537,7 @@ class ClassroomScreenApp {
             currentDeckId: id,
             projectName: name,
             activePageId: sourceState.activePageId || DEFAULT_PAGE_ID,
+            instructions: normalizeInstructions(sourceState.instructions),
             pages: cloneSerializableData(sourceState.pages)
         };
         const backup = this.normalizePresetRecord({
@@ -4917,6 +4937,7 @@ class ClassroomScreenApp {
                 currentDeckId: currentPreset.id,
                 projectName: trimmedName,
                 activePageId: state.activePageId,
+                instructions: normalizeInstructions(state.instructions),
                 pages: cloneSerializableData(state.pages)
             };
             this.saveStateImmediately();
@@ -5017,6 +5038,7 @@ class ClassroomScreenApp {
             activeClassId: classId,
             activeClassName: className,
             activePageId: currentState.activePageId,
+            instructions: normalizeInstructions(currentState.instructions),
             pages: cloneSerializableData(currentState.pages)
         };
         this.setActiveReminderContext({ id, classId, className, name });
@@ -5264,6 +5286,7 @@ class ClassroomScreenApp {
             activeClassId: classId,
             activeClassName: className,
             activePageId: currentState.activePageId,
+            instructions: normalizeInstructions(currentState.instructions),
             pages: cloneSerializableData(currentState.pages)
         };
         this.setActiveReminderContext({
@@ -5730,6 +5753,7 @@ class ClassroomScreenApp {
                 currentDeckId: activePreset.id,
                 projectName: activePreset.name,
                 activePageId: state.activePageId,
+                instructions: normalizeInstructions(state.instructions),
                 pages: cloneSerializableData(state.pages)
             },
             theme: state.theme,
@@ -5995,6 +6019,7 @@ class ClassroomScreenApp {
                 activeClassId: state.activeClassId || '',
                 activeClassName: state.activeClassName || '',
                 activePageId: state.activePageId,
+                instructions: normalizeInstructions(state.instructions),
                 pages: cloneSerializableData(state.pages)
             };
             this.activeReminderContext = {
