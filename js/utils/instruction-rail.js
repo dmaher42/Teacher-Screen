@@ -60,6 +60,17 @@ export function setupInstructionEditor(app) {
         app.saveState();
     });
     editor.addEventListener('click', async (event) => {
+        const presetKey = event.target.dataset.instructionPresetKey;
+        const presetVal = event.target.dataset.instructionPresetVal;
+        if (presetKey && presetVal) {
+            app.projectState.instructions = normalizeInstructions({
+                ...app.projectState.instructions,
+                [presetKey]: Number(presetVal)
+            });
+            refreshInstructionEditor(app.projectState.instructions);
+            app.saveState();
+            return;
+        }
         const mode = event.target.dataset.presentInstructions;
         if (!mode) return;
         if (mode === 'whole') {

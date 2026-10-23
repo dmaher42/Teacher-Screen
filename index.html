@@ -243,9 +243,21 @@
                     <label>Now<textarea data-instruction-field="now" maxlength="4000"></textarea></label>
                     <label>Next<textarea data-instruction-field="next" maxlength="4000"></textarea></label>
                     <label>Panel width (22–45%)<input type="range" min="22" max="45" data-instruction-field="width"></label>
+                    <div class="instruction-presets" role="group" aria-label="Width presets">
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="25">Compact (25%)</button>
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="30">Standard (30%)</button>
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="40">Wide (40%)</button>
+                    </div>
                     <label>Text size (20–48 px)<input type="range" min="20" max="48" data-instruction-field="fontSize"></label>
-                    <button type="button" class="control-button" data-present-instructions="whole">Present with instructions</button>
-                    <button type="button" class="control-button" data-present-instructions="media">Present media only</button>
+                    <div class="instruction-presets" role="group" aria-label="Text size presets">
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="24">Standard (24px)</button>
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="30">Large (30px)</button>
+                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="38">High-Vis (38px)</button>
+                    </div>
+                    <div class="instruction-fullscreen-options">
+                        <button type="button" class="control-button" data-present-instructions="whole">Present with instructions</button>
+                        <button type="button" class="control-button" data-present-instructions="media">Present media only</button>
+                    </div>
                     <p>Native video fullscreen and external tabs or apps use their own display and cannot retain this panel.</p>
                 </div></details></section>
                 <p class="panel-section-label">Session</p>

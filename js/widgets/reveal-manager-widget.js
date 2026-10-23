@@ -44,6 +44,7 @@ class RevealManagerWidget {
         this.showSettingsMenu = false;
 
         this.element = document.createElement('div');
+        this.element.__widgetInstance = this;
         this.element.className = 'reveal-manager-widget-content reveal-manager--compact';
         this.element.tabIndex = 0;
         this.element.innerHTML = `
@@ -242,7 +243,14 @@ class RevealManagerWidget {
         if (RevealManagerWidget.keyboardHandlerInitialized) return;
 
         document.addEventListener('keydown', (event) => {
-            const active = RevealManagerWidget.activeInstance;
+            let active = RevealManagerWidget.activeInstance;
+            if (!active || !active.activeDeck || !active.element?.isConnected) {
+                const candidate = document.querySelector('.reveal-manager-widget-content');
+                if (candidate?.__widgetInstance?.activeDeck) {
+                    active = candidate.__widgetInstance;
+                    RevealManagerWidget.activeInstance = active;
+                }
+            }
             if (!active || !active.activeDeck) return;
 
             const target = event.target instanceof Element ? event.target : null;
@@ -1038,8 +1046,11 @@ class RevealManagerWidget {
     }
 
     handleDocumentPointerDown(event) {
-        if (RevealManagerWidget.activeInstance === this && !this.element.contains(event.target)) {
-            RevealManagerWidget.activeInstance = null;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) {
+            if (RevealManagerWidget.activeInstance === this && !this.element.contains(target)) {
+                RevealManagerWidget.activeInstance = null;
+            }
         }
     }
 
@@ -2852,6 +2863,7 @@ class RevealManagerWidget {
             return false;
         }
         this.activeDeck = runtimeDeck;
+        RevealManagerWidget.activeInstance = this;
 
         if (!preserveIndices) {
             this.currentIndices = { h: 0, v: 0 };

@@ -9,6 +9,10 @@
 #instruction-editor { display: grid; gap: 10px; }
 #instruction-editor label { display: grid; gap: 4px; }
 #instruction-editor textarea { width: 100%; min-height: 70px; box-sizing: border-box; }
+.instruction-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -4px; margin-bottom: 4px; }
+.instruction-presets .preset-btn { flex: 1 1 auto; padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; }
+.instruction-fullscreen-options { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.instruction-fullscreen-options .control-button { flex: 1 1 auto; }
 #student-view:fullscreen, #student-media:fullscreen { width: 100vw; height: 100vh; background: #111827; }
 /* Both presentation routes are contained by the media region, including fixed expansion. */
 .has-instructions #student-media { transform: translateZ(0); }
