@@ -132,14 +132,38 @@ async function run() {
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         assert(await teacher.locator('#instruction-rail').isVisible());
-        await teacher.evaluate(() => document.exitFullscreen());
+        const recovery = teacher.locator('#instruction-presentation-controls');
+        assert(await recovery.isVisible());
+        for (const name of ['Exit presentation', 'Home', 'Teacher Controls']) assert(await recovery.getByRole('button', { name, exact: true }).isVisible());
+        assert(await teacher.evaluate(() => {
+            const bar = document.getElementById('instruction-presentation-controls').getBoundingClientRect();
+            return document.getElementById('student-media').getBoundingClientRect().top >= bar.bottom
+                && document.getElementById('instruction-rail').getBoundingClientRect().top >= bar.bottom;
+        }), 'Recovery toolbar must reserve space above media and instructions');
+        assert.equal(await projector.locator('#instruction-presentation-controls').count(), 0);
+        assert(!await teacher.evaluate(() => JSON.stringify(window.__TeacherScreenApp.buildProjectorStateSnapshot()).includes('instruction-presentation-controls')));
+        await teacher.screenshot({ path: path.join(root, 'output/playwright/instruction-recovery-controls.png') });
+        await recovery.getByRole('button', { name: 'Teacher Controls', exact: true }).click();
+        await teacher.waitForFunction(() => !document.fullscreenElement && document.getElementById('teacher-panel').classList.contains('open'));
+        await teacher.locator('[data-present-instructions="whole"]').click();
+        await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
+        await recovery.getByRole('button', { name: 'Home', exact: true }).click();
+        await teacher.waitForFunction(() => !document.fullscreenElement && document.body.classList.contains('is-dashboard-active'));
+        await teacher.evaluate(() => { window.__TeacherScreenApp.handleNavClick('classroom'); window.__TeacherScreenApp.toggleTeacherPanel(true); });
+        await teacher.locator('[data-present-instructions="whole"]').click();
+        await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
+        await teacher.keyboard.press('Escape');
+        await teacher.waitForFunction(() => !document.fullscreenElement);
+        assert(!await recovery.isVisible());
         await teacher.evaluate(() => window.__TeacherScreenApp.toggleTeacherPanel(true));
         await teacher.locator('[data-present-instructions="media"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-media');
         assert(!await teacher.locator('#instruction-rail').isVisible());
-        await teacher.evaluate(() => document.exitFullscreen());
+        assert(await recovery.isVisible());
+        assert(await teacher.evaluate(() => document.getElementById('widgets-container').getBoundingClientRect().top >= document.getElementById('instruction-presentation-controls').getBoundingClientRect().bottom));
+        await recovery.getByRole('button', { name: 'Exit presentation', exact: true }).click();
         await teacher.waitForFunction(() => !document.getElementById('instruction-rail').hidden);
-        console.log('PASS: Whole-layout and media-only fullscreen; exit restores deck visibility');
+        console.log('PASS: Whole-layout/media-only fullscreen retain teacher recovery controls; Home, Teacher Controls, Exit and Escape work without covering media or leaking controls to projector');
         await teacher.evaluate(() => {
             const input = document.querySelector('[data-instruction-field="visible"]'); input.checked = false; input.dispatchEvent(new Event('input', { bubbles: true }));
             window.__TeacherScreenApp.saveStateImmediately();

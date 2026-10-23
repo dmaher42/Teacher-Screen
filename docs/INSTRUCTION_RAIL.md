@@ -1,6 +1,7 @@
 # Persistent student instructions
 
-Teacher Controls → Student instructions contains public Today, Now and Next text,
+In classroom view, + (Add widget) → Teacher Controls → Student instructions
+contains public Today, Now and Next text,
 Show instructions, width (22–45%) and text size (20–48 px). The panel is on the
 right of the media region and scrolls when the chosen text size needs more room.
 Instructions save automatically with the current deck, outside page widget
@@ -13,6 +14,13 @@ panel setting. The paired projector keeps its synced deck setting; use Show
 instructions to change it, and browser fullscreen on the projector window to
 fill a second display. Its existing presentation expansion button fills the
 media region beside the panel when instructions are shown.
+
+Both teacher presentation modes keep an Exit presentation / Home / Teacher
+Controls bar inside the fullscreen surface. The bar reserves space above the
+content rather than covering slides or instructions. Home leaves fullscreen
+and opens the dashboard; Teacher Controls leaves fullscreen and opens the
+teacher panel. Esc also exits this mode. These controls are created only by
+the teacher editor and never appear in projector state or projector markup.
 
 Embedded media stays beside the rail. Native video fullscreen and separate tabs,
 windows or external apps own their display and cannot retain it. This feature

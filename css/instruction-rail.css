@@ -19,3 +19,10 @@
 .has-instructions #presentation-root,
 .has-instructions #student-media .projector-presentation-fullscreen,
 .has-instructions .url-viewer-widget-content.presentation-mode { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
+/* Teacher-only recovery chrome occupies its own row; it never covers media. */
+.instruction-presentation-surface { box-sizing: border-box; padding-top: 52px !important; }
+#instruction-presentation-controls { position: absolute; inset: 0 0 auto; height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 6px 10px; z-index: 2147483647; background: #102c36; color: #fff; }
+#instruction-presentation-controls[hidden] { display: none !important; }
+#instruction-presentation-controls button { margin: 0; font: 600 14px/1.2 system-ui, sans-serif; }
+#student-media.instruction-presentation-surface { transform: translateZ(0); }
+#student-media.instruction-presentation-surface .url-viewer-widget-content.presentation-mode { inset: 52px 0 0 !important; height: calc(100% - 52px) !important; }

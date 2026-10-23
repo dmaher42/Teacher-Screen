@@ -51,6 +51,49 @@ export function renderInstructions(value) {
 
 export function setupInstructionEditor(app) {
     const editor = document.getElementById('instruction-editor');
+    // The normal teacher chrome is outside the element fullscreen top layer.
+    // Keep recovery actions inside that layer, outside serialised student media.
+    const recovery = document.createElement('nav');
+    recovery.id = 'instruction-presentation-controls';
+    recovery.setAttribute('aria-label', 'Teacher presentation controls');
+    recovery.hidden = true;
+    for (const [action, label] of [['exit', 'Exit presentation'], ['home', 'Home'], ['controls', 'Teacher Controls']]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'control-button';
+        button.dataset.presentationAction = action;
+        button.textContent = label;
+        recovery.append(button);
+    }
+    let presentationTarget = null;
+    const restoreTeacherChrome = () => {
+        recovery.hidden = true;
+        presentationTarget?.classList.remove('instruction-presentation-surface');
+        presentationTarget = null;
+        document.body.classList.remove('instructions-media-only');
+        renderInstructions(app.projectState.instructions);
+    };
+    const leavePresentation = async (action = 'exit') => {
+        try {
+            if (document.fullscreenElement) await document.exitFullscreen();
+        } catch {
+            app.showNotification('Press Esc to leave fullscreen.', 'warning');
+            return;
+        }
+        restoreTeacherChrome();
+        if (action === 'home') app.handleNavClick('dashboard');
+        if (action === 'controls') app.toggleTeacherPanel(true);
+    };
+    recovery.addEventListener('click', (event) => {
+        const action = event.target.closest('[data-presentation-action]')?.dataset.presentationAction;
+        if (action) void leavePresentation(action);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && presentationTarget && document.fullscreenElement === presentationTarget) {
+            event.preventDefault();
+            void leavePresentation();
+        }
+    });
     editor.addEventListener('input', (event) => {
         const key = event.target.dataset.instructionField;
         if (!key) return;
@@ -82,16 +125,18 @@ export function setupInstructionEditor(app) {
         renderInstructions(app.projectState.instructions);
         app.toggleTeacherPanel(false);
         const target = mode === 'media' ? document.getElementById('student-media') : document.getElementById('student-view');
+        presentationTarget = target;
+        target.classList.add('instruction-presentation-surface');
+        target.append(recovery);
+        recovery.hidden = false;
         try { await target.requestFullscreen(); } catch {
-            document.body.classList.remove('instructions-media-only');
-            renderInstructions(app.projectState.instructions);
+            restoreTeacherChrome();
             app.showNotification('Fullscreen is unavailable in this browser.', 'warning');
         }
     });
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement) {
-            document.body.classList.remove('instructions-media-only');
-            renderInstructions(app.projectState.instructions);
+            restoreTeacherChrome();
         }
     });
 }

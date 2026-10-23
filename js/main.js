@@ -1,4 +1,4 @@
-import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js';
+import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=2';
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
 import {
