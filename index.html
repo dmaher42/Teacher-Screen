@@ -33,8 +33,8 @@
     <link rel="stylesheet" href="css/due-reminder-sticky.css?v=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" media="print" onload="this.onload=null;this.media='all'">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" media="print" onload="this.onload=null;this.media='all'">
-    <link rel="modulepreload" href="js/index.js?v=67">
-    <link rel="modulepreload" href="js/main.js?v=72">
+    <link rel="modulepreload" href="js/index.js?v=76">
+    <link rel="modulepreload" href="js/main.js?v=76">
     
     <!-- Installable app identity -->
     <link rel="manifest" href="manifest.webmanifest">
@@ -43,6 +43,7 @@
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
+    <link rel="stylesheet" href="css/instruction-rail.css">
 </head>
 
 <!-- Set a default theme class on the body -->
@@ -234,6 +235,19 @@
                 <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>
             </header>
             <div class="panel-content">
+                <section class="control-card"><details open><summary><h4>Student instructions</h4></summary>
+                <div class="card-body" id="instruction-editor">
+                    <p>Public text shown beside slides and embedded video. Saved with this deck.</p>
+                    <label><span><input type="checkbox" data-instruction-field="visible"> Show instructions</span></label>
+                    <label>Today<textarea data-instruction-field="today" maxlength="4000"></textarea></label>
+                    <label>Now<textarea data-instruction-field="now" maxlength="4000"></textarea></label>
+                    <label>Next<textarea data-instruction-field="next" maxlength="4000"></textarea></label>
+                    <label>Panel width (22–45%)<input type="range" min="22" max="45" data-instruction-field="width"></label>
+                    <label>Text size (20–48 px)<input type="range" min="20" max="48" data-instruction-field="fontSize"></label>
+                    <button type="button" class="control-button" data-present-instructions="whole">Present with instructions</button>
+                    <button type="button" class="control-button" data-present-instructions="media">Present media only</button>
+                    <p>Native video fullscreen and external tabs or apps use their own display and cannot retain this panel.</p>
+                </div></details></section>
                 <p class="panel-section-label">Session</p>
                 <section class="control-card control-card--project-pages">
                     <details open>
@@ -806,7 +820,7 @@
          ===================================================== -->
     <!-- Bootstrap loader must be the only app script entrypoint. -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
-    <script type="module" src="js/index.js?v=67"></script>
+    <script type="module" src="js/index.js?v=76"></script>
 
 </body>
 </html>

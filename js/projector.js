@@ -1,3 +1,4 @@
+import { renderInstructions } from './utils/instruction-rail.js';
 import './utils/app-mode.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
@@ -560,6 +561,7 @@ class ProjectorApp {
                     return;
                 }
 
+                renderInstructions(message.state.instructions);
                 this.hasTeacherSync = true;
                 this.clearTeacherSyncRetries();
                 this.renderClassroomReminders(message.state.classReminders);
@@ -903,6 +905,7 @@ class ProjectorApp {
     }
 
     rebuildLayout(state) {
+        renderInstructions(state.instructions);
         try {
             this.renderClassroomReminders(state.classReminders);
             // Restore theme (if stored in state, though main.js seems to store it in body class and state)
