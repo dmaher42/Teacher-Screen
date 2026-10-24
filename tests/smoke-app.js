@@ -6273,9 +6273,40 @@ async function runSmoke() {
         const timerOptionsButton = timerWidget.locator('.widget-header-menu > summary');
         assert(await timerOptionsButton.isVisible(), 'Compact timer should retain its options button');
         await timerOptionsButton.click();
+        await timerWidget.locator('.widget-header-menu__popover').waitFor({state: 'visible', timeout: 3000});
         assert(await timerWidget.locator('.widget-header-menu__popover').isVisible(), 'Compact timer options should still open');
+        const timerMenuGeometry = await timerWidget.locator('.widget-header-menu__popover').evaluate(menu => ({
+            width: menu.getBoundingClientRect().width,
+            height: menu.getBoundingClientRect().height,
+            actionsHaveBounds: Array.from(menu.querySelectorAll('button')).every(button => {
+                const rect = button.getBoundingClientRect();
+                return rect.width > 100 && rect.height >= 36;
+            })
+        }));
+        assert(timerMenuGeometry.width >= 198 && timerMenuGeometry.height > 100 && timerMenuGeometry.actionsHaveBounds,
+            'Timer options should render real menu and action boxes after the full preceding editing sequence');
+        if (process.env.TEACHER_SCREEN_CAPTURE_TIMER) {
+            const previous = process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY;
+            process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = '1';
+            try {
+                fs.mkdirSync(path.join(root, 'output/playwright'), {recursive: true});
+                await page.screenshot({path: path.join(root, 'output/playwright/timer-menu-recovered.png'), timeout: 5000});
+            } finally {
+                if (previous === undefined) delete process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY;
+                else process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = previous;
+            }
+        }
         await timerOptionsButton.press('Escape');
         assert(await timerWidget.locator('.widget-header-menu__popover').isHidden(), 'Compact timer options should close with Escape');
+        for (const key of ['Enter', 'Space', 'Enter']) {
+            await timerOptionsButton.press(key);
+            await timerWidget.locator('.widget-header-menu__popover').waitFor({state: 'visible', timeout: 3000});
+            await timerOptionsButton.press('Escape');
+            assert(await timerOptionsButton.evaluate(element => document.activeElement === element),
+                `Timer options should restore summary focus after ${key} and Escape`);
+        }
+        assert((await timerWidget.locator('.pomodoro-time').textContent()).trim() === timerTextAfterPause,
+            'Repeated timer menu activation should preserve the paused countdown');
         const timerBoxBeforeDrag = await getElementBox(page, '.widget.pomodoro-widget');
         const classroomCanvasBox = await getElementBox(page, '#widgets-container');
         assert(timerBoxBeforeDrag.width <= classroomCanvasBox.width * 0.22, 'New timer should use only about one fifth of the canvas width');

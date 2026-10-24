@@ -1140,8 +1140,9 @@ class LayoutManager {
       menu.classList.toggle('widget-header-menu--align-end', toggleRect.left + popoverWidth > window.innerWidth - 8);
     });
     menu.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || !menu.open) return;
       event.preventDefault();
+      event.stopPropagation();
       closeMenu();
       menuToggle.focus();
     });

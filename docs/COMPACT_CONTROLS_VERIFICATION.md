@@ -22,7 +22,7 @@ were not modified. The release base is
 - `npm run check:projector-sync` and `npm run check:widget-startup`.
 - Visual inspection of desktop fullscreen and compact viewport captures.
 
-## Existing smoke failure
+## Existing smoke failure at the compact-controls release
 
 The canonical app smoke test fails at **Compact timer options should still
 open** after its preceding UI sequence: the timer's `details.open` is true and
@@ -31,6 +31,9 @@ clean checkout of the unchanged release base reproduced the same failure with
 the same sequence. The minimal timer start/pause/menu flow passes on both
 versions. This is recorded as an existing failure, not a passing smoke suite.
 No timer implementation or redesign is included in this change.
+
+The subsequent, separately committed timer follow-up resolves this failure and
+passes the full canonical suite; see [timer verification](TIMER_MENU_VERIFICATION.md).
 
 The later main UI flow completed separately with that one known assertion
 explicitly recorded instead of stopping, including saved deck restoration,

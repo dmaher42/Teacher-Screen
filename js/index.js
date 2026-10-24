@@ -4,7 +4,7 @@ import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
 
-const LOCAL_ASSET_VERSION = '78';
+const LOCAL_ASSET_VERSION = '79';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 

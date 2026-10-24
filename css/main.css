@@ -7079,6 +7079,15 @@ body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-
     pointer-events: auto;
 }
 
+/* Keep Chromium's native disclosure display lock out of the timer menu layout.
+   Explicit closed-state hiding preserves native summary/keyboard behaviour. */
+body:not(.projector-view) .pomodoro-widget .widget-header-menu::details-content {
+    content-visibility: visible;
+}
+body:not(.projector-view) .pomodoro-widget .widget-header-menu:not([open]) > .widget-header-menu__popover {
+    display: none;
+}
+
 body.is-classroom-active:not(.projector-view) .widget.pomodoro-widget > .widget-header .widget-header-menu > summary {
     width: 26px;
     height: 26px;
