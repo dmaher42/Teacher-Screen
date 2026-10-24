@@ -5,7 +5,7 @@ function sanitizeOutline(html) {
     const root = document.createElement('div');
     root.innerHTML = sanitizePresentationMarkup(html);
     // Text formatting only: imported markup cannot escape the rail or create controls.
-    root.querySelectorAll('img,video,audio,source,track').forEach(node => node.remove());
+    root.querySelectorAll('video,audio,source,track').forEach(node => node.remove());
     root.querySelectorAll('*').forEach(node => {
         node.removeAttribute('id');
         node.removeAttribute('hidden');
@@ -152,6 +152,11 @@ export function setupInstructionEditor(app) {
         if (widget?.constructor?.name !== 'RichTextWidget') return;
         const saved = app.layoutManager.serialize().widgets.find(candidate => candidate.id === widget.widgetId);
         if (!saved) return;
+        const source = new DOMParser().parseFromString(saved.data.content || '', 'text/html');
+        if (source.querySelector('iframe,video,audio,object,embed')) {
+            app.showNotification('Remove embedded media before pinning this board.', 'warning');
+            return;
+        }
         unpin();
         const previous = publicInstructions(app.projectState.instructions);
         const html = saved.data.content;

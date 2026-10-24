@@ -76,6 +76,19 @@ const { chromium } = require('playwright-core');
   assert.equal(await page.locator('#widgets-container .rich-text-widget-inner').count(),1,'Unpin falls back to current page when source page was deleted');
   await page.evaluate(()=>{const app=window.__TeacherScreenApp;app.createNewProject('Synthetic B',{className:'Synthetic B'});app.saveStateImmediately();});
   await projector.waitForFunction(()=>document.querySelector('#instruction-rail').hidden && document.querySelector('#instruction-outline').textContent==='');
+  const mediaSafety = await page.evaluate(()=>{
+   const app=window.__TeacherScreenApp;
+   const image=app.addWidget('rich-text',{initialData:{content:'<p>Image outline</p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8YQAAAAASUVORK5CYII=">'}});
+   image.getHeaderMenuActions().find(action=>action.label==='Pin as instructions').onSelect();
+   const retained=document.querySelectorAll('#instruction-outline img').length;
+   document.querySelector('[data-unpin-outline]').click();
+   const restored=app.layoutManager.serialize().widgets.some(widget=>widget.data?.content?.includes('data:image/png'));
+   const blocked=app.addWidget('rich-text',{initialData:{content:'<p>Keep this board</p><iframe src="https://example.org/"></iframe>'}});
+   const before=JSON.stringify(app.projectState.instructions);
+   blocked.getHeaderMenuActions().find(action=>action.label==='Pin as instructions').onSelect();
+   return {retained,restored,unchanged:JSON.stringify(app.projectState.instructions)===before,boardRetained:app.layoutManager.widgets.some(info=>info.widget===blocked)};
+  });
+  assert.deepEqual(mediaSafety,{retained:1,restored:true,unchanged:true,boardRetained:true},'Pinning preserves safe images and leaves unsupported embedded-media boards untouched');
   await page.evaluate(()=>{
    const app=window.__TeacherScreenApp;
    app.handleNavClick('classroom');
