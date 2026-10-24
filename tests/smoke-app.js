@@ -1153,12 +1153,14 @@ async function launchBrowser() {
 }
 
 async function makeExternalAssetsDeterministic(context) {
+    context.__stalledOptionalRoutes = [];
     await context.route(EXTERNAL_ASSET_URL, async (route) => {
         const request = route.request();
         const url = request.url();
 
         if (OPTIONAL_EXTERNAL_SCRIPT_URL.test(url) && request.resourceType() === 'script') {
             // Leave optional CDN scripts pending so the app must prove it can start without them.
+            context.__stalledOptionalRoutes.push(route);
             return;
         }
 
@@ -5653,6 +5655,9 @@ async function runSmoke() {
         await page.waitForFunction(() => Array.isArray(window.__TeacherDependencyFailures), { timeout: 10000 });
         const optionalDependencyFailures = await page.evaluate(() => window.__TeacherDependencyFailures || []);
         assert(optionalDependencyFailures.length > 0, 'Teacher app should continue after optional online scripts stall');
+        // Startup resilience has been verified. Finish those requests before
+        // exercising native details layout and font-dependent browser rendering.
+        await Promise.all(context.__stalledOptionalRoutes.map(route => route.abort('blockedbyclient')));
         assert(await page.title() === 'Teacher Screen', 'Teacher app page title should load');
         assert(await page.locator('#dashboard-view:not([hidden])').count() === 1, 'Dashboard should be visible first');
         assert(await page.locator('#lesson-quick-actions').isHidden(), 'Lesson quick actions should stay hidden on the dashboard');
@@ -5765,6 +5770,10 @@ async function runSmoke() {
         assert(await page.locator('#screen-deck-manager-dialog .screen-manager-body').isVisible(), 'The dedicated Deck details dialog should contain the deck actions');
         await page.locator('#screen-deck-manager-dialog .modal-close').click();
         await page.waitForSelector('#screen-deck-manager-dialog[open]', { state: 'detached', timeout: 10000 });
+        // openScreenDeckTools expands the card to reach its menu. Restore the
+        // collapsed precondition before checking the independent global menu.
+        const currentDeckToggle = page.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]');
+        if (await currentDeckToggle.getAttribute('aria-expanded') === 'true') await currentDeckToggle.click();
         await page.locator('#dashboard-utility-menu > summary').click();
         await page.locator('#dashboard-settings-btn').click();
         await page.waitForSelector('#teacher-panel.open', { timeout: 10000 });
@@ -6465,6 +6474,7 @@ async function runSmoke() {
         assert(await smokeSlidesWidget.locator('.widget-header-settings-btn').count() === 0, 'Presentation should not duplicate its chooser in Widget Settings');
         assert(await smokeSlidesWidget.locator('.widget-remove-btn').count() === 1, 'Presentation options should retain the essential remove action');
         await smokeSlidesWidget.locator('.widget-header-menu > summary').click();
+        if (await smokeSlidesWidget.locator('.reveal-more-btn').isVisible()) await smokeSlidesWidget.locator('.reveal-more-btn').click();
         await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
         assert(await smokeSlidesWidget.locator('.reveal-manager__panel').isVisible(), 'Choose presentation should open the one canonical chooser');
         assert(await smokeSlidesWidget.locator('.reveal-source-type').inputValue() === 'google-slides', 'The streamlined chooser should default link detection to Google Slides');
@@ -6538,8 +6548,8 @@ async function runSmoke() {
         await smokeSlidesWidget.locator('.reveal-open-html-btn').click();
         await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck .slides section', { timeout: 10000 });
         assert(!await smokeSlidesWidget.locator('.reveal-manager__panel').isVisible(), 'Opening a presentation should collapse the chooser');
-        assert(await smokeSlidesWidget.locator('.reveal-launch-btn').textContent().then((text) => text.trim() === 'Close'), 'A loaded presentation should expose Close instead of a second Open route');
-        assert(await smokeSlidesWidget.locator('.reveal-projector-btn').isVisible(), 'A loaded presentation should expose Show on projector');
+        assert(await smokeSlidesWidget.locator('.reveal-launch-btn').textContent().then((text) => text.trim() === 'Close presentation'), 'A loaded presentation should expose Close instead of a second Open route');
+        assert(await smokeSlidesWidget.locator('.reveal-more-btn').isVisible() && !await smokeSlidesWidget.locator('.reveal-projector-btn').isVisible(), 'A loaded presentation should keep secondary projector controls in More');
         assert(await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').textContent().then((text) => text.trim() === 'Change presentation'), 'A loaded presentation should expose one clear change route');
         await page.waitForFunction(() => {
             const status = document.querySelector('.widget.reveal-manager-widget .reveal-presenter-status');
@@ -6566,7 +6576,7 @@ async function runSmoke() {
 
         const slidesKeyboardIsolation = await page.evaluate(() => {
             const slidesWidget = document.querySelector('.widget.reveal-manager-widget');
-            const slidesButton = slidesWidget?.querySelector('.reveal-launch-btn');
+            const slidesButton = slidesWidget?.querySelector('.reveal-more-btn');
             const projectNameInput = document.querySelector('#project-screen-name-input');
             slidesButton?.focus();
             const activeBeforeTyping = window.RevealManagerWidget?.activeInstance?.element === slidesWidget?.querySelector('.reveal-manager-widget-content');
@@ -6587,7 +6597,7 @@ async function runSmoke() {
         assert(slidesKeyboardIsolation.activeBeforeOutsidePointer && slidesKeyboardIsolation.clearedAfterOutsidePointer, 'Slides should release keyboard ownership when the teacher clicks elsewhere');
 
         await page.locator('#main-page-next').focus();
-        await smokeSlidesWidget.locator('.reveal-launch-btn').focus();
+        await smokeSlidesWidget.locator('.reveal-more-btn').focus();
         const teacherSlidesVisibilityResume = await page.evaluate(async () => {
             const widget = window.RevealManagerWidget?.activeInstance;
             if (!widget) throw new Error('Slides widget instance was not active for visibility checks');
@@ -6724,6 +6734,7 @@ async function runSmoke() {
             };
         });
         assert(narrowSlidesLayout.noHorizontalScroll && narrowSlidesLayout.buttonsFit, 'Slides controls should remain visible without sideways scrolling in a narrow widget');
+        if (await smokeSlidesWidget.locator('.reveal-more-btn').isVisible()) await smokeSlidesWidget.locator('.reveal-more-btn').click();
         await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
         assert(await smokeSlidesWidget.locator('.reveal-manager-widget-content').evaluate((content) => (
             getComputedStyle(content).overflowY === 'auto' && content.scrollHeight > content.clientHeight
@@ -6746,6 +6757,7 @@ async function runSmoke() {
             };
         });
         assert(narrowPresentationChooser.noHorizontalOverflow && narrowPresentationChooser.controlsFit, 'Narrow Presentation chooser should keep every field and action inside the widget');
+        if (await smokeSlidesWidget.locator('.reveal-more-btn').isVisible()) await smokeSlidesWidget.locator('.reveal-more-btn').click();
         await smokeSlidesWidget.locator('.reveal-toggle-controls-btn').click();
         await smokeSlidesWidget.evaluate((widget, originalSize) => {
             widget.style.width = originalSize.width;
@@ -6776,7 +6788,7 @@ async function runSmoke() {
         });
         assert(slidesStorageFailure.saved === false && /too large/i.test(slidesStorageFailure.status), 'Slides should explain when a PDF or PowerPoint deck is too large to save');
 
-        await smokeSlidesWidget.locator('.reveal-launch-btn').focus();
+        await smokeSlidesWidget.locator('.reveal-more-btn').focus();
         const storedSlidesDeck = await page.evaluate(async () => {
             const widget = window.RevealManagerWidget?.activeInstance;
             if (!widget) throw new Error('Slides widget instance was not active');
@@ -6935,6 +6947,16 @@ async function runSmoke() {
             importedPptxDeck.usesAccuratePptxFrame && !importedPptxDeck.serializedContent,
             `PowerPoint import should render through its accurate PPTX frame while classroom state remains lightweight (${JSON.stringify(importedPptxDeck)})`
         );
+
+        // The stub ZIP verifies native import selection above, but is not a playable
+        // PowerPoint file. Exercise legacy extracted-slide persistence explicitly
+        // below; real native PPTX playback has its own linked-presentation suite.
+        await page.evaluate(async ({storageId, deckId}) => {
+            const widget = window.RevealManagerWidget.activeInstance;
+            await window.TeacherScreenDocumentStore.updateSlideDeck(storageId, {sourceBlob: null});
+            await widget.launchDeck(widget.getSavedDeckById(deckId));
+        }, importedPptxDeck);
+        await page.waitForSelector('.widget.reveal-manager-widget .reveal-inline-deck img[src^="blob:"]');
 
         await addWidget(page, 'url-viewer', '.widget.url-viewer-widget', 'Web Page');
 
@@ -7256,7 +7278,7 @@ async function runSmoke() {
         assert(projectorSlidesVisibilityResume.rebuildCount === 0 && projectorSlidesVisibilityResume.sameSurface, 'Projector Slides should not rebuild when the browser tab becomes visible again');
         await projectorPage.close();
 
-        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        await page.locator('.widget.reveal-manager-widget .reveal-more-btn').focus();
         const deletedStoredSlides = await page.evaluate(async (deckId) => {
             const widget = window.RevealManagerWidget?.activeInstance;
             if (!widget) throw new Error('Slides widget instance was not active for deletion');
@@ -7275,7 +7297,7 @@ async function runSmoke() {
         }, storedSlidesDeck.deckId);
         assert(deletedStoredSlides.deleted && !deletedStoredSlides.storedRecord && deletedStoredSlides.storedAssetCount === 0, 'Deleting an imported Slides deck should remove its manifest and image files');
 
-        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        await page.locator('.widget.reveal-manager-widget .reveal-more-btn').focus();
         const deletedImportedPdf = await page.evaluate(async (deckId) => {
             const widget = window.RevealManagerWidget?.activeInstance;
             const deck = widget?.getSavedDeckById(deckId);
@@ -7289,7 +7311,7 @@ async function runSmoke() {
         }, importedPdfDeck.deckId);
         assert(deletedImportedPdf.deleted && !deletedImportedPdf.storedRecord && deletedImportedPdf.storedAssets.length === 0, 'Deleting an imported PDF deck should clean up every stored page image');
 
-        await page.locator('.widget.reveal-manager-widget .reveal-launch-btn').focus();
+        await page.locator('.widget.reveal-manager-widget .reveal-more-btn').focus();
         const deletedImportedPptx = await page.evaluate(async (deckId) => {
             const widget = window.RevealManagerWidget?.activeInstance;
             const deck = widget?.getSavedDeckById(deckId);
@@ -7383,6 +7405,6 @@ async function runSmoke() {
 }
 
 runSmoke().catch((error) => {
-    console.error(`Smoke test failed: ${error.message}`);
+    console.error(`Smoke test failed: ${error.stack || error.message}`);
     process.exit(1);
 });

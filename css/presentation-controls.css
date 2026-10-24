@@ -1,0 +1,42 @@
+/* Compact teacher controls; projector markup keeps its existing hidden topbar. */
+body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
+    display: grid; grid-template-columns: auto minmax(60px, 1fr) auto auto;
+    align-items: center; gap: 6px; padding: 8px 38px; overflow: visible; border-radius: 0;
+}
+body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar > .reveal-btn {
+    min-width: 44px; min-height: 44px; width: auto; padding: 6px 8px; margin: 0;
+    font-size: 12px; white-space: nowrap;
+}
+body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar > .reveal-slide-select {
+    width: 100%; min-width: 0; min-height: 44px; padding: 4px; margin: 0;
+}
+body:not(.projector-view) .reveal-manager-widget-content:not(.reveal-manager--loaded) .reveal-toggle-controls-btn { grid-column: 1 / -1; }
+.reveal-more-menu {
+    position: fixed; inset: auto; margin: 0; box-sizing: border-box;
+    width: min(270px, calc(100vw - 16px)); max-height: min(440px, calc(100vh - 16px));
+    padding: 8px; overflow-y: auto; border: 1px solid #a9becf; border-radius: 12px;
+    background: #fff; color: #142f43; box-shadow: 0 8px 30px #0004;
+}
+.reveal-more-menu:popover-open { display: flex; flex-direction: column; gap: 4px; }
+.reveal-more-menu > button { width: 100%; min-height: 44px; margin: 0; text-align: left; }
+.reveal-more-menu > [role="status"] { padding: 4px 8px; font-size: 12px; overflow-wrap: anywhere; }
+.reveal-more-menu button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+.projector-view .reveal-more-menu { display: none !important; }
+@container (max-width: 360px) {
+    .reveal-manager-widget-content .reveal-nav-label { display: none; }
+}
+@container (max-width: 300px) {
+    body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@container (max-width: 230px) {
+    body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
+        padding: 36px 8px 8px;
+    }
+}
+@container (max-width: 130px) {
+    body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

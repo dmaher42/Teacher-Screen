@@ -50,16 +50,19 @@ class RevealManagerWidget {
         this.element.innerHTML = `
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-launch-btn" title="Close presentation" hidden>Close</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" title="Previous slide" hidden>Previous</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" title="Next slide" hidden>Next</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" aria-label="Previous slide" title="Previous slide" hidden><span aria-hidden="true">‹</span><span class="reveal-nav-label"> Previous</span></button>
                     <select class="reveal-slide-select" aria-label="Select slide" hidden></select>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-edit-pptx-btn" title="Edit this PowerPoint in Teacher Screen" hidden>Edit PowerPoint</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-projector-btn" title="Show this presentation on the projector" hidden>Show on projector</button>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-projector-fullscreen-btn" aria-pressed="false" hidden>Full screen on projector</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" aria-label="Next slide" title="Next slide" hidden><span class="reveal-nav-label">Next </span><span aria-hidden="true">›</span></button>
+                    <button type="button" class="control-button reveal-btn reveal-more-btn" aria-haspopup="menu" aria-expanded="false" hidden>More</button>
+                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-toggle-controls-btn" aria-label="Choose presentation" aria-expanded="false" title="Choose presentation">Choose presentation</button>
+                </div>
+                <div class="reveal-more-menu" popover="auto" role="menu" aria-label="Presentation options">
+                    <button type="button" role="menuitem" class="control-button reveal-edit-pptx-btn" hidden>Edit PowerPoint</button>
+                    <button type="button" role="menuitem" class="control-button reveal-projector-btn" hidden>Open projector</button>
+                    <button type="button" role="menuitem" class="control-button reveal-projector-fullscreen-btn" hidden>Expand presentation on projector</button>
+                    <button type="button" role="menuitem" class="control-button reveal-launch-btn" hidden>Close presentation</button>
                     <span class="reveal-deck-indicator" role="status" aria-live="polite" hidden></span>
                     <span class="reveal-presenter-status" role="status" aria-live="polite" hidden></span>
-                    <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-toggle-controls-btn" aria-label="Choose presentation" aria-expanded="false" title="Choose presentation">Choose presentation</button>
                 </div>
 
                 <div class="reveal-manager__panel advanced-controls" hidden>
@@ -134,6 +137,26 @@ class RevealManagerWidget {
         `;
 
         this.topbar = this.element.querySelector('.reveal-manager__topbar');
+        this.moreButton = this.element.querySelector('.reveal-more-btn');
+        this.moreMenu = this.element.querySelector('.reveal-more-menu');
+        this.moreMenu.id = `presentation-options-${crypto.randomUUID()}`;
+        this.moreButton.setAttribute('aria-controls', this.moreMenu.id);
+        this.moreButton.addEventListener('click', () => this.toggleMoreMenu());
+        this.moreButton.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault(); event.stopPropagation();
+                this.toggleMoreMenu(true, event.key === 'ArrowUp');
+            }
+        });
+        this.moreMenu.addEventListener('toggle', (event) => {
+            this.moreButton.setAttribute('aria-expanded', String(event.newState === 'open'));
+        });
+        this.moreMenu.addEventListener('click', (event) => {
+            if (event.target.closest('button')) {
+                this.closeMoreMenu();
+            }
+        }, true);
+        this.moreMenu.addEventListener('keydown', (event) => this.handleMoreMenuKeydown(event));
         this.launchButton = this.element.querySelector('.reveal-launch-btn');
         this.prevButton = this.element.querySelector('.reveal-prev-btn');
         this.nextButton = this.element.querySelector('.reveal-next-btn');
@@ -226,6 +249,7 @@ class RevealManagerWidget {
         if (typeof ResizeObserver === 'function') {
             this.resizeObserver = new ResizeObserver(() => {
                 this.ensureDeckVisible();
+                if (this.moreMenu.matches(':popover-open')) this.positionMoreMenu();
             });
             this.resizeObserver.observe(this.element);
         }
@@ -243,10 +267,17 @@ class RevealManagerWidget {
         if (RevealManagerWidget.keyboardHandlerInitialized) return;
 
         document.addEventListener('keydown', (event) => {
+            const isProjector = document.body.classList.contains('projector-view');
+            if (!isProjector && (!document.body.classList.contains('is-classroom-active')
+                || document.querySelector('dialog[open], #teacher-panel.open, .modal.visible'))) return;
             let active = RevealManagerWidget.activeInstance;
-            if (!active || !active.activeDeck || !active.element?.isConnected) {
-                const candidate = document.querySelector('.reveal-manager-widget-content');
-                if (candidate?.__widgetInstance?.activeDeck) {
+            const usable = (element) => element?.isConnected && element.getClientRects().length
+                && !element.closest('[hidden], [inert]');
+            if (!active?.activeDeck || !usable(active.element)) {
+                const candidate = Array.from(document.querySelectorAll('.reveal-manager-widget-content'))
+                    .find(element => element.__widgetInstance?.activeDeck && usable(element));
+                active = null;
+                if (candidate) {
                     active = candidate.__widgetInstance;
                     RevealManagerWidget.activeInstance = active;
                 }
@@ -258,7 +289,8 @@ class RevealManagerWidget {
                 || event.altKey
                 || event.ctrlKey
                 || event.metaKey
-                || target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) {
+                || target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"]')
+                || (!active.element.contains(target) && target?.closest('button, summary, a, [role="button"], [role="slider"]'))) {
                 return;
             }
 
@@ -281,6 +313,49 @@ class RevealManagerWidget {
         });
 
         RevealManagerWidget.keyboardHandlerInitialized = true;
+    }
+
+    getMoreMenuItems() {
+        return Array.from(this.moreMenu.querySelectorAll('button:not([hidden]):not(:disabled)'));
+    }
+
+    positionMoreMenu() {
+        const anchor = this.moreButton.getBoundingClientRect();
+        const menu = this.moreMenu.getBoundingClientRect();
+        this.moreMenu.style.left = `${Math.max(8, Math.min(anchor.right - menu.width, innerWidth - menu.width - 8))}px`;
+        this.moreMenu.style.top = `${Math.max(8, Math.min(anchor.bottom + 6, innerHeight - menu.height - 8))}px`;
+    }
+
+    toggleMoreMenu(force, last = false) {
+        const open = this.moreMenu.matches(':popover-open');
+        if (force === false || (force !== true && open)) return this.closeMoreMenu();
+        if (!this.activeDeck) return;
+        if (!open) this.moreMenu.showPopover();
+        this.moreButton.setAttribute('aria-expanded', 'true');
+        this.positionMoreMenu();
+        const items = this.getMoreMenuItems();
+        (last ? items.at(-1) : items[0])?.focus();
+    }
+
+    closeMoreMenu(restoreFocus = true) {
+        if (!this.moreMenu.matches(':popover-open')) return;
+        this.moreMenu.hidePopover();
+        this.moreButton.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) this.moreButton.focus();
+    }
+
+    handleMoreMenuKeydown(event) {
+        if (event.key === 'Escape' || event.key === 'Tab') {
+            if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
+            this.closeMoreMenu();
+            return;
+        }
+        const items = this.getMoreMenuItems();
+        const index = items.indexOf(document.activeElement);
+        const next = { ArrowDown: (index + 1) % items.length, ArrowUp: (index - 1 + items.length) % items.length,
+            Home: 0, End: items.length - 1 }[event.key];
+        if (next === undefined) return;
+        event.preventDefault(); event.stopPropagation(); items[next]?.focus();
     }
 
     setStatus(message) {
@@ -727,9 +802,16 @@ class RevealManagerWidget {
 
     updateControls() {
         const hasDeck = !!this.activeDeck;
+        this.element.classList.toggle('reveal-manager--loaded', hasDeck);
+        this.moreButton.hidden = !hasDeck;
+        if (!hasDeck) this.closeMoreMenu(false);
+        const choicesParent = hasDeck ? this.moreMenu : this.topbar;
+        if (this.toggleControlsButton.parentElement !== choicesParent) choicesParent.append(this.toggleControlsButton);
+        if (hasDeck) this.toggleControlsButton.setAttribute('role', 'menuitem');
+        else this.toggleControlsButton.removeAttribute('role');
         const isLiveRevealDeck = hasDeck && this.activeDeck.type === 'html';
         const isEditablePptx = hasDeck && this.isEditablePptxDeck(this.activeDeck);
-        this.launchButton.textContent = 'Close';
+        this.launchButton.textContent = 'Close presentation';
         this.launchButton.hidden = !hasDeck;
         this.prevButton.disabled = !isLiveRevealDeck;
         this.prevButton.hidden = !isLiveRevealDeck;
@@ -737,7 +819,7 @@ class RevealManagerWidget {
         this.nextButton.hidden = !isLiveRevealDeck;
         if (isEditablePptx) {
             if (!this.editPptxButton.isConnected) {
-                this.topbar?.insertBefore(this.editPptxButton, this.projectorButton);
+                this.moreMenu.insertBefore(this.editPptxButton, this.projectorButton);
             }
             this.editPptxButton.hidden = false;
         } else {
@@ -747,8 +829,7 @@ class RevealManagerWidget {
         this.projectorButton.textContent = 'Open projector';
         this.projectorButton.title = 'Open the paired projector; slides already sync automatically';
         this.projectorFullscreenButton.hidden = !isLiveRevealDeck;
-        this.projectorFullscreenButton.textContent = this.projectorFullscreen ? 'Return projector to classroom' : 'Full screen on projector';
-        this.projectorFullscreenButton.setAttribute('aria-pressed', String(this.projectorFullscreen));
+        this.projectorFullscreenButton.textContent = this.projectorFullscreen ? 'Return projector to classroom' : 'Expand presentation on projector';
         this.updateSlideSelector();
         this.applyProjectorFullscreen();
         this.emptyState.hidden = true;
@@ -1036,7 +1117,9 @@ class RevealManagerWidget {
 
     handleToggleControls(event) {
         event.stopPropagation();
+        this.closeMoreMenu(false);
         this.toggleCompact(!this.isCompact);
+        if (!this.isCompact) this.panelContainer.querySelector('button:not([hidden])')?.focus();
         this.ensureDeckVisible();
     }
 
@@ -3060,6 +3143,7 @@ class RevealManagerWidget {
     async handleLaunchFromInputs() {
         if (this.activeDeck) {
             await this.stopDeck();
+            this.toggleControlsButton.focus();
             return;
         }
 

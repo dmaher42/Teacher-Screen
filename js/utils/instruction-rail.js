@@ -1,3 +1,10 @@
+const SIZE_PRESETS = {
+    compact: { width: 25, fontSize: 24 },
+    standard: { width: 30, fontSize: 28 },
+    large: { width: 30, fontSize: 30 },
+    'high-visibility': { width: 40, fontSize: 38 }
+};
+
 // Deck-level public text only. Never accept arbitrary properties or HTML.
 export function normalizeInstructions(value = {}) {
     const source = value && typeof value === 'object' ? value : {};
@@ -99,21 +106,18 @@ export function setupInstructionEditor(app) {
         if (!key) return;
         const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
         app.projectState.instructions = normalizeInstructions({ ...app.projectState.instructions, [key]: value });
-        renderInstructions(app.projectState.instructions);
+        refreshInstructionEditor(app.projectState.instructions);
+        app.saveState();
+    });
+    editor.addEventListener('change', (event) => {
+        if (!event.target.matches('[data-instruction-size-preset]')) return;
+        const preset = SIZE_PRESETS[event.target.value];
+        if (!preset) return;
+        app.projectState.instructions = normalizeInstructions({ ...app.projectState.instructions, ...preset });
+        refreshInstructionEditor(app.projectState.instructions);
         app.saveState();
     });
     editor.addEventListener('click', async (event) => {
-        const presetKey = event.target.dataset.instructionPresetKey;
-        const presetVal = event.target.dataset.instructionPresetVal;
-        if (presetKey && presetVal) {
-            app.projectState.instructions = normalizeInstructions({
-                ...app.projectState.instructions,
-                [presetKey]: Number(presetVal)
-            });
-            refreshInstructionEditor(app.projectState.instructions);
-            app.saveState();
-            return;
-        }
         const mode = event.target.dataset.presentInstructions;
         if (!mode) return;
         if (mode === 'whole') {
@@ -144,6 +148,9 @@ export function setupInstructionEditor(app) {
 export function refreshInstructionEditor(value) {
     const state = normalizeInstructions(value);
     renderInstructions(state);
+    const presetSelect = document.querySelector('[data-instruction-size-preset]');
+    if (presetSelect) presetSelect.value = Object.entries(SIZE_PRESETS)
+        .find(([, preset]) => preset.width === state.width && preset.fontSize === state.fontSize)?.[0] || 'custom';
     document.querySelectorAll('[data-instruction-field]').forEach((input) => {
         const value = state[input.dataset.instructionField];
         if (input.type === 'checkbox') input.checked = value;

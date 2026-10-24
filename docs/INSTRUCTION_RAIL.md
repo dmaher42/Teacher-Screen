@@ -1,8 +1,10 @@
 # Persistent student instructions
 
 In classroom view, + (Add widget) → Teacher Controls → Student instructions
-contains public Today, Now and Next text,
-Show instructions, width (22–45%) and text size (20–48 px). The panel is on the
+contains public Today, Now and Next text, Show instructions and one Instruction
+size selector. Compact, Standard, Large and High visibility presets adjust width
+and text together. Adjust width and text size opens the existing fine controls
+(22–45% width, 20–48 px text); other combinations appear as Custom. The panel is on the
 right of the media region and scrolls when the chosen text size needs more room.
 Instructions save automatically with the current deck, outside page widget
 snapshots. Existing decks open with empty, hidden instructions.
@@ -21,6 +23,20 @@ content rather than covering slides or instructions. Home leaves fullscreen
 and opens the dashboard; Teacher Controls leaves fullscreen and opens the
 teacher panel. Esc also exits this mode. These controls are created only by
 the teacher editor and never appear in projector state or projector markup.
+
+Presentation widgets keep Previous, the slide selector, Next and More visible.
+More contains Edit PowerPoint when available, Open projector, projector
+expansion, Close presentation and Change presentation. Use Enter/Space or
+Arrow Down to open More, arrows/Home/End to move, and Escape to close it and
+return focus. Tab leaves the menu. Escape closes a menu before it exits a
+teacher fullscreen presentation. On very small widgets the controls wrap while
+retaining accessible labels and 44px touch targets.
+
+Slide arrow shortcuts operate on a visible presentation in classroom view,
+not on Home, inside unrelated dialogs, or while editing fields. Existing
+projector navigation remains separate. Versioned bootstrap, widget scripts,
+the rail module import and stylesheets prevent mixed-cache upgrades from
+combining new controls with old handlers.
 
 Embedded media stays beside the rail. Native video fullscreen and separate tabs,
 windows or external apps own their display and cannot retain it. This feature
@@ -73,9 +89,15 @@ classes. They do not open personal profiles or access student data.
   expansion with instructions hidden and shown, replacement, closing and
   restricted-link preservation. No browser capture prompt is introduced.
 - `npm run check:widget-startup`: existing startup and minimised-widget checks.
+- `npm run check:compact-controls`: compact menu interactions, repeated Home
+  navigation and keyboard isolation, selector/custom sizing persistence,
+  narrow controls and popup bounds, fullscreen recovery and nested Escape,
+  projector privacy/reconnect/expansion, and a real HTTP-cache upgrade test.
 
 Screenshots are generated under `output/playwright/` and kept outside the commit.
-The branch is based on upstream `a4ebc1c5bf49dd95be73ecbd05b4cdf54336e311`.
+The original instruction-rail feature was based on upstream
+`a4ebc1c5bf49dd95be73ecbd05b4cdf54336e311`. The compact-control follow-up is based
+on `3710e611c4aa7258a0964f3306a6f3ab4cfb3a6f`, preserving the subsequent menu work.
 The original Acer-1 checkout remains unchanged. Its earlier uncommitted source
 changes were preserved separately in local commit `f808c08`; the initial tested
 local variant is on `safety/tested-local-instruction-rail`. Neither is part of
@@ -91,8 +113,9 @@ the clean upstream feature branch or its PR.
    may drop it when saving a deck.
 3. Rebase if main has advanced and rerun the commands above. Review the complete
    PR diff and GitHub Pages publishing configuration.
-4. Merge/deploy only after Daniel explicitly approves the release. This task
-   creates a draft review and does not merge or deploy.
+4. Merge/deploy only after Daniel explicitly approves the release. Publication
+   of the compact-control follow-up was subsequently authorised; retain the
+   same verification and backup steps for future releases.
 5. After approved deployment, verify old decks stay hidden, saved instructions
    survive refresh, switching to an empty deck clears both displays, and
    projector reconnect restores the active lesson. Roll back the release commit

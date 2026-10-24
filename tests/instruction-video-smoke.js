@@ -27,6 +27,10 @@ document.getElementById('fullscreen').onclick = async () => { window.fullscreenC
 })().catch(error => { document.getElementById('status').textContent=error.message; });
 </script></body></html>`;
 
+async function openInstructionSection(page) {
+ const section=page.locator('#instruction-controls-section');
+ if(await section.getAttribute('open')===null) await section.locator(':scope > summary').click();
+}
 async function run() {
     const root = path.resolve(__dirname, '..');
     const server = http.createServer((req, res) => {
@@ -94,6 +98,7 @@ async function run() {
         console.log('PASS: Actual embedded WebM decodes and advances on teacher and projector beside the rail');
         await teacher.bringToFront();
         await teacher.evaluate(() => window.__TeacherScreenApp.toggleTeacherPanel(true));
+        await openInstructionSection(teacher);
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         await assertPlaying(teacherFrame); assert(await railFits(teacher));

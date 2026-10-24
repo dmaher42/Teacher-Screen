@@ -33,8 +33,8 @@
     <link rel="stylesheet" href="css/due-reminder-sticky.css?v=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" media="print" onload="this.onload=null;this.media='all'">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" media="print" onload="this.onload=null;this.media='all'">
-    <link rel="modulepreload" href="js/index.js?v=77">
-    <link rel="modulepreload" href="js/main.js?v=77">
+    <link rel="modulepreload" href="js/index.js?v=78">
+    <link rel="modulepreload" href="js/main.js?v=78">
     
     <!-- Installable app identity -->
     <link rel="manifest" href="manifest.webmanifest">
@@ -43,7 +43,8 @@
     
     <!-- External Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
-    <link rel="stylesheet" href="css/instruction-rail.css?v=2">
+    <link rel="stylesheet" href="css/instruction-rail.css?v=3">
+    <link rel="stylesheet" href="css/presentation-controls.css?v=1">
 </head>
 
 <!-- Set a default theme class on the body -->
@@ -235,25 +236,27 @@
                 <button id="close-teacher-panel" class="panel-close" aria-label="Close Teacher Controls">&times;</button>
             </header>
             <div class="panel-content">
-                <section class="control-card"><details open><summary><h4>Student instructions</h4></summary>
+                <section class="control-card"><details id="instruction-controls-section"><summary><h4>Student instructions</h4></summary>
                 <div class="card-body" id="instruction-editor">
                     <p>Public text shown beside slides and embedded video. Saved with this deck.</p>
                     <label><span><input type="checkbox" data-instruction-field="visible"> Show instructions</span></label>
                     <label>Today<textarea data-instruction-field="today" maxlength="4000"></textarea></label>
                     <label>Now<textarea data-instruction-field="now" maxlength="4000"></textarea></label>
                     <label>Next<textarea data-instruction-field="next" maxlength="4000"></textarea></label>
-                    <label>Panel width (22–45%)<input type="range" min="22" max="45" data-instruction-field="width"></label>
-                    <div class="instruction-presets" role="group" aria-label="Width presets">
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="25">Compact (25%)</button>
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="30">Standard (30%)</button>
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="width" data-instruction-preset-val="40">Wide (40%)</button>
-                    </div>
-                    <label>Text size (20–48 px)<input type="range" min="20" max="48" data-instruction-field="fontSize"></label>
-                    <div class="instruction-presets" role="group" aria-label="Text size presets">
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="24">Standard (24px)</button>
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="30">Large (30px)</button>
-                        <button type="button" class="control-button preset-btn" data-instruction-preset-key="fontSize" data-instruction-preset-val="38">High-Vis (38px)</button>
-                    </div>
+                    <label>Instruction size
+                        <select data-instruction-size-preset>
+                            <option value="custom">Custom</option>
+                            <option value="compact">Compact — 25%, 24px</option>
+                            <option value="standard">Standard — 30%, 28px</option>
+                            <option value="large">Large — 30%, 30px</option>
+                            <option value="high-visibility">High visibility — 40%, 38px</option>
+                        </select>
+                    </label>
+                    <details class="instruction-fine-tuning">
+                        <summary>Adjust width and text size</summary>
+                        <label>Panel width (22–45%)<input type="range" min="22" max="45" data-instruction-field="width"></label>
+                        <label>Text size (20–48 px)<input type="range" min="20" max="48" data-instruction-field="fontSize"></label>
+                    </details>
                     <div class="instruction-fullscreen-options">
                         <button type="button" class="control-button" data-present-instructions="whole">Present with instructions</button>
                         <button type="button" class="control-button" data-present-instructions="media">Present media only</button>
@@ -832,7 +835,7 @@
          ===================================================== -->
     <!-- Bootstrap loader must be the only app script entrypoint. -->
     <script src="js/widgets/pomodoro/pomodoro-widget.js"></script>
-    <script type="module" src="js/index.js?v=77"></script>
+    <script type="module" src="js/index.js?v=78"></script>
 
 </body>
 </html>

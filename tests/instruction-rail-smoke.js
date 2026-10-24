@@ -4,6 +4,10 @@ const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
+async function openInstructionSection(page) {
+ const section=page.locator('#instruction-controls-section');
+ if(await section.getAttribute('open')===null) await section.locator(':scope > summary').click();
+}
 async function run() {
     const root = path.resolve(__dirname, '..');
     const server = http.createServer((req, res) => {
@@ -129,6 +133,7 @@ async function run() {
             app.handleNavClick('classroom');
             app.toggleTeacherPanel(true);
         });
+        await openInstructionSection(teacher);
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         assert(await teacher.locator('#instruction-rail').isVisible());
@@ -145,17 +150,20 @@ async function run() {
         await teacher.screenshot({ path: path.join(root, 'output/playwright/instruction-recovery-controls.png') });
         await recovery.getByRole('button', { name: 'Teacher Controls', exact: true }).click();
         await teacher.waitForFunction(() => !document.fullscreenElement && document.getElementById('teacher-panel').classList.contains('open'));
+        await openInstructionSection(teacher);
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         await recovery.getByRole('button', { name: 'Home', exact: true }).click();
         await teacher.waitForFunction(() => !document.fullscreenElement && document.body.classList.contains('is-dashboard-active'));
         await teacher.evaluate(() => { window.__TeacherScreenApp.handleNavClick('classroom'); window.__TeacherScreenApp.toggleTeacherPanel(true); });
+        await openInstructionSection(teacher);
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         await teacher.keyboard.press('Escape');
         await teacher.waitForFunction(() => !document.fullscreenElement);
         assert(!await recovery.isVisible());
         await teacher.evaluate(() => window.__TeacherScreenApp.toggleTeacherPanel(true));
+        await openInstructionSection(teacher);
         await teacher.locator('[data-present-instructions="media"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-media');
         assert(!await teacher.locator('#instruction-rail').isVisible());

@@ -112,6 +112,7 @@ async function run() {
         await teacher.waitForFunction(() => window.__syncWidget.revealDeck?.isReady());
         assert.equal(await teacher.locator('.reveal-slide-select option').count(), 3);
         const popup = context.waitForEvent('page');
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-projector-btn').click();
         const projector = await popup;
         await projector.waitForFunction(() => window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
@@ -127,6 +128,7 @@ async function run() {
         await teacher.locator('.reveal-slide-select').selectOption('2:0'); await expectSlide(2);
         assert(await projector.evaluate(() => window.__initialPlayer === window.__TeacherScreenProjectorApp.getRevealWidgets()[0].revealDeck), 'Slide navigation must preserve the mounted player');
         const teacherBounds = await teacher.locator('.reveal-manager-widget-content').boundingBox();
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-projector-fullscreen-btn').click();
         await projector.waitForFunction(() => document.querySelector('.projector-presentation-fullscreen')?.getBoundingClientRect().width === innerWidth);
         await expectSlide(2);
@@ -157,6 +159,7 @@ async function run() {
         await expectSlide(2);
         await projector.waitForSelector('.projector-presentation-fullscreen');
         await teacher.locator('.reveal-prev-btn').click(); await expectSlide(1);
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-projector-fullscreen-btn').click();
         await projector.waitForFunction(() => !document.querySelector('.projector-presentation-fullscreen'));
         await expectSlide(1);
@@ -185,6 +188,7 @@ async function run() {
         await teacher.locator('.reveal-next-btn').click(); await expectPptxSlide(1);
         await teacher.locator('.reveal-prev-btn').click(); await expectPptxSlide(0);
         await teacher.locator('.reveal-slide-select').selectOption('2:0'); await expectPptxSlide(2);
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-projector-fullscreen-btn').click();
         await projector.waitForSelector('.projector-presentation-fullscreen');
         await expectPptxSlide(2);
@@ -192,6 +196,7 @@ async function run() {
         await projector.reload();
         await projector.waitForFunction(() => window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.pptxFrame && window.__TeacherScreenProjectorApp.getRevealWidgets()[0].revealDeck?.isReady());
         await expectPptxSlide(2);
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-projector-fullscreen-btn').click();
         console.log('PASS: direct PowerPoint link import and native PPTX player teacher controls.');
         await teacher.evaluate(async () => {
@@ -200,6 +205,7 @@ async function run() {
         await projector.waitForFunction(() => document.querySelector('.reveal-inline-deck .present')?.textContent.includes('Replacement one'));
         await teacher.locator('.reveal-next-btn').click();
         await projector.waitForFunction(() => document.querySelector('.reveal-inline-deck .present')?.textContent.includes('Replacement two'));
+        await teacher.locator('.reveal-more-btn').click();
         await teacher.locator('.reveal-launch-btn').click();
         await projector.waitForFunction(() => !window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.activeDeck);
         assert.equal(await teacher.evaluate(() => window.__captureCalls), 0);
