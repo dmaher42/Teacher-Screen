@@ -7285,9 +7285,21 @@ async function runSmoke() {
         const projectorPresentation = projectorPage.locator('.widget.reveal-manager-widget [data-reveal-presentation-root]');
         assert(await projectorPresentation.textContent().then((text) => text.includes('Stored PowerPoint')), 'Projector should restore imported PowerPoint text from the shared local document store');
         assert(await projectorPresentation.locator('img[src^="blob:"]').count() === 1, 'Projector should restore imported PowerPoint images from the shared local document store');
+        // Images mount before asynchronous restore/Reveal initialization finishes.
+        // Measure visibility resume after that work, rather than counting initial
+        // rendering or passing because the restore guard returns early.
+        await projectorPage.waitForFunction(() => {
+            const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
+            return widget?.inlineDeckContainer?.querySelector('.reveal .slides')
+                && !widget.restorePromise && !widget.renderPromise && !widget.reactivateTimeout
+                && Array.from(widget.inlineDeckContainer.querySelectorAll('img')).every(image => image.complete);
+        }, undefined, {timeout: 15000});
         const projectorSlidesVisibilityResume = await projectorPage.evaluate(async () => {
             const widget = window.__TeacherScreenProjectorApp?.getRevealWidgets?.()[0];
             if (!widget) throw new Error('Projector Slides widget was not available for visibility checks');
+            if (widget.restorePromise || widget.renderPromise || widget.reactivateTimeout) {
+                throw new Error('Projector Slides initialization was not settled before the visibility check');
+            }
             const revealSurface = widget.inlineDeckContainer.querySelector('.reveal');
             const originalRenderActiveDeck = widget.renderActiveDeck;
             let rebuildCount = 0;

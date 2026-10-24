@@ -42,6 +42,12 @@ the prior release's actual URLs and checks that both corrected assets load.
 Earlier experimental fixes failed and were removed. The final canonical run
 passes without changing or bypassing the existing timer assertion.
 
+Combined-release validation also waits for projector restore/render work to
+settle before measuring visibility resume. An image can appear before those
+operations finish; observing it alone can either count initial rendering as a
+rebuild or pass through the restore guard without testing resume behavior.
+The assertion still requires no rebuild and the same presentation surface.
+
 ## Limits
 
 Verification uses the current Edge installation on Acer-1. Other browser
