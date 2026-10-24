@@ -1260,6 +1260,9 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
+    if (!this.quill && this.editorSurface?.classList.contains('rich-text-editor-fallback')) {
+      this.editorSurface.contentEditable = this.isProjectorMode() || this.isDisplayMode ? 'false' : 'true';
+    }
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.element.classList.toggle('display-mode', this.isDisplayMode);
     this.element.dataset.presentationMode = this.presentationMode;

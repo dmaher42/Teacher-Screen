@@ -7,6 +7,13 @@
 body:not(.projector-view) #student-view:not(:fullscreen) #instruction-rail { padding-top: 64px; }
 #instruction-outline { height: auto; padding: 0; font: 500 16px/1.4 system-ui, sans-serif; zoom: calc(var(--instruction-font-size, 28px) / 16px); overflow: visible; overflow-wrap: anywhere; }
 #instruction-outline p { color: inherit; }
+#instruction-outline .ql-line-spacing-tight { line-height: 1.18; }
+#instruction-outline .ql-line-spacing-normal { line-height: 1.45; }
+#instruction-outline .ql-line-spacing-relaxed { line-height: 1.82; }
+#instruction-outline .ql-size-small { font-size: .95em; }
+#instruction-outline .ql-size-large { font-size: 1.25em; }
+#instruction-outline .ql-size-huge { font-size: 1.55em; }
+#instruction-outline .display-callout { border-left: 4px solid currentColor; padding-left: .6em; font-weight: 700; }
 #instruction-outline-editor { height: 300px; min-width: 0; }
 #instruction-outline-editor .rich-text-widget-inner { height: 100%; }
 #instruction-editor { display: grid; gap: 10px; }

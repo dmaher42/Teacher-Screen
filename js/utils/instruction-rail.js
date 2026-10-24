@@ -11,7 +11,7 @@ function sanitizeOutline(html) {
         node.removeAttribute('hidden');
         const allowed = ['color', 'background-color', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-align', 'text-decoration'];
         for (const property of Array.from(node.style)) if (!allowed.includes(property)) node.style.removeProperty(property);
-        if (node.className) node.className = node.className.split(/\s+/).filter(name => /^(ql-(align|indent|size|font|direction)-[\w-]+|display-callout)$/.test(name)).join(' ');
+        if (node.className) node.className = node.className.split(/\s+/).filter(name => /^(ql-(align|indent|size|font|direction|line-spacing)-[\w-]+|ql-ui|display-callout)$/.test(name)).join(' ');
     });
     return root.innerHTML;
 }
@@ -47,6 +47,7 @@ export function normalizeInstructions(value = {}) {
                 ...Object.fromEntries(['x', 'y', 'width', 'height'].filter(key => Number.isFinite(saved[key])).map(key => [key, saved[key]])),
                 data: { customTitle: String(saved.data?.customTitle || '').slice(0, 80), displayMode: saved.data?.displayMode === true },
                 visibleOnProjector: saved.visibleOnProjector !== false,
+                minimized: saved.minimized === true,
                 projectorVisibilityConfigured: saved.projectorVisibilityConfigured === true
             },
             previous: publicInstructions(source.origin.previous)
@@ -135,6 +136,8 @@ export function setupInstructionEditor(app) {
             const info = app.layoutManager.widgets.find(candidate => candidate.widget === restored);
             info.visibleOnProjector = saved.visibleOnProjector;
             info.projectorVisibilityConfigured = saved.projectorVisibilityConfigured;
+            app.layoutManager.refreshWidgetProjectorVisibilityControl(info);
+            app.layoutManager.setWidgetMinimized(info, saved.minimized);
             app.widgets.push(restored);
         } else {
             page.snapshot.layout.widgets.push({ ...saved, id: `outline-${Date.now()}` });
