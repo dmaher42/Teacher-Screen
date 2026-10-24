@@ -154,6 +154,11 @@ class RichTextWidget {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
         this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
         this.editorSurface.innerHTML = this.pendingContent;
+        this.editorSurface.contentEditable = this.isProjectorMode() || this.isDisplayMode ? 'false' : 'true';
+        this.editorSurface.addEventListener('input', () => {
+          this.pendingContent = this.editorSurface.innerHTML;
+          window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
+        });
         this.syncEditorLayout();
         return;
       }
@@ -397,6 +402,11 @@ class RichTextWidget {
       iconClass: 'fas fa-font',
       label: 'Use automatic name',
       onSelect: () => this.setCustomTitle('')
+    }, {
+      className: 'rich-text-pin-menu-item',
+      iconClass: 'fas fa-thumbtack',
+      label: 'Pin as instructions',
+      onSelect: () => document.dispatchEvent(new CustomEvent('pin-lesson-outline', { detail: { widget: this } }))
     }, {
       className: 'rich-text-present-menu-item',
       iconClass: 'fas fa-expand',

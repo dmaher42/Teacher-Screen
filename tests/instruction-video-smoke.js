@@ -92,7 +92,7 @@ async function run() {
             const rail = document.getElementById('instruction-rail');
             const media = document.getElementById('student-media').getBoundingClientRect();
             const bounds = rail.getBoundingClientRect();
-            return !rail.hidden && bounds.width > 200 && media.width > 500 && media.right <= bounds.left + 1;
+            return !rail.hidden && bounds.width > 200 && media.width > 500 && media.left >= bounds.right - 1;
         });
         assert(await railFits(teacher)); assert(await railFits(projector));
         console.log('PASS: Actual embedded WebM decodes and advances on teacher and projector beside the rail');
@@ -132,8 +132,8 @@ async function run() {
         });
         await projector.waitForFunction(() => document.getElementById('instruction-rail').hidden && !document.querySelector('.url-viewer-iframe'));
         assert.equal(await teacher.locator('.url-viewer-iframe').count(), 0);
-        assert.equal(await teacher.locator('[data-instruction="today"]').textContent(), '');
-        assert.equal(await projector.locator('[data-instruction="now"]').textContent(), '');
+        assert.equal(await teacher.locator('#instruction-outline').textContent(), '');
+        assert.equal(await projector.locator('#instruction-outline').textContent(), '');
         console.log('PASS: Switching to an empty deck clears the video and previous instructions on both displays');
         assert.deepEqual(errors, []);
     } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

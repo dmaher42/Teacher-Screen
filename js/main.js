@@ -1,4 +1,4 @@
-import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=3';
+import { normalizeInstructions, publicInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=4';
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
 import {
@@ -2504,7 +2504,7 @@ class ClassroomScreenApp {
 
     buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
         const projectorState = removePrivateBehaviourData(state);
-        projectorState.instructions = normalizeInstructions(state.instructions);
+        projectorState.instructions = publicInstructions(state.instructions);
         projectorState.layout = this.layoutManager.serialize({ forProjector: true });
         projectorState.classReminders = this.getPublicReminderSnapshot();
         delete projectorState.pages;
