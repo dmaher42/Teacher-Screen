@@ -7,6 +7,10 @@
 body:not(.projector-view) #student-view:not(:fullscreen) #instruction-rail { padding-top: 64px; }
 #instruction-outline { height: auto; padding: 0; font: 500 16px/1.4 system-ui, sans-serif; zoom: calc(var(--instruction-font-size, 28px) / 16px); overflow: visible; overflow-wrap: anywhere; }
 #instruction-outline p { color: inherit; }
+#instruction-outline h1, #instruction-outline h2, #instruction-outline h3, #instruction-outline h4, #instruction-outline h5, #instruction-outline h6 { color: inherit; }
+#instruction-outline a { color: #a6e2ff; }
+#instruction-outline ol > li:not([data-list]) { list-style-type: decimal; }
+#instruction-outline ul > li:not([data-list]) { list-style-type: disc; }
 #instruction-outline .ql-line-spacing-tight { line-height: 1.18; }
 #instruction-outline .ql-line-spacing-normal { line-height: 1.45; }
 #instruction-outline .ql-line-spacing-relaxed { line-height: 1.82; }

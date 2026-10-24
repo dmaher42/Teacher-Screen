@@ -35,6 +35,7 @@ const { chromium } = require('playwright-core');
   assert.equal(await page.locator('#instruction-outline strong').textContent(),'Read closely');
   assert.equal(await page.locator('#instruction-outline h2').getAttribute('class'),'ql-align-center');
   assert.equal(await page.locator('#instruction-outline li[data-list="bullet"] .ql-ui').count(),1);
+  assert(await page.locator('#instruction-outline h2').evaluate(node=>getComputedStyle(node).color===getComputedStyle(document.getElementById('instruction-rail')).color),'Default headings remain readable on the rail');
   const pinned=await page.evaluate(()=>window.__TeacherScreenApp.buildStateSnapshot().instructions);
   assert(!('content' in pinned.origin.widget.data),'Only one authoritative copy of outline');
   const projector=await context.newPage(); await projector.goto(await page.evaluate(()=>window.__TeacherScreenApp.getPairedProjectorUrl()));
