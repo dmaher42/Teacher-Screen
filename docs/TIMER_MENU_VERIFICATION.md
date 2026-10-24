@@ -1,8 +1,9 @@
 # Timer menu follow-up
 
-This local follow-up is based on the published compact-controls release
-`77cd4f9f95a0b24f3a993ea1bdd113894eb37ee9`. It does not include the separately
-prepared adjacent Previous/Next change and is not approved for publication yet.
+This follow-up was tested separately on the published compact-controls release
+`77cd4f9f95a0b24f3a993ea1bdd113894eb37ee9`. Daniel subsequently approved combining
+it with the adjacent Previous/Next change for publication. The combined release
+retains both fixes and reruns the complete checks before publishing.
 
 ## Cause and fix
 
