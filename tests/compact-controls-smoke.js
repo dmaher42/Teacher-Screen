@@ -33,11 +33,20 @@ async function run() {
   });
   const ready=()=>page.waitForFunction(()=>window.__compactWidget?.revealDeck?.isReady());const index=()=>page.evaluate(()=>window.__compactWidget.currentIndices.h);
   const more=page.locator('.reveal-more-btn');const menu=page.locator('.reveal-more-menu');await ready();
-  assert.equal(await page.locator('.reveal-manager__topbar > button:visible').count(),3);assert((await page.locator('.reveal-manager__topbar').boundingBox()).height<=64);
+  const adjacentPair=async()=>{
+   const previous=await page.locator('.reveal-prev-btn').boundingBox();const next=await page.locator('.reveal-next-btn').boundingBox();
+   assert(previous.width>=44&&previous.height>=44&&next.width>=44&&next.height>=44,`Navigation retains touch-sized targets: ${JSON.stringify({previous,next})}`);
+   assert(Math.abs(previous.y-next.y)<.5&&next.x-previous.x-previous.width>=-.5&&next.x-previous.x-previous.width<=8,`Previous and Next stay directly adjacent on one row: ${JSON.stringify({previous,next})}`);
+   return {x:previous.x,y:previous.y};
+  };
+  const initialPair=await adjacentPair();
+  assert.equal(await page.locator('.reveal-manager__topbar button:visible').count(),3);assert((await page.locator('.reveal-manager__topbar').boundingBox()).height<=64);
+  assert((await page.locator('.reveal-slide-select').boundingBox()).x>(await page.locator('.reveal-next-btn').boundingBox()).x,'Selector sits beside the navigation pair');
   assert(!await page.locator('.reveal-projector-btn').isVisible());
   for(let n=0;n<3;n++)await page.getByRole('button',{name:'Next slide',exact:true}).click();assert.equal(await index(),3);
   for(let n=0;n<2;n++)await page.getByRole('button',{name:'Previous slide',exact:true}).click();assert.equal(await index(),1);
   await page.locator('.reveal-slide-select').selectOption('2:0');assert.equal(await index(),2);
+  assert.deepEqual(await adjacentPair(),initialPair,'Repeated navigation must not move the pair');
   await more.focus();await page.keyboard.press('ArrowDown');assert(await menu.isVisible());assert.equal(await more.getAttribute('aria-expanded'),'true');
   await page.screenshot({path:path.join(output,'compact-presentation-more.png')});
   assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Open projector');
@@ -64,20 +73,28 @@ async function run() {
   await openInstructionSection(page);
         await page.locator('[data-present-instructions="whole"]').click();await page.waitForFunction(()=>document.fullscreenElement?.id==='student-view');
   await more.focus();await page.keyboard.press('Enter');await page.keyboard.press('Escape');assert(!await menu.isVisible());assert.equal(await page.evaluate(()=>document.fullscreenElement?.id),'student-view');
-  await page.screenshot({path:path.join(output,'compact-presentation-fullscreen.png')});await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.fullscreenElement);
+  await adjacentPair();await page.screenshot({path:path.join(output,'compact-presentation-fullscreen.png')});await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.fullscreenElement);
   console.log('PASS: Compact sizing selector/custom adjustments, edit/dialog guards, persistence and nested fullscreen Escape');
   await page.setViewportSize({width:390,height:844});
   // Allow the app's resize observer to finish fitting the canvas before measuring.
-  await page.waitForFunction(()=>{
+  try { await page.waitForFunction(()=>{
    const bar=document.querySelector('.reveal-manager__topbar');const outer=bar.getBoundingClientRect();
    return Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).every(e=>e.getBoundingClientRect().right<=outer.right+.5);
-  });
+  },null,{timeout:3000}); } catch(error) {
+   console.log('NARROW GEOMETRY',await page.locator('.reveal-manager__topbar').evaluate(bar=>JSON.stringify({outer:bar.getBoundingClientRect().toJSON(),controls:Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>({label:e.textContent,box:e.getBoundingClientRect().toJSON()}))})));
+   await page.screenshot({path:path.join(output,'adjacent-narrow-failure.png')});throw error;
+  }
   await more.click();const bounds=await menu.boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.y>=0&&bounds.y+bounds.height<=844);
   const narrowGeometry=await page.locator('.reveal-manager__topbar').evaluate(bar=>({outer:bar.getBoundingClientRect().toJSON(),controls:Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>({label:e.getAttribute('aria-label')||e.textContent,box:e.getBoundingClientRect().toJSON()}))}));
   assert(await page.locator('.reveal-manager__topbar').evaluate(bar=>{
    const outer=bar.getBoundingClientRect();const boxes=Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect());
    return boxes.every(b=>b.height>=44&&b.left>=outer.left&&b.right<=outer.right+.5)&&boxes.every((a,i)=>boxes.every((b,j)=>i===j||a.right<=b.left+.5||b.right<=a.left+.5||a.bottom<=b.top+.5||b.bottom<=a.top+.5));
-  }), `Narrow controls must stay within the toolbar with touch targets and no overlap: ${JSON.stringify(narrowGeometry)}`);await page.screenshot({path:path.join(output,'compact-controls-narrow.png')});
+  }), `Narrow controls must stay within the toolbar with touch targets and no overlap: ${JSON.stringify(narrowGeometry)}`);await adjacentPair();
+  assert(await page.locator('.widget.reveal-manager-widget').evaluate(widget=>{
+   const outer=widget.getBoundingClientRect();const media=document.querySelector('#student-media').getBoundingClientRect();
+   return outer.left>=media.left-.5&&outer.right<=media.right+.5;
+  }),'The paired controls minimum must be reflected in the constrained media layout');
+  await page.screenshot({path:path.join(output,'compact-controls-narrow.png')});
   await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:900});
   await more.click();const popup=context.waitForEvent('page');await menu.getByRole('menuitem',{name:'Open projector',exact:true}).click();const projector=await popup;
   await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());

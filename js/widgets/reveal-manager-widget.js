@@ -50,9 +50,11 @@ class RevealManagerWidget {
         this.element.innerHTML = `
             <div class="reveal-manager">
                 <div class="reveal-manager__topbar">
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" aria-label="Previous slide" title="Previous slide" hidden><span aria-hidden="true">‹</span><span class="reveal-nav-label"> Previous</span></button>
+                    <div class="reveal-navigation-pair" role="group" aria-label="Slide navigation" hidden>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-prev-btn" aria-label="Previous slide" title="Previous slide" hidden><span aria-hidden="true">‹</span><span class="reveal-nav-label"> Previous</span></button>
+                        <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" aria-label="Next slide" title="Next slide" hidden><span class="reveal-nav-label">Next </span><span aria-hidden="true">›</span></button>
+                    </div>
                     <select class="reveal-slide-select" aria-label="Select slide" hidden></select>
-                    <button type="button" class="control-button reveal-btn reveal-btn-secondary reveal-next-btn" aria-label="Next slide" title="Next slide" hidden><span class="reveal-nav-label">Next </span><span aria-hidden="true">›</span></button>
                     <button type="button" class="control-button reveal-btn reveal-more-btn" aria-haspopup="menu" aria-expanded="false" hidden>More</button>
                     <button type="button" class="control-button reveal-btn reveal-btn-primary reveal-toggle-controls-btn" aria-label="Choose presentation" aria-expanded="false" title="Choose presentation">Choose presentation</button>
                 </div>
@@ -137,6 +139,7 @@ class RevealManagerWidget {
         `;
 
         this.topbar = this.element.querySelector('.reveal-manager__topbar');
+        this.navigationPair = this.element.querySelector('.reveal-navigation-pair');
         this.moreButton = this.element.querySelector('.reveal-more-btn');
         this.moreMenu = this.element.querySelector('.reveal-more-menu');
         this.moreMenu.id = `presentation-options-${crypto.randomUUID()}`;
@@ -810,6 +813,7 @@ class RevealManagerWidget {
         if (hasDeck) this.toggleControlsButton.setAttribute('role', 'menuitem');
         else this.toggleControlsButton.removeAttribute('role');
         const isLiveRevealDeck = hasDeck && this.activeDeck.type === 'html';
+        this.navigationPair.hidden = !isLiveRevealDeck;
         const isEditablePptx = hasDeck && this.isEditablePptxDeck(this.activeDeck);
         this.launchButton.textContent = 'Close presentation';
         this.launchButton.hidden = !hasDeck;

@@ -24,7 +24,7 @@ and opens the dashboard; Teacher Controls leaves fullscreen and opens the
 teacher panel. Esc also exits this mode. These controls are created only by
 the teacher editor and never appear in projector state or projector markup.
 
-Presentation widgets keep Previous, the slide selector, Next and More visible.
+Presentation widgets keep the adjacent Previous/Next pair, slide selector and More visible.
 More contains Edit PowerPoint when available, Open projector, projector
 expansion, Close presentation and Change presentation. Use Enter/Space or
 Arrow Down to open More, arrows/Home/End to move, and Escape to close it and
@@ -95,6 +95,11 @@ classes. They do not open personal profiles or access student data.
   projector privacy/reconnect/expansion, and a real HTTP-cache upgrade test.
 
 Screenshots are generated under `output/playwright/` and kept outside the commit.
+The follow-up navigation layout keeps Previous and Next adjacent in one group,
+with the slide selector outside that group. Small widgets retain both 44px
+targets on one row; their minimum width is constrained by the layout manager.
+Desktop, 390px and fullscreen captures were visually checked, and compact
+navigation, repository checks, linked presentation and cache checks passed.
 The original instruction-rail feature was based on upstream
 `a4ebc1c5bf49dd95be73ecbd05b4cdf54336e311`. The compact-control follow-up is based
 on `3710e611c4aa7258a0964f3306a6f3ab4cfb3a6f`, preserving the subsequent menu work.

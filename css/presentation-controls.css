@@ -1,12 +1,17 @@
 /* Compact teacher controls; projector markup keeps its existing hidden topbar. */
 body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
-    display: grid; grid-template-columns: auto minmax(60px, 1fr) auto auto;
+    display: grid; grid-template-columns: auto minmax(60px, 1fr) auto;
     align-items: center; gap: 6px; padding: 8px 38px; overflow: visible; border-radius: 0;
 }
-body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar > .reveal-btn {
+.reveal-navigation-pair { display: flex; flex-wrap: nowrap; gap: 6px; }
+.reveal-navigation-pair[hidden] { display: none; }
+body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar > .reveal-btn,
+body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar .reveal-navigation-pair > .reveal-btn {
     min-width: 44px; min-height: 44px; width: auto; padding: 6px 8px; margin: 0;
     font-size: 12px; white-space: nowrap;
 }
+body:not(.projector-view) .reveal-manager-widget-content .reveal-navigation-pair > .reveal-btn:hover,
+body:not(.projector-view) .reveal-manager-widget-content .reveal-navigation-pair > .reveal-btn:focus { transform: none; }
 body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar > .reveal-slide-select {
     width: 100%; min-width: 0; min-height: 44px; padding: 4px; margin: 0;
 }
@@ -29,6 +34,7 @@ body:not(.projector-view) .reveal-manager-widget-content:not(.reveal-manager--lo
     body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .reveal-navigation-pair { grid-column: 1 / -1; }
 }
 @container (max-width: 230px) {
     body:not(.projector-view) .reveal-manager-widget-content .reveal-manager__topbar {

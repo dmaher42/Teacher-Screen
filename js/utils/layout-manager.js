@@ -59,7 +59,8 @@ const WIDGET_SIZE_RULES = {
   DocumentViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   UrlViewerWidget: { minW: 6, minH: 5, defaultW: 8, defaultH: 6 },
   // Reveal manager uses standard grid sizing.
-  RevealManagerWidget: { minW: 5, minH: 5, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
+  // Keep the adjacent 44px navigation targets clear of padding/scrollbar gutters.
+  RevealManagerWidget: { minW: 5, minH: 5, minWidthPx: 144, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
   RichTextWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
