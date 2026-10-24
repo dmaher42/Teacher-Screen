@@ -40,7 +40,7 @@ async function run() {
   for(const url of stale)assert.equal(requests.get(url),1,'New app must not request the stale URL: '+url);
   assert([...requests.keys()].some(url=>url.startsWith('/js/utils/instruction-rail.js?v=')));
   assert([...requests.keys()].some(url=>url.startsWith('/css/instruction-rail.css?v=')));
-  assert(requests.has('/css/main.css?v=63'),'Timer menu fix must bypass the cached stylesheet');
+  assert(requests.has('/css/main.css?v=64'),'Timer menu fix must bypass the cached stylesheet');
   assert(requests.has('/js/utils/layout-manager.js?v=80'),'Menu Escape fix must bypass the cached layout manager');
   assert.deepEqual(errors,[]);console.log('PASS: Mixed-cache upgrade bypasses old bootstrap, module, widget, CSS and projector URLs; selector and public sync work');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}

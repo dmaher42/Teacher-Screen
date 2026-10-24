@@ -2485,8 +2485,8 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(migratedAfterReload.currentDeckId === currentDeckId, 'Reload should keep the migrated current deck identity');
 
         const navigationLabels = await page.locator('.dashboard-nav-item').allTextContents();
-        assert(navigationLabels.map((label) => label.trim()).join('|') === 'Deck Library|Resources|Favourite decks|Recent decks|More', 'Dashboard navigation should lead with the canonical Deck Library and identify deck filters clearly');
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Deck Library should be the active destination on startup');
+        assert(navigationLabels.map((label) => label.trim()).join('|') === 'Dashboard|Resources|Recent decks|More|Favourite decks', 'Dashboard navigation should lead with the canonical Deck Library and identify deck filters clearly');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Dashboard'), 'Deck Library should be the active destination on startup');
         assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deck Library should open to all lesson decks');
 
         const currentCard = page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"]`);
@@ -2499,7 +2499,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         for (const action of ['open', 'arrange', 'present']) {
             assert(await currentCard.locator(`[data-deck-action="${action}"]`).isVisible(), `Expanded deck should show its ${action} action`);
         }
-        assert(await currentCard.locator('[data-deck-action="favorite"]').isVisible(), 'Deck rows should keep the favourite action directly available');
+        assert(await currentCard.locator('.dashboard-deck-more [data-deck-action="favorite"]').count() === 1, 'Favourite action stays available under More');
 
         const currentMore = currentCard.locator('.dashboard-deck-more');
         assert(await currentMore.locator('summary').isVisible(), 'Expanded deck should expose a More menu');
@@ -2527,6 +2527,8 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await alphaToggle.getAttribute('aria-expanded') === 'true', 'Space should also reopen a collapsed deck');
 
         const currentFavorite = currentCard.locator('[data-deck-action="favorite"]');
+        await currentToggle.click();
+        await currentCard.locator('.dashboard-deck-more').evaluate(node=>{node.open=true});
         await currentFavorite.focus();
         await currentFavorite.press('Enter');
         await page.waitForFunction((deckId) => {
@@ -2550,7 +2552,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await migrationClass.getAttribute('aria-label') === 'Migration Class, 3 decks', 'Class filters should announce their migrated deck count');
         await migrationClass.click();
         assert(await page.locator('.dashboard-screen-card').count() === 3, 'Class filtering should retain every matching migrated deck');
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Class filtering should keep Deck Library active');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Dashboard'), 'Class filtering should keep Deck Library active');
         assert(await page.locator('[data-class-resources="Migration Class"]').isVisible(), 'A selected class should show its Resources folder beside its decks');
         await page.locator('[data-class-resources="Migration Class"]').click();
         await page.waitForSelector('.dashboard-resources-panel', { timeout: 10000 });
@@ -2563,6 +2565,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         await page.locator('[data-dashboard-mode="library"]').click();
         assert(await page.locator('.dashboard-filter.is-active').count() === 0, 'Opening Deck Library should clear the class filter');
         assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Deck Library should not expand a deck without a deck click');
+        await page.locator('#dashboard-utility-menu').evaluate(node=>{node.open=true});
         await page.locator('[data-dashboard-mode="favorites"]').click();
         assert(await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"]`).count() === 1 && await page.locator('.dashboard-screen-card').count() === 1, 'Favourites should show only pinned decks');
         assert(await page.locator('.dashboard-screen-card__details:visible').count() === 0, 'Opening Favourites should not expand its first deck');
@@ -2838,7 +2841,7 @@ async function runDeckLibraryRedesignChecks(browser, baseUrl) {
         assert(await page.locator('#screen-deck-manager-dialog #reset-layout').count() === 0, 'Clear current page should remain outside Deck details');
         await closeTeacherPanel(page);
 
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'The canonical Deck Library destination should remain selected');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Dashboard'), 'The canonical Deck Library destination should remain selected');
         const currentDeckDetails = page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] .dashboard-screen-card__details`);
         if (!await currentDeckDetails.isVisible()) {
             await page.locator(`.dashboard-screen-card[data-deck-id="${currentDeckId}"] [data-deck-action="toggle"]`).click();
@@ -4042,6 +4045,7 @@ async function runClassDeletionChecks(browser, baseUrl) {
         assert(await page.locator('.dashboard-class-delete').count() === 1
             && await page.locator('.dashboard-class-delete').getAttribute('data-class-name') === 'Year 7 History', 'Changing classes should replace the single heading deletion target');
         for (const mode of ['favorites', 'recent', 'resources', 'library']) {
+            if (mode === 'favorites') await page.locator('#dashboard-utility-menu').evaluate(node=>{node.open=true});
             await page.locator(`[data-dashboard-mode="${mode}"]`).click();
             assert(await page.locator('#dashboard-class-menu').count() === 0, `${mode} navigation should not expose class deletion`);
         }
@@ -5707,12 +5711,12 @@ async function runSmoke() {
         assert(desktopDashboardScale.brandTitle === 'Teacher Screen', 'Sidebar should show the app name once as its clear title');
         assert(desktopDashboardScale.brandTitleFits, 'Sidebar app name should fit without clipping or an ellipsis');
         assert(desktopDashboardScale.navigationCaptionCount === 0, 'Sidebar should not repeat an unnecessary Navigation caption');
-        assert(desktopDashboardScale.navigationLabels.join('|') === 'Deck Library|Resources|Favourite decks|Recent decks|More', 'Sidebar should lead with Deck Library and distinguish deck filters from resource filters');
-        assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Deck Library', 'Deck Library should be the only active navigation item on launch');
+        assert(desktopDashboardScale.navigationLabels.join('|') === 'Dashboard|Resources|Recent decks|More|Favourite decks', 'Sidebar should lead with Deck Library and distinguish deck filters from resource filters');
+        assert(desktopDashboardScale.activeNavigationLabels.join('|') === 'Dashboard', 'Deck Library should be the only active navigation item on launch');
         assert(desktopDashboardScale.navigationItemHeight >= 40, 'Primary navigation items should have clear touch-friendly height');
         assert(desktopDashboardScale.classFilterLabels.join('|') === 'Year 7 English', 'Class filters should be generated from saved deck metadata without duplicating Library');
         assert(desktopDashboardScale.classFilterHeight < desktopDashboardScale.navigationItemHeight, 'Class filters should be visually secondary to primary navigation');
-        assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Sections|Teacher Controls|About updates|Help', 'Sections and clearly named utilities should live in the compact teacher options menu');
+        assert(desktopDashboardScale.utilityMenuLabels.join('|') === 'Favourite decks|Sections|Teacher Controls|About updates|Help', 'Sections and clearly named utilities should live in the compact teacher options menu');
         assert(desktopDashboardScale.legacyFooterCount === 0, 'The sidebar should not reserve a footer row for utility links');
         assert(desktopDashboardScale.currentDeckFirst && desktopDashboardScale.expandedDeckCount === 1, 'Desktop Deck Library should show the current deck first and expand only it');
         assert(desktopDashboardScale.libraryFits, 'Desktop Deck Library should fit without horizontal overflow');
@@ -5811,23 +5815,27 @@ async function runSmoke() {
         await page.waitForSelector('#help-dialog[open]', { state: 'detached', timeout: 10000 });
 
         await page.locator('[data-dashboard-mode="library"]').click();
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Deck Library should become the only active navigation destination');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Dashboard'), 'Deck Library should become the only active navigation destination');
         assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Lesson Decks'), 'Deck Library should display all lesson decks');
         const storedDeckCount = await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').length);
         assert(await page.locator('.dashboard-screen-card').count() === storedDeckCount, 'Deck Library should include every saved and seeded lesson deck');
 
+        const favoriteCard = page.locator('.dashboard-screen-card').first();
+        if (await favoriteCard.locator('[data-deck-action="toggle"]').getAttribute('aria-expanded') !== 'true') await favoriteCard.locator('[data-deck-action="toggle"]').click();
+        await favoriteCard.locator('.dashboard-deck-more > summary').click();
         await page.locator('.dashboard-screen-card [data-deck-action="favorite"]').first().click();
         assert(await page.locator('.dashboard-screen-card [data-deck-action="favorite"][aria-pressed="true"]').count() === 1, 'Deck cards should provide a working favourite control');
         assert(await page.evaluate(() => JSON.parse(localStorage.getItem('classroomLayoutPresets') || '[]').filter((preset) => preset?.isFavorite).length === 1), 'Favourite deck state should persist locally');
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#dashboard-open-classroom-btn', { timeout: 15000 });
         assert(await page.locator('.dashboard-screen-card [data-deck-action="favorite"][aria-pressed="true"]').count() === 1, 'Favourite deck state should survive a full app reload');
+        await page.locator('#dashboard-utility-menu').evaluate(node=>{node.open=true});
         await page.locator('[data-dashboard-mode="favorites"]').click();
         assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Favourite decks'), 'Favourite decks should become the only active navigation destination');
         assert(await page.locator('.dashboard-screen-card').count() === 1, 'Favourites should show only pinned lesson decks');
 
         await page.locator('.dashboard-filter[data-class-name="Year 7 English"]').click();
-        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Deck Library'), 'Selecting a class filter should keep Deck Library as the active destination');
+        assert(await page.locator('.dashboard-nav-item.is-active').textContent().then((text) => text.trim() === 'Dashboard'), 'Selecting a class filter should keep Deck Library as the active destination');
         assert(await page.locator('.dashboard-filter[data-class-name="Year 7 English"]').getAttribute('aria-pressed') === 'true', 'The selected class should have a clear active state');
         assert(await page.locator('.dashboard-filter[data-class-name="Year 7 English"]').getAttribute('aria-label') === 'Year 7 English, 2 decks', 'Class buttons should announce their deck count');
         assert(await page.locator('.dashboard-library-panel h1').textContent().then((text) => text.trim() === 'Year 7 English'), 'Class filters should label the Deck Library with the selected class');
@@ -7396,7 +7404,9 @@ async function runSmoke() {
         assert(await mobilePage.locator('.dashboard-sidebar__footer').count() === 0, 'Mobile dashboard should not render a separate utility footer');
         assert(await mobilePage.locator('.dashboard-library-panel').evaluate((element) => element.getBoundingClientRect().top < 600), 'Mobile dashboard should bring the Deck Library into the first screenful');
         assert(await mobilePage.locator('#dashboard-search-input').evaluate((element) => element.getBoundingClientRect().height <= 46), 'Mobile deck search should not stretch into unused vertical space');
-        assert(await mobilePage.locator('.dashboard-deck-toggle').first().evaluate((element) => element.getBoundingClientRect().top < window.innerHeight), 'Mobile dashboard should show the first saved deck without scrolling');
+        assert(await mobilePage.locator('.class-lesson-summary').first().evaluate((element) => element.getBoundingClientRect().top < window.innerHeight), 'Mobile dashboard should bring the class lesson summary into the first screenful');
+        await mobilePage.locator('.dashboard-deck-toggle').first().scrollIntoViewIfNeeded();
+        assert(await mobilePage.locator('.dashboard-deck-toggle').first().evaluate((element) => { const bounds = element.getBoundingClientRect(); return bounds.top < window.innerHeight && bounds.bottom > 0; }), 'Saved lessons remain reachable by scrolling below the class dashboard');
         await runMobileResourceLibraryChecks(mobilePage);
         await mobilePage.locator('[data-dashboard-mode="library"]').click();
         await mobilePage.locator('.dashboard-screen-card.is-current [data-deck-action="toggle"]').click();
