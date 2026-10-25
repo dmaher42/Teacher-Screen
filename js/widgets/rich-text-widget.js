@@ -24,6 +24,7 @@ class RichTextWidget {
   constructor() {
     this.pendingContent = '';
     this.customTitle = '';
+    this.teacherOnly = false;
     this.isDisplayMode = false;
     this.presentationMode = 'normal';
     this.isApplyingSmartFormatting = false;
@@ -154,11 +155,6 @@ class RichTextWidget {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
         this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
         this.editorSurface.innerHTML = this.pendingContent;
-        this.editorSurface.contentEditable = this.isProjectorMode() || this.isDisplayMode ? 'false' : 'true';
-        this.editorSurface.addEventListener('input', () => {
-          this.pendingContent = this.editorSurface.innerHTML;
-          window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
-        });
         this.syncEditorLayout();
         return;
       }
@@ -402,11 +398,6 @@ class RichTextWidget {
       iconClass: 'fas fa-font',
       label: 'Use automatic name',
       onSelect: () => this.setCustomTitle('')
-    }, {
-      className: 'rich-text-pin-menu-item',
-      iconClass: 'fas fa-thumbtack',
-      label: 'Pin as instructions',
-      onSelect: () => document.dispatchEvent(new CustomEvent('pin-lesson-outline', { detail: { widget: this } }))
     }, {
       className: 'rich-text-present-menu-item',
       iconClass: 'fas fa-expand',
@@ -1147,6 +1138,7 @@ class RichTextWidget {
 
   serialize() {
     return {
+      ...(this.teacherOnly ? { teacherOnly: true } : {}),
       customTitle: this.customTitle,
       content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
       displayMode: this.isDisplayMode,
@@ -1155,6 +1147,7 @@ class RichTextWidget {
   }
 
   deserialize(data) {
+    this.teacherOnly = data?.teacherOnly === true;
     this.customTitle = typeof data?.customTitle === 'string' ? data.customTitle.trim().replace(/\s+/gu, ' ').slice(0, 80) : '';
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
@@ -1170,6 +1163,12 @@ class RichTextWidget {
       this.editorSurface.innerHTML = this.pendingContent;
     }
     this.updateHeaderTitle();
+  }
+
+  serializeForProjector() {
+    return this.teacherOnly
+      ? { content: '', customTitle: '', displayMode: true, presentationMode: 'normal', teacherOnly: true }
+      : this.serialize();
   }
 
   onWidgetLayout() {
@@ -1260,9 +1259,6 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
-    if (!this.quill && this.editorSurface?.classList.contains('rich-text-editor-fallback')) {
-      this.editorSurface.contentEditable = this.isProjectorMode() || this.isDisplayMode ? 'false' : 'true';
-    }
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.element.classList.toggle('display-mode', this.isDisplayMode);
     this.element.dataset.presentationMode = this.presentationMode;

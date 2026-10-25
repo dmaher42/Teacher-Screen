@@ -1,5 +1,5 @@
-import { normalizeInstructions, publicInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=4';
-import { normalizeLessonRecord, mountClassDashboard, updateLessonRecord } from './utils/lesson-dashboard.js';
+import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=3';
+import { recoverRedesignState, recoverRedesignPreset } from './utils/redesign-rollback.js?v=1';
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
 import {
@@ -2505,7 +2505,7 @@ class ClassroomScreenApp {
 
     buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
         const projectorState = removePrivateBehaviourData(state);
-        projectorState.instructions = publicInstructions(state.instructions);
+        projectorState.instructions = normalizeInstructions(state.instructions);
         projectorState.layout = this.layoutManager.serialize({ forProjector: true });
         projectorState.classReminders = this.getPublicReminderSnapshot();
         delete projectorState.pages;
@@ -3186,7 +3186,7 @@ class ClassroomScreenApp {
                 : DEFAULT_PROJECT_NAME;
 
         if (source.projectState && typeof source.projectState === 'object') {
-            const normalized = this.normalizeProjectState(source.projectState);
+            const normalized = this.normalizeProjectState(source.projectState, source.lessonRecord || null);
             return {
                 currentDeckId: typeof source.id === 'string' && source.id.trim()
                     ? source.id.trim()
@@ -3256,8 +3256,12 @@ class ClassroomScreenApp {
         };
     }
 
-    normalizeProjectState(state = {}) {
-        const sourceState = state && typeof state === 'object' ? state : {};
+    normalizeProjectState(state = {}, lessonRecord = undefined) {
+        const input = state && typeof state === 'object' ? state : {};
+        const savedPreset = lessonRecord === undefined && input.currentDeckId
+            ? (this.presets?.find(preset => preset.id === input.currentDeckId)
+                || (safeParseLocalStorage(this.presetsKey) || []).find?.(preset => preset.id === input.currentDeckId)) : null;
+        const sourceState = recoverRedesignState(input, lessonRecord === undefined ? savedPreset?.lessonRecord : lessonRecord);
         const currentDeckId = typeof sourceState.currentDeckId === 'string'
             ? sourceState.currentDeckId.trim()
             : '';
@@ -4695,6 +4699,7 @@ class ClassroomScreenApp {
         if (!preset || typeof preset !== 'object') {
             return null;
         }
+        preset = recoverRedesignPreset(preset);
 
         const name = typeof preset.name === 'string' ? preset.name.trim() : '';
         if (!name) {
@@ -4736,7 +4741,6 @@ class ClassroomScreenApp {
             period: typeof preset.period === 'string' ? preset.period.trim() : '',
             folderId: typeof preset.folderId === 'string' ? preset.folderId.trim() : '',
             isFavorite: preset.isFavorite === true,
-            lessonRecord: normalizeLessonRecord(preset.lessonRecord),
             projectState,
             theme: typeof preset.theme === 'string' && preset.theme.trim() ? preset.theme : this.getCurrentThemeName(),
             background: preset.background && typeof preset.background === 'object'
@@ -4862,7 +4866,6 @@ class ClassroomScreenApp {
         const id = this.createDeckId();
         const clone = {
             ...normalizedOriginal,
-            lessonRecord: { ...normalizedOriginal.lessonRecord, stage: 'planned', taught: null },
             id,
             name: trimmedName,
             isFavorite: false,
@@ -4985,7 +4988,7 @@ class ClassroomScreenApp {
         this.savePresets();
         this.renderPresetList();
         this.renderDashboard();
-        this.focusDashboardDeckControl(currentPreset.id, '[data-deck-action="favorite"]');
+        this.focusDashboardDeckControl(currentPreset.id, '.dashboard-favorite-btn');
         this.showNotification(isFavorite
             ? `Added "${currentPreset.name}" to Favourites.`
             : `Removed "${currentPreset.name}" from Favourites.`);
@@ -5243,8 +5246,6 @@ class ClassroomScreenApp {
                 || this.dashboardRoot?.querySelector('.dashboard-screen-card:not([hidden]) .dashboard-deck-toggle')
                 || this.dashboardRoot?.querySelector('#dashboard-search-input')
                 || this.dashboardRoot?.querySelector('#dashboard-create-btn');
-            const menu = target?.closest('.dashboard-deck-more');
-            if (menu) menu.open = true;
             target?.focus({ preventScroll: true });
         });
     }
@@ -5355,8 +5356,7 @@ class ClassroomScreenApp {
         const reminderNotice = deckReminderCount > 0
             ? ` This also removes ${deckReminderCount} reminder${deckReminderCount === 1 ? '' : 's'} saved only for this deck. Class reminders will stay.`
             : '';
-        const historyNotice = preset.lessonRecord?.taught ? ' This also removes its taught record.' : '';
-        if (!confirm(`Delete deck "${preset.name}"?${reminderNotice}${historyNotice}`)) {
+        if (!confirm(`Delete deck "${preset.name}"?${reminderNotice}`)) {
             return false;
         }
         if (preset.seededLessonId) {
@@ -5556,7 +5556,8 @@ class ClassroomScreenApp {
             throw new Error('Choose Merge or Replace before previewing the import.');
         }
 
-        const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion));
+        const importedRecord = parsed.presets?.find?.(preset => preset.id === parsed.state?.currentDeckId)?.lessonRecord || null;
+        const state = this.normalizeProjectState(runMigrations(parsed.state, this.schemaVersion), importedRecord);
         if (!isValidLayout(state.layout)) {
             throw new Error('Imported classroom layout is invalid.');
         }
@@ -8892,7 +8893,7 @@ class ClassroomScreenApp {
         return row;
     }
 
-    createDashboardReminderScope({ scope, context, title }) {
+    createDashboardReminderScope({ scope, context, title, description }) {
         const ownerId = scope === REMINDER_SCOPES.CLASS ? context.classId : context.deckId;
         if (!ownerId) return null;
 
@@ -8904,7 +8905,9 @@ class ClassroomScreenApp {
         const headingText = document.createElement('div');
         const titleNode = document.createElement('h5');
         titleNode.textContent = title;
-        headingText.append(titleNode);
+        const descriptionNode = document.createElement('p');
+        descriptionNode.textContent = description;
+        headingText.append(titleNode, descriptionNode);
         const scopeBadge = document.createElement('span');
         scopeBadge.className = 'dashboard-reminder-scope__badge';
         scopeBadge.textContent = scope === REMINDER_SCOPES.CLASS ? 'Shared' : 'Deck';
@@ -8995,7 +8998,9 @@ class ClassroomScreenApp {
         header.className = 'dashboard-reminder-panel__header';
         const title = document.createElement('h4');
         title.textContent = `Reminders · ${context.deckName}`;
-        header.append(title);
+        const help = document.createElement('p');
+        help.textContent = 'Class reminders appear in every deck for this class. Deck reminders stay with this lesson.';
+        header.append(title, help);
         panel.appendChild(header);
         panel.appendChild(this.createMemoryCueSyncControl());
 
@@ -9005,7 +9010,8 @@ class ClassroomScreenApp {
             scopes.appendChild(this.createDashboardReminderScope({
                 scope: REMINDER_SCOPES.CLASS,
                 context,
-                title: context.className
+                title: context.className,
+                description: 'Use this for homework, materials, or notices that follow the class.'
             }));
         } else {
             const noClass = document.createElement('div');
@@ -9032,7 +9038,8 @@ class ClassroomScreenApp {
         scopes.appendChild(this.createDashboardReminderScope({
             scope: REMINDER_SCOPES.DECK,
             context,
-            title: 'This deck only'
+            title: 'This deck only',
+            description: 'Use this for tasks or notes specific to this lesson deck.'
         }));
         panel.appendChild(scopes);
         return panel;
@@ -9169,8 +9176,9 @@ class ClassroomScreenApp {
             : '';
 
         const navigationItems = [
-            { mode: 'library', label: 'Dashboard', icon: 'fa-book-open' },
+            { mode: 'library', label: 'Deck Library', icon: 'fa-book-open' },
             { mode: 'resources', label: 'Resources', icon: 'fa-folder-open' },
+            { mode: 'favorites', label: 'Favourite decks', icon: 'fa-star' },
             { mode: 'recent', label: 'Recent decks', icon: 'fa-clock-rotate-left' }
         ];
         const classItems = classProfiles.map((item) => ({ label: item.name, count: item.count, className: item.name }));
@@ -9196,7 +9204,6 @@ class ClassroomScreenApp {
                                 <span>More</span>
                             </summary>
                             <div class="dashboard-utility-menu__popover" aria-label="Teacher options">
-                                <button type="button" class="dashboard-nav-item${navigationMode === 'favorites' ? ' is-active' : ''}" data-dashboard-mode="favorites"${navigationMode === 'favorites' ? ' aria-current="page"' : ''}>Favourite decks</button>
                                 <button id="dashboard-sections-btn" type="button">
                                     <i class="fa-solid fa-compass" aria-hidden="true"></i>
                                     <span>Sections</span>
@@ -9274,14 +9281,11 @@ class ClassroomScreenApp {
                             <i class="fa-solid fa-magnifying-glass dashboard-search-icon" aria-hidden="true"></i>
                             <input id="dashboard-search-input" class="dashboard-search" type="search" aria-label="Search decks" placeholder="Search decks…" value="${escapeHtml(this.dashboardSearchQuery)}">
                         </div>
-                        ${navigationMode === 'library' ? '<div id="class-lesson-dashboard"></div>' : ''}
                         <div id="dashboard-screen-grid" class="dashboard-screen-grid"></div>
                     </section>`}
                 </main>
             </div>
         `;
-
-        mountClassDashboard(this, this.dashboardRoot, selectedClassName);
 
         const classList = this.dashboardRoot.querySelector('#dashboard-class-list');
         const addClassButton = this.dashboardRoot.querySelector('#dashboard-add-class-btn');
@@ -9343,6 +9347,21 @@ class ClassroomScreenApp {
 
         const screenGrid = this.dashboardRoot.querySelector('#dashboard-screen-grid');
         if (screenGrid) {
+            if (navigationMode === 'library' && selectedClassName) {
+                screenGrid.insertAdjacentHTML('beforeend', `
+                    <article class="dashboard-class-resources-card" aria-label="Resources for ${escapeHtml(selectedClassName)}">
+                        <button class="dashboard-deck-toggle dashboard-class-resources-button" type="button" data-class-resources="${escapeHtml(selectedClassName)}">
+                            <span class="dashboard-deck-toggle__icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span>
+                            <span class="dashboard-deck-toggle__copy">
+                                <span class="dashboard-screen-card__heading"><span class="dashboard-deck-title">Resources</span></span>
+                                <span class="dashboard-deck-subtitle">${escapeHtml(selectedClassName)}</span>
+                            </span>
+                            <span class="dashboard-deck-summary">Teaching files<small>Available while using any deck</small></span>
+                            <span class="dashboard-deck-chevron" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
+                    </article>
+                `);
+            }
             if (shownPresets.length === 0) {
                 const emptyMessage = navigationMode === 'favorites'
                     ? 'No favourites yet. Use the star on a lesson deck to pin it here.'
@@ -9382,7 +9401,7 @@ class ClassroomScreenApp {
                                 <span class="dashboard-deck-toggle__copy">
                                     <span class="dashboard-screen-card__heading">
                                         <span class="dashboard-deck-title">${escapeHtml(preset.name || 'Untitled Deck')}</span>
-                                        ${isCurrentPreset ? '<span class="dashboard-current-badge">Open</span>' : ''}
+                                        ${isCurrentPreset ? '<span class="dashboard-current-badge">Current</span>' : ''}
                                     </span>
                                     <span class="dashboard-deck-subtitle">${escapeHtml(classLabel)}${preset.period ? ` &middot; ${escapeHtml(preset.period)}` : ''}</span>
                                 </span>
@@ -9395,6 +9414,9 @@ class ClassroomScreenApp {
                                 <span class="dashboard-reminders-btn__label">Reminders</span>
                                 ${openReminderCount ? `<span class="dashboard-reminders-btn__count" aria-hidden="true">${openReminderCount}</span>` : ''}
                             </button>
+                            <button class="dashboard-favorite-btn${preset.isFavorite ? ' is-active' : ''}" type="button" data-deck-action="favorite" data-deck-id="${escapeHtml(preset.id)}" aria-label="${preset.isFavorite ? 'Remove' : 'Add'} ${escapeHtml(preset.name || 'Untitled Deck')} ${preset.isFavorite ? 'from' : 'to'} Favourites" aria-pressed="${preset.isFavorite ? 'true' : 'false'}" title="${preset.isFavorite ? 'Remove from Favourites' : 'Add to Favourites'}">
+                                <i class="${preset.isFavorite ? 'fa-solid' : 'fa-regular'} fa-star" aria-hidden="true"></i>
+                            </button>
                         </div>
                         <div id="${panelId}" class="dashboard-screen-card__details" role="region" aria-labelledby="${toggleId}"${isExpanded ? '' : ' hidden'}>
                             <div class="dashboard-deck-details__context">
@@ -9402,8 +9424,6 @@ class ClassroomScreenApp {
                                 <span><i class="fa-regular fa-clock" aria-hidden="true"></i> Saved ${escapeHtml(savedLabel)}</span>
                             </div>
                             <div class="dashboard-screen-card__actions" role="group" aria-label="Actions for ${escapeHtml(preset.name || 'Untitled Deck')}">
-                                <label><span class="visually-hidden">Lesson plan status for ${escapeHtml(preset.name)}</span><select data-lesson-stage="${escapeHtml(preset.id)}"><option value="planned"${preset.lessonRecord.stage === 'planned' ? ' selected' : ''}>Planned</option><option value="current"${preset.lessonRecord.stage === 'current' ? ' selected' : ''}>Current lesson</option><option value="next"${preset.lessonRecord.stage === 'next' ? ' selected' : ''}>Next lesson</option></select></label>
-                                ${preset.lessonRecord.taught ? `<span class="dashboard-taught-date">Taught ${escapeHtml(preset.lessonRecord.taught.date)}</span>` : `<button class="control-button" type="button" data-deck-action="taught" data-deck-id="${escapeHtml(preset.id)}">Mark taught</button>`}
                                 <button ${isCurrentPreset ? 'id="dashboard-open-classroom-btn"' : ''} class="control-button control-button--primary" type="button" data-deck-action="open" data-deck-id="${escapeHtml(preset.id)}">
                                     <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                                     <span>${isCurrentPreset ? 'Continue Classroom' : 'Open Classroom'}</span>
@@ -9419,9 +9439,6 @@ class ClassroomScreenApp {
                                 <details class="dashboard-deck-more">
                                     <summary>More</summary>
                                     <div class="dashboard-deck-more__actions">
-                                        <button class="control-button" type="button" data-deck-action="link" data-deck-id="${escapeHtml(preset.id)}">Add resource link</button>
-                                        ${preset.lessonRecord.links.map(link => `<div class="dashboard-lesson-link"><a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.name)}</a><button type="button" class="control-button" data-lesson-unlink="${escapeHtml(preset.id)}" data-resource-url="${escapeHtml(link.url)}" aria-label="Remove ${escapeHtml(link.name)} link">Remove</button></div>`).join('')}
-                                        <button class="control-button" type="button" data-deck-action="favorite" data-deck-id="${escapeHtml(preset.id)}" aria-pressed="${preset.isFavorite}">${preset.isFavorite ? 'Remove from' : 'Add to'} Favourites</button>
                                         <button class="control-button" type="button" data-deck-action="details" data-deck-id="${escapeHtml(preset.id)}">Deck details</button>
                                         <button class="control-button" type="button" data-deck-action="rename" data-deck-id="${escapeHtml(preset.id)}">Rename</button>
                                         <button class="control-button" type="button" data-deck-action="move" data-deck-id="${escapeHtml(preset.id)}">Move to class…</button>
@@ -9475,14 +9492,6 @@ class ClassroomScreenApp {
                     });
                 }
                 if (action === 'favorite') this.togglePresetFavorite(deckId);
-                if (action === 'taught') updateLessonRecord(this, deckId, 'taught');
-                if (action === 'link') {
-                    const url = window.prompt('Resource URL');
-                    if (url === null) return;
-                    const name = window.prompt('Resource name');
-                    if (name === null) return;
-                    if (!updateLessonRecord(this, deckId, 'link', {url, name})) this.showNotification('Enter a resource name and an http or https URL.', 'warning');
-                }
                 if (action === 'open') this.loadPresetFromDashboard(deckId);
                 if (action === 'arrange') this.arrangePresetFromDashboard(deckId);
                 if (action === 'present') this.presentPresetFromDashboard(deckId);
@@ -9493,12 +9502,6 @@ class ClassroomScreenApp {
                 if (action === 'delete') this.deletePreset(deckId);
             });
         });
-
-        this.dashboardRoot.querySelectorAll('[data-lesson-stage]').forEach(select => select.addEventListener('change', () => {
-            const id = select.dataset.lessonStage;
-            updateLessonRecord(this, id, select.value);
-        }));
-        this.dashboardRoot.querySelectorAll('[data-lesson-unlink]').forEach(button => button.addEventListener('click', () => updateLessonRecord(this, button.dataset.lessonUnlink, 'unlink', button.dataset.resourceUrl)));
 
         this.dashboardRoot.querySelectorAll('.dashboard-deck-more').forEach((details) => {
             details.addEventListener('keydown', (event) => {
@@ -9540,9 +9543,7 @@ class ClassroomScreenApp {
                 this.dashboardExpandedReminderDeckId = '';
                 this.renderDashboard();
                 const focusNavigationButton = () => {
-                    const target = this.dashboardRoot?.querySelector(`[data-dashboard-mode="${mode}"]`);
-                    const menu = target?.closest('#dashboard-utility-menu');
-                    (menu?.querySelector('summary') || target)?.focus({ preventScroll: true });
+                    this.dashboardRoot?.querySelector(`[data-dashboard-mode="${mode}"]`)?.focus({ preventScroll: true });
                 };
                 if (this.dashboardNavigationMode === 'resources') {
                     void this.refreshResourceLibrary({ restore: true }).finally(() => window.requestAnimationFrame(focusNavigationButton));

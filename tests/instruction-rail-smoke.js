@@ -33,15 +33,18 @@ async function run() {
             app.handleNavClick('classroom');
             app.createNewProject('Synthetic rail lesson', { className: 'Synthetic class A' });
         }).catch(async error => { throw new Error('Synthetic deck setup: ' + error.message); });
-        // Legacy text is escaped once and retained in the unified outline.
+        // Use real editor events, including hostile text which must remain plain text.
         await teacher.evaluate(() => {
-            const app = window.__TeacherScreenApp;
-            app.projectState.instructions = { visible: true, today: 'Explain cause and effect', now: '<img src=x onerror=alert(1)>\nWatch and collect evidence.', next: 'Compare two examples', width: 35, fontSize: 32 };
-            app.projectState = app.normalizeProjectState(app.projectState);
-            app.renderProjectControls(); app.saveStateImmediately();
+            const values = { visible: true, today: 'Explain cause and effect', now: '<img src=x onerror=alert(1)>\nWatch and collect evidence.', next: 'Compare two examples', width: '35', fontSize: '32' };
+            for (const [key, value] of Object.entries(values)) {
+                const input = document.querySelector(`[data-instruction-field="${key}"]`);
+                if (input.type === 'checkbox') input.checked = value; else input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            window.__TeacherScreenApp.saveStateImmediately();
         });
         const expected = await teacher.evaluate(() => window.__TeacherScreenApp.buildStateSnapshot().instructions);
-        assert(expected.html.includes('&lt;img'));
+        assert.equal(expected.now.includes('<img'), true);
         assert.equal(await teacher.locator('#instruction-rail img').count(), 0);
         const firstPage = await teacher.evaluate(() => window.__TeacherScreenApp.projectState.activePageId);
         await teacher.evaluate(() => window.__TeacherScreenApp.createNewPage('Synthetic video page'));
@@ -52,11 +55,11 @@ async function run() {
         const projector = await context.newPage();
         projector.on('pageerror', e => errors.push(e.message));
         await projector.goto(await teacher.evaluate(() => window.__TeacherScreenApp.getPairedProjectorUrl()));
-        const waitRail = () => projector.waitForFunction(() => document.querySelector('#instruction-outline')?.textContent.includes('Explain cause and effect') && !document.querySelector('#instruction-rail').hidden);
+        const waitRail = () => projector.waitForFunction(() => document.querySelector('[data-instruction="today"]')?.textContent === 'Explain cause and effect' && !document.querySelector('#instruction-rail').hidden);
         await waitRail();
         await projector.reload(); await waitRail();
         await teacher.reload();
-        await teacher.waitForFunction(() => window.__TeacherScreenApp?.projectState?.instructions?.html?.includes('Explain cause and effect'));
+        await teacher.waitForFunction(() => window.__TeacherScreenApp?.projectState?.instructions?.today === 'Explain cause and effect');
         await waitRail();
         assert.deepEqual(await teacher.evaluate(() => window.__TeacherScreenApp.buildStateSnapshot().instructions), expected);
         console.log('PASS: Teacher persistence and projector initial, refresh and teacher reconnect state');
@@ -98,10 +101,10 @@ async function run() {
         const fit = async () => projector.evaluate(() => {
             const rail = document.getElementById('instruction-rail').getBoundingClientRect();
             const media = document.getElementById('student-media').getBoundingClientRect();
-            return media.width > window.innerWidth * .5 && rail.width > window.innerWidth * .2 && Math.abs(rail.left) < 2
+            return media.width > window.innerWidth * .5 && rail.width > window.innerWidth * .2 && Math.abs(rail.right - window.innerWidth) < 2
                 && Math.abs(media.top - rail.top) < 2
-                && ['student-media', 'presentation-root'].every(id => document.getElementById(id).getBoundingClientRect().left >= rail.right - 1)
-                && document.querySelector('#synthetic-embedded-video').getBoundingClientRect().left >= rail.right - 1;
+                && ['student-media', 'presentation-root'].every(id => document.getElementById(id).getBoundingClientRect().right <= rail.left + 1)
+                && document.querySelector('#synthetic-embedded-video').getBoundingClientRect().right <= rail.left + 1;
         });
         assert(await fit());
         await projector.setViewportSize({ width: 1024, height: 768 }); assert(await fit());
@@ -183,7 +186,7 @@ async function run() {
         const savedDeckId = await teacher.evaluate(() => window.__TeacherScreenApp.projectState.currentDeckId);
         await teacher.evaluate(() => window.__TeacherScreenApp.createNewProject('Synthetic empty lesson', { className: 'Synthetic class B' }));
         await projector.waitForFunction(() => document.getElementById('instruction-rail').hidden);
-        assert.equal(await teacher.locator('#instruction-outline').textContent(), '');
+        assert.equal(await teacher.locator('[data-instruction="today"]').textContent(), '');
         await teacher.evaluate(id => window.__TeacherScreenApp.loadPreset(id), savedDeckId);
         await waitRail();
         await teacher.evaluate(() => {
@@ -191,7 +194,7 @@ async function run() {
             const legacy = app.buildStateSnapshot(); delete legacy.instructions;
             app.applyState(legacy); app.saveStateImmediately();
         });
-        await projector.waitForFunction(() => document.getElementById('instruction-rail').hidden && document.querySelector('#instruction-outline').textContent === '');
+        await projector.waitForFunction(() => document.getElementById('instruction-rail').hidden && document.querySelector('[data-instruction="now"]').textContent === '');
         console.log('PASS: Switching deck/class clears previous instructions; old decks default empty and hidden');
         assert.deepEqual(errors, []);
     } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

@@ -64,7 +64,7 @@ async function run() {
   assert.deepEqual(await page.evaluate(()=>({width:window.__TeacherScreenApp.projectState.instructions.width,font:window.__TeacherScreenApp.projectState.instructions.fontSize})),{width:40,font:38});
   await page.locator('.instruction-fine-tuning > summary').click();await page.locator('[data-instruction-field="width"]').focus();await page.keyboard.press('ArrowRight');
   assert.equal(await page.locator('[data-instruction-size-preset]').inputValue(),'custom');assert.equal(await index(),beforeDialog);
-  await page.locator('#instruction-outline-editor [contenteditable=true]').focus();await page.keyboard.press('ArrowLeft');assert.equal(await index(),beforeDialog);
+  await page.locator('[data-instruction-field="today"]').focus();await page.keyboard.press('ArrowLeft');assert.equal(await index(),beforeDialog);
   await page.locator('[data-instruction-size-preset]').selectOption('large');await page.locator('.instruction-fine-tuning > summary').click();
   await page.screenshot({path:path.join(output,'compact-instruction-selector.png')});await page.evaluate(()=>window.__TeacherScreenApp.saveStateImmediately());await page.reload();
   await page.waitForFunction(()=>window.__TeacherScreenApp?.projectState?.instructions?.fontSize===30);
@@ -100,7 +100,7 @@ async function run() {
   await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
   assert.equal(await projector.getByRole('menu').count(),0);assert.equal(await projector.locator('#instruction-presentation-controls').count(),0);assert.equal(await projector.locator('#instruction-rail').evaluate(e=>getComputedStyle(e).fontSize),'30px');
   await more.click();await menu.getByRole('menuitem',{name:'Expand presentation on projector',exact:true}).click();await projector.waitForSelector('.projector-presentation-fullscreen');
-  assert(await projector.evaluate(()=>document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().left>=document.getElementById('instruction-rail').getBoundingClientRect().right-1));
+  assert(await projector.evaluate(()=>document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().right<=document.getElementById('instruction-rail').getBoundingClientRect().left+1));
   await projector.screenshot({path:path.join(output,'compact-projector-media.png')});await projector.reload();await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
   await page.locator('.reveal-slide-select').selectOption('4:0');await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp.getRevealWidgets()[0].currentIndices.h===4);
   await more.click();await menu.getByRole('menuitem',{name:'Close presentation',exact:true}).click();await projector.waitForFunction(()=>!window.__TeacherScreenProjectorApp.getRevealWidgets()[0]?.activeDeck);

@@ -11260,6 +11260,35 @@ body.is-dashboard-active .dashboard-folder-row__action {
     text-align: center;
 }
 
+body.is-dashboard-active .dashboard-favorite-btn {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 29px;
+    height: 29px;
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid rgba(47, 143, 244, 0.12);
+    border-radius: 9px;
+    background: rgba(47, 143, 244, 0.06);
+    color: #7894a4;
+    cursor: pointer;
+}
+
+body.is-dashboard-active .dashboard-favorite-btn:hover,
+body.is-dashboard-active .dashboard-favorite-btn:focus-visible {
+    border-color: rgba(47, 143, 244, 0.36);
+    background: rgba(47, 143, 244, 0.12);
+    color: var(--dashboard-blue-deep);
+}
+
+body.is-dashboard-active .dashboard-favorite-btn.is-active {
+    border-color: rgba(232, 173, 52, 0.34);
+    background: rgba(246, 185, 79, 0.14);
+    color: #c88712;
+}
+
 body.is-dashboard-active .dashboard-screen-card__heading h3 {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -13329,6 +13358,23 @@ body.is-dashboard-active .dashboard-screen-card:hover {
     box-shadow: 0 10px 24px rgba(17, 64, 89, 0.09);
 }
 
+body.is-dashboard-active .dashboard-class-resources-card {
+    min-width: 0;
+    border: 1px solid rgba(47, 143, 244, 0.28);
+    border-radius: 16px;
+    background: linear-gradient(90deg, rgba(47, 143, 244, 0.08), #ffffff 48%);
+    box-shadow: 0 7px 18px rgba(17, 64, 89, 0.055);
+}
+
+body.is-dashboard-active .dashboard-class-resources-button {
+    width: calc(100% - 10px);
+    margin: 5px;
+}
+
+body.is-dashboard-active .dashboard-class-resources-button .dashboard-deck-toggle__icon {
+    background: rgba(47, 143, 244, 0.16);
+}
+
 body.is-dashboard-active .dashboard-screen-card.is-current {
     border-color: rgba(47, 143, 244, 0.4);
     background: linear-gradient(90deg, rgba(47, 143, 244, 0.075), #ffffff 34%);
@@ -13383,6 +13429,7 @@ body.is-dashboard-active .dashboard-deck-toggle:hover {
 
 body.is-dashboard-active .dashboard-deck-toggle:focus-visible,
 body.is-dashboard-active .dashboard-reminders-btn:focus-visible,
+body.is-dashboard-active .dashboard-favorite-btn:focus-visible,
 body.is-dashboard-active .dashboard-deck-more > summary:focus-visible,
 body.is-dashboard-active .dashboard-screen-card__actions .control-button:focus-visible {
     outline: 3px solid var(--a11y-focus-outline, #ffae00) !important;
@@ -13472,6 +13519,13 @@ body.is-dashboard-active .dashboard-deck-chevron {
 body.is-dashboard-active .dashboard-deck-toggle[aria-expanded="true"] .dashboard-deck-chevron {
     color: var(--dashboard-blue-deep, #166fd1);
     transform: rotate(180deg);
+}
+
+body.is-dashboard-active .dashboard-deck-row > .dashboard-favorite-btn {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    border-radius: 11px;
 }
 
 body.is-dashboard-active .dashboard-deck-row > .dashboard-reminders-btn {
@@ -13829,6 +13883,13 @@ body.is-dashboard-active .dashboard-screen-card.has-reminders-open .dashboard-re
 
     body.is-dashboard-active .dashboard-deck-summary small {
         max-width: none;
+    }
+
+    body.is-dashboard-active .dashboard-deck-row > .dashboard-favorite-btn {
+        grid-column: 3;
+        grid-row: 2;
+        width: 44px;
+        height: 44px;
     }
 
     body.is-dashboard-active .dashboard-deck-row > .dashboard-reminders-btn {
@@ -14792,24 +14853,3 @@ body:not(.projector-view) .reveal-manager__topbar .reveal-presenter-status {
     white-space: normal;
     overflow-wrap: anywhere;
 }
-
-.class-lesson-summary { margin: 0 0 20px; padding: 18px; border: 1px solid #c5d8e3; border-radius: 16px; background: #fff; color: #123247; min-width: 0; }
-.class-lesson-summary h2, .class-lesson-summary h3, .class-lesson-summary p, .class-lesson-summary summary { color: inherit; }
-.class-lesson-summary a { color: #125b9a; }
-body.is-dashboard-active .dashboard-library-panel { grid-template-rows: auto auto auto auto; align-content: start; overflow-y: auto; }
-body.is-dashboard-active .dashboard-screen-grid { overflow: visible; }
-.class-lesson-summary > h2 { margin: 0 0 14px; }
-.class-lesson-summary__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.class-lesson-summary__grid h3 { margin: 0 0 8px; font-size: .95rem; }
-.class-lesson-summary a, .class-taught-history a { display: block; overflow-wrap: anywhere; padding: 8px 0; }
-.class-lesson-summary .control-button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; min-height: 44px; }
-.class-taught-history { margin-top: 18px; }
-.class-taught-history summary { min-height: 44px; display: list-item; padding: 10px 0; cursor: pointer; }
-.class-taught-history__entry { padding: 12px 0; border-top: 1px solid var(--border-color, #c5d8e3); }
-.class-taught-history__entry > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.class-taught-history input, [data-lesson-stage] { min-height: 44px; max-width: 100%; font: inherit; border: 1px solid #c5d8e3; border-radius: 8px; padding: 8px; background: #fff; color: #102c36; }
-.lesson-history-outline { height: auto; padding: 0; overflow-wrap: anywhere; }
-.dashboard-lesson-link { display: flex; align-items: center; gap: 8px; }
-.dashboard-lesson-link a { min-width: 0; overflow-wrap: anywhere; }
-.dashboard-taught-date { padding: 10px; }
-@media (max-width: 700px) { .class-lesson-summary__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .class-lesson-summary__grid > section:last-child { grid-column: 1 / -1; } .class-lesson-summary { padding: 12px; } }

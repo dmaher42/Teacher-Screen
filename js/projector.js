@@ -1,4 +1,4 @@
-import { renderInstructions } from './utils/instruction-rail.js?v=4';
+import { renderInstructions } from './utils/instruction-rail.js?v=3';
 import './utils/app-mode.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
@@ -11,7 +11,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '80';
+const PROJECTOR_LOCAL_ASSET_VERSION = '81';
 
 window.__ProjectorConnection = {
     window: window,
