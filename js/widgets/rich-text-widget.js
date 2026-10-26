@@ -25,6 +25,10 @@ class RichTextWidget {
     this.pendingContent = '';
     this.customTitle = '';
     this.teacherOnly = false;
+    this.showOnEveryPage = false;
+    this.keepInFront = false;
+    this.instructionAppearance = false;
+    this.instructionFontSize = 28;
     this.isDisplayMode = false;
     this.presentationMode = 'normal';
     this.isApplyingSmartFormatting = false;
@@ -136,8 +140,36 @@ class RichTextWidget {
     this.editorContainer = document.createElement('div');
     this.editorContainer.className = 'rich-text-editor-container';
     this.editorToolbar = this.createEditorToolbar();
+    this.scopeOptions = document.createElement('div');
+    this.scopeOptions.className = 'rich-text-scope-options';
+    this.scopeInputs = {};
+    for (const [key, labelText] of [['showOnEveryPage', 'Show on every page'], ['keepInFront', 'Keep in front of presentations']]) {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.dataset.textBoardOption = key;
+      input.addEventListener('change', () => {
+        if (key === 'showOnEveryPage' && input.checked && !this.showOnEveryPage && this.widgetInfo) {
+          this.widgetId = `shared-text-${crypto.randomUUID()}`;
+          this.widgetInfo.id = this.widgetId;
+        }
+        this[key] = input.checked;
+        this.updateDisplayModeUI();
+        window.TeacherScreenWidgetState.notifyChanged(this, 'text-board-options-updated');
+      });
+      label.append(input, document.createTextNode(labelText));
+      this.scopeOptions.append(label);
+      this.scopeInputs[key] = input;
+    }
+    this.editorToolbar.append(this.scopeOptions);
     this.editorSurface = document.createElement('div');
     this.editorSurface.className = 'rich-text-editor-surface';
+    this.editorSurface.addEventListener('input', () => {
+      if (this.quill || this.isProjectorMode() || this.isDisplayMode) return;
+      this.pendingContent = this.editorSurface.innerHTML;
+      this.updateHeaderTitle();
+      window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
+    });
     this.inlineEditButton = document.createElement('button');
     this.inlineEditButton.className = 'rich-text-inline-edit-button';
     this.inlineEditButton.type = 'button';
@@ -155,6 +187,7 @@ class RichTextWidget {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
         this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
         this.editorSurface.innerHTML = this.pendingContent;
+        this.updateDisplayModeUI();
         this.syncEditorLayout();
         return;
       }
@@ -1140,6 +1173,10 @@ class RichTextWidget {
     return {
       ...(this.teacherOnly ? { teacherOnly: true } : {}),
       customTitle: this.customTitle,
+      showOnEveryPage: this.showOnEveryPage,
+      keepInFront: this.keepInFront,
+      instructionAppearance: this.instructionAppearance,
+      instructionFontSize: this.instructionFontSize,
       content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
       displayMode: this.isDisplayMode,
       presentationMode: this.presentationMode
@@ -1148,6 +1185,10 @@ class RichTextWidget {
 
   deserialize(data) {
     this.teacherOnly = data?.teacherOnly === true;
+    this.showOnEveryPage = data?.showOnEveryPage === true;
+    this.keepInFront = data?.keepInFront === true;
+    this.instructionAppearance = data?.instructionAppearance === true;
+    this.instructionFontSize = Math.max(20, Math.min(48, Number(data?.instructionFontSize) || 28));
     this.customTitle = typeof data?.customTitle === 'string' ? data.customTitle.trim().replace(/\s+/gu, ' ').slice(0, 80) : '';
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
@@ -1220,6 +1261,7 @@ class RichTextWidget {
   }
 
   fitProjectorContent() {
+    if (this.instructionAppearance) return;
     const editor = this.quill?.root
       || (this.editorSurface.matches('.ql-editor') ? this.editorSurface : this.editorSurface.querySelector('.ql-editor'));
     if (!editor || !this.isProjectorMode() || editor.clientHeight <= 0) {
@@ -1259,6 +1301,9 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
+    for (const [key, input] of Object.entries(this.scopeInputs || {})) input.checked = this[key] === true;
+    this.element.classList.toggle('instruction-appearance', this.instructionAppearance);
+    this.element.style.setProperty('--instruction-board-font-size', `${this.instructionFontSize}px`);
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.element.classList.toggle('display-mode', this.isDisplayMode);
     this.element.dataset.presentationMode = this.presentationMode;
@@ -1315,11 +1360,16 @@ class RichTextWidget {
       this.quill.enable(!this.isProjectorMode() && !this.isDisplayMode);
       this.syncEditorLayout();
     } else {
+      if (this.editorSurface?.classList.contains('rich-text-editor-fallback')) {
+        this.editorSurface.contentEditable = String(!this.isProjectorMode() && !this.isDisplayMode);
+      }
       this.scheduleProjectorAutoFit();
     }
   }
 
-  remove() {
+  onLayoutDiscard() { this.remove({ notify: false }); }
+
+  remove({ notify = true } = {}) {
     document.removeEventListener('keydown', this.handleDocumentKeydown);
     if (this.isDisplayMode && this.presentationMode === 'fullscreen') {
       document.body?.classList.remove('rich-text-presenting');
@@ -1369,7 +1419,9 @@ class RichTextWidget {
     this.quill = null;
     this.element.remove();
 
-    const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
-    document.dispatchEvent(event);
+    if (notify) {
+      const event = new CustomEvent('widgetRemoved', { detail: { widget: this } });
+      document.dispatchEvent(event);
+    }
   }
 }

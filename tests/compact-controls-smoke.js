@@ -27,7 +27,7 @@ async function run() {
   const page=await context.newPage();await page.goto(baseUrl);await page.waitForFunction(()=>window.__TeacherScreenApp?.layoutManager);
   await page.evaluate(async()=>{
    const app=window.__TeacherScreenApp;app.createNewProject('Synthetic compact lesson',{className:'Synthetic class'});app.handleNavClick('classroom');
-   app.projectState.instructions={visible:true,width:30,fontSize:28,today:'Compare examples',now:'Collect evidence',next:'Explain the difference'};app.renderProjectControls();await app.ensureRevealManagerWidget();
+   app.renderProjectControls();await app.ensureRevealManagerWidget();
    const widget=app.getPrimaryRevealManagerWidget();await widget.launchDeck({id:9321,type:'html',name:'Synthetic presentation',content:Array.from({length:6},(_,i)=>`<section><h1>Example ${i+1}</h1></section>`).join('')});
    window.__compactWidget=widget;app.saveStateImmediately();
   });
@@ -54,27 +54,21 @@ async function run() {
   await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');assert.equal(await index(),2);
   await page.keyboard.press('Escape');assert(!await menu.isVisible());assert(await more.evaluate(e=>document.activeElement===e));
   await more.focus();await page.keyboard.press('Enter');await page.keyboard.press('Tab');assert(!await menu.isVisible());
-  await more.focus();await page.keyboard.press('Enter');await page.locator('#instruction-rail').click();await page.waitForFunction(()=>!document.querySelector('.reveal-more-menu').matches(':popover-open'));
+  await more.focus();await page.keyboard.press('Enter');await page.locator('#student-view').click({position:{x:4,y:100}});await page.waitForFunction(()=>!document.querySelector('.reveal-more-menu').matches(':popover-open'));
   for(let n=0;n<3;n++){await page.locator('#sections-toggle').click();const before=await index();await page.keyboard.press('ArrowRight');assert.equal(await index(),before);await page.evaluate(()=>window.__TeacherScreenApp.handleNavClick('classroom'));}
   await page.locator('.reveal-manager-widget-content').focus();await page.keyboard.press('ArrowRight');assert.equal(await index(),3);
   console.log('PASS: One-row controls, repeated navigation/Home isolation, menu keyboard/Tab/Escape and outside click');
   await page.locator('#add-widget-btn').click();const beforeDialog=await index();await page.locator('#widget-modal .modal-close').focus();await page.keyboard.press('ArrowLeft');assert.equal(await index(),beforeDialog);await page.keyboard.press('Escape');
   await page.locator('#add-widget-btn').click();await page.locator('#widget-picker-teacher-controls-btn').click();await openInstructionSection(page);
-  await page.locator('[data-instruction-size-preset]').selectOption('high-visibility');
-  assert.deepEqual(await page.evaluate(()=>({width:window.__TeacherScreenApp.projectState.instructions.width,font:window.__TeacherScreenApp.projectState.instructions.fontSize})),{width:40,font:38});
-  await page.locator('.instruction-fine-tuning > summary').click();await page.locator('[data-instruction-field="width"]').focus();await page.keyboard.press('ArrowRight');
-  assert.equal(await page.locator('[data-instruction-size-preset]').inputValue(),'custom');assert.equal(await index(),beforeDialog);
-  await page.locator('[data-instruction-field="today"]').focus();await page.keyboard.press('ArrowLeft');assert.equal(await index(),beforeDialog);
-  await page.locator('[data-instruction-size-preset]').selectOption('large');await page.locator('.instruction-fine-tuning > summary').click();
-  await page.screenshot({path:path.join(output,'compact-instruction-selector.png')});await page.evaluate(()=>window.__TeacherScreenApp.saveStateImmediately());await page.reload();
-  await page.waitForFunction(()=>window.__TeacherScreenApp?.projectState?.instructions?.fontSize===30);
+  await page.evaluate(()=>{const app=window.__TeacherScreenApp;app.addWidget('rich-text',{initialData:{content:'<p>Synthetic shared Text Board</p>',showOnEveryPage:true,keepInFront:true,displayMode:true}});app.saveStateImmediately();});
+  await page.reload();await page.waitForFunction(()=>window.__TeacherScreenApp?.layoutManager?.widgets?.some(info=>info.widget.showOnEveryPage));
   await page.evaluate(()=>{window.__TeacherScreenApp.handleNavClick('classroom');window.__compactWidget=window.__TeacherScreenApp.getPrimaryRevealManagerWidget();});await ready();
-  await page.locator('#add-widget-btn').click();await page.locator('#widget-picker-teacher-controls-btn').click();await openInstructionSection(page);assert.equal(await page.locator('[data-instruction-size-preset]').inputValue(),'large');
+  await page.locator('#add-widget-btn').click();await page.locator('#widget-picker-teacher-controls-btn').click();
   await openInstructionSection(page);
         await page.locator('[data-present-instructions="whole"]').click();await page.waitForFunction(()=>document.fullscreenElement?.id==='student-view');
   await more.focus();await page.keyboard.press('Enter');await page.keyboard.press('Escape');assert(!await menu.isVisible());assert.equal(await page.evaluate(()=>document.fullscreenElement?.id),'student-view');
   await adjacentPair();await page.screenshot({path:path.join(output,'compact-presentation-fullscreen.png')});await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.fullscreenElement);
-  console.log('PASS: Compact sizing selector/custom adjustments, edit/dialog guards, persistence and nested fullscreen Escape');
+  console.log('PASS: Native shared Text Board persistence, edit/dialog guards and nested fullscreen Escape');
   await page.setViewportSize({width:390,height:844});
   // Allow the app's resize observer to finish fitting the canvas before measuring.
   try { await page.waitForFunction(()=>{
@@ -98,9 +92,9 @@ async function run() {
   await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:900});
   await more.focus();await page.keyboard.press('Enter');const popup=context.waitForEvent('page');await menu.getByRole('menuitem',{name:'Open projector',exact:true}).click();const projector=await popup;
   await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
-  assert.equal(await projector.getByRole('menu').count(),0);assert.equal(await projector.locator('#instruction-presentation-controls').count(),0);assert.equal(await projector.locator('#instruction-rail').evaluate(e=>getComputedStyle(e).fontSize),'30px');
+  assert.equal(await projector.getByRole('menu').count(),0);assert.equal(await projector.locator('#instruction-presentation-controls').count(),0);assert.equal(await projector.locator('.text-board-front-layer .widget.rich-text-widget').count(),1);
   await more.focus();await page.keyboard.press('Enter');await menu.getByRole('menuitem',{name:'Expand presentation on projector',exact:true}).click();await projector.waitForSelector('.projector-presentation-fullscreen');
-  assert(await projector.evaluate(()=>Math.abs(document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().right-document.getElementById('instruction-rail').getBoundingClientRect().right)<2));
+  assert(await projector.evaluate(()=>Math.abs(document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().width-innerWidth)<2));
   await projector.screenshot({path:path.join(output,'compact-projector-media.png')});await projector.reload();await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
   await page.locator('.reveal-slide-select').selectOption('4:0');await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp.getRevealWidgets()[0].currentIndices.h===4);
   await more.focus();await page.keyboard.press('Enter');await menu.getByRole('menuitem',{name:'Close presentation',exact:true}).click();await projector.waitForFunction(()=>!window.__TeacherScreenProjectorApp.getRevealWidgets()[0]?.activeDeck);

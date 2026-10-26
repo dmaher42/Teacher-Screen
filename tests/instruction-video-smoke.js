@@ -56,7 +56,7 @@ async function run() {
             const app = window.__TeacherScreenApp;
             app.createNewProject('Synthetic video lesson', { className: 'Synthetic video class' });
             app.handleNavClick('classroom');
-            app.projectState.instructions = { visible: true, today: 'Observe motion', now: 'Watch the synthetic video', next: 'Describe what changed', width: 30, fontSize: 28 };
+            app.addWidget('rich-text', { initialData: { content: '<p>Observe motion. Watch the synthetic video and describe what changed.</p>', showOnEveryPage: true, keepInFront: true, displayMode: true } });
             app.renderProjectControls();
             const widget = app.addWidget('url-viewer');
             widget.loadUrl('/synthetic-video.html');
@@ -89,10 +89,10 @@ async function run() {
         await projector.keyboard.press('Enter');
         await assertPlaying(projectorFrame);
         const railFits = async page => page.evaluate(() => {
-            const rail = document.getElementById('instruction-rail');
+            const rail = document.querySelector('.text-board-front-layer .widget.rich-text-widget');
             const media = document.getElementById('student-media').getBoundingClientRect();
             const bounds = rail.getBoundingClientRect();
-            return !rail.hidden && bounds.width > 200 && media.width > 500 && Math.abs(media.right - bounds.right) < 2;
+            return !rail.hidden && bounds.width > 100 && media.width > 500 && bounds.right <= media.right + 1;
         });
         assert(await railFits(teacher)); assert(await railFits(projector));
         console.log('PASS: Actual embedded WebM decodes and advances on teacher and projector beside the rail');
@@ -130,10 +130,10 @@ async function run() {
             if (document.fullscreenElement) await document.exitFullscreen();
             window.__TeacherScreenApp.createNewProject('Synthetic empty video follow-up', { className: 'Synthetic next class' });
         });
-        await projector.waitForFunction(() => document.getElementById('instruction-rail').hidden && !document.querySelector('.url-viewer-iframe'));
+        await projector.waitForFunction(() => !document.querySelector('.text-board-front-layer .widget.rich-text-widget') && !document.querySelector('.url-viewer-iframe'));
         assert.equal(await teacher.locator('.url-viewer-iframe').count(), 0);
-        assert.equal(await teacher.locator('[data-instruction="today"]').textContent(), '');
-        assert.equal(await projector.locator('[data-instruction="now"]').textContent(), '');
+        assert.equal(await teacher.locator('.text-board-front-layer .widget').count(), 0);
+        assert.equal(await projector.locator('.text-board-front-layer .widget').count(), 0);
         console.log('PASS: Switching to an empty deck clears the video and previous instructions on both displays');
         assert.deepEqual(errors, []);
     } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

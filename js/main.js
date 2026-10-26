@@ -1,4 +1,4 @@
-import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor } from './utils/instruction-rail.js?v=7';
+import { normalizeInstructions, refreshInstructionEditor, setupInstructionEditor, capturePersistentTextBoards, pageOnlyLayout, layoutWithSharedTextBoards } from './utils/instruction-rail.js?v=8';
 import { recoverRedesignState, recoverRedesignPreset } from './utils/redesign-rollback.js?v=1';
 import { WidgetRegistry, createWidgetByType, getRegistryWidgetKey, listAvailableWidgets } from './widgets/widget-registry.js';
 import { eventBus } from './core/event-bus.js';
@@ -2438,6 +2438,7 @@ class ClassroomScreenApp {
     }
 
     buildStateSnapshot() {
+        capturePersistentTextBoards(this);
         const normalizedProjectState = this.normalizeProjectState(this.projectState);
         const activePageId = normalizedProjectState.activePageId || DEFAULT_PAGE_ID;
         const pages = Array.isArray(normalizedProjectState.pages) ? normalizedProjectState.pages : [];
@@ -2487,7 +2488,7 @@ class ClassroomScreenApp {
         };
         snapshot.theme = activePageSnapshot.theme;
         snapshot.background = cloneSerializableData(activePageSnapshot.background);
-        snapshot.layout = cloneSerializableData(activePageSnapshot.layout);
+        snapshot.layout = this.layoutManager.serialize();
         snapshot.timerStates = cloneSerializableData(activePageSnapshot.timerStates);
         snapshot.lessonPlan = cloneSerializableData(activePageSnapshot.lessonPlan);
         this.projectState = {
@@ -2505,7 +2506,7 @@ class ClassroomScreenApp {
 
     buildProjectorStateSnapshot(state = this.buildStateSnapshot()) {
         const projectorState = removePrivateBehaviourData(state);
-        projectorState.instructions = normalizeInstructions(state.instructions);
+        projectorState.instructions = normalizeInstructions({ textBoardsMigrated: true });
         projectorState.layout = this.layoutManager.serialize({ forProjector: true });
         projectorState.classReminders = this.getPublicReminderSnapshot();
         delete projectorState.pages;
@@ -2534,6 +2535,7 @@ class ClassroomScreenApp {
         const widgetInfo = widget
             ? this.layoutManager.widgets.find((candidate) => candidate.widget === widget)
             : null;
+        if (widgetInfo) this.layoutManager.mountWidgetElement(widgetInfo, { preserveStacking: true });
         const isPresentationPositionOnly = detail?.action === 'slide-position-updated'
             && widget?.constructor?.name === 'RevealManagerWidget';
 
@@ -2657,6 +2659,7 @@ class ClassroomScreenApp {
     }
 
     saveCurrentPageSnapshot() {
+        capturePersistentTextBoards(this);
         const normalizedState = this.normalizeProjectState(this.projectState);
         const pages = Array.isArray(normalizedState.pages) ? normalizedState.pages : [];
         if (!pages.length) {
@@ -2739,6 +2742,7 @@ class ClassroomScreenApp {
     }
 
     createNewProject(projectName = null, { className = '', activate = true } = {}) {
+        if (activate && this.projectState?.currentDeckId) this.saveStateImmediately();
         const suggestedName = this.getUniquePresetName(DEFAULT_PROJECT_NAME);
         const requestedName = typeof projectName === 'string' && projectName.trim()
             ? projectName.trim()
@@ -3058,6 +3062,7 @@ class ClassroomScreenApp {
             currentDeckId: normalizedState.currentDeckId || '',
             projectName: normalizedState.projectName || DEFAULT_PROJECT_NAME,
             activePageId: activePage.id,
+            instructions: normalizeInstructions(normalizedState.instructions),
             pages: pages.map((page) => (page.id === activePage.id
                 ? this.createPageRecord({
                     id: page.id,
@@ -3131,7 +3136,7 @@ class ClassroomScreenApp {
                 ? source.theme
                 : this.getCurrentThemeName(),
             background: cloneSerializableData(background),
-            layout: cloneSerializableData(layout),
+            layout: pageOnlyLayout(layout),
             timerStates: cloneSerializableData(timerStates),
             lessonPlan: cloneSerializableData(lessonPlan)
         };
@@ -3407,47 +3412,52 @@ class ClassroomScreenApp {
     }
 
     applyPageSnapshot(snapshot = {}) {
-        if (snapshot.theme) {
-            this.switchTheme(snapshot.theme);
-        }
+        const layout = layoutWithSharedTextBoards(snapshot.layout || { mode: 'dashboard', widgets: [] }, this.projectState.instructions);
+        snapshot = { ...snapshot, layout };
+        this.isApplyingProjectSnapshot = true;
+        try {
+            if (snapshot.theme) {
+                this.switchTheme(snapshot.theme);
+            }
 
-        if (snapshot.background) {
-            this.backgroundManager.deserialize(snapshot.background);
-        } else if (this.backgroundManager && typeof this.backgroundManager.reset === 'function') {
-            this.backgroundManager.reset(snapshot.theme || this.getCurrentThemeName());
-        }
+            if (snapshot.background) {
+                this.backgroundManager.deserialize(snapshot.background);
+            } else if (this.backgroundManager && typeof this.backgroundManager.reset === 'function') {
+                this.backgroundManager.reset(snapshot.theme || this.getCurrentThemeName());
+            }
 
-        if (snapshot.layout && Array.isArray(snapshot.layout.widgets)) {
-            this.widgets = [];
-            this.layoutManager.deserialize(snapshot.layout, (widgetData) => {
-                const widget = createWidgetByType(widgetData.type);
-                if (widget) {
-                    this.widgets.push(widget);
+            if (snapshot.layout && Array.isArray(snapshot.layout.widgets)) {
+                this.widgets = [];
+                this.layoutManager.deserialize(snapshot.layout, (widgetData) => {
+                    const widget = createWidgetByType(widgetData.type);
+                    if (widget) {
+                        this.widgets.push(widget);
+                    }
+                    return widget;
+                });
+                if (this.widgets.length === 0) {
+                    this.ensureWidgetPlaceholder();
                 }
-                return widget;
-            });
-            if (this.widgets.length === 0) {
+                this.updateProjectorVisibility();
+            } else {
+                this.widgets = [];
+                if (this.layoutManager && typeof this.layoutManager.discardAllWidgets === 'function') {
+                    this.layoutManager.discardAllWidgets();
+                }
+                if (this.widgetsContainer) {
+                    this.widgetsContainer.innerHTML = '';
+                }
                 this.ensureWidgetPlaceholder();
             }
-            this.updateProjectorVisibility();
-        } else {
-            this.widgets = [];
-            if (this.layoutManager && typeof this.layoutManager.discardAllWidgets === 'function') {
-                this.layoutManager.discardAllWidgets();
-            }
-            if (this.widgetsContainer) {
-                this.widgetsContainer.innerHTML = '';
-            }
-            this.ensureWidgetPlaceholder();
-        }
 
-        if (Array.isArray(snapshot.timerStates)) {
-            this.restoreTimerStateSnapshots(snapshot.timerStates);
-        }
+            if (Array.isArray(snapshot.timerStates)) {
+                this.restoreTimerStateSnapshots(snapshot.timerStates);
+            }
 
-        if (snapshot.lessonPlan !== undefined && this.lessonPlanEditor) {
-            this.lessonPlanEditor.setContents(snapshot.lessonPlan || []);
-        }
+            if (snapshot.lessonPlan !== undefined && this.lessonPlanEditor) {
+                this.lessonPlanEditor.setContents(snapshot.lessonPlan || []);
+            }
+        } finally { this.isApplyingProjectSnapshot = false; }
     }
 
     restoreTimerStateSnapshots(timerStates = []) {
@@ -5151,6 +5161,7 @@ class ClassroomScreenApp {
     }
 
     loadPreset(identifier) {
+        if (this.projectState?.currentDeckId) this.saveStateImmediately();
         const presetIndex = this.getPresetIndex(identifier);
         const preset = presetIndex === -1 ? null : this.normalizePresetRecord(this.presets[presetIndex]);
         if (!preset) {
@@ -6058,14 +6069,12 @@ class ClassroomScreenApp {
     }
 
     resetLayout() {
-        if (confirm('Clear the current page? This will remove all widgets from this page.')) {
-            this.widgets = [];
-            if (this.layoutManager && typeof this.layoutManager.discardAllWidgets === 'function') {
-                this.layoutManager.discardAllWidgets();
-            }
-            this.widgetsContainer.innerHTML = EMPTY_WIDGET_PLACEHOLDER_HTML;
-            this.saveState();
-            this.showNotification('Current page cleared.');
+        if (confirm('Clear the current page? Text Boards shown on every page will be kept.')) {
+            this.saveCurrentPageSnapshot();
+            const current = this.createPageSnapshot();
+            this.applyPageSnapshot({ ...current, layout: { ...current.layout, widgets: [] }, timerStates: [] });
+            this.saveStateImmediately();
+            this.showNotification('Current page cleared. Shared Text Boards kept.');
         }
     }
 

@@ -1,4 +1,4 @@
-import { renderInstructions } from './utils/instruction-rail.js?v=7';
+import { renderInstructions } from './utils/instruction-rail.js?v=8';
 import './utils/app-mode.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
@@ -11,7 +11,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '84';
+const PROJECTOR_LOCAL_ASSET_VERSION = '85';
 
 window.__ProjectorConnection = {
     window: window,
@@ -829,7 +829,8 @@ class ProjectorApp {
                 x: widget.x,
                 y: widget.y,
                 w: widget.width,
-                h: widget.height
+                h: widget.height,
+                viewport: widget.viewport
             });
         });
         this.layoutManager.applyWidgetStackOrder(nextLayout.widgets.map((widget) => widget.id));
@@ -853,6 +854,7 @@ class ProjectorApp {
 
         try {
             widgetInfo.widget.deserialize(message.data || {});
+            this.layoutManager.mountWidgetElement(widgetInfo, { preserveStacking: true });
         } catch (error) {
             console.warn('[Projector] Live widget update failed; requesting a full refresh.', error);
             this.requestTeacherSync();

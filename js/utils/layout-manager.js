@@ -63,7 +63,7 @@ const WIDGET_SIZE_RULES = {
   RevealManagerWidget: { minW: 5, minH: 5, minWidthPx: 144, defaultW: 7, defaultH: 6, maxW: 12, maxH: 12 },
   NamePickerWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   WellbeingWidget: { minW: 5, minH: 5, defaultW: 5, defaultH: 5 },
-  RichTextWidget: { minW: 4, minH: 3, defaultW: 5, defaultH: 4 },
+  RichTextWidget: { minW: 1, minH: 1, minWidthPx: 80, minHeightPx: 80, defaultW: 5, defaultH: 4 },
   MaskWidget: { minW: 4, minH: 3, defaultW: 4, defaultH: 3 },
   NotesWidget: { minW: 5, minH: 4, defaultW: 5, defaultH: 4 }
 };
@@ -117,6 +117,10 @@ class LayoutManager {
     this.interactionEnabled = this.editable;
     this.container.classList.toggle('layout-edit-mode', this.editable);
     this.container.dataset.layoutMode = this.editable ? 'arrange' : 'teach';
+    if (this.frontLayer) {
+      this.frontLayer.classList.toggle('layout-edit-mode', this.editable);
+      this.frontLayer.dataset.layoutMode = this.editable ? 'arrange' : 'teach';
+    }
     if (!this.editable) {
       this.setSelectedWidgetElement(null);
     }
@@ -199,6 +203,60 @@ class LayoutManager {
       minX: margin,
       minY: margin
     };
+  }
+
+
+  isFrontTextBoard(widget) {
+    return widget?.constructor?.name === 'RichTextWidget' && widget.keepInFront === true;
+  }
+
+  ensureFrontTextBoardLayer() {
+    const student = this.container.closest('#student-view');
+    if (!student) return this.container;
+    let layer = student.querySelector(':scope > .text-board-front-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'text-board-front-layer widgets-grid';
+      student.append(layer);
+      this.frontLayer = layer;
+      this.frontLayerSize = null;
+      this.frontLayerObserver = new ResizeObserver(() => {
+        const size = { width: layer.clientWidth, height: layer.clientHeight };
+        if (!size.width || !size.height) return;
+        const previous = this.frontLayerSize;
+        this.frontLayerSize = size;
+        if (previous && (previous.width !== size.width || previous.height !== size.height)) {
+          this.widgets.filter(info => this.isFrontTextBoard(info.widget)).forEach(info => {
+            info.x *= size.width / previous.width;
+            info.y *= size.height / previous.height;
+            info.width *= size.width / previous.width;
+            info.height = this.isWidgetMinimized(info) ? MINIMIZED_WIDGET_HEIGHT : info.height * size.height / previous.height;
+            info.expandedHeight *= size.height / previous.height;
+            this.clampWidgetToContainer(info);
+            this.mountWidgetElement(info, { preserveStacking: true });
+          });
+        }
+      });
+      this.frontLayerObserver.observe(layer);
+    }
+    layer.classList.toggle('layout-edit-mode', this.editable);
+    layer.dataset.layoutMode = this.editable ? 'arrange' : 'teach';
+    return layer;
+  }
+
+  getWidgetCanvasMetrics(widget) {
+    if (!this.isFrontTextBoard(widget)) return this.getCanvasMetrics();
+    const layer = this.ensureFrontTextBoardLayer();
+    const fallback = this.getCanvasMetrics();
+    const width = layer.clientWidth || fallback.rawWidth;
+    const height = layer.clientHeight || fallback.rawHeight;
+    return { width, height, rawWidth: width, rawHeight: height, margin: 0, minX: 0, minY: 0 };
+  }
+
+  refreshFrontTextBoardLayer() {
+    const active = this.widgets.some(info => this.isFrontTextBoard(info.widget));
+    this.container.closest('#student-view')?.classList.toggle('has-front-text-boards', active);
+    if (this.frontLayer) this.frontLayer.hidden = !active;
   }
 
   getTeacherToolbarObstacle() {
@@ -291,6 +349,7 @@ class LayoutManager {
     if (!Number.isFinite(positionWidthScale) || !Number.isFinite(widthScale) || !Number.isFinite(heightScale)) return;
 
     this.widgets.forEach((widgetInfo) => {
+      if (this.isFrontTextBoard(widgetInfo.widget)) return;
       const isMinimized = this.isWidgetMinimized(widgetInfo);
       const expandedHeight = isMinimized && Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
@@ -360,6 +419,7 @@ class LayoutManager {
       y: widgetInfo.y,
       w: widgetInfo.width,
       h: syncedHeight,
+      ...(this.isFrontTextBoard(widgetInfo.widget) ? { viewport: { width: this.getWidgetCanvasMetrics(widgetInfo.widget).rawWidth, height: this.getWidgetCanvasMetrics(widgetInfo.widget).rawHeight } } : {}),
       minimized: this.isWidgetMinimized(widgetInfo),
       stackOrder: this.widgets.map((candidate) => candidate.id)
     });
@@ -466,6 +526,8 @@ class LayoutManager {
       }
     });
     this.widgets = [];
+    this.frontLayer?.replaceChildren();
+    this.refreshFrontTextBoardLayer();
   }
 
   mountWidgetElement(widgetInfo, options = {}) {
@@ -483,6 +545,20 @@ class LayoutManager {
       target.appendChild(element);
     };
     element.classList.toggle('is-minimized', this.isWidgetMinimized(widgetInfo));
+    element.classList.toggle('instruction-board', widgetInfo.widget.instructionAppearance === true);
+    if (this.isFrontTextBoard(widgetInfo.widget)) {
+      element.style.position = 'absolute';
+      element.style.left = `${widgetInfo.x}px`; element.style.top = `${widgetInfo.y}px`;
+      element.style.width = `${widgetInfo.width}px`; element.style.height = `${widgetInfo.height}px`;
+      appendTo(this.ensureFrontTextBoardLayer());
+      if (!this.frontLayerSize) {
+        const canvas = this.getWidgetCanvasMetrics(widgetInfo.widget);
+        this.frontLayerSize = { width: canvas.rawWidth, height: canvas.rawHeight };
+      }
+      this.refreshFrontTextBoardLayer();
+      return;
+    }
+    this.refreshFrontTextBoardLayer();
     if (this.mode !== 'stage') {
       element.style.position = 'absolute';
       element.style.left = `${widgetInfo.x}px`;
@@ -620,7 +696,7 @@ class LayoutManager {
     if (!rules) return { width: widthPx, height: heightPx };
 
     // Approximation of column size
-    const canvas = canvasOverride || this.getCanvasMetrics();
+    const canvas = this.isFrontTextBoard(widget) ? this.getWidgetCanvasMetrics(widget) : (canvasOverride || this.getCanvasMetrics());
     const colSize = canvas.width / this.gridColumns || 80;
     const rowSize = canvas.height / this.gridRows || 80;
 
@@ -642,9 +718,9 @@ class LayoutManager {
     return { width: w, height: h };
   }
 
-  normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar = true } = {}) {
-    const canvas = this.getCanvasMetrics();
-    const toolbarObstacle = avoidTeacherToolbar ? this.getTeacherToolbarObstacle() : null;
+  normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar = true, widget = null } = {}) {
+    const canvas = this.getWidgetCanvasMetrics(widget);
+    const toolbarObstacle = avoidTeacherToolbar && !this.isFrontTextBoard(widget) ? this.getTeacherToolbarObstacle() : null;
     const requestedWidth = Number.isFinite(width) && width > 0 ? width : 320;
     const requestedHeight = Number.isFinite(height) && height > 0 ? height : 240;
     const minimumHeight = requestedHeight <= MINIMIZED_WIDGET_HEIGHT
@@ -665,8 +741,8 @@ class LayoutManager {
     return this.keepWidgetClearOfTeacherToolbar(bounded, canvas, toolbarObstacle);
   }
 
-  normalizeWidgetDragBounds(x, y, width, height) {
-    return this.normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar: false });
+  normalizeWidgetDragBounds(x, y, width, height, widget = null) {
+    return this.normalizeWidgetBounds(x, y, width, height, { avoidTeacherToolbar: false, widget });
   }
 
   snapWidgetBounds(x, y, width, height, { snapSize = false, ...options } = {}) {
@@ -715,7 +791,7 @@ class LayoutManager {
       widgetInfo.y + movement[1],
       widgetInfo.width,
       widgetInfo.height,
-      { avoidTeacherToolbar: false }
+      { avoidTeacherToolbar: false, widget: widgetInfo.widget }
     );
     widgetInfo.x = bounded.x;
     widgetInfo.y = bounded.y;
@@ -731,7 +807,7 @@ class LayoutManager {
   clampWidgetToContainer(widgetInfo) {
     if (!widgetInfo) return;
     const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, widgetInfo.height,
-      { avoidTeacherToolbar: widgetInfo.widget?.constructor.name === 'BehaviourTrackerWidget' });
+      { avoidTeacherToolbar: widgetInfo.widget?.constructor.name === 'BehaviourTrackerWidget', widget: widgetInfo.widget });
     widgetInfo.x = bounded.x;
     widgetInfo.y = bounded.y;
     widgetInfo.width = bounded.width;
@@ -769,7 +845,7 @@ class LayoutManager {
     let newY = info.y + deltaY;
 
     // Constraints
-    const bounded = this.snapWidgetBounds(newX, newY, info.width, info.height, { avoidTeacherToolbar: false });
+    const bounded = this.snapWidgetBounds(newX, newY, info.width, info.height, { avoidTeacherToolbar: false, widget: info.widget });
     newX = bounded.x;
     newY = bounded.y;
 
@@ -956,7 +1032,8 @@ class LayoutManager {
     this.addDragFunctionality(widgetElement);
     
     const widgetInfo = {
-      id: this.getNextWidgetId(),
+      id: widget.constructor.name === 'RichTextWidget' && widget.showOnEveryPage
+        ? `shared-text-${crypto.randomUUID()}` : this.getNextWidgetId(),
       element: widgetElement,
       widget: widget,
       layoutType: this.getWidgetLayoutType(null, widget),
@@ -976,10 +1053,12 @@ class LayoutManager {
     this.updateWidgetChrome(widgetInfo);
     this.refreshWidgetMinimizeControl(widgetInfo);
     this.refreshWidgetProjectorVisibilityControl(widgetInfo);
+    const previousMode = this.mode;
     this.mode = layoutManagerIsTeacherMode() && this.widgets.some((info) => info.layoutType === 'stage') ? 'stage' : 'dashboard';
-    this.setupModeStructure();
+    if (previousMode !== this.mode || (this.mode === 'stage' && !this.stageMain)) this.setupModeStructure();
+    else if (this.mode !== 'stage') this.applyGridStyles();
     this.widgets.forEach((info) => {
-      this.mountWidgetElement(info);
+      this.mountWidgetElement(info, { preserveStacking: true });
       this.observeWidgetLayout(info);
     });
 
@@ -1045,7 +1124,7 @@ class LayoutManager {
       const restoreHeight = Number.isFinite(widgetInfo.expandedHeight)
         ? widgetInfo.expandedHeight
         : GRID_SIZE * 4;
-      const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight, { avoidTeacherToolbar: false });
+      const bounded = this.normalizeWidgetBounds(widgetInfo.x, widgetInfo.y, widgetInfo.width, restoreHeight, { avoidTeacherToolbar: false, widget: widgetInfo.widget });
       widgetInfo.x = bounded.x;
       widgetInfo.y = bounded.y;
       widgetInfo.width = bounded.width;
@@ -1285,6 +1364,7 @@ class LayoutManager {
       }
 
       this.widgets = this.widgets.filter(info => info.widget !== widget);
+      this.refreshFrontTextBoardLayer();
       this.saveLayout();
 
       if (!widgetRemovedEventDispatched) {
@@ -1396,7 +1476,7 @@ class LayoutManager {
           newHeight = minHeight;
         }
 
-        const bounded = this.normalizeWidgetBounds(newLeft, newTop, newWidth, newHeight);
+        const bounded = this.normalizeWidgetBounds(newLeft, newTop, newWidth, newHeight, { widget: info?.widget });
         newWidth = bounded.width;
         newHeight = bounded.height;
         newLeft = bounded.x;
@@ -1437,7 +1517,7 @@ class LayoutManager {
         let finalLeft = parseInt(element.style.left, 10) || startLeft;
         let finalTop = parseInt(element.style.top, 10) || startTop;
 
-        const bounded = this.snapWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight, { snapSize: true });
+        const bounded = this.snapWidgetBounds(finalLeft, finalTop, finalWidth, finalHeight, { snapSize: true, widget: info?.widget });
         finalWidth = bounded.width;
         finalHeight = bounded.height;
         finalLeft = bounded.x;
@@ -1537,7 +1617,7 @@ class LayoutManager {
         widgetElement.classList.add('is-dragging');
         document.body.classList.add('widget-drag-active');
       }
-      const bounded = this.normalizeWidgetDragBounds(initialLeft + deltaX, initialTop + deltaY, info.width, info.height);
+      const bounded = this.normalizeWidgetDragBounds(initialLeft + deltaX, initialTop + deltaY, info.width, info.height, info.widget);
       pendingPosition = { x: bounded.x, y: bounded.y };
       if (!dragFrame) dragFrame = requestAnimationFrame(applyDragPosition);
       event.preventDefault();
@@ -1602,6 +1682,7 @@ class LayoutManager {
       return {
         id: widgetInfo.id,
         type: widgetInfo.widget.constructor.name,
+        ...((widget.showOnEveryPage || this.isFrontTextBoard(widget)) ? { viewport: { width: this.getWidgetCanvasMetrics(widget).rawWidth, height: this.getWidgetCanvasMetrics(widget).rawHeight } } : {}),
         layoutType: widgetInfo.layoutType || 'grid',
         x: widgetInfo.x,
         y: widgetInfo.y,
@@ -1694,6 +1775,7 @@ class LayoutManager {
       if (!widget || !widget.element) return;
       layoutManagerApplyAppModeToWidget(widget);
 
+      widget.keepInFront = widgetData.data?.keepInFront === true;
       // Determine dimensions (pixels)
       let finalX = widgetData.x;
       let finalY = widgetData.y;
@@ -1780,6 +1862,14 @@ class LayoutManager {
         }
       }
 
+      if (widgetData.viewport || this.isFrontTextBoard(widget)) {
+        const source = widgetData.viewport || layoutData.viewport || { width: containerW, height: containerH };
+        const target = this.getWidgetCanvasMetrics(widget);
+        finalX = widgetData.x * target.rawWidth / (source.width || containerW);
+        finalY = widgetData.y * target.rawHeight / (source.height || containerH);
+        finalW = widgetData.width * target.rawWidth / (source.width || containerW);
+        finalH = widgetData.height * target.rawHeight / (source.height || containerH);
+      }
       // Default fallback
       if (finalW == null) finalW = 320;
       if (finalH == null) finalH = 240;
@@ -1791,7 +1881,7 @@ class LayoutManager {
       finalH = constrained.height;
 
       // Snap
-      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH, { avoidTeacherToolbar: false });
+      const bounded = this.normalizeWidgetBounds(finalX, finalY, finalW, finalH, { avoidTeacherToolbar: false, widget });
       finalX = bounded.x;
       finalY = bounded.y;
       finalW = bounded.width;
@@ -1861,6 +1951,12 @@ class LayoutManager {
     if (!delta || delta.type !== 'widget-update') return;
     const widget = this.widgets.find((w) => w.id === delta.id);
     if (!widget) return;
+    if (delta.viewport && this.isFrontTextBoard(widget.widget)) {
+      const canvas = this.getWidgetCanvasMetrics(widget.widget);
+      const sx = canvas.rawWidth / (delta.viewport.width || canvas.rawWidth);
+      const sy = canvas.rawHeight / (delta.viewport.height || canvas.rawHeight);
+      delta = { ...delta, x: delta.x * sx, y: delta.y * sy, w: delta.w * sx, h: delta.h * sy };
+    }
 
     widget.x = typeof delta.x === 'number' ? delta.x : widget.x;
     widget.y = typeof delta.y === 'number' ? delta.y : widget.y;
