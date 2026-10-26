@@ -39,13 +39,16 @@ export function renderInstructions(value) {
         const rail = document.createElement('aside');
         rail.id = 'instruction-rail';
         rail.setAttribute('aria-label', 'Lesson instructions');
+        const content = document.createElement('div');
+        content.className = 'instruction-content';
         for (const key of ['today', 'now', 'next']) {
             const section = document.createElement('section');
             const text = document.createElement('p');
             text.dataset.instruction = key;
             section.append(text);
-            rail.append(section);
+            content.append(section);
         }
+        rail.append(content);
         student.append(rail);
         new ResizeObserver(() => window.dispatchEvent(new Event('resize'))).observe(media);
     }
@@ -124,6 +127,75 @@ function setupInstructionDragging(app) {
         setPosition(100, 0);
         app.saveStateImmediately();
     });
+    setupInstructionResizing(app, rail, student);
+}
+
+function setupInstructionResizing(app, rail, student) {
+    const names = { n: 'top edge', s: 'bottom edge', e: 'right edge', w: 'left edge', nw: 'top-left corner', ne: 'top-right corner', sw: 'bottom-left corner', se: 'bottom-right corner' };
+    const getBounds = () => {
+        const screen = student.getBoundingClientRect();
+        const panel = rail.getBoundingClientRect();
+        const inset = Number.parseFloat(getComputedStyle(student).getPropertyValue('--instruction-top')) || 0;
+        return { left: panel.left - screen.left, top: panel.top - screen.top - inset,
+            right: panel.right - screen.left, bottom: panel.bottom - screen.top - inset,
+            screenWidth: screen.width, screenHeight: screen.height - inset };
+    };
+    const resize = (start, edge, dx, dy) => {
+        const { screenWidth: sw, screenHeight: sh } = start;
+        if (sw <= 0 || sh <= 0) return;
+        const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+        let { left, top, right, bottom } = start;
+        if (edge.includes('e')) right = clamp(right + dx, left + sw * .22, Math.min(sw, left + sw * .45));
+        if (edge.includes('w')) left = clamp(left + dx, Math.max(0, right - sw * .45), right - sw * .22);
+        if (edge.includes('s')) bottom = clamp(bottom + dy, top + sh * .2, sh);
+        if (edge.includes('n')) top = clamp(top + dy, 0, bottom - sh * .2);
+        const width = right - left;
+        const height = bottom - top;
+        app.projectState.instructions = normalizeInstructions({ ...app.projectState.instructions,
+            width: width / sw * 100, height: height / sh * 100,
+            x: sw > width ? left / (sw - width) * 100 : 0,
+            y: sh > height ? top / (sh - height) * 100 : 0 });
+        refreshInstructionEditor(app.projectState.instructions);
+        app.saveState();
+    };
+    for (const [edge, name] of Object.entries(names)) {
+        const handle = document.createElement('button');
+        handle.type = 'button';
+        handle.className = 'instruction-resize-handle';
+        handle.dataset.edge = edge;
+        handle.setAttribute('aria-label', `Resize instructions ${name}`);
+        handle.title = `Drag to resize the ${name}. Arrow keys also resize.`;
+        rail.append(handle);
+        let drag = null;
+        handle.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0 || !event.isPrimary) return;
+            event.preventDefault();
+            event.stopPropagation();
+            drag = { ...getBounds(), pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, deckId: app.projectState.currentDeckId };
+            handle.setPointerCapture(event.pointerId);
+        });
+        handle.addEventListener('pointermove', (event) => {
+            if (!drag || drag.pointerId !== event.pointerId || drag.deckId !== app.projectState.currentDeckId) return;
+            resize(drag, edge, event.clientX - drag.clientX, event.clientY - drag.clientY);
+        });
+        const finish = (event) => {
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            drag = null;
+            if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+            app.saveStateImmediately();
+        };
+        handle.addEventListener('pointerup', finish);
+        handle.addEventListener('pointercancel', finish);
+        handle.addEventListener('lostpointercapture', finish);
+        handle.addEventListener('keydown', (event) => {
+            const delta = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }[event.key];
+            if (!delta) return;
+            event.preventDefault();
+            event.stopPropagation();
+            resize(getBounds(), edge, ...delta);
+            app.saveStateImmediately();
+        });
+    }
 }
 
 export function setupInstructionEditor(app) {
@@ -228,5 +300,5 @@ export function refreshInstructionEditor(value) {
         else if (document.activeElement !== input) input.value = value;
     });
     const heightOutput = document.querySelector('[data-instruction-height-output]');
-    if (heightOutput) heightOutput.textContent = `${state.height}%`;
+    if (heightOutput) heightOutput.textContent = `${Math.round(state.height)}%`;
 }

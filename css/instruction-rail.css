@@ -1,10 +1,22 @@
 #student-media { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
 .has-instructions > #student-media { overflow: hidden; isolation: isolate; }
-#instruction-rail { position: absolute; top: calc(var(--instruction-top, 0px) + (100% - var(--instruction-top, 0px)) * (1 - var(--instruction-height-ratio, 1)) * var(--instruction-y-ratio, 0)); left: calc((100% - var(--instruction-width, 30%)) * var(--instruction-x-ratio, 1)); z-index: 10; width: var(--instruction-width, 30%); height: calc((100% - var(--instruction-top, 0px)) * var(--instruction-height-ratio, 1)); box-sizing: border-box; padding: clamp(16px, 2vw, 32px); overflow-y: auto; background: #102c36; color: #fff; border-left: 3px solid #61c9b5; font: 500 var(--instruction-font-size, 28px)/1.4 system-ui, sans-serif; }
-#instruction-rail.has-move-handle { padding-top: 64px; }
+#instruction-rail { position: absolute; top: calc(var(--instruction-top, 0px) + (100% - var(--instruction-top, 0px)) * (1 - var(--instruction-height-ratio, 1)) * var(--instruction-y-ratio, 0)); left: calc((100% - var(--instruction-width, 30%)) * var(--instruction-x-ratio, 1)); z-index: 10; width: var(--instruction-width, 30%); height: calc((100% - var(--instruction-top, 0px)) * var(--instruction-height-ratio, 1)); box-sizing: border-box; padding: 0; overflow: hidden; background: #102c36; color: #fff; border-left: 3px solid #61c9b5; font: 500 var(--instruction-font-size, 28px)/1.4 system-ui, sans-serif; }
+#instruction-rail .instruction-content { position: absolute; inset: 0; padding: clamp(16px, 2vw, 32px); overflow-y: auto; }
+#instruction-rail.has-move-handle .instruction-content { top: 44px; right: 8px; bottom: 8px; left: 8px; padding-top: 20px; }
 #instruction-rail .instruction-move-handle { position: absolute; top: 0; left: 0; width: 100%; min-height: 44px; border: 0; border-bottom: 1px solid #537078; border-radius: 0; background: #183e48; color: #c8fff0; font: 600 14px/1.3 system-ui, sans-serif; cursor: grab; touch-action: none; user-select: none; }
 #instruction-rail .instruction-move-handle.is-dragging { cursor: grabbing; }
 #instruction-rail .instruction-move-handle:focus-visible { outline: 3px solid #80e3cb; outline-offset: -3px; }
+#instruction-rail .instruction-resize-handle { position: absolute; z-index: 2; padding: 0; margin: 0; min-width: 0; min-height: 0; border: 0; border-radius: 0; background: transparent; touch-action: none; }
+#instruction-rail .instruction-resize-handle:hover, #instruction-rail .instruction-resize-handle:focus-visible { background: #80e3cb66; outline: 2px solid #80e3cb; outline-offset: -2px; }
+#instruction-rail .instruction-resize-handle[data-edge="n"] { top: 0; left: 18px; right: 18px; height: 8px; cursor: ns-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="s"] { bottom: 0; left: 18px; right: 18px; height: 8px; cursor: ns-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="e"] { right: 0; top: 18px; bottom: 18px; width: 8px; cursor: ew-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="w"] { left: 0; top: 18px; bottom: 18px; width: 8px; cursor: ew-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="nw"], #instruction-rail .instruction-resize-handle[data-edge="ne"], #instruction-rail .instruction-resize-handle[data-edge="sw"], #instruction-rail .instruction-resize-handle[data-edge="se"] { width: 18px; height: 18px; border: 2px solid #80e3cb; }
+#instruction-rail .instruction-resize-handle[data-edge="nw"] { left: 0; top: 0; border-right: 0; border-bottom: 0; cursor: nwse-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="ne"] { right: 0; top: 0; border-left: 0; border-bottom: 0; cursor: nesw-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="sw"] { left: 0; bottom: 0; border-right: 0; border-top: 0; cursor: nesw-resize; }
+#instruction-rail .instruction-resize-handle[data-edge="se"] { right: 0; bottom: 0; border-left: 0; border-top: 0; cursor: nwse-resize; }
 #instruction-rail[hidden] { display: none; }
 #instruction-rail h2 { color: #80e3cb; font: 700 .72em/1.3 system-ui, sans-serif; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 .5em; }
 #instruction-rail p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; color: inherit; font: inherit; }

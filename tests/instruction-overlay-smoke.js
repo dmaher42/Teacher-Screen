@@ -158,6 +158,92 @@ async function run() {
         await teacher.getByRole('button', { name: 'Exit presentation', exact: true }).click();
         await teacher.waitForFunction(() => !document.fullscreenElement);
         assert(await onScreen(teacher));
+        assert.equal(await projector.locator('.instruction-resize-handle').count(), 0, 'Resize controls stay teacher-only');
+        const setResizeFixture = () => teacher.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.projectState.instructions = { ...app.projectState.instructions, width: 30, height: 50, x: 50, y: 40 };
+            app.renderProjectControls();
+        });
+        const resizeDrag = async (edge, dx, dy) => {
+            const control = teacher.locator(`.instruction-resize-handle[data-edge="${edge}"]`);
+            const box = await control.boundingBox();
+            await teacher.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+            await teacher.mouse.down();
+            await teacher.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 10 });
+            await teacher.mouse.up();
+        };
+        const bounds = () => teacher.locator('#instruction-rail').boundingBox();
+        for (const edge of ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se']) {
+            await setResizeFixture();
+            const before = await bounds();
+            const dx = edge.includes('e') ? 40 : edge.includes('w') ? -40 : 0;
+            const dy = edge.includes('s') ? 30 : edge.includes('n') ? -30 : 0;
+            await resizeDrag(edge, dx, dy);
+            const after = await bounds();
+            assert(Math.abs(after.width - before.width - Math.abs(dx)) < 2, `${edge} changes width correctly`);
+            assert(Math.abs(after.height - before.height - Math.abs(dy)) < 2, `${edge} changes height correctly`);
+            const fixedX = edge.includes('w') ? after.x + after.width - before.x - before.width : after.x - before.x;
+            const fixedY = edge.includes('n') ? after.y + after.height - before.y - before.height : after.y - before.y;
+            assert(Math.abs(fixedX) < 2 && Math.abs(fixedY) < 2, `${edge} preserves the opposite edges`);
+            await resizeDrag(edge, -dx, -dy);
+            const restored = await bounds();
+            assert(Math.abs(restored.width - before.width) < 2 && Math.abs(restored.height - before.height) < 2, `${edge} also shrinks`);
+        }
+        await setResizeFixture();
+        await resizeDrag('se', 5000, 5000);
+        const maximum = await teacher.evaluate(() => window.__TeacherScreenApp.projectState.instructions);
+        assert(Math.abs(maximum.width - 45) < .01 && maximum.height <= 100);
+        assert(await onScreen(teacher), 'Resizing beyond the screen stays within it');
+        await resizeDrag('se', -5000, -5000);
+        const minimum = await teacher.evaluate(() => window.__TeacherScreenApp.projectState.instructions);
+        assert(Math.abs(minimum.width - 22) < .01 && Math.abs(minimum.height - 20) < .01);
+        await setResizeFixture();
+        await resizeDrag('nw', -45, -35);
+        const savedResize = await teacher.evaluate(() => window.__TeacherScreenApp.buildStateSnapshot().instructions);
+        await teacher.reload();
+        await teacher.waitForFunction(saved => window.__TeacherScreenApp?.projectState?.instructions?.width === saved.width && window.__TeacherScreenApp.projectState.instructions.height === saved.height, savedResize);
+        await teacher.evaluate(() => window.__TeacherScreenApp.handleNavClick('classroom'));
+        await projector.reload();
+        await projector.waitForFunction(saved => {
+            const style = document.getElementById('student-view')?.style;
+            return Math.abs(Number.parseFloat(style?.getPropertyValue('--instruction-width')) - saved.width) < .01
+                && Math.abs(Number.parseFloat(style?.getPropertyValue('--instruction-height-ratio')) * 100 - saved.height) < .01;
+        }, savedResize);
+        assert(await onScreen(projector));
+        await teacher.locator('.instruction-resize-handle[data-edge="e"]').focus();
+        const beforeKeyboard = await bounds();
+        await teacher.keyboard.press('ArrowLeft');
+        assert(Math.abs((await bounds()).width - beforeKeyboard.width + 10) < 2, 'Arrow key resizes without moving the opposite edge');
+        await teacher.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.projectState.instructions.now = Array(40).fill('Long scrolling instruction text.').join('\n');
+            app.renderProjectControls();
+            document.querySelector('#instruction-rail .instruction-content').scrollTop = 1000;
+        });
+        const beforeScrollResize = await bounds();
+        await resizeDrag('se', 20, 20);
+        assert((await bounds()).height > beforeScrollResize.height, 'Resize handles remain usable while instructions are scrolled');
+        await teacher.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.toggleTeacherPanel(true);
+            document.getElementById('instruction-controls-section').open = true;
+        });
+        await teacher.bringToFront();
+        await teacher.locator('[data-present-instructions="whole"]').click();
+        await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
+        await resizeDrag('nw', -30, -5000);
+        assert(await onScreen(teacher));
+        assert(await teacher.evaluate(() => document.getElementById('instruction-rail').getBoundingClientRect().top >= document.getElementById('instruction-presentation-controls').getBoundingClientRect().bottom), 'Resizing respects the fullscreen recovery toolbar');
+        await teacher.getByRole('button', { name: 'Exit presentation', exact: true }).click();
+        await teacher.waitForFunction(() => !document.fullscreenElement);
+        await teacher.evaluate(() => {
+            const app = window.__TeacherScreenApp;
+            app.projectState.instructions.now = 'Find two examples.';
+            app.renderProjectControls();
+            document.querySelector('#instruction-rail .instruction-content').scrollTop = 0;
+        });
+        await teacher.screenshot({ path: path.join(output, 'instruction-resize-teacher.png') });
+        console.log('PASS: All eight resize handles grow/shrink, retain opposite edges, clamp limits, save and sync, support keyboard resizing and remain usable with scrolled content.');
         console.log('PASS: Mouse dragging, edge limits, keyboard movement, reset, fullscreen toolbar clearance, saved position, smaller projector and refresh; handle stays teacher-only.');
         console.log('PASS: Real Text Board behind a half-height panel, accessible space below, keyboard height controls, preset retention, saved state and projector refresh.');
     } finally {

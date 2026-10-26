@@ -10,7 +10,12 @@ widgets use the full screen behind it. Drag the teacher-only Move instructions
 handle to reposition the panel, or focus it and use arrow keys. Home and Reset
 position return it to the top-right. Shorten the panel to move it vertically.
 The panel remains inside the student screen, including below fullscreen recovery
-controls. Position saves with the deck and scales to the projector screen. The area below a shorter panel stays usable,
+controls. Position saves with the deck and scales to the projector screen.
+Drag any of the four edges or four corners to resize within the existing
+22–45% width and 20–100% height limits. The opposite edge stays in place and
+the panel stays inside the screen. Resize handles are teacher-only, support
+arrow keys and remain available while long instructions scroll. Text size is
+independent of panel size. Size and position save and sync together. The area below a shorter panel stays usable,
 and long instructions scroll inside the chosen height. Existing decks default to
 100% height. The height percentage uses the space below fullscreen recovery controls.
 Instructions save automatically with the current deck, outside page widget
@@ -88,7 +93,9 @@ classes. They do not open personal profiles or access student data.
   it, keyboard height adjustments, preset retention and teacher/projector refresh.
   Real mouse drags cover position persistence, edge limits, keyboard movement,
   reset, different projector sizes and fullscreen toolbar clearance. Drag controls
-  stay teacher-only.
+  stay teacher-only. All eight resize handles are checked for growing/shrinking,
+  opposite-edge anchoring, limits, save/refresh, projector sync, keyboard control
+  and operation with long scrolled content.
   It also encodes a short synthetic WebM in-browser and checks actual decoded
   playback in the supported URL Viewer workflow on teacher and projector,
   playback beneath the rail in whole-layout fullscreen, native video-element
