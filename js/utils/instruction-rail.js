@@ -13,6 +13,7 @@ export function normalizeInstructions(value = {}) {
     return {
         visible: source.visible === true,
         width: number('width', 30, 22, 45),
+        height: number('height', 100, 20, 100),
         fontSize: number('fontSize', 28, 20, 48),
         today: typeof source.today === 'string' ? source.today.slice(0, 4000) : '',
         now: typeof source.now === 'string' ? source.now.slice(0, 4000) : '',
@@ -48,6 +49,7 @@ export function renderInstructions(value) {
     const visible = state.visible && !document.body.classList.contains('instructions-media-only');
     student.classList.toggle('has-instructions', visible);
     student.style.setProperty('--instruction-width', `${state.width}%`);
+    student.style.setProperty('--instruction-height-ratio', String(state.height / 100));
     student.style.setProperty('--instruction-font-size', `${state.fontSize}px`);
     const rail = document.getElementById('instruction-rail');
     rail.hidden = !visible;
@@ -154,4 +156,6 @@ export function refreshInstructionEditor(value) {
         if (input.type === 'checkbox') input.checked = value;
         else if (document.activeElement !== input) input.value = value;
     });
+    const heightOutput = document.querySelector('[data-instruction-height-output]');
+    if (heightOutput) heightOutput.textContent = `${state.height}%`;
 }

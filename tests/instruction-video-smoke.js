@@ -92,7 +92,7 @@ async function run() {
             const rail = document.getElementById('instruction-rail');
             const media = document.getElementById('student-media').getBoundingClientRect();
             const bounds = rail.getBoundingClientRect();
-            return !rail.hidden && bounds.width > 200 && media.width > 500 && media.right <= bounds.left + 1;
+            return !rail.hidden && bounds.width > 200 && media.width > 500 && Math.abs(media.right - bounds.right) < 2;
         });
         assert(await railFits(teacher)); assert(await railFits(projector));
         console.log('PASS: Actual embedded WebM decodes and advances on teacher and projector beside the rail');

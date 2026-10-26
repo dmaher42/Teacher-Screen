@@ -144,7 +144,7 @@ async function run() {
         assert(await projector.evaluate(() => {
             const rail = document.getElementById('instruction-rail').getBoundingClientRect();
             const media = document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect();
-            return rail.width > 200 && media.width > 500 && media.right <= rail.left + 1 && Math.abs(media.width - innerWidth * .7) < 2;
+            return rail.width > 200 && media.width > 500 && Math.abs(media.right - rail.right) < 2 && Math.abs(media.width - innerWidth) < 2;
         }), 'Expanded slides must fill only the media region when instructions are shown');
         for (const page of [teacher, projector]) await page.waitForFunction(() => {
             const image = document.querySelector('.reveal-inline-deck section.present img').getBoundingClientRect();

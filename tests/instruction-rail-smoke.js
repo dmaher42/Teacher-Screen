@@ -35,7 +35,7 @@ async function run() {
         }).catch(async error => { throw new Error('Synthetic deck setup: ' + error.message); });
         // Use real editor events, including hostile text which must remain plain text.
         await teacher.evaluate(() => {
-            const values = { visible: true, today: 'Explain cause and effect', now: '<img src=x onerror=alert(1)>\nWatch and collect evidence.', next: 'Compare two examples', width: '35', fontSize: '32' };
+            const values = { visible: true, today: 'Explain cause and effect', now: '<img src=x onerror=alert(1)>\nWatch and collect evidence.', next: 'Compare two examples', width: '35', height: '50', fontSize: '32' };
             for (const [key, value] of Object.entries(values)) {
                 const input = document.querySelector(`[data-instruction-field="${key}"]`);
                 if (input.type === 'checkbox') input.checked = value; else input.value = value;
@@ -101,12 +101,21 @@ async function run() {
         const fit = async () => projector.evaluate(() => {
             const rail = document.getElementById('instruction-rail').getBoundingClientRect();
             const media = document.getElementById('student-media').getBoundingClientRect();
-            return media.width > window.innerWidth * .5 && rail.width > window.innerWidth * .2 && Math.abs(rail.right - window.innerWidth) < 2
+            return Math.abs(media.width - window.innerWidth) < 2 && rail.width > window.innerWidth * .2 && Math.abs(rail.right - window.innerWidth) < 2
                 && Math.abs(media.top - rail.top) < 2
-                && ['student-media', 'presentation-root'].every(id => document.getElementById(id).getBoundingClientRect().right <= rail.left + 1)
-                && document.querySelector('#synthetic-embedded-video').getBoundingClientRect().right <= rail.left + 1;
+                && Math.abs(rail.height - media.height * .5) < 2
+                && ['student-media', 'presentation-root', 'synthetic-embedded-video'].every(id => Math.abs(document.getElementById(id).getBoundingClientRect().right - rail.right) < 2)
+                && document.getElementById('instruction-rail').contains(document.elementFromPoint(rail.right - 10, rail.top + 10))
+                && document.getElementById('student-media').contains(document.elementFromPoint(rail.right - 10, rail.bottom + 10));
         });
-        assert(await fit());
+        assert(await fit(), JSON.stringify(await projector.evaluate(() => {
+            const rail = document.getElementById('instruction-rail').getBoundingClientRect();
+            return {
+                bounds: ['student-media', 'instruction-rail', 'presentation-root', 'synthetic-embedded-video'].map(id => [id, document.getElementById(id).getBoundingClientRect().toJSON()]),
+                over: document.elementFromPoint(rail.right - 10, rail.top + 10)?.outerHTML.slice(0, 160),
+                below: document.elementFromPoint(rail.right - 10, rail.bottom + 10)?.outerHTML.slice(0, 160)
+            };
+        })));
         await projector.setViewportSize({ width: 1024, height: 768 }); assert(await fit());
         await teacher.evaluate(() => {
             const input = document.querySelector('[data-instruction-field="width"]'); input.value = '45'; input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -114,6 +123,20 @@ async function run() {
         });
         await projector.waitForFunction(() => document.getElementById('student-view').style.getPropertyValue('--instruction-width') === '45%');
         assert(await fit());
+        for (const height of [20, 100, 50]) {
+            await teacher.evaluate(height => {
+                const input = document.querySelector('[data-instruction-field="height"]');
+                input.value = String(height);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                window.__TeacherScreenApp.saveStateImmediately();
+            }, height);
+            await projector.waitForFunction(height => {
+                const rail = document.getElementById('instruction-rail').getBoundingClientRect();
+                const student = document.getElementById('student-view').getBoundingClientRect();
+                return Math.abs(rail.height - student.height * height / 100) < 2;
+            }, height);
+            assert.equal(await teacher.locator('[data-instruction-height-output]').textContent(), `${height}%`);
+        }
         fs.mkdirSync(path.join(root, 'output/playwright'), { recursive: true });
         await projector.screenshot({ path: path.join(root, 'output/playwright/instruction-rail-projector.png') });
         console.log('PASS: Live resize, privacy allowlist, wrong-token rejection, legacy presentation and embedded video bounds');
@@ -137,6 +160,11 @@ async function run() {
         await teacher.locator('[data-present-instructions="whole"]').click();
         await teacher.waitForFunction(() => document.fullscreenElement?.id === 'student-view');
         assert(await teacher.locator('#instruction-rail').isVisible());
+        assert(await teacher.evaluate(() => {
+            const rail = document.getElementById('instruction-rail').getBoundingClientRect();
+            const media = document.getElementById('student-media').getBoundingClientRect();
+            return Math.abs(rail.height - media.height * .5) < 2;
+        }), 'Fullscreen height uses the content space below teacher recovery controls');
         const recovery = teacher.locator('#instruction-presentation-controls');
         assert(await recovery.isVisible());
         for (const name of ['Exit presentation', 'Home', 'Teacher Controls']) assert(await recovery.getByRole('button', { name, exact: true }).isVisible());

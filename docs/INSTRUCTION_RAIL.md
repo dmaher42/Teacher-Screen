@@ -1,11 +1,14 @@
 # Persistent student instructions
 
 In classroom view, + (Add widget) → Teacher Controls → Student instructions
-contains public Today, Now and Next text, Show instructions and one Instruction
+contains three unlabelled public instruction fields, Show instructions and one Instruction
 size selector. Compact, Standard, Large and High visibility presets adjust width
-and text together. Adjust width and text size opens the existing fine controls
-(22–45% width, 20–48 px text); other combinations appear as Custom. The panel is on the
-right of the media region and scrolls when the chosen text size needs more room.
+and text together. Adjust width, height and text size opens the fine controls
+(22–45% width, 20–100% height, 20–48 px text). Presets adjust width and text
+without resetting height. The panel overlays the top-right of the student screen;
+widgets use the full screen behind it. The area below a shorter panel stays usable,
+and long instructions scroll inside the chosen height. Existing decks default to
+100% height. The height percentage uses the space below fullscreen recovery controls.
 Instructions save automatically with the current deck, outside page widget
 snapshots. Existing decks open with empty, hidden instructions.
 
@@ -15,7 +18,7 @@ media region fullscreen in that tab. Leaving fullscreen restores the deck's
 panel setting. The paired projector keeps its synced deck setting; use Show
 instructions to change it, and browser fullscreen on the projector window to
 fill a second display. Its existing presentation expansion button fills the
-media region beside the panel when instructions are shown.
+full media region beneath the panel when instructions are shown.
 
 Both teacher presentation modes keep an Exit presentation / Home / Teacher
 Controls bar inside the fullscreen surface. The bar reserves space above the
@@ -38,13 +41,13 @@ projector navigation remains separate. Versioned bootstrap, widget scripts,
 the rail module import and stylesheets prevent mixed-cache upgrades from
 combining new controls with old handlers.
 
-Embedded media stays beside the rail. Native video fullscreen and separate tabs,
+Embedded media fills the screen beneath the rail. Native video fullscreen and separate tabs,
 windows or external apps own their display and cannot retain it. This feature
 adds no AI service, account or cloud storage.
 
 ## Data and projector behaviour
 
-The optional deck-level `instructions` object contains only `visible`, `width`,
+The optional deck-level `instructions` object contains only `visible`, `width`, `height`,
 `fontSize`, `today`, `now` and `next`. Normalisation allowlists these properties,
 clamps sizes, limits each text to 4,000 characters and renders via `textContent`.
 Page snapshots do not contain this object. All narrowed deck persistence,
@@ -57,8 +60,9 @@ restoration and token-checked initial/reconnect/live layout updates render it
 independently of widget rebuild decisions.
 
 `student-media` contains widgets and the legacy presentation root. With the rail
-visible, the legacy fixed presentation root, projector fullscreen widget and
-URL viewer presentation expansion are contained by that media region. Existing
+visible, media remains full width in an isolated layer below the panel. The legacy
+fixed presentation root, projector fullscreen widget and URL viewer expansion
+remain contained by that media region. Existing
 Reveal ResizeObservers and the media-region resize notification recalculate fit.
 With instructions hidden, the original fullscreen sizing rules remain in use.
 
@@ -71,12 +75,14 @@ classes. They do not open personal profiles or access student data.
   Memory Cue sync, due reminders and presentation editor contracts.
 - `npm run check:instruction-rail`: editor input, literal hostile text, page
   changes, deck persistence, refresh/reconnect, token rejection, public-field
-  allowlisting, live width changes, legacy/embedded-video bounds at 1440×900
+  allowlisting, live width changes, legacy/embedded-video overlay bounds at 1440×900
   and 1024×768, Replace import with the existing backup flow, Merge import
   planning, both fullscreen actions, show/hide, deck/class changes, old defaults.
+  It also checks an actual Text Board behind a half-height panel, interaction below
+  it, keyboard height adjustments, preset retention and teacher/projector refresh.
   It also encodes a short synthetic WebM in-browser and checks actual decoded
   playback in the supported URL Viewer workflow on teacher and projector,
-  playback beside the rail in whole-layout fullscreen, native video-element
+  playback beneath the rail in whole-layout fullscreen, native video-element
   fullscreen via the browser Fullscreen API, rail restoration and continued
   playback after exit, and clearing the movie and instructions on a deck change.
   Embedded controls are activated with real keyboard input; no media state is

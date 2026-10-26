@@ -53,8 +53,8 @@ async function run() {
   await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Change presentation');
   await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');assert.equal(await index(),2);
   await page.keyboard.press('Escape');assert(!await menu.isVisible());assert(await more.evaluate(e=>document.activeElement===e));
-  await more.click();await page.keyboard.press('Tab');assert(!await menu.isVisible());
-  await more.click();await page.locator('#instruction-rail').click();await page.waitForFunction(()=>!document.querySelector('.reveal-more-menu').matches(':popover-open'));
+  await more.focus();await page.keyboard.press('Enter');await page.keyboard.press('Tab');assert(!await menu.isVisible());
+  await more.focus();await page.keyboard.press('Enter');await page.locator('#instruction-rail').click();await page.waitForFunction(()=>!document.querySelector('.reveal-more-menu').matches(':popover-open'));
   for(let n=0;n<3;n++){await page.locator('#sections-toggle').click();const before=await index();await page.keyboard.press('ArrowRight');assert.equal(await index(),before);await page.evaluate(()=>window.__TeacherScreenApp.handleNavClick('classroom'));}
   await page.locator('.reveal-manager-widget-content').focus();await page.keyboard.press('ArrowRight');assert.equal(await index(),3);
   console.log('PASS: One-row controls, repeated navigation/Home isolation, menu keyboard/Tab/Escape and outside click');
@@ -84,7 +84,7 @@ async function run() {
    console.log('NARROW GEOMETRY',await page.locator('.reveal-manager__topbar').evaluate(bar=>JSON.stringify({outer:bar.getBoundingClientRect().toJSON(),controls:Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>({label:e.textContent,box:e.getBoundingClientRect().toJSON()}))})));
    await page.screenshot({path:path.join(output,'adjacent-narrow-failure.png')});throw error;
   }
-  await more.click();const bounds=await menu.boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.y>=0&&bounds.y+bounds.height<=844);
+  await more.focus();await page.keyboard.press('Enter');const bounds=await menu.boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.y>=0&&bounds.y+bounds.height<=844);
   const narrowGeometry=await page.locator('.reveal-manager__topbar').evaluate(bar=>({outer:bar.getBoundingClientRect().toJSON(),controls:Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>({label:e.getAttribute('aria-label')||e.textContent,box:e.getBoundingClientRect().toJSON()}))}));
   assert(await page.locator('.reveal-manager__topbar').evaluate(bar=>{
    const outer=bar.getBoundingClientRect();const boxes=Array.from(bar.querySelectorAll('button,select')).filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect());
@@ -96,14 +96,14 @@ async function run() {
   }),'The paired controls minimum must be reflected in the constrained media layout');
   await page.screenshot({path:path.join(output,'compact-controls-narrow.png')});
   await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:900});
-  await more.click();const popup=context.waitForEvent('page');await menu.getByRole('menuitem',{name:'Open projector',exact:true}).click();const projector=await popup;
+  await more.focus();await page.keyboard.press('Enter');const popup=context.waitForEvent('page');await menu.getByRole('menuitem',{name:'Open projector',exact:true}).click();const projector=await popup;
   await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
   assert.equal(await projector.getByRole('menu').count(),0);assert.equal(await projector.locator('#instruction-presentation-controls').count(),0);assert.equal(await projector.locator('#instruction-rail').evaluate(e=>getComputedStyle(e).fontSize),'30px');
-  await more.click();await menu.getByRole('menuitem',{name:'Expand presentation on projector',exact:true}).click();await projector.waitForSelector('.projector-presentation-fullscreen');
-  assert(await projector.evaluate(()=>document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().right<=document.getElementById('instruction-rail').getBoundingClientRect().left+1));
+  await more.focus();await page.keyboard.press('Enter');await menu.getByRole('menuitem',{name:'Expand presentation on projector',exact:true}).click();await projector.waitForSelector('.projector-presentation-fullscreen');
+  assert(await projector.evaluate(()=>Math.abs(document.querySelector('.projector-presentation-fullscreen').getBoundingClientRect().right-document.getElementById('instruction-rail').getBoundingClientRect().right)<2));
   await projector.screenshot({path:path.join(output,'compact-projector-media.png')});await projector.reload();await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp?.getRevealWidgets()[0]?.revealDeck?.isReady());
   await page.locator('.reveal-slide-select').selectOption('4:0');await projector.waitForFunction(()=>window.__TeacherScreenProjectorApp.getRevealWidgets()[0].currentIndices.h===4);
-  await more.click();await menu.getByRole('menuitem',{name:'Close presentation',exact:true}).click();await projector.waitForFunction(()=>!window.__TeacherScreenProjectorApp.getRevealWidgets()[0]?.activeDeck);
+  await more.focus();await page.keyboard.press('Enter');await menu.getByRole('menuitem',{name:'Close presentation',exact:true}).click();await projector.waitForFunction(()=>!window.__TeacherScreenProjectorApp.getRevealWidgets()[0]?.activeDeck);
   assert(await page.locator('.reveal-toggle-controls-btn').isVisible());assert(await page.locator('.reveal-toggle-controls-btn').evaluate(e=>document.activeElement===e));
   console.log('PASS: Narrow menu bounds, projector separation/reconnect/navigation/expansion and Close focus recovery');assert.deepEqual(errors,[]);
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
