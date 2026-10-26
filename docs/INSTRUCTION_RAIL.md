@@ -6,7 +6,11 @@ size selector. Compact, Standard, Large and High visibility presets adjust width
 and text together. Adjust width, height and text size opens the fine controls
 (22–45% width, 20–100% height, 20–48 px text). Presets adjust width and text
 without resetting height. The panel overlays the top-right of the student screen;
-widgets use the full screen behind it. The area below a shorter panel stays usable,
+widgets use the full screen behind it. Drag the teacher-only Move instructions
+handle to reposition the panel, or focus it and use arrow keys. Home and Reset
+position return it to the top-right. Shorten the panel to move it vertically.
+The panel remains inside the student screen, including below fullscreen recovery
+controls. Position saves with the deck and scales to the projector screen. The area below a shorter panel stays usable,
 and long instructions scroll inside the chosen height. Existing decks default to
 100% height. The height percentage uses the space below fullscreen recovery controls.
 Instructions save automatically with the current deck, outside page widget
@@ -47,9 +51,11 @@ adds no AI service, account or cloud storage.
 
 ## Data and projector behaviour
 
-The optional deck-level `instructions` object contains only `visible`, `width`, `height`,
+The optional deck-level `instructions` object contains only `visible`, `width`, `height`, `x`, `y`,
 `fontSize`, `today`, `now` and `next`. Normalisation allowlists these properties,
 clamps sizes, limits each text to 4,000 characters and renders via `textContent`.
+Position uses 0–100% of the available horizontal/vertical travel, defaulting
+to x=100, y=0 for older decks. This keeps the panel within different screen sizes.
 Page snapshots do not contain this object. All narrowed deck persistence,
 duplicate/rename, export and import projections preserve it. A missing object
 always resets to empty/hidden rather than inheriting the previous deck's text.
@@ -80,6 +86,9 @@ classes. They do not open personal profiles or access student data.
   planning, both fullscreen actions, show/hide, deck/class changes, old defaults.
   It also checks an actual Text Board behind a half-height panel, interaction below
   it, keyboard height adjustments, preset retention and teacher/projector refresh.
+  Real mouse drags cover position persistence, edge limits, keyboard movement,
+  reset, different projector sizes and fullscreen toolbar clearance. Drag controls
+  stay teacher-only.
   It also encodes a short synthetic WebM in-browser and checks actual decoded
   playback in the supported URL Viewer workflow on teacher and projector,
   playback beneath the rail in whole-layout fullscreen, native video-element

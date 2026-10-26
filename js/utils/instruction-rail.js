@@ -4,6 +4,7 @@ const SIZE_PRESETS = {
     large: { width: 30, fontSize: 30 },
     'high-visibility': { width: 40, fontSize: 38 }
 };
+let instructionEditorApp = null;
 
 // Deck-level public text only. Never accept arbitrary properties or HTML.
 export function normalizeInstructions(value = {}) {
@@ -14,6 +15,8 @@ export function normalizeInstructions(value = {}) {
         visible: source.visible === true,
         width: number('width', 30, 22, 45),
         height: number('height', 100, 20, 100),
+        x: number('x', 100, 0, 100),
+        y: number('y', 0, 0, 100),
         fontSize: number('fontSize', 28, 20, 48),
         today: typeof source.today === 'string' ? source.today.slice(0, 4000) : '',
         now: typeof source.now === 'string' ? source.now.slice(0, 4000) : '',
@@ -50,13 +53,81 @@ export function renderInstructions(value) {
     student.classList.toggle('has-instructions', visible);
     student.style.setProperty('--instruction-width', `${state.width}%`);
     student.style.setProperty('--instruction-height-ratio', String(state.height / 100));
+    student.style.setProperty('--instruction-x-ratio', String(state.x / 100));
+    student.style.setProperty('--instruction-y-ratio', String(state.y / 100));
     student.style.setProperty('--instruction-font-size', `${state.fontSize}px`);
     const rail = document.getElementById('instruction-rail');
     rail.hidden = !visible;
     for (const key of ['today', 'now', 'next']) rail.querySelector(`[data-instruction="${key}"]`).textContent = state[key];
+    if (instructionEditorApp) setupInstructionDragging(instructionEditorApp);
+}
+
+function setupInstructionDragging(app) {
+    const editor = document.getElementById('instruction-editor');
+    const rail = document.getElementById('instruction-rail');
+    if (rail.querySelector('.instruction-move-handle')) return;
+    const student = document.getElementById('student-view');
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'instruction-move-handle';
+    handle.textContent = '⠿ Move instructions';
+    handle.setAttribute('aria-label', 'Move student instructions');
+    handle.title = 'Drag to move. Arrow keys move the panel; Home resets its position.';
+    rail.prepend(handle);
+    rail.classList.add('has-move-handle');
+    const setPosition = (x, y) => {
+        app.projectState.instructions = normalizeInstructions({ ...app.projectState.instructions, x, y });
+        renderInstructions(app.projectState.instructions);
+        app.saveState();
+    };
+    let drag = null;
+    handle.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const bounds = rail.getBoundingClientRect();
+        drag = { pointerId: event.pointerId, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top, deckId: app.projectState.currentDeckId };
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add('is-dragging');
+    });
+    handle.addEventListener('pointermove', (event) => {
+        if (!drag || drag.pointerId !== event.pointerId || drag.deckId !== app.projectState.currentDeckId) return;
+        const bounds = student.getBoundingClientRect();
+        const panel = rail.getBoundingClientRect();
+        const topInset = Number.parseFloat(getComputedStyle(student).getPropertyValue('--instruction-top')) || 0;
+        const travelX = Math.max(0, bounds.width - panel.width);
+        const travelY = Math.max(0, bounds.height - topInset - panel.height);
+        const state = normalizeInstructions(app.projectState.instructions);
+        setPosition(travelX > 0 ? (event.clientX - bounds.left - drag.offsetX) / travelX * 100 : state.x,
+            travelY > 0 ? (event.clientY - bounds.top - topInset - drag.offsetY) / travelY * 100 : state.y);
+    });
+    const finishDrag = (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        drag = null;
+        handle.classList.remove('is-dragging');
+        if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+        app.saveStateImmediately();
+    };
+    handle.addEventListener('pointerup', finishDrag);
+    handle.addEventListener('pointercancel', finishDrag);
+    handle.addEventListener('lostpointercapture', finishDrag);
+    handle.addEventListener('keydown', (event) => {
+        const movement = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] }[event.key];
+        if (!movement && event.key !== 'Home') return;
+        event.preventDefault();
+        event.stopPropagation();
+        const state = normalizeInstructions(app.projectState.instructions);
+        setPosition(movement ? state.x + movement[0] : 100, movement ? state.y + movement[1] : 0);
+        app.saveStateImmediately();
+    });
+    editor.querySelector('[data-reset-instruction-position]').addEventListener('click', () => {
+        setPosition(100, 0);
+        app.saveStateImmediately();
+    });
 }
 
 export function setupInstructionEditor(app) {
+    instructionEditorApp = app;
     const editor = document.getElementById('instruction-editor');
     // The normal teacher chrome is outside the element fullscreen top layer.
     // Keep recovery actions inside that layer, outside serialised student media.
