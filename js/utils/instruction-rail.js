@@ -37,11 +37,9 @@ export function renderInstructions(value) {
         rail.setAttribute('aria-label', 'Lesson instructions');
         for (const key of ['today', 'now', 'next']) {
             const section = document.createElement('section');
-            const heading = document.createElement('h2');
-            heading.textContent = key[0].toUpperCase() + key.slice(1);
             const text = document.createElement('p');
             text.dataset.instruction = key;
-            section.append(heading, text);
+            section.append(text);
             rail.append(section);
         }
         student.append(rail);

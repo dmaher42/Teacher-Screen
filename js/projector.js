@@ -1,4 +1,4 @@
-import { renderInstructions } from './utils/instruction-rail.js?v=3';
+import { renderInstructions } from './utils/instruction-rail.js?v=4';
 import './utils/app-mode.js';
 import { startPresentationDiagnostics } from './utils/presentation-debug.js';
 import { destroyReveal, getRevealDeck, getRevealState, initializeReveal, layoutReveal, mountPresentationMarkup } from './utils/reveal-manager.js';
