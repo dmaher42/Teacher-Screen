@@ -135,6 +135,7 @@ async function run() {
         const projector=await context.newPage();
         await projector.goto(await page.evaluate(()=>window.__TeacherScreenApp.getPairedProjectorUrl()));
         await projector.waitForFunction(()=>document.querySelector('.ql-editor table')?.textContent.includes('Cell survives reload'));
+        assert.equal(await projector.locator('.rich-text-editor-toolbar:visible').count(), 0, 'Projector shows board content without editing controls');
         await projector.close();
         await page.reload();
         await page.waitForFunction(()=>{const info=window.__TeacherScreenApp?.layoutManager?.widgets?.find(info=>info.widget.quill);if(!info)return false;window.__formatBoard=info.widget;return !!info.widget.quill.root.querySelector('table');});
@@ -175,15 +176,15 @@ async function run() {
             await closeMore();
         }
         await openMore(); await more.getByLabel('More formatting tools',{exact:true}).focus(); await page.keyboard.press('Escape'); assert(!await more.evaluate(el=>el.open));
-        await core('Finish editing').click(); assert(await toolbar.isHidden());
-        await board.getByRole('button',{name:'Show text toolbar',exact:true}).click(); assert(await toolbar.isVisible());
+        assert.equal(await core('Finish editing').count(), 0);
+        assert(await toolbar.isVisible(), 'Teacher formatting stays available');
         assert.equal(await toolbar.locator('.rich-text-scope-options').count(),0);
         await page.evaluate(()=>window.__TeacherScreenApp.saveStateImmediately());
         const saved = await page.evaluate(()=>window.__formatBoard.serialize().content);
         await page.reload(); await page.waitForFunction(()=>window.__TeacherScreenApp?.layoutManager?.widgets?.some(info=>info.widget.constructor.name==='RichTextWidget'));
         assert.equal(await page.evaluate(()=>window.__TeacherScreenApp.layoutManager.widgets.find(info=>info.widget.constructor.name==='RichTextWidget').widget.serialize().content),saved);
         assert.deepEqual(errors,[]);
-        console.log('PASS: Compact and narrow toolbars fit; SVG icons work without icon fonts; Escape, Finish/Edit and saved content work.');
+        console.log('PASS: Compact and narrow toolbars fit; SVG icons work without icon fonts; Escape and saved content work; projector remains free of editing controls.');
     } finally {
         await browser?.close();
         await new Promise(resolve => server.close(resolve));

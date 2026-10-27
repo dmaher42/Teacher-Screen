@@ -185,7 +185,7 @@ class RichTextWidget {
       if (!QuillEditor) {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
         this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
-        this.editorToolbar.querySelectorAll('select, button:not([data-action="display"])').forEach(control => {
+        this.editorToolbar.querySelectorAll('select, button').forEach(control => {
           control.disabled = true;
           control.title = 'Formatting is unavailable; you can still edit the text.';
         });
@@ -253,8 +253,7 @@ class RichTextWidget {
       clean: '<path d="m4 13 9-10 8 7-9 11H7l-3-3a3 3 0 0 1 0-5Zm4-4 9 8M12 21h10"/>',
       columns: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16"/>',
       undo: '<path d="m8 4-5 5 5 5M3 9h10a7 7 0 0 1 0 14"/>',
-      redo: '<path d="m16 4 5 5-5 5M21 9H11a7 7 0 0 0 0 14"/>',
-      done: '<path d="m4 12 5 5L20 6"/>'
+      redo: '<path d="m16 4 5 5-5 5M21 9H11a7 7 0 0 0 0 14"/>'
     };
     const icon = name => `<svg class="rich-text-toolbar-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
     toolbar.innerHTML = `
@@ -388,7 +387,6 @@ class RichTextWidget {
           <p class="rich-text-toolbar-status" role="status" hidden></p>
         </div>
       </details>
-      <button type="button" class="rich-text-toolbar-done" data-action="display" aria-label="Finish editing" title="Finish editing">${icon('done')}</button>
       </div>
     `;
 
@@ -529,11 +527,6 @@ class RichTextWidget {
   handleEditorToolbarClick(event) {
     const button = event.target.closest('button');
     if (!button || !this.editorToolbar.contains(button)) return;
-    if (button.dataset.action === 'display') {
-      this.editorToolbar.querySelectorAll('details[open]').forEach(menu => { menu.open = false; });
-      this.handleDisplayModeClick();
-      return;
-    }
     if (!this.quill) return;
     if (['undo', 'redo'].includes(button.dataset.action)) {
       this.quill.history?.[button.dataset.action]();

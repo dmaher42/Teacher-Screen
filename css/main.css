@@ -12415,9 +12415,6 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section--t
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-secondary { display: flex; align-items: flex-start; align-self: start; gap: 3px; }
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions button { width: 30px; height: 32px; min-width: 30px; min-height: 32px; padding: 4px; }
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-done { display: grid; place-items: center; width: 30px; height: 32px; padding: 4px; border: 1px solid rgba(27,74,101,.14); border-radius: 7px; color: #17604c; background: #e9f7ef; cursor: pointer; }
-body.is-classroom-active:not(.projector-view) .rich-text-toolbar-done:hover { background: #d1f0e1; }
-.rich-text-toolbar-done:focus-visible { outline: 3px solid var(--a11y-focus-outline, #ffae00); outline-offset: 1px; }
 .rich-text-toolbar-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; }
 .rich-text-toolbar-status { margin: 0; font-size: 12px; line-height: 1.4; color: #9a3412; }
 .rich-text-toolbar-status[hidden] { display: none; }

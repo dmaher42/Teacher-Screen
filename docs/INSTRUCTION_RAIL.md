@@ -67,8 +67,7 @@ published deployment. Screenshots remain in ignored `output/playwright/`.
 
 ## Text Board formatting toolbar
 
-The common bar contains text style, compact text size, colour and highlight controls, bold/italic/underline, lists, More and a
-Finish editing check mark. It wraps at narrow widths rather than hiding tools
+The common bar contains text style, compact text size, colour and highlight controls, bold/italic/underline, lists and More. It wraps at narrow widths rather than hiding tools
 in a horizontal scroll area. SVG icons need no external icon font.
 
 More groups Undo/Redo, links and clear formatting, then alignment and spacing.
@@ -78,8 +77,7 @@ request. Menus remember the selected text, close with Escape, and scroll inside
 the board. Blocks insert at the caret and undo in one step. Columns uses Quill's
 native editable 2×2 table module and persists through the usual HTML save path.
 Clear formatting retains words, images, image dimensions and table structure;
-with no selection it clears the current paragraph. Basic editing and Finish
-editing remain available if the external Quill library cannot load.
+with no selection it clears the current paragraph. Basic editing remains available if the external Quill library cannot load.
 
 `npm run check:text-board-toolbar` exercises every formatting action against real
 Quill, selection preservation, one-step undo, insertion, image/table retention,
