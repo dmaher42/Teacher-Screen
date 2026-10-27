@@ -2,7 +2,7 @@
 
 Student instructions now use the native Text Board widget and its existing rich
 editor, display mode, drag, resize, layering, projector and privacy behaviour.
-Edit a board to access two independent options:
+Open a board’s ⋯ options menu to access two independent options:
 
 - Show on every page: share this board across the current deck's pages.
 - Keep in front of presentations: use the front Text Board layer above expanded

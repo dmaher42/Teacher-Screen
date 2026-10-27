@@ -161,7 +161,6 @@ class RichTextWidget {
       this.scopeOptions.append(label);
       this.scopeInputs[key] = input;
     }
-    this.editorToolbar.append(this.scopeOptions);
     this.editorSurface = document.createElement('div');
     this.editorSurface.className = 'rich-text-editor-surface';
     this.editorSurface.addEventListener('input', () => {
@@ -412,6 +411,8 @@ class RichTextWidget {
     this.updateHeaderTitle();
     window.TeacherScreenWidgetState.notifyChanged(this, 'title-updated');
   }
+
+  getHeaderMenuContent() { return this.scopeOptions; }
 
   getHeaderMenuActions() {
     if (this.isProjectorMode()) {

@@ -1218,6 +1218,14 @@ class LayoutManager {
       const toggleRect = menuToggle.getBoundingClientRect();
       const popoverWidth = menuItems.getBoundingClientRect().width || 178;
       menu.classList.toggle('widget-header-menu--align-end', toggleRect.left + popoverWidth > window.innerWidth - 8);
+      if (typeof widget.getHeaderMenuContent === 'function') {
+        const surface = this.container.closest('#student-view')?.getBoundingClientRect();
+        const below = Math.min(window.innerHeight, surface?.bottom ?? window.innerHeight) - toggleRect.bottom - 12;
+        const above = toggleRect.top - Math.max(0, surface?.top ?? 0) - 12;
+        const alignUp = below < menuItems.scrollHeight && above > below;
+        menu.classList.toggle('widget-header-menu--align-up', alignUp);
+        menuItems.style.maxHeight = `${Math.max(80, alignUp ? above : below)}px`;
+      }
     });
     menu.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || !menu.open) return;
@@ -1296,6 +1304,11 @@ class LayoutManager {
 
       menuItems.appendChild(actionButton);
     });
+
+    if (layoutManagerIsTeacherMode() && typeof widget.getHeaderMenuContent === 'function') {
+      const content = widget.getHeaderMenuContent();
+      if (content) menuItems.append(content);
+    }
 
     // Settings menu item. Widgets with complete inline controls can hide this duplicate entry.
     if (widget?.showSettingsMenu !== false) {

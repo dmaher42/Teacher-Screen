@@ -7,7 +7,9 @@
 .has-front-text-boards #presentation-root,
 .has-front-text-boards #student-media .projector-presentation-fullscreen,
 .has-front-text-boards #student-media .url-viewer-widget-content.presentation-mode { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-.rich-text-scope-options { display: flex; flex-wrap: wrap; gap: 8px 16px; width: 100%; padding: 8px 2px; border-top: 1px solid #cbd5e1; color: #173445; font: 500 13px/1.4 system-ui, sans-serif; }
+.widget.rich-text-widget .widget-header-menu__popover:has(.rich-text-scope-options) { width: 270px; max-width: calc(100vw - 16px); overflow-y: auto; }
+.widget-header-menu--align-up .widget-header-menu__popover { top: auto; bottom: calc(100% + 8px); }
+.rich-text-scope-options { display: grid; gap: 12px; padding: 12px 10px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; color: #173445; font: 500 13px/1.4 system-ui, sans-serif; }
 .rich-text-scope-options label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .rich-text-scope-options input { width: 18px; height: 18px; margin: 0; }
 .is-projector-mode .rich-text-scope-options { display: none; }

@@ -95,6 +95,12 @@ async function run() {
         });
         await teacher.bringToFront();
         await shared().getByRole('button', { name: 'Show text toolbar', exact: true }).click();
+        assert.equal(await shared().locator('.rich-text-editor-toolbar .rich-text-scope-options').count(), 0, 'Editor toolbar has no scope checkbox row');
+        const menuOutput = path.join(root, 'output/playwright'); fs.mkdirSync(menuOutput, { recursive: true });
+        await shared().screenshot({ path: path.join(menuOutput, 'text-board-clean-editor.png') });
+        await shared().hover();
+        await shared().getByLabel('Text Board options', { exact: true }).click();
+        await shared().locator('.widget-header-menu__popover').screenshot({ path: path.join(menuOutput, 'text-board-scope-menu.png') });
         const frontToggle = shared().getByLabel('Keep in front of presentations', { exact: true });
         await frontToggle.uncheck();
         assert.equal(await shared().count(), 0, 'Front setting can be turned off independently');
@@ -105,6 +111,8 @@ async function run() {
         assert.equal(await boards().count(), 0, 'Turning off every-page leaves the board on its current page');
         await teacher.evaluate(id => window.__TeacherScreenApp.switchToPage(id), originalId);
         const current = teacher.locator('.widget.rich-text-widget').filter({ hasText: 'Shared instructions edited' });
+        await current.hover();
+        await current.getByLabel('Text Board options', { exact: true }).click();
         await current.getByLabel('Show on every page', { exact: true }).check();
         await teacher.evaluate(id => window.__TeacherScreenApp.switchToPage(id), secondId);
         assert.equal(await boards().count(), 1, 'Promoting a normal board makes it shared without duplicates');
