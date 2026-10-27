@@ -66,8 +66,14 @@ async function run() {
         await core('Numbered list').click(); assert.equal((await formats()).list, 'ordered');
         await core('Numbered list').click(); assert.equal((await formats()).list, undefined);
         console.log('PASS: Emphasis, text styles and list buttons apply and toggle correctly without changing other text.');
-        await openMore();
+        assert(!await more.evaluate(el => el.open));
+        assert.equal(await more.locator('[data-format="size"]').count(), 0);
+        assert(await toolbar.locator('.rich-text-toolbar-main [data-format="size"]').isVisible());
         await toolbar.getByLabel('Text size', { exact: true }).selectOption('36px'); assert.equal((await formats()).size, '36px');
+        assert(!await more.evaluate(el => el.open), 'Text size works without opening More');
+        await toolbar.getByLabel('Text size', { exact: true }).selectOption(''); assert.equal((await formats()).size, undefined);
+        await toolbar.getByLabel('Text size', { exact: true }).selectOption('36px'); assert.equal((await formats()).size, '36px');
+        await openMore();
         await toolbar.getByLabel('Alignment', { exact: true }).selectOption('center'); assert.equal((await formats()).align, 'center');
         await toolbar.getByLabel('Line spacing', { exact: true }).selectOption('relaxed'); assert.equal((await formats()).lineSpacing, 'relaxed');
         await toolbar.getByLabel('Text colour', { exact: true }).click(); await core('Red text').click(); assert.equal((await formats()).color, '#dc2626');
@@ -143,8 +149,8 @@ async function run() {
                     boxes:controls.map(c=>({name:c.getAttribute('aria-label'),...c.getBoundingClientRect().toJSON()})) };
             });
             assert(geometry.fits && !geometry.overflow, `All primary controls fit at ${width}px: ${JSON.stringify(geometry)}`);
-            if(width===260) assert(geometry.height<=80, `Two tidy rows at 260px: ${geometry.height}`);
-            if(width>=432) assert(geometry.height<=44, `One compact row at ${width}px: ${geometry.height}`);
+            if(width===260) assert(geometry.height<=80, `Two tidy rows at 260px: ${JSON.stringify(geometry)}`);
+            if(width>=432) assert(geometry.height<=44, `One compact row at ${width}px: ${JSON.stringify(geometry)}`);
             await toolbar.screenshot({path:path.join(output,`text-toolbar-${width}.png`)});
             await openMore();
             assert(await more.locator('.rich-text-toolbar-more-panel').evaluate(el=>{const b=el.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;}));

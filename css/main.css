@@ -12088,6 +12088,10 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
     max-width: 100%;
 }
 
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--size {
+    width: 58px;
+}
+
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field::after {
     content: '';
     position: absolute;
@@ -12397,12 +12401,17 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-done:hover { ba
 .rich-text-toolbar-actions button:disabled { opacity: .4; cursor: default; box-shadow: none; }
 .rich-text-widget-inner .ql-editor table { border-collapse: collapse; width: 100%; }
 .rich-text-widget-inner .ql-editor td { border: 1px solid currentColor; padding: 8px; min-width: 50px; }
+@container rich-text-editor (max-width: 520px) {
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions button { width: 26px; min-width: 26px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style { width: 72px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--size { width: 54px; }
+}
 @container rich-text-editor (max-width: 310px) {
- body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar { display: flex; flex-wrap: wrap; padding: 3px 34px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px 34px; }
  body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main { display: contents; }
  body.is-classroom-active:not(.projector-view) .rich-text-toolbar-secondary { margin-left: auto; }
- body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group { max-width: 100%; min-width: 0; flex-wrap: wrap; }
- body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions { flex-wrap: wrap; max-width: 100%; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-group,
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions { display: contents; }
  body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions button { width: 26px; min-width: 26px; }
  body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style { width: 80px; }
 }

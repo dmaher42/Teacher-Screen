@@ -270,6 +270,12 @@ class RichTextWidget {
             </select>
           </label>
         </div>
+        <div class="rich-text-toolbar-group">
+          <label class="rich-text-toolbar-field rich-text-toolbar-field--size">
+            <span class="visually-hidden">Text size</span>
+            <select data-format="size" aria-label="Text size" title="Text size in pixels (Auto uses the text style)"><option value="">Auto</option>${[12,16,20,24,28,32,36,40,48,56,64].map(size => `<option value="${size}px">${size}</option>`).join('')}</select>
+          </label>
+        </div>
         <div class="rich-text-toolbar-group" aria-label="Emphasis">
           <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
             <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
@@ -340,9 +346,6 @@ class RichTextWidget {
           </div>
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Text and layout</span>
-            <label class="rich-text-toolbar-layout-field"><span>Text size</span>
-              <select data-format="size" aria-label="Text size"><option value="">Default</option>${[12,16,20,24,28,32,36,40,48,56,64].map(size => `<option value="${size}px">${size} px</option>`).join('')}</select>
-            </label>
           <label class="rich-text-toolbar-layout-field">
             <span>Alignment</span>
             <select data-format="align" aria-label="Alignment">
