@@ -67,12 +67,13 @@ published deployment. Screenshots remain in ignored `output/playwright/`.
 
 ## Text Board formatting toolbar
 
-The common bar contains text style, a compact text size selector, bold/italic/underline, lists, More and a
+The common bar contains text style, compact text size, colour and highlight controls, bold/italic/underline, lists, More and a
 Finish editing check mark. It wraps at narrow widths rather than hiding tools
 in a horizontal scroll area. SVG icons need no external icon font.
 
-More groups Undo/Redo, links and clear formatting first, then colour/highlight,
-alignment and spacing. Text size is available directly without opening More. Teaching blocks/callouts expand on
+More groups Undo/Redo, links and clear formatting, then alignment and spacing.
+Text size, colour and highlight are available directly without opening More.
+Colour palettes overlay below the toolbar and stay within the board width. Teaching blocks/callouts expand on
 request. Menus remember the selected text, close with Escape, and scroll inside
 the board. Blocks insert at the caret and undo in one step. Columns uses Quill's
 native editable 2×2 table module and persists through the usual HTML save path.

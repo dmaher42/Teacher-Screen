@@ -276,36 +276,6 @@ class RichTextWidget {
             <select data-format="size" aria-label="Text size" title="Text size in pixels (Auto uses the text style)"><option value="">Auto</option>${[12,16,20,24,28,32,36,40,48,56,64].map(size => `<option value="${size}px">${size}</option>`).join('')}</select>
           </label>
         </div>
-        <div class="rich-text-toolbar-group" aria-label="Emphasis">
-          <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
-            <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
-            <button type="button" class="rich-text-toolbar-italic" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
-            <button type="button" class="rich-text-toolbar-underline" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
-          </div>
-        </div>
-        <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
-          <div class="rich-text-toolbar-actions">
-            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">${icon('bullet')}</button>
-            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list">${icon('ordered')}</button>
-          </div>
-
-        </div>
-      </div>
-      <div class="rich-text-toolbar-secondary">
-      <details class="rich-text-toolbar-more">
-        <summary aria-label="More formatting tools" title="More formatting tools">${icon('more')}</summary>
-        <div class="rich-text-toolbar-more-panel">
-          <div class="rich-text-toolbar-more-section">
-            <span class="rich-text-toolbar-menu-label">Editing</span>
-            <div class="rich-text-toolbar-actions" aria-label="More text actions">
-              <button type="button" data-action="undo" aria-label="Undo" title="Undo">${icon('undo')}<span>Undo</span></button>
-              <button type="button" data-action="redo" aria-label="Redo" title="Redo">${icon('redo')}<span>Redo</span></button>
-              <button type="button" data-action="link" aria-label="Add link" title="Add link">${icon('link')}<span>Link</span></button>
-              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">${icon('clean')}<span>Clear formatting</span></button>
-            </div>
-          </div>
-          <div class="rich-text-toolbar-more-section">
-            <span class="rich-text-toolbar-menu-label">Colour</span>
             <div class="rich-text-toolbar-colour-tools" aria-label="Colour formatting">
               <details class="rich-text-toolbar-colour-menu" data-format-menu="color" data-default-value="#111827">
                 <summary aria-label="Text colour" title="Text colour">
@@ -342,6 +312,34 @@ class RichTextWidget {
                   </div>
                 </div>
               </details>
+            </div>
+
+        <div class="rich-text-toolbar-group" aria-label="Emphasis">
+          <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
+            <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
+            <button type="button" class="rich-text-toolbar-italic" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
+            <button type="button" class="rich-text-toolbar-underline" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
+          </div>
+        </div>
+        <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
+          <div class="rich-text-toolbar-actions">
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">${icon('bullet')}</button>
+            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list">${icon('ordered')}</button>
+          </div>
+
+        </div>
+      </div>
+      <div class="rich-text-toolbar-secondary">
+      <details class="rich-text-toolbar-more">
+        <summary aria-label="More formatting tools" title="More formatting tools">${icon('more')}</summary>
+        <div class="rich-text-toolbar-more-panel">
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Editing</span>
+            <div class="rich-text-toolbar-actions" aria-label="More text actions">
+              <button type="button" data-action="undo" aria-label="Undo" title="Undo">${icon('undo')}<span>Undo</span></button>
+              <button type="button" data-action="redo" aria-label="Redo" title="Redo">${icon('redo')}<span>Redo</span></button>
+              <button type="button" data-action="link" aria-label="Add link" title="Add link">${icon('link')}<span>Link</span></button>
+              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">${icon('clean')}<span>Clear formatting</span></button>
             </div>
           </div>
           <div class="rich-text-toolbar-more-section">

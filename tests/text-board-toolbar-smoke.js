@@ -76,9 +76,15 @@ async function run() {
         await openMore();
         await toolbar.getByLabel('Alignment', { exact: true }).selectOption('center'); assert.equal((await formats()).align, 'center');
         await toolbar.getByLabel('Line spacing', { exact: true }).selectOption('relaxed'); assert.equal((await formats()).lineSpacing, 'relaxed');
+        await closeMore();
+        assert.equal(await more.locator('[data-format-menu]').count(), 0);
         await toolbar.getByLabel('Text colour', { exact: true }).click(); await core('Red text').click(); assert.equal((await formats()).color, '#dc2626');
         await toolbar.getByLabel('Highlight colour', { exact: true }).click(); await core('Yellow highlight').click(); assert.equal((await formats()).background, '#fef08a');
         await toolbar.getByLabel('Text colour', { exact: true }).click(); await core('White text').click(); assert.equal((await formats()).color, '#ffffff');
+        assert(!await more.evaluate(el => el.open), 'Colour and highlight work without opening More');
+        await toolbar.getByLabel('Highlight colour', { exact: true }).click(); await core('Remove highlight').click(); assert.equal((await formats()).background, undefined);
+        await toolbar.getByLabel('Text colour', { exact: true }).click(); await core('Default text colour').click(); assert.equal((await formats()).color, undefined);
+        await openMore();
         assert.equal((await formats(11, 5)).size, undefined);
         page.once('dialog', dialog => dialog.accept('example.com/lesson')); await core('Add link').click(); assert.equal((await formats()).link, 'https://example.com/lesson');
         page.once('dialog', dialog => dialog.accept('')); await core('Add link').click(); assert.equal((await formats()).link, undefined);
@@ -143,15 +149,25 @@ async function run() {
                 Object.assign(info,{x:40,y:40,width,height:500});app.layoutManager.mountWidgetElement(info);info.widget.syncEditorLayout();
             }, width);
             const geometry = await toolbar.evaluate(el => {
-                const bounds=el.getBoundingClientRect();const controls=[...el.querySelectorAll('.rich-text-toolbar-main button,.rich-text-toolbar-main select,.rich-text-toolbar-secondary > button,.rich-text-toolbar-more > summary')];
+                const bounds=el.getBoundingClientRect();const controls=[...el.querySelectorAll('.rich-text-toolbar-main button:not(.rich-text-swatch),.rich-text-toolbar-main select,.rich-text-toolbar-main .rich-text-toolbar-colour-menu > summary,.rich-text-toolbar-secondary > button,.rich-text-toolbar-more > summary')];
                 return { height:bounds.height,overflow:el.querySelector('.rich-text-toolbar-main').scrollWidth>el.querySelector('.rich-text-toolbar-main').clientWidth+1,
                     fits:controls.every(c=>{const b=c.getBoundingClientRect();return b.left>=bounds.left-1&&b.right<=bounds.right+1;}),
                     boxes:controls.map(c=>({name:c.getAttribute('aria-label'),...c.getBoundingClientRect().toJSON()})) };
             });
             assert(geometry.fits && !geometry.overflow, `All primary controls fit at ${width}px: ${JSON.stringify(geometry)}`);
-            if(width===260) assert(geometry.height<=80, `Two tidy rows at 260px: ${JSON.stringify(geometry)}`);
-            if(width>=432) assert(geometry.height<=44, `One compact row at ${width}px: ${JSON.stringify(geometry)}`);
+            assert(geometry.height <= (width === 260 ? 116 : width < 520 ? 80 : 44), `Compact rows at ${width}px: ${JSON.stringify(geometry)}`);
             await toolbar.screenshot({path:path.join(output,`text-toolbar-${width}.png`)});
+            for (const name of ['Text colour', 'Highlight colour']) {
+                const trigger=toolbar.getByLabel(name,{exact:true});
+                await trigger.click();
+                const panel=trigger.locator('..').locator('.rich-text-toolbar-colour-panel');
+                assert(await panel.isVisible());
+                assert(await panel.evaluate(el=>{const b=el.getBoundingClientRect(),w=el.closest('.widget').getBoundingClientRect();return b.left>=w.left&&b.right<=w.right&&b.top>=0&&b.bottom<=innerHeight&&el.scrollWidth<=el.clientWidth+1;}), `${name} palette fits at ${width}px`);
+                assert.equal(await toolbar.evaluate(el=>el.getBoundingClientRect().height),geometry.height,'Opening a palette does not expand the toolbar');
+                if(width===260) await board.screenshot({path:path.join(output,`text-toolbar-${name.replaceAll(' ','-')}-260.png`)});
+                await trigger.focus(); await page.keyboard.press('Escape');
+                assert(!await panel.isVisible());
+            }
             await openMore();
             assert(await more.locator('.rich-text-toolbar-more-panel').evaluate(el=>{const b=el.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;}));
             assert(await more.locator('.rich-text-toolbar-more-panel').evaluate(el=>el.scrollWidth<=el.clientWidth+1), `No hidden horizontal tools in More at ${width}px`);

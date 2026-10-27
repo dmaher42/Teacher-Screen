@@ -12092,6 +12092,29 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--size {
     width: 58px;
 }
 
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-colour-tools {
+    position: static;
+    gap: 2px;
+    padding: 0;
+    margin-inline: 3px;
+}
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-colour-menu { position: static; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-colour-menu > summary {
+    width: 28px;
+    min-width: 28px;
+    height: 32px;
+    padding: 4px;
+}
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-colour-panel {
+    box-sizing: border-box;
+    top: calc(100% + 7px);
+    left: 7px;
+    right: auto;
+    width: min(202px, calc(100% - 14px));
+    max-height: min(200px, calc(100vh - 140px));
+    overflow-y: auto;
+}
+
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field::after {
     content: '';
     position: absolute;
