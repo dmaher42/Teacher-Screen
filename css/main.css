@@ -12418,6 +12418,7 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text
 .rich-text-toolbar-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; }
 .rich-text-toolbar-status { margin: 0; font-size: 12px; line-height: 1.4; color: #9a3412; }
 .rich-text-toolbar-status[hidden] { display: none; }
+.rich-text-toolbar-actions kbd { font: inherit; font-size: 0.9em; opacity: 0.65; white-space: nowrap; }
 .rich-text-toolbar-actions button:disabled { opacity: .4; cursor: default; box-shadow: none; }
 .rich-text-widget-inner .ql-editor table { border-collapse: collapse; width: 100%; }
 .rich-text-widget-inner .ql-editor td { border: 1px solid currentColor; padding: 8px; min-width: 50px; }

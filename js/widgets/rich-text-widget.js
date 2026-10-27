@@ -313,13 +313,6 @@ class RichTextWidget {
               </details>
             </div>
 
-        <div class="rich-text-toolbar-group" aria-label="Emphasis">
-          <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
-            <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
-            <button type="button" class="rich-text-toolbar-italic" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
-            <button type="button" class="rich-text-toolbar-underline" data-format="underline" aria-label="Underline" aria-pressed="false" title="Underline">U</button>
-          </div>
-        </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
           <div class="rich-text-toolbar-actions">
             <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">${icon('bullet')}</button>
@@ -332,6 +325,14 @@ class RichTextWidget {
       <details class="rich-text-toolbar-more">
         <summary aria-label="More formatting tools" title="More formatting tools">${icon('more')}</summary>
         <div class="rich-text-toolbar-more-panel">
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Text formatting</span>
+            <div class="rich-text-toolbar-actions" aria-label="Emphasis">
+              <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" aria-keyshortcuts="Control+B Meta+B" title="Bold (Ctrl+B)"><strong>B</strong><span>Bold</span><kbd>Ctrl+B</kbd></button>
+              <button type="button" data-format="italic" aria-label="Italic" aria-pressed="false" aria-keyshortcuts="Control+I Meta+I" title="Italic (Ctrl+I)"><i>I</i><span>Italic</span><kbd>Ctrl+I</kbd></button>
+              <button type="button" data-format="underline" aria-label="Underline" aria-pressed="false" aria-keyshortcuts="Control+U Meta+U" title="Underline (Ctrl+U)"><u>U</u><span>Underline</span><kbd>Ctrl+U</kbd></button>
+            </div>
+          </div>
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Editing</span>
             <div class="rich-text-toolbar-actions" aria-label="More text actions">

@@ -67,10 +67,12 @@ published deployment. Screenshots remain in ignored `output/playwright/`.
 
 ## Text Board formatting toolbar
 
-The common bar contains text style, compact text size, colour and highlight controls, bold/italic/underline, lists and More. It wraps at narrow widths rather than hiding tools
+The common bar contains text style, compact text size, colour and highlight controls, lists and More. It wraps at narrow widths rather than hiding tools
 in a horizontal scroll area. SVG icons need no external icon font.
 
-More groups Undo/Redo, links and clear formatting, then alignment and spacing.
+More begins with Bold, Italic and Underline with visible keyboard shortcuts,
+followed by Undo/Redo, links, clear formatting, alignment and spacing.
+Ctrl+B, Ctrl+I and Ctrl+U work directly in the editor with More closed.
 Text size, colour and highlight are available directly without opening More.
 Colour palettes overlay below the toolbar and stay within the board width. Teaching blocks/callouts expand on
 request. Menus remember the selected text, close with Escape, and scroll inside

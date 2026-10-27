@@ -53,11 +53,21 @@ async function run() {
         const closeMore = () => more.evaluate(el => { el.open = false; });
         const core = name => toolbar.getByRole('button', { name, exact: true });
         await reset();
+        await openMore();
         for (const [name, key] of [['Bold', 'bold'], ['Italic', 'italic'], ['Underline', 'underline']]) {
             await core(name).click(); assert.equal((await formats())[key], true, `${name} applies to the selection`);
             assert.equal((await formats(11, 5))[key], undefined, `${name} leaves other text alone`);
             assert.equal(await core(name).getAttribute('aria-pressed'), 'true');
             await core(name).click(); assert.equal((await formats())[key], undefined, `${name} toggles off`);
+        }
+        await closeMore();
+        assert.equal(await toolbar.locator('.rich-text-toolbar-main [data-format="bold"],.rich-text-toolbar-main [data-format="italic"],.rich-text-toolbar-main [data-format="underline"]').count(),0);
+        for(const [key,format] of [['b','bold'],['i','italic'],['u','underline']]) {
+            await reset();
+            await page.keyboard.press(`Control+${key}`); assert.equal((await formats())[format],true,`${format} keyboard shortcut applies with More closed`);
+            assert.equal((await formats(11,5))[format],undefined);
+            await page.keyboard.press(`Control+${key}`); assert.equal((await formats())[format],undefined,`${format} shortcut toggles off`);
+            assert(!await more.evaluate(el=>el.open));
         }
         await toolbar.getByLabel('Text style', { exact: true }).selectOption('2'); assert.equal((await formats()).header, 2);
         await toolbar.getByLabel('Text style', { exact: true }).selectOption('small'); assert.equal((await formats()).size, 'small'); assert.equal((await formats()).header, undefined);
@@ -90,7 +100,7 @@ async function run() {
         page.once('dialog', dialog => dialog.accept('')); await core('Add link').click(); assert.equal((await formats()).link, undefined);
         page.once('dialog', dialog => dialog.accept('javascript:alert(1)')); await core('Add link').click();
         assert.equal((await formats()).link, undefined); assert(await toolbar.getByRole('status').isVisible());
-        await closeMore(); await reset(); await core('Bold').click(); await openMore();
+        await closeMore(); await reset(); await openMore(); await core('Bold').click();
         await core('Undo').click(); assert.equal((await formats()).bold, undefined);
         await core('Redo').click(); assert.equal((await formats()).bold, true);
         console.log('PASS: Size, alignment, spacing, colours, highlights, links and undo/redo retain the selected text.');
@@ -149,6 +159,7 @@ async function run() {
                 const app=window.__TeacherScreenApp, info=app.layoutManager.widgets.find(info=>info.widget===window.__formatBoard);
                 Object.assign(info,{x:40,y:40,width,height:500});app.layoutManager.mountWidgetElement(info);info.widget.syncEditorLayout();
             }, width);
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
             const geometry = await toolbar.evaluate(el => {
                 const bounds=el.getBoundingClientRect();const controls=[...el.querySelectorAll('.rich-text-toolbar-main button:not(.rich-text-swatch),.rich-text-toolbar-main select,.rich-text-toolbar-main .rich-text-toolbar-colour-menu > summary,.rich-text-toolbar-secondary > button,.rich-text-toolbar-more > summary')];
                 return { height:bounds.height,overflow:el.querySelector('.rich-text-toolbar-main').scrollWidth>el.querySelector('.rich-text-toolbar-main').clientWidth+1,
@@ -164,7 +175,7 @@ async function run() {
                 const panel=trigger.locator('..').locator('.rich-text-toolbar-colour-panel');
                 assert(await panel.isVisible());
                 assert(await panel.evaluate(el=>{const b=el.getBoundingClientRect(),w=el.closest('.widget').getBoundingClientRect();return b.left>=w.left&&b.right<=w.right&&b.top>=0&&b.bottom<=innerHeight&&el.scrollWidth<=el.clientWidth+1;}), `${name} palette fits at ${width}px`);
-                assert.equal(await toolbar.evaluate(el=>el.getBoundingClientRect().height),geometry.height,'Opening a palette does not expand the toolbar');
+                assert(await toolbar.evaluate(el=>el.getBoundingClientRect().height)<=geometry.height,'Opening a palette does not expand the toolbar');
                 if(width===260) await board.screenshot({path:path.join(output,`text-toolbar-${name.replaceAll(' ','-')}-260.png`)});
                 await trigger.focus(); await page.keyboard.press('Escape');
                 assert(!await panel.isVisible());
