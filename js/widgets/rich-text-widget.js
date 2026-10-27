@@ -185,6 +185,10 @@ class RichTextWidget {
       if (!QuillEditor) {
         console.warn('Rich Text editor could not start because Quill is unavailable.');
         this.editorSurface.classList.add('ql-editor', 'rich-text-editor-fallback');
+        this.editorToolbar.querySelectorAll('select, button:not([data-action="display"])').forEach(control => {
+          control.disabled = true;
+          control.title = 'Formatting is unavailable; you can still edit the text.';
+        });
         this.editorSurface.innerHTML = this.pendingContent;
         this.updateDisplayModeUI();
         this.syncEditorLayout();
@@ -192,7 +196,7 @@ class RichTextWidget {
       }
 
       const SizeStyle = QuillEditor.import('attributors/style/size');
-      SizeStyle.whitelist = ['small', 'large', 'huge'];
+      SizeStyle.whitelist = ['small', 'large', 'huge', ...[12, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64].map(size => `${size}px`)];
       QuillEditor.register(SizeStyle, true);
 
       const ColorStyle = QuillEditor.import('attributors/style/color');
@@ -206,6 +210,7 @@ class RichTextWidget {
         placeholder: 'Start with a clear heading, a short prompt, or a teaching block…',
         modules: {
           toolbar: false,
+          table: true,
           history: {
             delay: 400,
             maxStack: 100,
@@ -239,6 +244,19 @@ class RichTextWidget {
   }
 
   populateCompactEditorToolbar(toolbar) {
+    const paths = {
+      bullet: '<circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/><path d="M9 6h11M9 12h11M9 18h11"/>',
+      ordered: '<path d="M3 3h1v6M3 9h3M2 14c0-3 5-3 5 0 0 2-4 3-4 5h4M11 6h10M11 16h10"/>',
+      more: '<path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
+      link: '<path d="m10 14 4-4M8 16l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
+      highlight: '<path d="m9 16 8-12 5 4-9 11-4-3ZM9 16l-3 4h7M3 22h17"/>',
+      clean: '<path d="m4 13 9-10 8 7-9 11H7l-3-3a3 3 0 0 1 0-5Zm4-4 9 8M12 21h10"/>',
+      columns: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16"/>',
+      undo: '<path d="m8 4-5 5 5 5M3 9h10a7 7 0 0 1 0 14"/>',
+      redo: '<path d="m16 4 5 5-5 5M21 9H11a7 7 0 0 0 0 14"/>',
+      done: '<path d="m4 12 5 5L20 6"/>'
+    };
+    const icon = name => `<svg class="rich-text-toolbar-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
     toolbar.innerHTML = `
       <div class="rich-text-toolbar-main">
         <div class="rich-text-toolbar-group rich-text-toolbar-group--text" aria-label="Text formatting">
@@ -251,6 +269,8 @@ class RichTextWidget {
               <option value="small">Small notes</option>
             </select>
           </label>
+        </div>
+        <div class="rich-text-toolbar-group" aria-label="Emphasis">
           <div class="rich-text-toolbar-actions rich-text-toolbar-actions--core" aria-label="Emphasis">
             <button type="button" data-format="bold" aria-label="Bold" aria-pressed="false" title="Bold">B</button>
             <button type="button" class="rich-text-toolbar-italic" data-format="italic" aria-label="Italic" aria-pressed="false" title="Italic">I</button>
@@ -259,22 +279,25 @@ class RichTextWidget {
         </div>
         <div class="rich-text-toolbar-group rich-text-toolbar-group--structure" aria-label="Lists">
           <div class="rich-text-toolbar-actions">
-            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list"><i class="fa-solid fa-list-ul" aria-hidden="true"></i></button>
-            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list"><i class="fa-solid fa-list-ol" aria-hidden="true"></i></button>
+            <button type="button" data-list="bullet" aria-label="Bullet list" aria-pressed="false" title="Bullet list">${icon('bullet')}</button>
+            <button type="button" data-list="ordered" aria-label="Numbered list" aria-pressed="false" title="Numbered list">${icon('ordered')}</button>
           </div>
-          <label class="rich-text-toolbar-field rich-text-toolbar-field--align">
-            <span class="visually-hidden">Alignment</span>
-            <select data-format="align" aria-label="Alignment">
-              <option value="">Left</option>
-              <option value="center">Centre</option>
-              <option value="right">Right</option>
-            </select>
-          </label>
+
         </div>
       </div>
+      <div class="rich-text-toolbar-secondary">
       <details class="rich-text-toolbar-more">
-        <summary aria-label="More formatting tools" title="More formatting tools"><i class="fa-solid fa-sliders" aria-hidden="true"></i></summary>
+        <summary aria-label="More formatting tools" title="More formatting tools">${icon('more')}</summary>
         <div class="rich-text-toolbar-more-panel">
+          <div class="rich-text-toolbar-more-section">
+            <span class="rich-text-toolbar-menu-label">Editing</span>
+            <div class="rich-text-toolbar-actions" aria-label="More text actions">
+              <button type="button" data-action="undo" aria-label="Undo" title="Undo">${icon('undo')}<span>Undo</span></button>
+              <button type="button" data-action="redo" aria-label="Redo" title="Redo">${icon('redo')}<span>Redo</span></button>
+              <button type="button" data-action="link" aria-label="Add link" title="Add link">${icon('link')}<span>Link</span></button>
+              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting">${icon('clean')}<span>Clear formatting</span></button>
+            </div>
+          </div>
           <div class="rich-text-toolbar-more-section">
             <span class="rich-text-toolbar-menu-label">Colour</span>
             <div class="rich-text-toolbar-colour-tools" aria-label="Colour formatting">
@@ -292,13 +315,14 @@ class RichTextWidget {
                     <button type="button" class="rich-text-swatch" style="--swatch-color: #16a34a" data-format="color" data-value="#16a34a" aria-label="Green text" aria-pressed="false" title="Green text"><span class="visually-hidden">Green</span></button>
                     <button type="button" class="rich-text-swatch" style="--swatch-color: #7c3aed" data-format="color" data-value="#7c3aed" aria-label="Purple text" aria-pressed="false" title="Purple text"><span class="visually-hidden">Purple</span></button>
                     <button type="button" class="rich-text-swatch" style="--swatch-color: #ea580c" data-format="color" data-value="#ea580c" aria-label="Orange text" aria-pressed="false" title="Orange text"><span class="visually-hidden">Orange</span></button>
+                    <button type="button" class="rich-text-swatch" style="--swatch-color: #ffffff" data-format="color" data-value="#ffffff" aria-label="White text" aria-pressed="false" title="White text"><span class="visually-hidden">White</span></button>
                     <button type="button" class="rich-text-swatch rich-text-swatch--reset" data-format="color" data-value="" aria-label="Default text colour" aria-pressed="false" title="Default text colour"><span aria-hidden="true">&times;</span></button>
                   </div>
                 </div>
               </details>
               <details class="rich-text-toolbar-colour-menu rich-text-toolbar-colour-menu--highlight" data-format-menu="background" data-default-value="#fef08a">
                 <summary aria-label="Highlight colour" title="Highlight colour">
-                  <i class="fa-solid fa-highlighter rich-text-colour-control-icon" aria-hidden="true"></i>
+                  ${icon('highlight')}
                   <span class="rich-text-colour-preview rich-text-colour-preview--highlight" style="--swatch-color: #fef08a" aria-hidden="true"></span>
                 </summary>
                 <div class="rich-text-toolbar-colour-panel" role="group" aria-label="Highlight colour palette">
@@ -315,7 +339,19 @@ class RichTextWidget {
             </div>
           </div>
           <div class="rich-text-toolbar-more-section">
-            <span class="rich-text-toolbar-menu-label">Layout</span>
+            <span class="rich-text-toolbar-menu-label">Text and layout</span>
+            <label class="rich-text-toolbar-layout-field"><span>Text size</span>
+              <select data-format="size" aria-label="Text size"><option value="">Default</option>${[12,16,20,24,28,32,36,40,48,56,64].map(size => `<option value="${size}px">${size} px</option>`).join('')}</select>
+            </label>
+          <label class="rich-text-toolbar-layout-field">
+            <span>Alignment</span>
+            <select data-format="align" aria-label="Alignment">
+              <option value="">Left</option>
+              <option value="center">Centre</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
             <div class="rich-text-toolbar-more-row">
               <label class="rich-text-toolbar-layout-field">
                 <span>Line spacing</span>
@@ -326,11 +362,11 @@ class RichTextWidget {
                 </select>
               </label>
               <div class="rich-text-toolbar-actions">
-                <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns"><i class="fa-solid fa-table-columns" aria-hidden="true"></i><span>Columns</span></button>
+                <button type="button" data-action="columns" aria-label="Insert two columns" title="Insert two columns">${icon('columns')}<span>Columns</span></button>
               </div>
             </div>
           </div>
-          <div class="rich-text-toolbar-more-section rich-text-toolbar-more-section--teaching">
+          <details class="rich-text-toolbar-more-section rich-text-toolbar-more-section--teaching"><summary>Insert teaching blocks</summary><div class="rich-text-toolbar-insert-content">
             <span class="rich-text-toolbar-menu-label">Teaching blocks</span>
             <div class="rich-text-toolbar-insert-grid" aria-label="Insert teaching block">
               <button type="button" data-insert="learning-intention">Learning intention</button>
@@ -347,20 +383,21 @@ class RichTextWidget {
               <button type="button" data-insert="question">Question</button>
               <button type="button" data-insert="answer">Answer</button>
             </div>
-          </div>
-          <div class="rich-text-toolbar-more-section">
-            <span class="rich-text-toolbar-menu-label">Utilities</span>
-            <div class="rich-text-toolbar-actions" aria-label="More text actions">
-              <button type="button" data-action="undo" aria-label="Undo" title="Undo">Undo</button>
-              <button type="button" data-action="redo" aria-label="Redo" title="Redo">Redo</button>
-              <button type="button" data-action="link" aria-label="Add link" title="Add link"><i class="fa-solid fa-link" aria-hidden="true"></i><span>Link</span></button>
-              <button type="button" data-action="clean" aria-label="Clear formatting" title="Clear formatting"><i class="fa-solid fa-eraser" aria-hidden="true"></i><span>Clear formatting</span></button>
-            </div>
-          </div>
+          </div></details>
+          <p class="rich-text-toolbar-status" role="status" hidden></p>
         </div>
       </details>
+      <button type="button" class="rich-text-toolbar-done" data-action="display" aria-label="Finish editing" title="Finish editing">${icon('done')}</button>
+      </div>
     `;
 
+    toolbar.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      const menu = event.target.closest('details[open]') || toolbar.querySelector('details[open]');
+      if (!menu) return;
+      event.preventDefault(); event.stopPropagation();
+      menu.open = false; menu.querySelector('summary')?.focus();
+    });
     toolbar.querySelectorAll('details').forEach((menu) => {
       menu.addEventListener('toggle', () => {
         if (!menu.open) {
@@ -369,6 +406,7 @@ class RichTextWidget {
         if (menu.classList.contains('rich-text-toolbar-more')) {
           const widgetBounds = toolbar.closest('.widget')?.getBoundingClientRect();
           const toolbarBounds = toolbar.getBoundingClientRect();
+          menu.querySelector('.rich-text-toolbar-more-panel').scrollTop = 0;
           if (widgetBounds) {
             const availableHeight = Math.max(120, Math.floor(widgetBounds.bottom - toolbarBounds.bottom - 14));
             menu.style.setProperty('--rich-text-more-max-height', `${availableHeight}px`);
@@ -443,40 +481,18 @@ class RichTextWidget {
   }
 
   handleEditorToolbarChange(event) {
-    if (!this.quill || event.target.tagName !== 'SELECT') {
-      return;
-    }
-
-    const toggleFormat = event.target.dataset.toggleFormat !== undefined
-      ? event.target.value
-      : '';
-    if (toggleFormat) {
-      const range = this.restoreEditorSelection();
-      const current = this.quill.getFormat(range);
-      this.quill.format(toggleFormat, !current[toggleFormat], 'user');
-      event.target.value = '';
-      this.syncToolbarState();
-      return;
-    }
-
+    if (!this.quill || event.target.tagName !== 'SELECT') return;
     const format = event.target.dataset.format;
+    if (!format) return;
     let value = event.target.value || false;
     this.restoreEditorSelection();
+    this.quill.history?.cutoff();
     if (format === 'header') {
-      if (value === 'small') {
-        this.quill.format('header', false, 'user');
-        this.quill.format('size', 'small', 'user');
-        this.syncToolbarState();
-        return;
-      }
-
-      this.quill.format('size', false, 'user');
-      if (value) {
-        value = Number(value);
-      }
+      this.quill.format('size', value === 'small' ? 'small' : false, 'user');
+      value = value === 'small' ? false : value ? Number(value) : false;
     }
-
     this.quill.format(format, value, 'user');
+    this.quill.history?.cutoff();
     this.syncToolbarState();
   }
 
@@ -487,18 +503,19 @@ class RichTextWidget {
     this.syncToolbarState();
   }
 
-  handleEditorToolbarPointerDown() {
+  handleEditorToolbarPointerDown(event) {
     const range = this.quill?.getSelection();
     if (range) {
       this.lastEditorSelection = { index: range.index, length: range.length };
     }
+    if (event.target.closest('button')) event.preventDefault();
   }
 
   restoreEditorSelection() {
     const currentRange = this.quill.getSelection();
     const rememberedRange = currentRange || this.lastEditorSelection;
     const editorLength = this.quill.getLength();
-    const index = Math.max(0, Math.min(Number(rememberedRange?.index) || 0, editorLength));
+    const index = Math.max(0, Math.min(Number(rememberedRange?.index) || 0, Math.max(0, editorLength - 1)));
     const length = Math.max(0, Math.min(Number(rememberedRange?.length) || 0, editorLength - index));
     const range = { index, length };
 
@@ -510,43 +527,72 @@ class RichTextWidget {
 
   handleEditorToolbarClick(event) {
     const button = event.target.closest('button');
-    if (!this.quill || !button || !this.editorToolbar.contains(button)) {
+    if (!button || !this.editorToolbar.contains(button)) return;
+    if (button.dataset.action === 'display') {
+      this.editorToolbar.querySelectorAll('details[open]').forEach(menu => { menu.open = false; });
+      this.handleDisplayModeClick();
       return;
     }
-
+    if (!this.quill) return;
+    if (['undo', 'redo'].includes(button.dataset.action)) {
+      this.quill.history?.[button.dataset.action]();
+      this.syncToolbarState();
+      return;
+    }
+    const status = this.editorToolbar.querySelector('.rich-text-toolbar-status');
+    if (status) { status.hidden = true; status.textContent = ''; }
     const range = this.restoreEditorSelection();
     const current = this.quill.getFormat(range);
-
+    this.quill.history?.cutoff();
     if (button.dataset.format) {
       const format = button.dataset.format;
-      const hasExplicitValue = Object.prototype.hasOwnProperty.call(button.dataset, 'value');
-      const value = hasExplicitValue ? (button.dataset.value || false) : !current[format];
-      this.quill.format(format, current[format] === value ? false : value, 'user');
+      const explicit = Object.prototype.hasOwnProperty.call(button.dataset, 'value');
+      const value = explicit ? (button.dataset.value || false) : current[format] !== true;
+      this.quill.format(format, explicit && current[format] === value ? false : value, 'user');
       button.closest('.rich-text-toolbar-colour-menu')?.removeAttribute('open');
     } else if (button.dataset.list) {
-      const listType = button.dataset.list;
-      this.quill.format('list', current.list === listType ? false : listType, 'user');
+      const list = button.dataset.list;
+      this.quill.format('list', current.list === list ? false : list, 'user');
     } else if (button.dataset.insert) {
       this.insertTeachingMarkup(button.dataset.insert);
-      button.closest('details')?.removeAttribute('open');
+      this.editorToolbar.querySelectorAll('details[open]').forEach(menu => { menu.open = false; });
     } else if (button.dataset.action === 'clean') {
-      this.quill.removeFormat(range.index, Math.max(range.length, 1), 'user');
+      this.clearSelectedFormatting(range);
     } else if (button.dataset.action === 'columns') {
       this.insertColumns();
     } else if (button.dataset.action === 'link') {
-      const existingLink = typeof current.link === 'string' ? current.link : '';
-      const url = window.prompt('Paste a link', existingLink);
+      const url = window.prompt('Paste a website or email link. Leave blank to remove a link.', typeof current.link === 'string' ? current.link : '');
       if (url !== null) {
-        this.restoreEditorSelection();
-        this.quill.format('link', url.trim() || false, 'user');
+        const input = url.trim();
+        const normalized = !input ? false : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input) ? `mailto:${input}`
+          : /^[a-z][a-z\d+.-]*:/i.test(input) ? input : `https://${input}`;
+        const valid = !normalized || /^(https?:\/\/|mailto:|tel:)/i.test(normalized);
+        if (valid) { this.restoreEditorSelection(); this.quill.format('link', normalized, 'user'); }
+        else if (status) { status.hidden = false; status.textContent = 'Use a website, email address or telephone link.'; }
       }
-    } else if (button.dataset.action === 'undo') {
-      this.quill.history?.undo();
-    } else if (button.dataset.action === 'redo') {
-      this.quill.history?.redo();
     }
-
+    this.quill.history?.cutoff();
     this.syncToolbarState();
+  }
+
+  clearSelectedFormatting(range) {
+    let span = range;
+    if (!span.length) {
+      const [line, offset] = this.quill.getLine(span.index);
+      span = { index: span.index - offset, length: line?.length() || 1 };
+    }
+    const Delta = window.Quill.import('delta');
+    let change = new Delta().retain(span.index);
+    const textFormats = new Set(['bold', 'italic', 'underline', 'strike', 'font', 'size', 'color', 'background', 'link', 'script', 'code', 'header', 'list', 'indent', 'align', 'lineSpacing', 'blockquote', 'code-block', 'displayCallout']);
+    for (const op of this.quill.getContents(span.index, span.length).ops) {
+      const attributes = typeof op.insert === 'string'
+        ? Object.fromEntries(Object.keys(op.attributes || {}).filter(key => textFormats.has(key)).map(key => [key, null])) : {};
+      change = change.retain(typeof op.insert === 'string' ? op.insert.length : 1, attributes);
+    }
+    // Retain embeds such as pictures while removing their text formatting.
+    this.quill.updateContents(change, 'user');
+    this.quill.formatLine(span.index, span.length, { header: false, list: false, indent: false, align: false, lineSpacing: false, blockquote: false, 'code-block': false }, 'user');
+    this.quill.setSelection(range.index, range.length, 'silent');
   }
 
   syncToolbarState() {
@@ -554,7 +600,9 @@ class RichTextWidget {
       return;
     }
 
-    const range = this.quill.getSelection() || { index: this.quill.getLength(), length: 0 };
+    const remembered = this.quill.getSelection() || this.lastEditorSelection || { index: 0, length: 0 };
+    const index = Math.max(0, Math.min(remembered.index, this.quill.getLength() - 1));
+    const range = { index, length: Math.min(remembered.length, this.quill.getLength() - index) };
     const current = this.quill.getFormat(range);
     this.editorToolbar.querySelectorAll('select[data-format]').forEach((select) => {
       const format = select.dataset.format;
@@ -585,7 +633,7 @@ class RichTextWidget {
       const format = menu.dataset.formatMenu;
       const activeValue = typeof current[format] === 'string' ? current[format] : '';
       const preview = menu.querySelector('.rich-text-colour-preview');
-      preview?.style.setProperty('--swatch-color', activeValue || menu.dataset.defaultValue);
+      preview?.style.setProperty('--swatch-color', activeValue || (format === 'color' && this.instructionAppearance ? '#ffffff' : menu.dataset.defaultValue));
       menu.classList.toggle('is-active', !!activeValue);
     });
 
@@ -1056,43 +1104,24 @@ class RichTextWidget {
   }
 
   insertHtml(html) {
-    if (!this.quill) {
-      return;
-    }
-
-    const range = this.quill.getSelection(true);
-    const insertIndex = range ? range.index : this.quill.getLength();
-    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, html);
-    this.quill.setSelection(this.quill.getLength(), 0);
+    if (!this.quill || !html) return;
+    const range = this.restoreEditorSelection();
+    const before = this.quill.getLength();
+    this.quill.history?.cutoff();
+    this.isApplyingSmartFormatting = true;
+    try { this.quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user'); }
+    finally { this.isApplyingSmartFormatting = false; }
+    const inserted = this.quill.getLength() - before;
+    this.quill.setSelection(Math.min(this.quill.getLength() - 1, range.index + inserted), 0, 'silent');
+    this.quill.history?.cutoff();
   }
 
   insertColumns() {
-    if (!this.quill) {
-      return;
-    }
-
-    const range = this.quill.getSelection(true);
-    const insertIndex = range ? range.index : this.quill.getLength();
-    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
-    const columnMarkup = `
-      ${needsSpacing}
-      <table class="rich-text-columns">
-        <tbody>
-          <tr>
-            <td><strong>Column 1</strong></td>
-            <td><strong>Column 2</strong></td>
-          </tr>
-          <tr>
-            <td>First idea</td>
-            <td>Second idea</td>
-          </tr>
-        </tbody>
-      </table>
-      <p><br></p>
-    `;
-
-    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, columnMarkup.trim());
-    this.quill.setSelection(this.quill.getLength(), 0);
+    if (!this.quill) return;
+    this.restoreEditorSelection();
+    this.quill.history?.cutoff();
+    this.quill.getModule('table')?.insertTable(2, 2);
+    this.quill.history?.cutoff();
   }
 
   getTemplateMarkup(templateKey) {
@@ -1146,11 +1175,7 @@ class RichTextWidget {
       return;
     }
 
-    const range = this.quill?.getSelection(true);
-    const insertIndex = range ? range.index : this.quill?.getLength() || 0;
-    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
-    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, `${needsSpacing}${markup}<p><br></p>`);
-    this.quill.setSelection(this.quill.getLength(), 0, 'silent');
+    this.insertHtml(`${markup}<p><br></p>`);
   }
 
   insertTemplate(templateKey) {
@@ -1163,11 +1188,7 @@ class RichTextWidget {
       return;
     }
 
-    const range = this.quill.getSelection(true);
-    const insertIndex = range ? range.index : this.quill.getLength();
-    const needsSpacing = insertIndex > 0 ? '<p><br></p>' : '';
-    this.quill.clipboard.dangerouslyPasteHTML(insertIndex, `${needsSpacing}${html}`);
-    this.quill.setSelection(this.quill.getLength(), 0);
+    this.insertHtml(html);
   }
 
   serialize() {

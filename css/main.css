@@ -12036,8 +12036,8 @@ body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 7px;
-    padding: 2px 40px;
+    gap: 4px;
+    padding: 3px 34px;
     border-bottom-color: var(--widget-chrome-line);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 253, 0.98));
@@ -12050,15 +12050,14 @@ body.is-classroom-active:not(.projector-view) .rich-text-widget-inner.is-project
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0;
-    padding: 3px;
-    border: 1px solid rgba(27, 74, 101, 0.12);
-    border-radius: 11px;
-    background: rgba(255, 255, 255, 0.92);
-    box-shadow: 0 2px 6px rgba(31, 72, 110, 0.06);
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
     scrollbar-width: none;
 }
 
@@ -12077,14 +12076,16 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group + .rich-text-toolbar-group {
-    margin-left: 4px;
-    padding-left: 4px;
+    margin-left: 2px;
+    padding-left: 2px;
     border-left: 1px solid rgba(27, 74, 101, 0.14);
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field {
     position: relative;
-    min-width: 104px;
+    min-width: 0;
+    width: 90px;
+    max-width: 100%;
 }
 
 body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field::after {
@@ -12314,10 +12315,20 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid {
     gap: 5px;
 }
 
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-row,
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-panel .rich-text-toolbar-actions { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-row .rich-text-toolbar-layout-field { flex: 1 1 160px; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid button { white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
+body.is-classroom-active:not(.projector-view) details.rich-text-toolbar-more-section--teaching { display: block; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section--teaching > summary { position: static; display: flex; justify-content: space-between; width: auto; min-width: 0; padding: 5px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section--teaching > summary::after { content: '▸'; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-more-section--teaching[open] > summary::after { content: '▾'; }
+.rich-text-toolbar-insert-content { display: grid; gap: 8px; padding-top: 6px; }
+
 @container rich-text-editor (max-width: 520px) {
     body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar {
         gap: 5px;
-        padding-inline: 40px;
+        padding-inline: 34px;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group {
@@ -12333,12 +12344,12 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid {
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main {
         gap: 0;
-        padding: 2px;
+        padding: 0;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style {
-        min-width: 74px;
-        width: 74px;
+        min-width: 0;
+        width: 86px;
     }
 
     body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--align {
@@ -12373,6 +12384,32 @@ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-insert-grid {
         width: 28px;
         padding-inline: 4px;
     }
+}
+
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-secondary { display: flex; align-items: flex-start; align-self: start; gap: 3px; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions button { width: 30px; height: 32px; min-width: 30px; min-height: 32px; padding: 4px; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-done { display: grid; place-items: center; width: 30px; height: 32px; padding: 4px; border: 1px solid rgba(27,74,101,.14); border-radius: 7px; color: #17604c; background: #e9f7ef; cursor: pointer; }
+body.is-classroom-active:not(.projector-view) .rich-text-toolbar-done:hover { background: #d1f0e1; }
+.rich-text-toolbar-done:focus-visible { outline: 3px solid var(--a11y-focus-outline, #ffae00); outline-offset: 1px; }
+.rich-text-toolbar-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; }
+.rich-text-toolbar-status { margin: 0; font-size: 12px; line-height: 1.4; color: #9a3412; }
+.rich-text-toolbar-status[hidden] { display: none; }
+.rich-text-toolbar-actions button:disabled { opacity: .4; cursor: default; box-shadow: none; }
+.rich-text-widget-inner .ql-editor table { border-collapse: collapse; width: 100%; }
+.rich-text-widget-inner .ql-editor td { border: 1px solid currentColor; padding: 8px; min-width: 50px; }
+@container rich-text-editor (max-width: 310px) {
+ body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar { display: flex; flex-wrap: wrap; padding: 3px 34px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main { display: contents; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-secondary { margin-left: auto; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-group { max-width: 100%; min-width: 0; flex-wrap: wrap; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions { flex-wrap: wrap; max-width: 100%; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main .rich-text-toolbar-actions button { width: 26px; min-width: 26px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-field--style { width: 80px; }
+}
+@container rich-text-editor (max-width: 230px) {
+ body.is-classroom-active:not(.projector-view) .rich-text-editor-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); padding: 32px 5px 5px; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-main { display: flex; flex-wrap: wrap; }
+ body.is-classroom-active:not(.projector-view) .rich-text-toolbar-secondary { justify-self: end; }
 }
 
 /* =====================================================

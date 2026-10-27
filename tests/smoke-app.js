@@ -5911,7 +5911,7 @@ async function runSmoke() {
         const textColourMenu = richTextToolbar.locator('[data-format-menu="color"]');
         const highlightColourMenu = richTextToolbar.locator('[data-format-menu="background"]');
         assert(await richTextToolbar.locator('select[aria-label="Text style"] option').allTextContents().then((options) => options.includes('Small notes')), 'Text Board should offer a semantic Small notes style');
-        assert(await richTextToolbar.locator('select[aria-label="Alignment"]').isVisible(), 'Text Board should expose alignment controls');
+        assert(await moreFormatting.locator('select[aria-label="Alignment"]').count() === 1, 'Alignment stays available in More without crowding the main bar');
         assert(await richTextToolbar.locator('select[aria-label="Line spacing"] option').allTextContents().then((options) => options.join('|') === 'Tight|Normal|Relaxed'), 'Text Board should offer clear line-spacing choices');
         assert(await richTextToolbar.locator('.rich-text-toolbar-present').count() === 0, 'Present should not take permanent space in the formatting toolbar');
         assert(await richTextToolbar.locator('.rich-text-toolbar-main [data-format-menu]').count() === 0, 'Colour tools should not crowd the everyday formatting bar');
@@ -6018,6 +6018,7 @@ async function runSmoke() {
             assert(await richTextEditor.locator('span').evaluate((span) => getComputedStyle(span).backgroundColor) === 'rgb(254, 240, 138)', 'Highlight should survive palette focus replacing the browser selection');
         }
 
+        await moreFormatting.locator('.rich-text-toolbar-more-section--teaching > summary').click();
         assert(await moreFormatting.getByRole('button', { name: 'Learning intention' }).isVisible(), 'More should offer the Learning intention teaching block');
         assert(await moreFormatting.getByRole('button', { name: 'Success criteria' }).isVisible(), 'More should offer the Success criteria teaching block');
         assert(await moreFormatting.getByRole('button', { name: 'Warm-up' }).isVisible(), 'More should offer the Warm-up teaching block');
