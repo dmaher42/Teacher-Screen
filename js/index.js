@@ -4,7 +4,7 @@ import './core/event-bus.js';
 import './utils/widget-change-notifier.js';
 
 
-const LOCAL_ASSET_VERSION = '91';
+const LOCAL_ASSET_VERSION = '93';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 
@@ -149,6 +149,7 @@ const TEACHER_DEPENDENCIES = [
     { src: './js/widgets/mask-widget.js', required: false },
     { src: './js/widgets/notes-widget.js', required: false },
     { src: './js/widgets/wellbeing-widget.js', required: false },
+    { src: './js/utils/text-board-images.js', required: true },
     { src: './js/widgets/rich-text-widget.js', required: false }
 ];
 

@@ -225,6 +225,7 @@ class RichTextWidget {
 
       this.quill.on('text-change', this.handleTextChange);
       this.quill.on('selection-change', this.handleEditorSelectionChange);
+      this.imageControls = window.TeacherScreenTextBoardImages?.create(this) || null;
       this.editorToolbar.addEventListener('change', this.handleEditorToolbarChange);
       this.editorToolbar.addEventListener('click', this.handleEditorToolbarClick);
       this.editorToolbar.addEventListener('pointerdown', this.handleEditorToolbarPointerDown);
@@ -902,6 +903,7 @@ class RichTextWidget {
     this.quill.clipboard.dangerouslyPasteHTML(0, html);
     this.quill.setSelection(this.quill.getLength(), 0, 'silent');
     this.pendingContent = this.quill.root.innerHTML;
+    this.imageControls?.refresh();
     this.updateHeaderTitle();
     window.TeacherScreenWidgetState.notifyChanged(this, 'template-loaded');
   }
@@ -1201,6 +1203,7 @@ class RichTextWidget {
   }
 
   deserialize(data) {
+    this.imageControls?.clear();
     this.teacherOnly = data?.teacherOnly === true;
     this.showOnEveryPage = data?.showOnEveryPage === true;
     this.keepInFront = data?.keepInFront === true;
@@ -1257,6 +1260,7 @@ class RichTextWidget {
     editorShell.style.height = `${availableHeight}px`;
     editor.style.minHeight = `${availableHeight}px`;
     this.scheduleProjectorAutoFit();
+    this.imageControls?.refresh();
   }
 
   scheduleProjectorAutoFit() {
@@ -1318,6 +1322,7 @@ class RichTextWidget {
   }
 
   updateDisplayModeUI() {
+    if (this.isDisplayMode) this.imageControls?.clear();
     for (const [key, input] of Object.entries(this.scopeInputs || {})) input.checked = this[key] === true;
     this.element.classList.toggle('instruction-appearance', this.instructionAppearance);
     this.element.style.setProperty('--instruction-board-font-size', `${this.instructionFontSize}px`);
@@ -1387,6 +1392,8 @@ class RichTextWidget {
   onLayoutDiscard() { this.remove({ notify: false }); }
 
   remove({ notify = true } = {}) {
+    this.imageControls?.destroy();
+    this.imageControls = null;
     document.removeEventListener('keydown', this.handleDocumentKeydown);
     if (this.isDisplayMode && this.presentationMode === 'fullscreen') {
       document.body?.classList.remove('rich-text-presenting');
