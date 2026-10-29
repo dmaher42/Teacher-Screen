@@ -22,6 +22,7 @@ const WIDGET_ICON_CLASSES = {
     'document-viewer': 'fa-file-lines',
     'url-viewer': 'fa-link',
     'reveal-manager': 'fa-display',
+    'text-presentation': 'fa-file-powerpoint',
     mask: 'fa-eye-slash',
     notes: 'fa-note-sticky',
     wellbeing: 'fa-heart',

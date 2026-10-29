@@ -226,6 +226,7 @@ class RichTextWidget {
       this.quill.on('text-change', this.handleTextChange);
       this.quill.on('selection-change', this.handleEditorSelectionChange);
       this.imageControls = window.TeacherScreenTextBoardImages?.create(this) || null;
+      this.textPages?.editorReady();
       this.editorToolbar.addEventListener('change', this.handleEditorToolbarChange);
       this.editorToolbar.addEventListener('click', this.handleEditorToolbarClick);
       this.editorToolbar.addEventListener('pointerdown', this.handleEditorToolbarPointerDown);
@@ -425,6 +426,13 @@ class RichTextWidget {
 
   getControls() {
     return this.controlsOverlay;
+  }
+
+  enableTextPresentation(data) {
+    this.textPages?.destroy();
+    this.textPages = window.TeacherScreenTextBoardPages.create(this, data);
+    this.updateHeaderTitle();
+    return this;
   }
 
   getHeaderTitle() {
@@ -664,6 +672,7 @@ class RichTextWidget {
   }
 
   handleDocumentKeydown(event) {
+    if (this.textPages?.handleKeydown(event)) return;
     if (event.key !== 'Escape' || this.isProjectorMode()) {
       return;
     }
@@ -1096,6 +1105,7 @@ class RichTextWidget {
     this.maybeApplySmartFormatting(delta, source);
     this.pendingContent = this.quill.root.innerHTML;
     this.updateHeaderTitle();
+    this.textPages?.capture();
     this.syncToolbarState();
     window.TeacherScreenWidgetState.notifyChanged(this, 'content-updated');
   }
@@ -1198,12 +1208,15 @@ class RichTextWidget {
       instructionFontSize: this.instructionFontSize,
       content: this.quill ? this.quill.root.innerHTML : this.pendingContent,
       displayMode: this.isDisplayMode,
-      presentationMode: this.presentationMode
+      presentationMode: this.presentationMode,
+      ...(this.textPages ? { textPresentation: this.textPages.serialize() } : {})
     };
   }
 
   deserialize(data) {
     this.imageControls?.clear();
+    this.textPages?.destroy();
+    this.textPages = null;
     this.teacherOnly = data?.teacherOnly === true;
     this.showOnEveryPage = data?.showOnEveryPage === true;
     this.keepInFront = data?.keepInFront === true;
@@ -1213,6 +1226,7 @@ class RichTextWidget {
     this.pendingContent = data?.content || '';
     this.isDisplayMode = data?.displayMode === true;
     this.presentationMode = data?.presentationMode || 'normal';
+    if (data?.textPresentation) this.enableTextPresentation(data.textPresentation);
     this.element.classList.toggle('display-mode', this.isDisplayMode);
     this.element.classList.toggle('is-projector-mode', this.isProjectorMode());
     this.updateDisplayModeUI();
@@ -1227,9 +1241,11 @@ class RichTextWidget {
   }
 
   serializeForProjector() {
-    return this.teacherOnly
-      ? { content: '', customTitle: '', displayMode: true, presentationMode: 'normal', teacherOnly: true }
-      : this.serialize();
+    if (this.teacherOnly) return { content: '', customTitle: '', displayMode: true, presentationMode: 'normal', teacherOnly: true };
+    const data = this.serialize();
+    // The projector needs only the active slide, never the other planned slides or editing controls.
+    delete data.textPresentation;
+    return data;
   }
 
   onWidgetLayout() {
@@ -1323,6 +1339,7 @@ class RichTextWidget {
 
   updateDisplayModeUI() {
     if (this.isDisplayMode) this.imageControls?.clear();
+    this.textPages?.render();
     for (const [key, input] of Object.entries(this.scopeInputs || {})) input.checked = this[key] === true;
     this.element.classList.toggle('instruction-appearance', this.instructionAppearance);
     this.element.style.setProperty('--instruction-board-font-size', `${this.instructionFontSize}px`);
@@ -1392,6 +1409,8 @@ class RichTextWidget {
   onLayoutDiscard() { this.remove({ notify: false }); }
 
   remove({ notify = true } = {}) {
+    this.textPages?.destroy();
+    this.textPages = null;
     this.imageControls?.destroy();
     this.imageControls = null;
     document.removeEventListener('keydown', this.handleDocumentKeydown);

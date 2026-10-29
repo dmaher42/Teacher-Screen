@@ -11,7 +11,7 @@ const PROJECTOR_SYNC_TOKEN_KEY = 'teacher-screen-projector-sync-token';
 const EXTERNAL_OPTIONAL_DEPENDENCY_TIMEOUT_MS = 2500;
 const LOCAL_DEPENDENCY_TIMEOUT_MS = 10000;
 const PROJECTOR_SYNC_RETRY_DELAYS_MS = [250, 1000, 2500, 5000];
-const PROJECTOR_LOCAL_ASSET_VERSION = '93';
+const PROJECTOR_LOCAL_ASSET_VERSION = '94';
 
 window.__ProjectorConnection = {
     window: window,
@@ -107,6 +107,7 @@ const PROJECTOR_DEPENDENCIES = [
     { src: 'js/widgets/notes-widget.js', required: false },
     { src: 'js/widgets/wellbeing-widget.js', required: false },
     { src: 'js/utils/text-board-images.js', required: true },
+    { src: 'js/utils/text-board-pages.js', required: true },
     { src: 'js/widgets/rich-text-widget.js', required: false },
     { src: 'js/widgets/mask-widget.js', required: false }
 ];

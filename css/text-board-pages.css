@@ -1,0 +1,18 @@
+.text-presentation-nav { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 0 0 auto; padding: 6px 38px; border-bottom: 1px solid #cbd5e1; background: var(--card-background, #fff); color: var(--text-primary, #142f43); z-index: 5; }
+.text-presentation-nav[hidden], .is-projector-mode .text-presentation-nav { display: none !important; }
+.text-presentation-nav [hidden] { display: none !important; }
+.text-presentation-pair { display: flex; flex-wrap: nowrap; gap: 0; }
+.text-presentation-nav button, .text-presentation-nav select, .text-presentation-actions > summary { box-sizing: border-box; min-width: 44px; min-height: 44px; width: auto; margin: 0; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 8px; background: transparent; color: inherit; font: 13px/1.2 system-ui, sans-serif; }
+.text-presentation-nav > select { width: 136px; max-width: 100%; }
+.text-presentation-pair button:first-child { border-radius: 8px 0 0 8px; }
+.text-presentation-pair button:last-child { border-radius: 0 8px 8px 0; }
+.text-presentation-actions { position: static; }
+.text-presentation-actions > summary { display: grid; place-items: center; cursor: pointer; list-style: none; }
+.text-presentation-actions > summary::-webkit-details-marker { display: none; }
+.text-presentation-actions > div { position: absolute; top: 100%; left: 8px; display: flex; flex-direction: column; gap: 4px; width: min(200px, calc(100% - 16px)); box-sizing: border-box; padding: 6px; border: 1px solid #9fb6cb; border-radius: 8px; background: #fff; color: #142f43; box-shadow: 0 4px 12px #0003; }
+.text-presentation-actions:not([open]) > div { display: none; }
+.text-presentation-actions button { width: 100%; text-align: left; }
+.text-presentation-nav :focus-visible { outline: 3px solid #d97706; outline-offset: -2px; }
+.is-text-presentation .rich-text-editor-container { flex: 1 1 0; height: 0; min-height: 0; }
+@container (max-width: 520px) { .text-presentation-nav .text-slide-label { display: none; } }
+@container (max-width: 330px) { .text-presentation-nav { padding: 36px 8px 6px; } .text-presentation-nav > select { width: 114px; } }

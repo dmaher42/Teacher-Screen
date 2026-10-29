@@ -116,6 +116,15 @@ export const WidgetRegistry = {
         category: 'Secondary',
         create: () => new WellbeingWidget()
     },
+    'text-presentation': {
+        key: 'text-presentation',
+        className: 'RichTextWidget',
+        label: 'Text presentation',
+        icon: 'P',
+        description: 'Create editable text slides',
+        category: 'Secondary',
+        create: () => new RichTextWidget().enableTextPresentation()
+    },
     'rich-text': {
         key: 'rich-text',
         className: 'RichTextWidget',
@@ -156,7 +165,8 @@ const widgetTypeAliases = {
     mask: 'mask',
     notes: 'notes',
     wellbeing: 'wellbeing',
-    'rich-text': 'rich-text'
+    'rich-text': 'rich-text',
+    'text-presentation': 'text-presentation'
 };
 
 export function getRegistryWidgetKey(type) {
