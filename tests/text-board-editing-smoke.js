@@ -26,9 +26,9 @@ async function run() {
         browser = await chromium.launch({ channel: 'msedge', headless: true });
         const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
         await context.route(/^https:\/\//, route => libraries.has(route.request().url())
-            ? route.fulfill({ body: libraries.get(route.request().url()), contentType: route.request().url().endsWith('.css') ? 'text/css' : 'text/javascript' }) : route.abort());
+            ? route.fulfill({ body: libraries.get(route.request().url()), contentType: route.request().url().endsWith('.css') ? 'text/css' : 'text/javascript' }) : process.env.TEACHER_SCREEN_TEST_URL && new URL(route.request().url()).origin === new URL(process.env.TEACHER_SCREEN_TEST_URL).origin ? route.continue() : route.abort());
         const errors = []; context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
-        const page = await context.newPage(); const base = `http://127.0.0.1:${server.address().port}`;
+        const page = await context.newPage(); const base = process.env.TEACHER_SCREEN_TEST_URL || `http://127.0.0.1:${server.address().port}`;
         const ready = () => page.waitForFunction(() => window.__TeacherScreenApp?.widgets?.some(widget => widget.textPages && widget.quill));
         const remember = () => page.evaluate(() => { window.__editingPresentation = window.__TeacherScreenApp.widgets.find(widget => widget.textPages); });
         await page.goto(base); await page.waitForFunction(() => window.__TeacherScreenApp?.layoutManager);
@@ -51,8 +51,9 @@ async function run() {
         }, picture);
         const image = editor.locator('img'); await image.evaluate(img => img.decode());
         await image.click(); const size = board.getByLabel('Image width percent', { exact: true }); await size.waitFor();
-        const handle = board.locator('.text-board-image-handle--se'); const box = await handle.boundingBox(); assert(box.width >= 44 && box.height >= 44);
+        const handle = board.locator('.text-board-image-handle--se'); await handle.hover(); const box = await handle.boundingBox(); assert(box.width >= 44 && box.height >= 44);
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+        assert(await page.evaluate(() => !!window.__editingPresentation.imageControls.drag), 'Resize handle must receive pointerdown');
         await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 60, { steps: 8 }); await page.mouse.up();
         const resized = await image.getAttribute('width'); assert(parseFloat(resized) > 40);
         await editor.focus(); await page.keyboard.press('Control+z'); assert.equal(await image.getAttribute('width'), '40%');
@@ -89,7 +90,12 @@ async function run() {
         assert((await editor.innerText()).includes('First synthetic slide'));
         await board.screenshot({ path: path.join(output, 'text-presentation-present.png') });
         await page.keyboard.press('Escape'); assert(await editor.evaluate(el => el.contentEditable === 'true'));
-        await page.setViewportSize({ width: 390, height: 844 });
+        await page.setViewportSize({ width: 800, height: 844 });
+        await page.evaluate(() => {
+            const app = window.__TeacherScreenApp; const widget = window.__editingPresentation;
+            const info = app.layoutManager.widgets.find(info => info.widget === widget);
+            Object.assign(info, { x: 0, y: 0, width: 360, height: 700 }); app.layoutManager.mountWidgetElement(info); widget.syncEditorLayout();
+        });
         await page.waitForFunction(() => { const nav = document.querySelector('.text-presentation-nav'); return nav && nav.scrollWidth <= nav.clientWidth + 1; });
         assert(await nav.evaluate(el => [...el.querySelectorAll('button,select,summary')].filter(control => control.getClientRects().length).every(control => {
             const b = control.getBoundingClientRect(); const n = el.getBoundingClientRect(); return b.width >= 44 && b.height >= 44 && b.left >= n.left - 1 && b.right <= n.right + 1;
